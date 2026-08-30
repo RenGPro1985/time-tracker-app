@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SMB Time</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#0B0D12;--card:#151824;--card2:#1D2130;--gold:#E3A63E;--teal:#3FBFAE;--rose:#E2685F;--slate:#6B7183;--ink:#F3F1E9;--muted:#8B90A0;--line:rgba(255,255,255,.07)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:14px}
+.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:'Space Grotesk',sans-serif;margin:0}
+a{color:var(--gold)}
+.app{display:flex;min-height:100vh}
+.side{width:240px;flex:0 0 240px;background:#0E111A;border-right:1px solid var(--line);padding:20px 16px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+.logo .mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--gold),#b5791f);display:grid;place-items:center;font-weight:700;color:#141414;font-family:'Space Grotesk'}
+.logo b{font-family:'Space Grotesk';font-size:16px}
+.logo small{display:block;color:var(--muted);font-size:11px;font-weight:400}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav button{all:unset;box-sizing:border-box;cursor:pointer;padding:9px 12px;border-radius:10px;color:var(--muted);font-size:13.5px;display:block}
+.nav button:hover{background:var(--card);color:var(--ink)}
+.nav button.on{background:var(--card2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.side .clock{margin-top:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.side .clock .t{font-size:20px}.side .clock .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.main{flex:1;padding:22px 26px 60px;max-width:1240px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px}
+.grid{display:grid;gap:16px}.muted{color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.dot{width:7px;height:7px;border-radius:50%}
+.p-work{background:rgba(63,191,174,.13);color:var(--teal)}.p-work .dot{background:var(--teal)}
+.p-break{background:rgba(227,166,62,.14);color:var(--gold)}.p-break .dot{background:var(--gold)}
+.p-off{background:rgba(107,113,131,.18);color:#9aa0b1}.p-off .dot{background:var(--slate)}
+.p-bad{background:rgba(226,104,95,.14);color:var(--rose)}.p-bad .dot{background:var(--rose)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line)}
+td{padding:12px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13.5px}
+tr:last-child td{border-bottom:0}
+button.btn{all:unset;box-sizing:border-box;display:inline-block;cursor:pointer;padding:9px 16px;border-radius:11px;font-size:13px;font-weight:600;text-align:center}
+.btn.btn-gold{background:var(--gold);color:#151515}
+.btn.btn-teal{background:var(--teal);color:#0b1a18}
+.btn.btn-rose{background:var(--rose);color:#20090a}
+.btn.btn-ghost{box-shadow:inset 0 0 0 1px var(--line);color:var(--ink);background:var(--card2)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+select,input,textarea{background:var(--card2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 10px;font-size:13px;font-family:Inter;width:100%}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+.stat .k{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.08em}
+.stat .v{font-size:26px;margin-top:6px;font-family:'IBM Plex Mono'}
+.bigtimer{font-family:'IBM Plex Mono';font-size:54px;line-height:1}
+.acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.act{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px 13px;cursor:pointer}
+.act:hover{border-color:rgba(255,255,255,.18)}
+.act.on{border-color:var(--gold);background:rgba(227,166,62,.10)}
+.act .n{font-weight:600;font-size:13.5px}.act .b{font-size:11px;margin-top:5px}
+.bar{height:8px;background:var(--card2);border-radius:99px;overflow:hidden}.bar>i{display:block;height:100%;background:var(--teal)}
+.hide{display:none!important}
+.note{border-left:3px solid var(--gold);background:rgba(227,166,62,.07);padding:10px 14px;border-radius:0 10px 10px 0;font-size:12.5px;color:#d8d4c6}
+.err{border-left:3px solid var(--rose);background:rgba(226,104,95,.09);padding:10px 14px;border-radius:0 10px 10px 0;font-size:12.5px;color:#f0cfcc}
+.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:12px;flex-wrap:wrap}
+.badge{font-size:11px;color:var(--muted);border:1px solid var(--line);padding:3px 8px;border-radius:99px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#loginScreen{min-height:100vh;display:grid;place-items:center;padding:20px}
+.loginbox{width:100%;max-width:390px}
+label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:12px 0 6px}
+@media(max-width:820px){.app{flex-direction:column}.side{width:100%;height:auto;position:static;flex:0 0 auto}.main{padding:16px}.grid{grid-template-columns:1fr!important}}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="loginScreen">
+  <div class="loginbox card">
+    <div class="logo"><div class="mark">S</div><div><b>SMB Time</b><small>Virtual Staffing • Philippine Time</small></div></div>
+    <div id="loginErr" class="err hide"></div>
+
+    <div id="loginForm">
+      <label>Username</label><input id="liUser" autocomplete="username" placeholder="e.g. maria.santos">
+      <label>Password</label><input id="liPass" type="password" autocomplete="current-password" placeholder="••••••••">
+      <div style="margin-top:16px"><button class="btn btn-gold" style="width:100%" id="liBtn">Log in</button></div>
+      <div class="muted" style="font-size:12px;margin-top:12px">No password yet? Check the setup email sent to your work address, or ask your admin to resend it.</div>
+    </div>
+
+    <div id="setPassForm" class="hide">
+      <div class="note" style="margin-bottom:6px">Welcome! Set the password you'll use from now on.</div>
+      <label>New password (min 8 characters)</label><input id="npPass" type="password" autocomplete="new-password">
+      <label>Repeat password</label><input id="npPass2" type="password" autocomplete="new-password">
+      <div style="margin-top:16px"><button class="btn btn-teal" style="width:100%" id="npBtn">Save password</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div class="app hide" id="appShell">
+  <aside class="side">
+    <div class="logo"><div class="mark">S</div><div><b>SMB Time</b><small id="whoami">…</small></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div style="margin-top:14px"><button class="btn btn-ghost" style="width:100%" id="logoutAccount">Sign out of account</button></div>
+    <div class="clock">
+      <div class="l">Manila (PHT)</div><div class="t mono" id="phtClock">--:--:--</div>
+      <div class="l" style="margin-top:8px" id="clientTzLabel">Client time</div>
+      <div class="t mono" id="clientClock" style="font-size:16px;color:var(--muted)">--:--:--</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <div><h1 id="pageTitle" style="font-size:22px">Punch Clock</h1>
+      <div class="muted" id="pageSub" style="margin-top:4px;font-size:12.5px"></div></div>
+      <div id="roleBadge"></div>
+    </div>
+    <div id="banner"></div>
+
+    <!-- ---------- PUNCH CLOCK ---------- -->
+    <section id="v-punch" class="grid" style="grid-template-columns:1.35fr .95fr">
+      <div class="grid" style="gap:16px">
+        <div class="card">
+          <div class="hdr">
+            <div><div class="muted" style="font-size:12px" id="pcWho"></div>
+            <div class="muted mono" style="font-size:12px;margin-top:3px" id="pcShift"></div></div>
+            <span id="shiftPill" class="pill p-off"><span class="dot"></span>Logged out</span>
+          </div>
+          <div class="row" style="align-items:flex-end">
+            <div><div class="muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em">Shift timer</div>
+            <div class="bigtimer" id="shiftTimer">00:00:00</div>
+            <div class="muted mono" style="font-size:12px;margin-top:6px" id="actTimer"></div></div>
+            <div style="margin-left:auto" class="row">
+              <button class="btn btn-teal" id="loginBtn">LOGIN — start shift</button>
+              <button class="btn btn-ghost" id="stopBtn">Stop timer</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="hdr"><h3 style="font-size:15px">Activity</h3><span class="badge" id="curAct">Logged out</span></div>
+          <div class="acts" id="actGrid"></div>
+        </div>
+        <div class="card">
+          <div class="hdr"><h3 style="font-size:15px">Today's entries</h3><span class="badge" id="todayLabel"></span></div>
+          <table><thead><tr><th>Activity</th><th>Start</th><th>End</th><th>Duration</th><th>Type</th></tr></thead>
+          <tbody id="entries"></tbody></table>
+        </div>
+        <div class="card">
+          <div class="hdr"><h3 style="font-size:15px">Request a correction</h3><span class="badge">Admin must approve</span></div>
+          <div class="row" style="align-items:flex-end">
+            <div style="flex:0 0 170px"><label>Date</label><input type="date" id="corrDate"></div>
+            <div style="flex:1;min-width:220px"><label>What needs fixing?</label><input id="corrMsg" placeholder="e.g. Forgot to log out on Aug 27, actual logout 6:05 AM"></div>
+            <button class="btn btn-gold" id="corrBtn">Send request</button>
+          </div>
+          <div id="myCorrections" style="margin-top:14px"></div>
+        </div>
+      </div>
+      <div class="grid" style="gap:16px;align-content:start">
+        <div class="card">
+          <h3 style="font-size:15px;margin-bottom:14px">Today</h3>
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px">
+            <div class="stat"><div class="k">Billable</div><div class="v" style="color:var(--teal)" id="sBill">0:00</div></div>
+            <div class="stat"><div class="k">Non-billable</div><div class="v" style="color:var(--gold)" id="sNon">0:00</div></div>
+          </div>
+          <div style="margin-top:14px">
+            <div class="row" style="justify-content:space-between;font-size:12px"><span class="muted">Billable share</span><span class="mono" id="sPct">—</span></div>
+            <div class="bar" style="margin-top:6px"><i id="sBar" style="width:0%"></i></div>
+          </div>
+          <div class="row" style="justify-content:space-between;margin-top:14px;font-size:13px"><span class="muted">Total on shift</span><b class="mono" id="sTot">0:00</b></div>
+        </div>
+        <div class="card"><h3 style="font-size:15px;margin-bottom:10px">Break usage today</h3><div id="breaks"></div>
+          <div class="muted" style="font-size:11.5px;margin-top:6px">No hard caps — minutes over the allowance simply become non-billable.</div></div>
+        <div class="card"><h3 style="font-size:15px;margin-bottom:10px">This pay period</h3>
+          <div class="muted mono" style="font-size:12px" id="ppLabel">—</div>
+          <div class="row" style="justify-content:space-between;margin-top:10px"><span class="muted">Billable</span><b class="mono" style="color:var(--teal)" id="ppBill">0:00</b></div>
+          <div class="row" style="justify-content:space-between;margin-top:6px"><span class="muted">Non-billable</span><b class="mono" style="color:var(--gold)" id="ppNon">0:00</b></div>
+          <div class="row" style="justify-content:space-between;margin-top:6px"><span class="muted">Days worked</span><b class="mono" id="ppDays">0</b></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- ADMIN: LIVE STATUS ---------- -->
+    <section id="v-status" class="hide grid" style="gap:16px">
+      <div class="grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat"><div class="k">On shift now</div><div class="v" id="stOn">—</div></div>
+        <div class="stat"><div class="k">On break</div><div class="v" style="color:var(--gold)" id="stBreak">—</div></div>
+        <div class="stat"><div class="k">Off shift</div><div class="v" style="color:var(--slate)" id="stOff">—</div></div>
+        <div class="stat"><div class="k">Avg billable % today</div><div class="v" style="color:var(--teal)" id="stPct">—</div></div>
+      </div>
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">Live roster</h3>
+          <div class="row"><select id="fClient" style="width:auto"></select><select id="fStaff" style="width:auto"></select>
+          <select id="fStatus" style="width:auto"><option value="">All statuses</option><option>Working</option><option>On break</option><option>Off shift</option></select>
+          <button class="btn btn-ghost" id="refreshBtn">Refresh</button></div>
+        </div>
+        <table><thead><tr><th>Staff</th><th>Client</th><th>Shift (PHT)</th><th>Status</th><th>Activity</th><th>Logged today</th><th>Billable</th></tr></thead>
+        <tbody id="roster"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ---------- ADMIN: STAFF & CLIENTS ---------- -->
+    <section id="v-staff" class="hide grid" style="gap:16px">
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">Staff roster</h3><button class="btn btn-gold" id="toggleAdd">+ Add staff</button></div>
+        <div id="addForm" class="hide" style="background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px">
+          <div class="grid" style="grid-template-columns:repeat(5,1fr);gap:10px">
+            <div><label>Full name</label><input id="nName"></div>
+            <div><label>Username</label><input id="nUser" placeholder="maria.santos"></div>
+            <div><label>Work email</label><input id="nEmail" type="email"></div>
+            <div><label>Client</label><select id="nClient"></select></div>
+            <div><label>Role</label><select id="nRole"><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
+          </div>
+          <div class="row" style="margin-top:12px"><button class="btn btn-teal" id="saveStaff">Create &amp; send setup email</button>
+          <button class="btn btn-ghost" id="cancelAdd">Cancel</button><span class="muted" id="addMsg" style="font-size:12px"></span></div>
+        </div>
+        <table><thead><tr><th>Name</th><th>Username</th><th>Client</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
+      </div>
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">Clients &amp; shifts</h3><button class="btn btn-gold" id="toggleClient">+ Add client</button></div>
+        <div id="clientForm" class="hide" style="background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px">
+          <div class="grid" style="grid-template-columns:repeat(5,1fr);gap:10px">
+            <div><label>Client name</label><input id="cName"></div>
+            <div><label>Their timezone</label><input id="cTz" value="America/New_York"></div>
+            <div><label>Shift start (PHT)</label><input id="cStart" type="time" value="21:00"></div>
+            <div><label>Shift end (PHT)</label><input id="cEnd" type="time" value="06:00"></div>
+            <div><label>Workdays</label><input id="cDays" value="Mon-Fri"></div>
+          </div>
+          <div class="row" style="margin-top:12px"><button class="btn btn-teal" id="saveClient">Save client</button><button class="btn btn-ghost" id="cancelClient">Cancel</button></div>
+        </div>
+        <table><thead><tr><th>Client</th><th>Timezone</th><th>Shift (PHT)</th><th>Workdays</th><th>Staff</th><th></th></tr></thead><tbody id="clientTable"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ---------- ADMIN: TIMESHEETS ---------- -->
+    <section id="v-sheets" class="hide grid" style="gap:16px">
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">Timesheets</h3>
+          <div class="row">
+            <select id="pType" style="width:auto"><option value="biweekly">Bi-weekly (Wed–Tue)</option><option value="semi">Semi-monthly (5–20 / 21–4)</option><option value="custom">Custom range</option></select>
+            <select id="pPeriod" style="width:auto"></select>
+            <input type="date" id="pFrom" class="hide" style="width:auto"><input type="date" id="pTo" class="hide" style="width:auto">
+            <select id="pClient" style="width:auto"></select><select id="pStaff" style="width:auto"></select>
+            <button class="btn btn-ghost" id="runSheet">Run</button>
+            <button class="btn btn-gold" id="dlSummary">Download summary CSV</button>
+            <button class="btn btn-ghost" id="dlDetail">Download detail CSV</button>
+          </div>
+        </div>
+        <table><thead><tr><th>Staff</th><th>Client</th><th>Days</th><th>Billable</th><th>Non-billable</th><th>Total</th><th>Billable %</th></tr></thead><tbody id="sheetTable"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ---------- ADMIN: CORRECTIONS ---------- -->
+    <section id="v-corr" class="hide grid" style="gap:16px">
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
+        <select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div>
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Date</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody id="corrTable"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ---------- ADMIN: POLICY ---------- -->
+    <section id="v-policy" class="hide grid" style="gap:16px">
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Activity &amp; billing rules</h3><button class="btn btn-gold" id="savePolicy">Save allowances</button></div>
+        <table><thead><tr><th>Status</th><th>Billable</th><th>Allowance per shift (minutes)</th><th>Notes</th></tr></thead><tbody id="policyTable"></tbody></table>
+        <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>. On top of that, minutes spent on an activity <i>beyond</i> its allowance in a shift are also deducted from billable time. Set an allowance to 0 to never deduct.</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   1. CONFIGURATION — replace the three values below
+   ============================================================ */
+const SUPABASE_URL      = "PASTE_YOUR_SUPABASE_URL";      // e.g. https://abcdefgh.supabase.co
+const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_KEY"; // the "anon public" key - safe in the browser
+const SERVER_URL        = "PASTE_YOUR_RENDER_URL";        // e.g. https://smb-time-server.onrender.com
+/* ============================================================ */
+
+const ACTIVITIES = ['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','Meeting/Coaching'];
+const NON_BILLABLE = ['60min Break'];
+const BIWEEKLY_ANCHOR = '2026-08-19';       // a Wednesday; bi-weekly periods run Wed -> Tue
+const PH = 'Asia/Manila';
+
+const CONFIGURED = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SERVER_URL.startsWith('http');
+const sb = CONFIGURED ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const $ = id => document.getElementById(id);
+let me=null, clients=[], staffList=[], allowance={}, curShift=null, curEntry=null, tickBase=0, sheetRows=[], sheetDetail=[];
+
+/* ---------- date helpers (Philippine time) ---------- */
+function phParts(d){const f=new Intl.DateTimeFormat('en-CA',{timeZone:PH,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  const o={};f.formatToParts(d).forEach(p=>o[p.type]=p.value);return o;}
+function phDate(d){const p=phParts(d);return `${p.year}-${p.month}-${p.day}`;}
+function phTime(d){const p=phParts(d);return `${p.hour}:${p.minute}`;}
+function phClock(d){const p=phParts(d);return `${p.hour}:${p.minute}:${p.second}`;}
+function tzClock(d,tz){try{return new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);}catch(e){return '--:--:--';}}
+function hm(mins){const m=Math.max(0,Math.round(mins));return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
+function hms(sec){sec=Math.max(0,Math.floor(sec));return [Math.floor(sec/3600),Math.floor(sec/60)%60,sec%60].map(n=>String(n).padStart(2,'0')).join(':');}
+function addDays(iso,n){const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
+function daysBetween(a,b){return Math.round((new Date(b+'T00:00:00Z')-new Date(a+'T00:00:00Z'))/86400000);}
+function fmtNice(iso){const d=new Date(iso+'T00:00:00Z');return d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric',year:'numeric'});}
+
+/* pay periods */
+function biweeklyPeriod(dateIso){const i=Math.floor(daysBetween(BIWEEKLY_ANCHOR,dateIso)/14);const s=addDays(BIWEEKLY_ANCHOR,i*14);return{start:s,end:addDays(s,13)};}
+function semiPeriod(dateIso){const [y,m,d]=dateIso.split('-').map(Number);
+  if(d>=5&&d<=20)return{start:`${y}-${String(m).padStart(2,'0')}-05`,end:`${y}-${String(m).padStart(2,'0')}-20`};
+  if(d>=21){const s=`${y}-${String(m).padStart(2,'0')}-21`;const nm=m===12?1:m+1,ny=m===12?y+1:y;return{start:s,end:`${ny}-${String(nm).padStart(2,'0')}-04`};}
+  const pm=m===1?12:m-1,py=m===1?y-1:y;return{start:`${py}-${String(pm).padStart(2,'0')}-21`,end:`${y}-${String(m).padStart(2,'0')}-04`};}
+function periodList(type,count=14){const today=phDate(new Date());const out=[];
+  if(type==='biweekly'){let p=biweeklyPeriod(today);for(let i=0;i<count;i++){out.push(p);p=biweeklyPeriod(addDays(p.start,-1));}}
+  else{let p=semiPeriod(today);for(let i=0;i<count;i++){out.push(p);p=semiPeriod(addDays(p.start,-1));}}
+  return out;}
+
+/* ---------- billable math ---------- */
+function minutesOf(e,now){const s=new Date(e.started_at),t=e.ended_at?new Date(e.ended_at):(now||new Date());return Math.max(0,(t-s)/60000);}
+function summarize(entries,now){
+  const per={};let total=0;
+  entries.forEach(e=>{const m=minutesOf(e,now);per[e.activity]=(per[e.activity]||0)+m;total+=m;});
+  let billable=0;
+  Object.entries(per).forEach(([act,m])=>{
+    if(NON_BILLABLE.includes(act))return;
+    const cap=Number(allowance[act]||0);
+    billable+= cap>0 ? Math.min(m,cap) : m;
+  });
+  return {per,total,billable,nonbillable:total-billable};
+}
+
+/* ============================================================
+   2. LOGIN / SESSION
+   ============================================================ */
+function showLoginErr(msg){const el=$('loginErr');el.textContent=msg;el.classList.toggle('hide',!msg);}
+
+$('liBtn').onclick = async () => {
+  if(!CONFIGURED) return;
+  showLoginErr('');
+  const u=$('liUser').value.trim().toLowerCase(), p=$('liPass').value;
+  if(!u||!p)return showLoginErr('Enter your username and password.');
+  $('liBtn').disabled=true;
+  try{
+    let email=u;
+    if(!u.includes('@')){
+      const r=await fetch(SERVER_URL+'/api/resolve-username',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u})});
+      const j=await r.json();
+      if(!r.ok) throw new Error(j.error||'Username not found.');
+      email=j.email;
+    }
+    const {error}=await sb.auth.signInWithPassword({email,password:p});
+    if(error) throw new Error('Wrong username or password.');
+    await start();
+  }catch(e){showLoginErr(e.message);}
+  $('liBtn').disabled=false;
+};
+$('liPass').addEventListener('keydown',e=>{if(e.key==='Enter')$('liBtn').click();});
+
+$('npBtn').onclick = async () => {
+  showLoginErr('');
+  const a=$('npPass').value,b=$('npPass2').value;
+  if(a.length<8)return showLoginErr('Password must be at least 8 characters.');
+  if(a!==b)return showLoginErr('The two passwords do not match.');
+  const {error}=await sb.auth.updateUser({password:a});
+  if(error)return showLoginErr(error.message);
+  history.replaceState(null,'',location.pathname);
+  await start();
+};
+
+$('logoutAccount').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+async function boot(){
+  if(!CONFIGURED){
+    showLoginErr('Not configured yet: open index.html and paste your Supabase URL, Supabase anon key and Render server URL in the CONFIGURATION block near the top of the file.');
+    return;
+  }
+  const hash=location.hash||'';
+  const isSetup=hash.includes('type=invite')||hash.includes('type=recovery');
+  const {data:{session}}=await sb.auth.getSession();
+  if(isSetup&&session){$('loginForm').classList.add('hide');$('setPassForm').classList.remove('hide');return;}
+  if(session) return start();
+}
+
+/* ============================================================
+   3. APP START
+   ============================================================ */
+async function start(){
+  const {data:{user}}=await sb.auth.getUser();
+  const {data:row,error}=await sb.from('staff').select('*').eq('id',user.id).single();
+  if(error||!row){showLoginErr('Your account exists but is not on the staff list yet. Ask your admin.');await sb.auth.signOut();return;}
+  if(!row.active){showLoginErr('This account has been deactivated.');await sb.auth.signOut();return;}
+  me=row;
+  $('loginScreen').classList.add('hide');
+  $('appShell').classList.remove('hide');
+  $('whoami').textContent=me.full_name+(me.role==='admin'?' • Admin':'');
+  $('roleBadge').innerHTML=`<span class="pill ${me.role==='admin'?'p-work':'p-off'}"><span class="dot"></span>${me.role==='admin'?'Admin':'Staff'}</span>`;
+
+  const {data:cl}=await sb.from('clients').select('*').order('name'); clients=cl||[];
+  const {data:st}=await sb.from('settings').select('*').eq('key','break_allowance_minutes').maybeSingle();
+  allowance=st?.value||{};
+  if(me.role==='admin'){const {data:sl}=await sb.from('staff').select('*').order('full_name'); staffList=sl||[];}
+
+  buildNav();
+  renderActs();
+  await loadPunch();
+  setInterval(tick,1000);
+  setInterval(()=>{ if(document.getElementById('v-status').classList.contains('hide')===false) loadRoster(); },60000);
+}
+
+const PAGES={
+  'v-punch' :['🕒 Punch Clock','Punch Clock','Your shift, activities and totals'],
+  'v-status':['📡 Live Status','Live Status','Who is on shift right now'],
+  'v-staff' :['👥 Staff & Clients','Staff & Clients','Add or remove staff, manage client shifts'],
+  'v-sheets':['📄 Timesheets','Timesheets','Filter by pay period and export'],
+  'v-corr'  :['✏️ Corrections','Corrections','Approve or reject staff correction requests'],
+  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances']
+};
+let view='v-punch';
+function buildNav(){
+  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-sheets','v-corr','v-policy'] : ['v-punch'];
+  $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
+  $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
+  go(view);
+}
+function go(v){
+  view=v;
+  Object.keys(PAGES).forEach(id=>{const el=$(id); if(el) el.classList.add('hide');});
+  $(v).classList.remove('hide');
+  $('pageTitle').textContent=PAGES[v][1]; $('pageSub').textContent=PAGES[v][2];
+  $('nav').querySelectorAll('button').forEach(b=>b.className=(b.dataset.v===v?'on':''));
+  if(v==='v-status'){initFilters();loadRoster();}
+  if(v==='v-staff'){renderStaffAdmin();}
+  if(v==='v-sheets'){initSheetFilters();}
+  if(v==='v-corr'){loadCorrections();}
+  if(v==='v-policy'){renderPolicy();}
+}
+
+/* clocks + running timers */
+function tick(){
+  const now=new Date();
+  $('phtClock').textContent=phClock(now);
+  const c=clients.find(c=>c.id===me.client_id);
+  $('clientTzLabel').textContent = c? 'Client — '+c.timezone : 'Client time';
+  $('clientClock').textContent = c? tzClock(now,c.timezone) : '--:--:--';
+  if(curShift&&!curShift.logout_at){
+    $('shiftTimer').textContent=hms((now-new Date(curShift.login_at))/1000);
+    if(curEntry) $('actTimer').textContent=curEntry.activity+' — '+hms((now-new Date(curEntry.started_at))/1000);
+    else $('actTimer').textContent='Timer stopped — pick an activity to resume';
+  }
+}
+
+/* ============================================================
+   4. PUNCH CLOCK (staff)
+   ============================================================ */
+function renderActs(){
+  $('actGrid').innerHTML=ACTIVITIES.map(a=>{
+    const bill=!NON_BILLABLE.includes(a);
+    return `<div class="act ${curEntry&&curEntry.activity===a?'on':''}" data-a="${a}">
+      <div class="n">${a}</div>
+      <div class="b" style="color:${bill?'var(--teal)':'var(--rose)'}">${bill?'Billable':'Non-billable'}${allowance[a]>0?' • '+allowance[a]+'min allowance':''}</div></div>`;}).join('');
+  $('actGrid').querySelectorAll('.act').forEach(el=>el.onclick=()=>switchActivity(el.dataset.a));
+  $('curAct').textContent = curEntry ? 'Running: '+curEntry.activity : (curShift?'Timer stopped':'Logged out');
+}
+
+async function loadPunch(){
+  const c=clients.find(c=>c.id===me.client_id);
+  $('pcWho').innerHTML=`${me.full_name} • Client: <b style="color:var(--ink)">${c?c.name:'— not assigned —'}</b>`;
+  $('pcShift').textContent=c?`Shift ${c.shift_start.slice(0,5)} – ${c.shift_end.slice(0,5)} PHT (${c.workdays})`:'';
+  const {data:open}=await sb.from('shifts').select('*').eq('staff_id',me.id).is('logout_at',null).order('login_at',{ascending:false}).limit(1);
+  curShift=open&&open[0]?open[0]:null;
+  curEntry=null;
+  if(curShift){
+    const {data:oe}=await sb.from('entries').select('*').eq('shift_id',curShift.id).is('ended_at',null).order('started_at',{ascending:false}).limit(1);
+    curEntry=oe&&oe[0]?oe[0]:null;
+  }
+  paintShiftState();
+  await renderToday();
+  await renderPayPeriod();
+  await renderMyCorrections();
+  $('corrDate').value=phDate(new Date());
+}
+
+function paintShiftState(){
+  const on=!!curShift;
+  $('loginBtn').textContent = on?'LOGOUT — end shift':'LOGIN — start shift';
+  $('loginBtn').className='btn '+(on?'btn-rose':'btn-teal');
+  const p=$('shiftPill');
+  p.className='pill '+(on?(curEntry&&curEntry.activity.includes('Break')?'p-break':'p-work'):'p-off');
+  p.innerHTML=`<span class="dot"></span>${on?(curEntry?curEntry.activity:'On shift — timer stopped'):'Logged out'}`;
+  if(!on){$('shiftTimer').textContent='00:00:00';$('actTimer').textContent='';}
+  $('stopBtn').disabled=!curEntry;
+  renderActs();
+}
+
+$('loginBtn').onclick = async () => {
+  $('loginBtn').disabled=true;
+  try{
+    if(!curShift){
+      const {data,error}=await sb.from('shifts').insert({staff_id:me.id}).select().single();
+      if(error) throw error;
+      curShift=data;
+      const {data:e}=await sb.from('entries').insert({shift_id:curShift.id,staff_id:me.id,activity:'Working'}).select().single();
+      curEntry=e;
+    }else{
+      if(!confirm('End your shift now? This stops all timers.')){$('loginBtn').disabled=false;return;}
+      const now=new Date().toISOString();
+      if(curEntry) await sb.from('entries').update({ended_at:now}).eq('id',curEntry.id);
+      await sb.from('shifts').update({logout_at:now}).eq('id',curShift.id);
+      curShift=null;curEntry=null;
+    }
+    paintShiftState(); await renderToday(); await renderPayPeriod();
+  }catch(e){alert('Could not save: '+e.message);}
+  $('loginBtn').disabled=false;
+};
+
+$('stopBtn').onclick = async () => {
+  if(!curEntry)return;
+  await sb.from('entries').update({ended_at:new Date().toISOString()}).eq('id',curEntry.id);
+  curEntry=null; paintShiftState(); await renderToday();
+};
+
+async function switchActivity(act){
+  if(!curShift) return alert('Press LOGIN first — activities only run inside a shift.');
+  if(curEntry&&curEntry.activity===act) return;
+  const now=new Date().toISOString();
+  if(curEntry) await sb.from('entries').update({ended_at:now}).eq('id',curEntry.id);
+  const {data,error}=await sb.from('entries').insert({shift_id:curShift.id,staff_id:me.id,activity:act,started_at:now}).select().single();
+  if(error) return alert('Could not switch: '+error.message);
+  curEntry=data; paintShiftState(); await renderToday();
+}
+
+async function todaysEntries(){
+  const today=phDate(new Date());
+  const from=new Date(Date.now()-36*3600*1000).toISOString();
+  const {data}=await sb.from('entries').select('*').eq('staff_id',me.id).gte('started_at',from).order('started_at');
+  return (data||[]).filter(e=> curShift ? e.shift_id===curShift.id : phDate(new Date(e.started_at))===today );
+}
+
+async function renderToday(){
+  $('todayLabel').textContent=fmtNice(phDate(new Date()))+' (PHT)';
+  const es=await todaysEntries();
+  $('entries').innerHTML = es.length? es.map(e=>{
+    const bill=!NON_BILLABLE.includes(e.activity);
+    return `<tr><td>${e.activity}</td><td class="mono">${phTime(new Date(e.started_at))}</td>
+    <td class="mono">${e.ended_at?phTime(new Date(e.ended_at)):'— running —'}</td>
+    <td class="mono">${hm(minutesOf(e))}</td>
+    <td><span class="pill ${bill?'p-work':'p-bad'}"><span class="dot"></span>${bill?'Billable':'Non-billable'}</span></td></tr>`;}).join('')
+    : `<tr><td colspan="5" class="muted">No entries yet today.</td></tr>`;
+  const s=summarize(es);
+  $('sBill').textContent=hm(s.billable);$('sNon').textContent=hm(s.nonbillable);$('sTot').textContent=hm(s.total);
+  const pct=s.total?Math.round(s.billable/s.total*100):0;
+  $('sPct').textContent=s.total?pct+'%':'—';$('sBar').style.width=pct+'%';
+  $('breaks').innerHTML=['15min Break','30min Break','60min Break','Personal Break'].map(b=>{
+    const used=Math.round(s.per[b]||0),cap=Number(allowance[b]||0),w=cap?Math.min(100,used/cap*100):0;
+    return `<div style="margin-bottom:10px"><div class="row" style="justify-content:space-between;font-size:12.5px"><span>${b}</span>
+    <span class="mono muted">${used} / ${cap||'∞'} min</span></div>
+    <div class="bar" style="margin-top:5px"><i style="width:${w}%;background:${used>cap&&cap?'var(--rose)':'var(--gold)'}"></i></div></div>`;}).join('');
+}
+
+async function renderPayPeriod(){
+  const p=biweeklyPeriod(phDate(new Date()));
+  $('ppLabel').textContent=fmtNice(p.start)+' – '+fmtNice(p.end)+'  (bi-weekly)';
+  const rows=await fetchEntriesRange(p.start,p.end,[me.id]);
+  const byDay={};rows.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
+  let bill=0,non=0;Object.values(byDay).forEach(es=>{const s=summarize(es);bill+=s.billable;non+=s.nonbillable;});
+  $('ppBill').textContent=hm(bill);$('ppNon').textContent=hm(non);$('ppDays').textContent=Object.keys(byDay).length;
+}
+
+/* correction requests (staff side) */
+$('corrBtn').onclick = async () => {
+  const msg=$('corrMsg').value.trim(); if(!msg)return alert('Describe what needs fixing.');
+  const {error}=await sb.from('corrections').insert({staff_id:me.id,target_date:$('corrDate').value||null,message:msg});
+  if(error)return alert(error.message);
+  $('corrMsg').value=''; await renderMyCorrections(); alert('Sent to your admin.');
+};
+async function renderMyCorrections(){
+  const {data}=await sb.from('corrections').select('*').eq('staff_id',me.id).order('created_at',{ascending:false}).limit(5);
+  $('myCorrections').innerHTML=(data||[]).length? `<table><thead><tr><th>Date</th><th>Message</th><th>Status</th></tr></thead><tbody>`+
+    data.map(c=>`<tr><td class="mono">${c.target_date||'—'}</td><td>${escapeHtml(c.message)}</td>
+    <td><span class="pill ${c.status==='approved'?'p-work':c.status==='rejected'?'p-bad':'p-break'}"><span class="dot"></span>${c.status}</span></td></tr>`).join('')+`</tbody></table>`
+    : `<div class="muted" style="font-size:12.5px">No requests yet.</div>`;
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ============================================================
+   5. ADMIN — LIVE STATUS
+   ============================================================ */
+function initFilters(){
+  fill('fClient','All clients',clients.map(c=>[c.id,c.name]));
+  fill('fStaff','All staff',staffList.filter(s=>s.active).map(s=>[s.id,s.full_name]));
+  ['fClient','fStaff','fStatus'].forEach(id=>$(id).onchange=loadRoster);
+  $('refreshBtn').onclick=loadRoster;
+}
+function fill(id,blank,pairs){$(id).innerHTML=`<option value="">${blank}</option>`+pairs.map(p=>`<option value="${p[0]}">${escapeHtml(p[1])}</option>`).join('');}
+
+async function loadRoster(){
+  const from=new Date(Date.now()-36*3600*1000).toISOString();
+  const {data:ents}=await sb.from('entries').select('*').gte('started_at',from).order('started_at');
+  const {data:shs}=await sb.from('shifts').select('*').gte('login_at',from);
+  const openShift={}; (shs||[]).forEach(s=>{ if(!s.logout_at) openShift[s.staff_id]=s; });
+  const today=phDate(new Date());
+  const fc=$('fClient').value, fs=$('fStaff').value, fst=$('fStatus').value;
+  let on=0,br=0,off=0,pctSum=0,pctN=0;
+  const rows=staffList.filter(s=>s.active).map(s=>{
+    const sh=openShift[s.id];
+    const mine=(ents||[]).filter(e=>e.staff_id===s.id&&(sh?e.shift_id===sh.id:phDate(new Date(e.started_at))===today));
+    const running=mine.find(e=>!e.ended_at);
+    const sum=summarize(mine);
+    const status= !sh ? 'Off shift' : (running&&running.activity.includes('Break')?'On break':'Working');
+    if(status==='Off shift')off++;else if(status==='On break')br++;else on++;
+    if(sum.total>0){pctSum+=sum.billable/sum.total*100;pctN++;}
+    const c=clients.find(c=>c.id===s.client_id);
+    return {s,c,status,act:running?running.activity:'—',sum};
+  }).filter(r=>(!fc||r.s.client_id===fc)&&(!fs||r.s.id===fs)&&(!fst||r.status===fst));
+  $('stOn').textContent=on;$('stBreak').textContent=br;$('stOff').textContent=off;
+  $('stPct').textContent=pctN?Math.round(pctSum/pctN)+'%':'—';
+  const pill=st=>`<span class="pill ${st==='Working'?'p-work':st==='On break'?'p-break':'p-off'}"><span class="dot"></span>${st}</span>`;
+  $('roster').innerHTML=rows.length?rows.map(r=>`<tr><td><b>${escapeHtml(r.s.full_name)}</b></td>
+   <td class="muted">${r.c?escapeHtml(r.c.name):'—'}</td>
+   <td class="mono">${r.c?r.c.shift_start.slice(0,5)+' – '+r.c.shift_end.slice(0,5):'—'}</td>
+   <td>${pill(r.status)}</td><td>${r.act}</td><td class="mono">${hm(r.sum.total)}</td>
+   <td class="mono" style="color:var(--teal)">${hm(r.sum.billable)}</td></tr>`).join('')
+   :`<tr><td colspan="7" class="muted">No staff match those filters.</td></tr>`;
+}
+
+/* ============================================================
+   6. ADMIN — STAFF & CLIENTS
+   ============================================================ */
+async function api(path,opts={}){
+  const {data:{session}}=await sb.auth.getSession();
+  const r=await fetch(SERVER_URL+path,{...opts,headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token,...(opts.headers||{})}});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error||('Server error '+r.status));
+  return j;
+}
+$('toggleAdd').onclick=()=>{$('addForm').classList.toggle('hide');fill('nClient','— no client —',clients.map(c=>[c.id,c.name]));};
+$('cancelAdd').onclick=()=>$('addForm').classList.add('hide');
+$('saveStaff').onclick = async () => {
+  $('saveStaff').disabled=true;$('addMsg').textContent='Creating…';
+  try{
+    await api('/api/staff',{method:'POST',body:JSON.stringify({
+      full_name:$('nName').value.trim(),username:$('nUser').value.trim(),email:$('nEmail').value.trim(),
+      client_id:$('nClient').value||null,role:$('nRole').value})});
+    $('addMsg').textContent='Created — setup email sent.';
+    ['nName','nUser','nEmail'].forEach(i=>$(i).value='');
+    await reloadStaff();
+  }catch(e){$('addMsg').textContent='';alert(e.message);}
+  $('saveStaff').disabled=false;
+};
+async function reloadStaff(){const {data}=await sb.from('staff').select('*').order('full_name');staffList=data||[];renderStaffAdmin();}
+async function reloadClients(){const {data}=await sb.from('clients').select('*').order('name');clients=data||[];renderStaffAdmin();}
+
+function renderStaffAdmin(){
+  $('staffTable').innerHTML=staffList.map(s=>{
+    const c=clients.find(c=>c.id===s.client_id);
+    return `<tr><td><b>${escapeHtml(s.full_name)}</b><div class="muted" style="font-size:11.5px">${escapeHtml(s.email)}</div></td>
+    <td class="mono">${escapeHtml(s.username)}</td>
+    <td><select data-assign="${s.id}" style="width:auto"><option value="">— none —</option>${clients.map(c2=>`<option value="${c2.id}" ${c2.id===s.client_id?'selected':''}>${escapeHtml(c2.name)}</option>`).join('')}</select></td>
+    <td>${s.role}</td>
+    <td><span class="pill ${s.active?'p-work':'p-off'}"><span class="dot"></span>${s.active?'active':'inactive'}</span></td>
+    <td style="text-align:right" class="row" >
+      <button class="btn btn-ghost" data-reset="${s.id}">Reset password</button>
+      <button class="btn btn-ghost" data-toggle="${s.id}" data-active="${s.active}">${s.active?'Deactivate':'Reactivate'}</button>
+      <button class="btn btn-rose" data-del="${s.id}">Delete</button></td></tr>`;}).join('');
+  $('staffTable').querySelectorAll('[data-assign]').forEach(sel=>sel.onchange=async()=>{
+    const {error}=await sb.from('staff').update({client_id:sel.value||null}).eq('id',sel.dataset.assign);
+    if(error)alert(error.message); else reloadStaff();});
+  $('staffTable').querySelectorAll('[data-reset]').forEach(b=>b.onclick=async()=>{
+    try{await api('/api/staff/'+b.dataset.reset+'/reset-password',{method:'POST'});alert('Password reset email sent.');}catch(e){alert(e.message);}});
+  $('staffTable').querySelectorAll('[data-toggle]').forEach(b=>b.onclick=async()=>{
+    const act=b.dataset.active==='true';
+    try{await api('/api/staff/'+b.dataset.toggle+(act?'/deactivate':'/reactivate'),{method:'POST'});await reloadStaff();}catch(e){alert(e.message);}});
+  $('staffTable').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Delete this account AND all their time records? Deactivate instead if you need the history.'))return;
+    try{await api('/api/staff/'+b.dataset.del,{method:'DELETE'});await reloadStaff();}catch(e){alert(e.message);}});
+
+  $('clientTable').innerHTML=clients.map(c=>`<tr><td><b>${escapeHtml(c.name)}</b></td><td class="muted">${escapeHtml(c.timezone)}</td>
+    <td class="mono">${c.shift_start.slice(0,5)} – ${c.shift_end.slice(0,5)}</td><td>${escapeHtml(c.workdays)}</td>
+    <td class="mono">${staffList.filter(s=>s.client_id===c.id&&s.active).length}</td>
+    <td style="text-align:right"><button class="btn btn-ghost" data-delc="${c.id}">Remove</button></td></tr>`).join('');
+  $('clientTable').querySelectorAll('[data-delc]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Remove this client? Staff assigned to it will become unassigned.'))return;
+    const {error}=await sb.from('clients').delete().eq('id',b.dataset.delc);
+    if(error)alert(error.message); else reloadClients();});
+}
+$('toggleClient').onclick=()=>$('clientForm').classList.toggle('hide');
+$('cancelClient').onclick=()=>$('clientForm').classList.add('hide');
+$('saveClient').onclick=async()=>{
+  const name=$('cName').value.trim(); if(!name)return alert('Client name required.');
+  const {error}=await sb.from('clients').insert({name,timezone:$('cTz').value.trim(),shift_start:$('cStart').value,shift_end:$('cEnd').value,workdays:$('cDays').value.trim()});
+  if(error)return alert(error.message);
+  $('cName').value='';$('clientForm').classList.add('hide');await reloadClients();
+};
+
+/* ============================================================
+   7. ADMIN — TIMESHEETS
+   ============================================================ */
+function initSheetFilters(){
+  fill('pClient','All clients',clients.map(c=>[c.id,c.name]));
+  fill('pStaff','All staff',staffList.map(s=>[s.id,s.full_name]));
+  $('pType').onchange=refreshPeriods; refreshPeriods();
+  $('runSheet').onclick=runSheet;
+  $('dlSummary').onclick=()=>downloadCsv(summaryCsv(),'timesheet-summary');
+  $('dlDetail').onclick=()=>downloadCsv(detailCsv(),'timesheet-detail');
+}
+function refreshPeriods(){
+  const t=$('pType').value;
+  const custom=t==='custom';
+  $('pPeriod').classList.toggle('hide',custom);
+  $('pFrom').classList.toggle('hide',!custom);$('pTo').classList.toggle('hide',!custom);
+  if(!custom){
+    const list=periodList(t);
+    $('pPeriod').innerHTML=list.map(p=>`<option value="${p.start}|${p.end}">${fmtNice(p.start)} – ${fmtNice(p.end)}</option>`).join('');
+  }else{
+    const p=biweeklyPeriod(phDate(new Date()));$('pFrom').value=p.start;$('pTo').value=p.end;
+  }
+}
+function currentRange(){
+  if($('pType').value==='custom')return{start:$('pFrom').value,end:$('pTo').value};
+  const [s,e]=$('pPeriod').value.split('|');return{start:s,end:e};
+}
+async function fetchEntriesRange(startIso,endIso,staffIds){
+  // pull a day of padding on each side, then filter by PH date
+  const from=new Date(startIso+'T00:00:00+08:00'); from.setDate(from.getDate()-1);
+  const to=new Date(endIso+'T23:59:59+08:00'); to.setDate(to.getDate()+1);
+  let q=sb.from('entries').select('*').gte('started_at',from.toISOString()).lte('started_at',to.toISOString()).order('started_at');
+  if(staffIds&&staffIds.length===1) q=q.eq('staff_id',staffIds[0]);
+  const {data}=await q;
+  return (data||[]).filter(e=>{const d=phDate(new Date(e.started_at));return d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(e.staff_id));});
+}
+async function runSheet(){
+  const {start,end}=currentRange();
+  if(!start||!end)return alert('Pick a date range.');
+  const fc=$('pClient').value,fs=$('pStaff').value;
+  const people=staffList.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs));
+  const ents=await fetchEntriesRange(start,end,people.map(s=>s.id));
+  sheetRows=[];sheetDetail=[];
+  people.forEach(s=>{
+    const mine=ents.filter(e=>e.staff_id===s.id);
+    const byDay={};mine.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
+    let bill=0,non=0;
+    Object.keys(byDay).sort().forEach(d=>{
+      const sum=summarize(byDay[d]);bill+=sum.billable;non+=sum.nonbillable;
+      byDay[d].forEach(e=>sheetDetail.push({
+        staff:s.full_name,username:s.username,client:(clients.find(c=>c.id===s.client_id)||{}).name||'',
+        date:d,activity:e.activity,start:phTime(new Date(e.started_at)),end:e.ended_at?phTime(new Date(e.ended_at)):'(still running)',
+        minutes:Math.round(minutesOf(e)),billable:NON_BILLABLE.includes(e.activity)?'No':'Yes'}));
+    });
+    sheetRows.push({name:s.full_name,client:(clients.find(c=>c.id===s.client_id)||{}).name||'—',days:Object.keys(byDay).length,bill,non,total:bill+non});
+  });
+  $('sheetTable').innerHTML=sheetRows.length?sheetRows.map(r=>`<tr><td><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td>
+    <td class="mono">${r.days}</td><td class="mono" style="color:var(--teal)">${hm(r.bill)}</td>
+    <td class="mono" style="color:var(--gold)">${hm(r.non)}</td><td class="mono">${hm(r.total)}</td>
+    <td class="mono">${r.total?Math.round(r.bill/r.total*100)+'%':'—'}</td></tr>`).join('')
+    :`<tr><td colspan="7" class="muted">No data for that range.</td></tr>`;
+}
+function csvEscape(v){return '"'+String(v).replace(/"/g,'""')+'"';}
+function summaryCsv(){
+  const {start,end}=currentRange();
+  const head=['Staff','Client','Days worked','Billable hours','Non-billable hours','Total hours','Billable %'];
+  const lines=[[`Pay period ${start} to ${end} (Philippine time)`],[],head];
+  sheetRows.forEach(r=>lines.push([r.name,r.client,r.days,(r.bill/60).toFixed(2),(r.non/60).toFixed(2),(r.total/60).toFixed(2),r.total?Math.round(r.bill/r.total*100)+'%':'']));
+  return lines.map(l=>l.map(csvEscape).join(',')).join('\n');
+}
+function detailCsv(){
+  const head=['Staff','Username','Client','Date (PHT)','Activity','Start','End','Minutes','Billable'];
+  const lines=[head];
+  sheetDetail.forEach(d=>lines.push([d.staff,d.username,d.client,d.date,d.activity,d.start,d.end,d.minutes,d.billable]));
+  return lines.map(l=>l.map(csvEscape).join(',')).join('\n');
+}
+function downloadCsv(text,name){
+  if(!sheetRows.length)return alert('Press Run first.');
+  const {start,end}=currentRange();
+  const blob=new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${name}-${start}_${end}.csv`;a.click();URL.revokeObjectURL(a.href);
+}
+
+/* ============================================================
+   8. ADMIN — CORRECTIONS
+   ============================================================ */
+async function loadCorrections(){
+  $('corrFilter').onchange=loadCorrections;
+  let q=sb.from('corrections').select('*').order('created_at',{ascending:false}).limit(200);
+  if($('corrFilter').value==='pending')q=q.eq('status','pending');
+  const {data}=await q;
+  $('corrTable').innerHTML=(data||[]).length?data.map(c=>{
+    const s=staffList.find(x=>x.id===c.staff_id);
+    return `<tr><td class="mono">${phDate(new Date(c.created_at))}</td><td>${s?escapeHtml(s.full_name):'—'}</td>
+    <td class="mono">${c.target_date||'—'}</td><td>${escapeHtml(c.message)}</td>
+    <td><span class="pill ${c.status==='approved'?'p-work':c.status==='rejected'?'p-bad':'p-break'}"><span class="dot"></span>${c.status}</span></td>
+    <td style="text-align:right">${c.status==='pending'?`<button class="btn btn-teal" data-ok="${c.id}">Approve</button> <button class="btn btn-ghost" data-no="${c.id}">Reject</button>`:''}</td></tr>`;
+  }).join(''):`<tr><td colspan="6" class="muted">Nothing here.</td></tr>`;
+  $('corrTable').querySelectorAll('[data-ok]').forEach(b=>b.onclick=()=>decide(b.dataset.ok,'approved'));
+  $('corrTable').querySelectorAll('[data-no]').forEach(b=>b.onclick=()=>decide(b.dataset.no,'rejected'));
+}
+async function decide(id,status){
+  const note=prompt(status==='approved'?'Note (optional) — what did you change?':'Reason (optional)')||null;
+  const {error}=await sb.from('corrections').update({status,admin_note:note,reviewed_by:me.id,reviewed_at:new Date().toISOString()}).eq('id',id);
+  if(error)return alert(error.message);
+  loadCorrections();
+}
+
+/* ============================================================
+   9. ADMIN — POLICY
+   ============================================================ */
+function renderPolicy(){
+  $('policyTable').innerHTML=ACTIVITIES.map(a=>{
+    const bill=!NON_BILLABLE.includes(a);
+    return `<tr><td><b>${a}</b></td>
+    <td><span class="pill ${bill?'p-work':'p-bad'}"><span class="dot"></span>${bill?'Billable':'Non-billable'}</span></td>
+    <td><input type="number" min="0" step="5" data-alw="${a}" value="${Number(allowance[a]||0)}" style="width:110px"></td>
+    <td class="muted">${a==='60min Break'?'Never billable':(Number(allowance[a]||0)?'Minutes beyond this become non-billable':'No deduction')}</td></tr>`;}).join('');
+  $('savePolicy').onclick=async()=>{
+    const v={};$('policyTable').querySelectorAll('[data-alw]').forEach(i=>v[i.dataset.alw]=Number(i.value||0));
+    const {error}=await sb.from('settings').upsert({key:'break_allowance_minutes',value:v});
+    if(error)return alert(error.message);
+    allowance=v;renderPolicy();renderActs();alert('Saved.');
+  };
+}
+
+/* go */
+boot();
+</script>
+</body>
+</html>
