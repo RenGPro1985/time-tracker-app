@@ -2,7 +2,8 @@
 // SMB TIME - small helper server (deploy this folder on Render)
 // It does only the things the browser is NOT allowed to do:
 //   1. turn a username into an email so staff can log in with a username
-//   2. create staff accounts + send them a setup email
+//   2. create staff accounts (email invite OR instant temporary password)
+//   2b. create many staff at once from a pasted list
 //   3. deactivate / delete staff
 //   4. send a password reset email
 // ============================================================
@@ -34,6 +35,54 @@ app.use(cors({ origin: ALLOWED_ORIGIN === '*' ? true : ALLOWED_ORIGIN.split(',')
 app.get('/', (_req, res) => res.send('SMB Time server is running.'));
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
+
+// --- helper: readable temporary password --------------------------------
+function tempPassword(){
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';     // no I or O
+  const digits  = '23456789';                      // no 0 or 1
+  const pick = (set, n) => Array.from({length:n}, () => set[Math.floor(Math.random()*set.length)]).join('');
+  return 'SMB-' + pick(letters,4) + '-' + pick(digits,4);
+}
+
+// --- helper: create one staff member ------------------------------------
+// mode 'password' works even when email sending is broken or rate-limited.
+async function createOneStaff(body, mode){
+  const full_name = String(body?.full_name || '').trim();
+  const username  = String(body?.username || '').trim().toLowerCase();
+  const email     = String(body?.email || '').trim().toLowerCase();
+  const client_id = body?.client_id || null;
+  const role      = body?.role === 'admin' ? 'admin' : 'staff';
+  if (!full_name || !username || !email) return { error: 'Name, username and email are required.' };
+
+  const { data: dupe } = await admin.from('staff').select('id')
+    .or(`username.eq.${username},email.eq.${email}`).maybeSingle();
+  if (dupe) return { error: 'That username or email already exists.' };
+
+  let userId, temp = null;
+  if (mode === 'password') {
+    temp = tempPassword();
+    const { data, error } = await admin.auth.admin.createUser({
+      email, password: temp, email_confirm: true, user_metadata: { full_name, username }
+    });
+    if (error) return { error: 'Could not create login: ' + error.message };
+    userId = data.user.id;
+  } else {
+    const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: APP_URL || undefined, data: { full_name, username }
+    });
+    if (error) return { error: 'Could not send invite: ' + error.message };
+    userId = data.user.id;
+  }
+
+  const { error: insErr } = await admin.from('staff')
+    .insert({ id: userId, full_name, username, email, client_id, role });
+  if (insErr) {
+    await admin.auth.admin.deleteUser(userId); // roll back so nothing is half-created
+    return { error: 'Could not save staff row: ' + insErr.message };
+  }
+  return { ok: true, id: userId, temp_password: temp };
+}
+
 // --- helper: make sure the caller is a logged-in admin -------------------
 async function requireAdmin(req, res) {
   const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
@@ -54,33 +103,33 @@ app.post('/api/resolve-username', async (req, res) => {
   res.json({ email: data.email });
 });
 
-// --- 2. create a staff account + send setup email -----------------------
+// --- 2. create ONE staff account ----------------------------------------
+// body.mode: 'password' (instant, no email) or 'invite' (emails a setup link)
 app.post('/api/staff', async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
-  const full_name = String(req.body?.full_name || '').trim();
-  const username  = String(req.body?.username || '').trim().toLowerCase();
-  const email     = String(req.body?.email || '').trim().toLowerCase();
-  const client_id = req.body?.client_id || null;
-  const role      = req.body?.role === 'admin' ? 'admin' : 'staff';
-  if (!full_name || !username || !email) return res.status(400).json({ error: 'Name, username and email are required.' });
+  const mode = req.body?.mode === 'invite' ? 'invite' : 'password';
+  const r = await createOneStaff(req.body, mode);
+  if (r.error) return res.status(400).json({ error: r.error });
+  res.json(r);
+});
 
-  const { data: dupe } = await admin.from('staff').select('id').or(`username.eq.${username},email.eq.${email}`).maybeSingle();
-  if (dupe) return res.status(409).json({ error: 'That username or email already exists.' });
-
-  // invite = creates the auth user and emails them a "set your password" link
-  const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: APP_URL || undefined,
-    data: { full_name, username }
-  });
-  if (inviteErr) return res.status(400).json({ error: 'Could not send invite: ' + inviteErr.message });
-
-  const { error: insErr } = await admin.from('staff')
-    .insert({ id: invited.user.id, full_name, username, email, client_id, role });
-  if (insErr) {
-    await admin.auth.admin.deleteUser(invited.user.id); // roll back so nothing is half-created
-    return res.status(400).json({ error: 'Could not save staff row: ' + insErr.message });
+// --- 2b. create MANY staff at once --------------------------------------
+// body.rows = [{full_name, username, email, client_id, role}, ...]
+// Always uses temporary passwords, so it never depends on email delivery.
+app.post('/api/staff/bulk', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+  if (!rows.length) return res.status(400).json({ error: 'No rows sent.' });
+  if (rows.length > 100) return res.status(400).json({ error: 'Maximum 100 people at a time.' });
+  const results = [];
+  for (const row of rows) {
+    const r = await createOneStaff(row, 'password');
+    results.push({
+      full_name: row.full_name, username: row.username, email: row.email,
+      ok: !!r.ok, temp_password: r.temp_password || '', error: r.error || ''
+    });
   }
-  res.json({ ok: true, id: invited.user.id });
+  res.json({ results });
 });
 
 // --- 3a. deactivate (keeps their history) --------------------------------
@@ -114,6 +163,15 @@ app.post('/api/staff/:id/reset-password', async (req, res) => {
   const { error } = await admin.auth.resetPasswordForEmail(row.email, { redirectTo: APP_URL || undefined });
   if (error) return res.status(400).json({ error: error.message });
   res.json({ ok: true });
+});
+
+// --- 4b. set a NEW temporary password (no email needed) ------------------
+app.post('/api/staff/:id/temp-password', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const temp = tempPassword();
+  const { error } = await admin.auth.admin.updateUserById(req.params.id, { password: temp, email_confirm: true });
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ ok: true, temp_password: temp });
 });
 
 app.listen(PORT, () => console.log('SMB Time server listening on ' + PORT));
