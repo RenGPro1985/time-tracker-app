@@ -455,7 +455,7 @@ function renderActs(){
 
 async function loadPunch(){
   const c=clients.find(c=>c.id===me.client_id);
-  $('pcWho').innerHTML=`${me.full_name} • Client: <b style="color:var(--ink)">${c?c.name:'— not assigned —'}</b>${c?'':' <span style="color:var(--rose)">Billable hours can't be computed — no client is assigned to your account. Contact your admin.</span>'}`;
+  $('pcWho').innerHTML=`${me.full_name} • Client: <b style="color:var(--ink)">${c?c.name:'— not assigned —'}</b>${c?'':' <span style="color:var(--rose)">Billable hours cannot be computed — no client is assigned to your account. Contact your admin.</span>'}`;
   $('pcShift').textContent=c?`Shift ${c.shift_start.slice(0,5)} – ${c.shift_end.slice(0,5)} PHT (${c.workdays})`:'';
   const {data:open}=await sb.from('shifts').select('*').eq('staff_id',me.id).is('logout_at',null).order('login_at',{ascending:false}).limit(1);
   curShift=open&&open[0]?open[0]:null;
