@@ -257,7 +257,7 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
     <section id="v-policy" class="hide grid" style="gap:16px">
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Activity &amp; billing rules</h3><button class="btn btn-gold" id="savePolicy">Save allowances</button></div>
         <table><thead><tr><th>Status</th><th>Billable</th><th>Allowance per shift (minutes)</th><th>Notes</th></tr></thead><tbody id="policyTable"></tbody></table>
-        <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>. On top of that, minutes spent on an activity <i>beyond</i> its allowance in a shift are also deducted from billable time. Set an allowance to 0 to never deduct.</div>
+        <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>, but only for time inside your shift window — time logged before your shift starts or after it ends is automatically non-billable. Select <b>Overtime</b> to bill time outside the shift window; Overtime has no cap and is always fully billable. On top of that, minutes spent on a normal activity beyond its allowance in a shift are also deducted from billable time (Overtime is never capped). Set an allowance to 0 to never deduct.</div>
       </div>
     </section>
   </main>
@@ -272,7 +272,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const SERVER_URL        = "https://time-tracker-app-95fe.onrender.com";        // e.g. https://smb-time-server.onrender.com
 /* ============================================================ */
 
-const ACTIVITIES = ['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','Meeting/Coaching'];
+const ACTIVITIES = ['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','Meeting/Coaching','Overtime'];const OVERTIME = 'Overtime';
 const NON_BILLABLE = ['60min Break'];
 const BIWEEKLY_ANCHOR = '2026-08-19';       // a Wednesday; bi-weekly periods run Wed -> Tue
 const PH = 'Asia/Manila';
@@ -288,7 +288,7 @@ function phParts(d){const f=new Intl.DateTimeFormat('en-CA',{timeZone:PH,year:'n
 function phDate(d){const p=phParts(d);return `${p.year}-${p.month}-${p.day}`;}
 function phTime(d){const p=phParts(d);return `${p.hour}:${p.minute}`;}
 function phClock(d){const p=phParts(d);return `${p.hour}:${p.minute}:${p.second}`;}
-function tzClock(d,tz){try{return new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);}catch(e){return '--:--:--';}}
+function tzClock(d,tz){try{return new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);}catch(e){return '--:--:--';}} function shiftWindowFor(client,dateIso){ if(!client||!client.shift_start||!client.shift_end) return null; const pad=t=>t.length===5?t+':00':t; const start=new Date(dateIso+'T'+pad(client.shift_start)+'+08:00'); let end=new Date(dateIso+'T'+pad(client.shift_end)+'+08:00'); if(end<=start) end=new Date(end.getTime()+86400000); return {start,end}; }
 function hm(mins){const m=Math.max(0,Math.round(mins));return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
 function hms(sec){sec=Math.max(0,Math.floor(sec));return [Math.floor(sec/3600),Math.floor(sec/60)%60,sec%60].map(n=>String(n).padStart(2,'0')).join(':');}
 function addDays(iso,n){const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
@@ -308,12 +308,12 @@ function periodList(type,count=14){const today=phDate(new Date());const out=[];
 
 /* ---------- billable math ---------- */
 function minutesOf(e,now){const s=new Date(e.started_at),t=e.ended_at?new Date(e.ended_at):(now||new Date());return Math.max(0,(t-s)/60000);}
-function summarize(entries,now){
+function summarize(entries,now,window){
   const per={};let total=0;
   entries.forEach(e=>{const m=minutesOf(e,now);per[e.activity]=(per[e.activity]||0)+m;total+=m;});
-  let billable=0;
-  Object.entries(per).forEach(([act,m])=>{
-    if(NON_BILLABLE.includes(act))return;
+  const perBillableRaw={}; entries.forEach(e=>{ if(NON_BILLABLE.includes(e.activity))return; let inside; if(e.activity===OVERTIME){ inside=minutesOf(e,now); } else if(!window){ inside=0; } else { const s=new Date(e.started_at), t=e.ended_at?new Date(e.ended_at):(now||new Date()); const clipStart=Math.max(s.getTime(),window.start.getTime()); const clipEnd=Math.min(t.getTime(),window.end.getTime()); inside=Math.max(0,(clipEnd-clipStart)/60000); } perBillableRaw[e.activity]=(perBillableRaw[e.activity]||0)+inside; }); let billable=0;
+  Object.entries(perBillableRaw).forEach(([act,m])=>{
+    if(act===OVERTIME){billable+=m;return;}
     const cap=Number(allowance[act]||0);
     billable+= cap>0 ? Math.min(m,cap) : m;
   });
@@ -455,7 +455,7 @@ function renderActs(){
 
 async function loadPunch(){
   const c=clients.find(c=>c.id===me.client_id);
-  $('pcWho').innerHTML=`${me.full_name} • Client: <b style="color:var(--ink)">${c?c.name:'— not assigned —'}</b>`;
+  $('pcWho').innerHTML=`${me.full_name} • Client: <b style="color:var(--ink)">${c?c.name:'— not assigned —'}</b>${c?'':' <span style="color:var(--rose)">Billable hours can't be computed — no client is assigned to your account. Contact your admin.</span>'}`;
   $('pcShift').textContent=c?`Shift ${c.shift_start.slice(0,5)} – ${c.shift_end.slice(0,5)} PHT (${c.workdays})`:'';
   const {data:open}=await sb.from('shifts').select('*').eq('staff_id',me.id).is('logout_at',null).order('login_at',{ascending:false}).limit(1);
   curShift=open&&open[0]?open[0]:null;
@@ -529,7 +529,7 @@ async function todaysEntries(){
 
 async function renderToday(){
   $('todayLabel').textContent=fmtNice(phDate(new Date()))+' (PHT)';
-  const es=await todaysEntries();
+  const es=await todaysEntries(); const cMe=clients.find(x=>x.id===me.client_id); const anchorDate=curShift?phDate(new Date(curShift.login_at)):phDate(new Date()); const myWindow=shiftWindowFor(cMe,anchorDate);
   $('entries').innerHTML = es.length? es.map(e=>{
     const bill=!NON_BILLABLE.includes(e.activity);
     return `<tr><td>${e.activity}</td><td class="mono">${phTime(new Date(e.started_at))}</td>
@@ -537,7 +537,7 @@ async function renderToday(){
     <td class="mono">${hm(minutesOf(e))}</td>
     <td><span class="pill ${bill?'p-work':'p-bad'}"><span class="dot"></span>${bill?'Billable':'Non-billable'}</span></td></tr>`;}).join('')
     : `<tr><td colspan="5" class="muted">No entries yet today.</td></tr>`;
-  const s=summarize(es);
+  const s=summarize(es,null,myWindow);
   $('sBill').textContent=hm(s.billable);$('sNon').textContent=hm(s.nonbillable);$('sTot').textContent=hm(s.total);
   const pct=s.total?Math.round(s.billable/s.total*100):0;
   $('sPct').textContent=s.total?pct+'%':'—';$('sBar').style.width=pct+'%';
@@ -553,7 +553,7 @@ async function renderPayPeriod(){
   $('ppLabel').textContent=fmtNice(p.start)+' – '+fmtNice(p.end)+'  (bi-weekly)';
   const rows=await fetchEntriesRange(p.start,p.end,[me.id]);
   const byDay={};rows.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
-  let bill=0,non=0;Object.values(byDay).forEach(es=>{const s=summarize(es);bill+=s.billable;non+=s.nonbillable;});
+  const cMe=clients.find(x=>x.id===me.client_id); let bill=0,non=0;Object.entries(byDay).forEach(([d,es])=>{const w=shiftWindowFor(cMe,d);const s=summarize(es,null,w);bill+=s.billable;non+=s.nonbillable;});
   $('ppBill').textContent=hm(bill);$('ppNon').textContent=hm(non);$('ppDays').textContent=Object.keys(byDay).length;
 }
 
@@ -596,11 +596,11 @@ async function loadRoster(){
     const sh=openShift[s.id];
     const mine=(ents||[]).filter(e=>e.staff_id===s.id&&(sh?e.shift_id===sh.id:phDate(new Date(e.started_at))===today));
     const running=mine.find(e=>!e.ended_at);
-    const sum=summarize(mine);
+    const anchorDate=sh?phDate(new Date(sh.login_at)):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate));
     const status= !sh ? 'Off shift' : (running&&running.activity.includes('Break')?'On break':'Working');
     if(status==='Off shift')off++;else if(status==='On break')br++;else on++;
     if(sum.total>0){pctSum+=sum.billable/sum.total*100;pctN++;}
-    const c=clients.find(c=>c.id===s.client_id);
+    
     return {s,c,status,act:running?running.activity:'—',sum};
   }).filter(r=>(!fc||r.s.client_id===fc)&&(!fs||r.s.id===fs)&&(!fst||r.status===fst));
   $('stOn').textContent=on;$('stBreak').textContent=br;$('stOff').textContent=off;
@@ -727,11 +727,11 @@ async function runSheet(){
   const ents=await fetchEntriesRange(start,end,people.map(s=>s.id));
   sheetRows=[];sheetDetail=[];
   people.forEach(s=>{
-    const mine=ents.filter(e=>e.staff_id===s.id);
+    const mine=ents.filter(e=>e.staff_id===s.id); const sc=clients.find(c=>c.id===s.client_id);
     const byDay={};mine.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
     let bill=0,non=0;
     Object.keys(byDay).sort().forEach(d=>{
-      const sum=summarize(byDay[d]);bill+=sum.billable;non+=sum.nonbillable;
+      const sum=summarize(byDay[d],null,shiftWindowFor(sc,d));bill+=sum.billable;non+=sum.nonbillable;
       byDay[d].forEach(e=>sheetDetail.push({
         staff:s.full_name,username:s.username,client:(clients.find(c=>c.id===s.client_id)||{}).name||'',
         date:d,activity:e.activity,start:phTime(new Date(e.started_at)),end:e.ended_at?phTime(new Date(e.ended_at)):'(still running)',
@@ -799,8 +799,8 @@ function renderPolicy(){
     const bill=!NON_BILLABLE.includes(a);
     return `<tr><td><b>${a}</b></td>
     <td><span class="pill ${bill?'p-work':'p-bad'}"><span class="dot"></span>${bill?'Billable':'Non-billable'}</span></td>
-    <td><input type="number" min="0" step="5" data-alw="${a}" value="${Number(allowance[a]||0)}" style="width:110px"></td>
-    <td class="muted">${a==='60min Break'?'Never billable':(Number(allowance[a]||0)?'Minutes beyond this become non-billable':'No deduction')}</td></tr>`;}).join('');
+    <td><input type="number" min="0" step="5" data-alw="${a}" value="${a===OVERTIME?'':Number(allowance[a]||0)}" placeholder="${a===OVERTIME?'No cap':''}" ${a===OVERTIME?'disabled':''} style="width:110px"></td>
+    <td class="muted">${a===OVERTIME?'Always fully billable, even outside the shift window':a==='60min Break'?'Never billable':(Number(allowance[a]||0)?'Minutes beyond this become non-billable':'No deduction')}</td></tr>`;}).join('');
   $('savePolicy').onclick=async()=>{
     const v={};$('policyTable').querySelectorAll('[data-alw]').forEach(i=>v[i.dataset.alw]=Number(i.value||0));
     const {error}=await sb.from('settings').upsert({key:'break_allowance_minutes',value:v});
