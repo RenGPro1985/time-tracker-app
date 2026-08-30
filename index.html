@@ -77,10 +77,10 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
     <div id="loginErr" class="err hide"></div>
 
     <div id="loginForm">
-      <label>Email or username</label><input id="liUser" autocomplete="username" placeholder="Your work email (fastest — skips the server)">
+      <label>Username</label><input id="liUser" autocomplete="username" placeholder="e.g. maria.santos">
       <label>Password</label><input id="liPass" type="password" autocomplete="current-password" placeholder="••••••••">
       <div style="margin-top:16px"><button class="btn btn-gold" style="width:100%" id="liBtn">Log in</button></div>
-      <div class="muted" style="font-size:12px;margin-top:12px">Tip: log in with your email for an instant login. Using your username works too, but can take up to ~50s the first time if the server's been idle. No password yet? Check the setup email sent to your work address, or ask your admin to resend it.</div>
+      <div class="muted" style="font-size:12px;margin-top:12px">No password yet? Check the setup email sent to your work address, or ask your admin to resend it.</div>
     </div>
 
     <div id="setPassForm" class="hide">
@@ -93,11 +93,25 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
 </div>
 
 <!-- ===================== APP ===================== -->
+<div id="pwOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:60;align-items:center;justify-content:center">
+  <div class="card" style="width:360px">
+    <h3 style="font-size:15px;margin-bottom:12px">Change my password</h3>
+    <label>New password</label><input id="cpA" type="password" placeholder="at least 8 characters">
+    <label style="margin-top:8px">Repeat new password</label><input id="cpB" type="password">
+    <div class="row" style="margin-top:12px"><button class="btn btn-teal" id="cpSave">Save</button>
+    <button class="btn btn-ghost" id="cpCancel">Cancel</button></div>
+    <div class="muted" id="cpMsg" style="font-size:12px;margin-top:8px"></div>
+  </div>
+</div>
+
 <div class="app hide" id="appShell">
   <aside class="side">
     <div class="logo"><div class="mark">S</div><div><b>SMB Time</b><small id="whoami">…</small></div></div>
     <nav class="nav" id="nav"></nav>
-    <div style="margin-top:14px"><button class="btn btn-ghost" style="width:100%" id="logoutAccount">Sign out of account</button></div>
+    <div style="margin-top:14px">
+      <button class="btn btn-ghost" style="width:100%" id="changePwBtn">Change my password</button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" id="logoutAccount">Sign out of account</button>
+    </div>
     <div class="clock">
       <div class="l">Manila (PHT)</div><div class="t mono" id="phtClock">--:--:--</div>
       <div class="l" style="margin-top:8px" id="clientTzLabel">Client time</div>
@@ -205,11 +219,34 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
             <div><label>Work email</label><input id="nEmail" type="email"></div>
             <div><label>Client</label><select id="nClient"></select></div>
             <div><label>Role</label><select id="nRole"><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
+            <div><label>Access</label><select id="nMode">
+              <option value="password">Temporary password (no email needed)</option>
+              <option value="invite">Email them a setup link</option>
+            </select></div>
           </div>
-          <div class="row" style="margin-top:12px"><button class="btn btn-teal" id="saveStaff">Create &amp; send setup email</button>
+          <div class="row" style="margin-top:12px"><button class="btn btn-teal" id="saveStaff">Create account</button>
           <button class="btn btn-ghost" id="cancelAdd">Cancel</button><span class="muted" id="addMsg" style="font-size:12px"></span></div>
+          <div id="addPw" class="hide" style="margin-top:12px;background:rgba(63,191,174,.10);border:1px solid rgba(63,191,174,.35);border-radius:12px;padding:12px">
+            <div style="font-size:12px" class="muted">Give this to them privately. They can change it after logging in.</div>
+            <div class="mono" id="addPwVal" style="font-size:18px;margin-top:6px;color:var(--teal)"></div>
+          </div>
         </div>
         <table><thead><tr><th>Name</th><th>Username</th><th>Client</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
+      </div>
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">Bulk add staff</h3><button class="btn btn-ghost" id="toggleBulk">Open</button></div>
+        <div id="bulkForm" class="hide">
+          <div class="muted" style="font-size:12.5px;margin-bottom:8px">One person per line: <span class="mono">Full Name, username, email</span>. Everyone gets a temporary password &mdash; no emails are sent, so this always works. Max 100 at a time.</div>
+          <textarea id="bulkText" rows="8" style="width:100%;font-family:var(--mono,monospace);font-size:12.5px" placeholder="Maria Santos, maria.santos, maria@company.com
+Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
+          <div class="row" style="margin-top:10px">
+            <div><label>Assign all to client</label><select id="bulkClient" style="width:auto"></select></div>
+            <button class="btn btn-teal" id="bulkRun">Create all accounts</button>
+            <button class="btn btn-gold hide" id="bulkCsv">Download passwords CSV</button>
+            <span class="muted" id="bulkMsg" style="font-size:12px"></span>
+          </div>
+          <div id="bulkOut" style="margin-top:12px"></div>
+        </div>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Clients &amp; shifts</h3><button class="btn btn-gold" id="toggleClient">+ Add client</button></div>
@@ -257,7 +294,7 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
     <section id="v-policy" class="hide grid" style="gap:16px">
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Activity &amp; billing rules</h3><button class="btn btn-gold" id="savePolicy">Save allowances</button></div>
         <table><thead><tr><th>Status</th><th>Billable</th><th>Allowance per shift (minutes)</th><th>Notes</th></tr></thead><tbody id="policyTable"></tbody></table>
-        <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>, but only for time inside your shift window — time logged before your shift starts or after it ends is automatically non-billable. Select <b>Overtime</b> to bill time outside the shift window; Overtime has no cap and is always fully billable. On top of that, minutes spent on a normal activity beyond its allowance in a shift are also deducted from billable time (Overtime is never capped). Set an allowance to 0 to never deduct.</div>
+        <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>. On top of that, minutes spent on an activity <i>beyond</i> its allowance in a shift are also deducted from billable time. Set an allowance to 0 to never deduct.</div>
       </div>
     </section>
   </main>
@@ -267,12 +304,12 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
 /* ============================================================
    1. CONFIGURATION — replace the three values below
    ============================================================ */
-const SUPABASE_URL      = "https://pmgpdldkntsjopfzigeu.supabase.co";      // e.g. https://abcdefgh.supabase.co
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtZ3BkbGRrbnRzam9wZnppZ2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwNzg2MzEsImV4cCI6MjEwMzY1NDYzMX0.HNIDJ6Y6LFl-pYfrESO5EdMHR2bAse9rOD-v59eM49M"; // the "anon public" key - safe in the browser
-const SERVER_URL        = "https://time-tracker-app-95fe.onrender.com";        // e.g. https://smb-time-server.onrender.com
+const SUPABASE_URL      = "PASTE_YOUR_SUPABASE_URL";      // e.g. https://abcdefgh.supabase.co
+const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_KEY"; // the "anon public" key - safe in the browser
+const SERVER_URL        = "PASTE_YOUR_RENDER_URL";        // e.g. https://smb-time-server.onrender.com
 /* ============================================================ */
 
-const ACTIVITIES = ['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','Meeting/Coaching','Overtime'];const OVERTIME = 'Overtime';
+const ACTIVITIES = ['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','Meeting/Coaching'];
 const NON_BILLABLE = ['60min Break'];
 const BIWEEKLY_ANCHOR = '2026-08-19';       // a Wednesday; bi-weekly periods run Wed -> Tue
 const PH = 'Asia/Manila';
@@ -288,7 +325,7 @@ function phParts(d){const f=new Intl.DateTimeFormat('en-CA',{timeZone:PH,year:'n
 function phDate(d){const p=phParts(d);return `${p.year}-${p.month}-${p.day}`;}
 function phTime(d){const p=phParts(d);return `${p.hour}:${p.minute}`;}
 function phClock(d){const p=phParts(d);return `${p.hour}:${p.minute}:${p.second}`;}
-function tzClock(d,tz){try{return new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);}catch(e){return '--:--:--';}} function shiftWindowFor(client,dateIso){ if(!client||!client.shift_start||!client.shift_end) return null; const pad=t=>t.length===5?t+':00':t; const start=new Date(dateIso+'T'+pad(client.shift_start)+'+08:00'); let end=new Date(dateIso+'T'+pad(client.shift_end)+'+08:00'); if(end<=start) end=new Date(end.getTime()+86400000); return {start,end}; }
+function tzClock(d,tz){try{return new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);}catch(e){return '--:--:--';}}
 function hm(mins){const m=Math.max(0,Math.round(mins));return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
 function hms(sec){sec=Math.max(0,Math.floor(sec));return [Math.floor(sec/3600),Math.floor(sec/60)%60,sec%60].map(n=>String(n).padStart(2,'0')).join(':');}
 function addDays(iso,n){const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
@@ -308,12 +345,12 @@ function periodList(type,count=14){const today=phDate(new Date());const out=[];
 
 /* ---------- billable math ---------- */
 function minutesOf(e,now){const s=new Date(e.started_at),t=e.ended_at?new Date(e.ended_at):(now||new Date());return Math.max(0,(t-s)/60000);}
-function summarize(entries,now,window){
+function summarize(entries,now){
   const per={};let total=0;
   entries.forEach(e=>{const m=minutesOf(e,now);per[e.activity]=(per[e.activity]||0)+m;total+=m;});
-  const perBillableRaw={}; entries.forEach(e=>{ if(NON_BILLABLE.includes(e.activity))return; let inside; if(e.activity===OVERTIME){ inside=minutesOf(e,now); } else if(!window){ inside=0; } else { const s=new Date(e.started_at), t=e.ended_at?new Date(e.ended_at):(now||new Date()); const clipStart=Math.max(s.getTime(),window.start.getTime()); const clipEnd=Math.min(t.getTime(),window.end.getTime()); inside=Math.max(0,(clipEnd-clipStart)/60000); } perBillableRaw[e.activity]=(perBillableRaw[e.activity]||0)+inside; }); let billable=0;
-  Object.entries(perBillableRaw).forEach(([act,m])=>{
-    if(act===OVERTIME){billable+=m;return;}
+  let billable=0;
+  Object.entries(per).forEach(([act,m])=>{
+    if(NON_BILLABLE.includes(act))return;
     const cap=Number(allowance[act]||0);
     billable+= cap>0 ? Math.min(m,cap) : m;
   });
@@ -359,6 +396,19 @@ $('npBtn').onclick = async () => {
 };
 
 $('logoutAccount').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+/* ---- change my own password (works for temp-password accounts) ---- */
+$('changePwBtn').onclick = () => { $('cpA').value=''; $('cpB').value=''; $('cpMsg').textContent=''; $('pwOverlay').style.display='flex'; $('cpA').focus(); };
+$('cpCancel').onclick   = () => { $('pwOverlay').style.display='none'; };
+$('cpSave').onclick = async () => {
+  const a=$('cpA').value, b=$('cpB').value;
+  if(a.length<8) return $('cpMsg').textContent='Password must be at least 8 characters.';
+  if(a!==b)      return $('cpMsg').textContent='The two passwords do not match.';
+  $('cpMsg').textContent='Saving…';
+  const {error}=await sb.auth.updateUser({password:a});
+  $('cpMsg').textContent = error ? error.message : 'Password changed.';
+  if(!error) setTimeout(()=>{$('pwOverlay').style.display='none';},1200);
+};
 
 async function boot(){
   if(!CONFIGURED){
@@ -455,7 +505,7 @@ function renderActs(){
 
 async function loadPunch(){
   const c=clients.find(c=>c.id===me.client_id);
-  $('pcWho').innerHTML=`${me.full_name} • Client: <b style="color:var(--ink)">${c?c.name:'— not assigned —'}</b>${c?'':' <span style="color:var(--rose)">Billable hours cannot be computed — no client is assigned to your account. Contact your admin.</span>'}`;
+  $('pcWho').innerHTML=`${me.full_name} • Client: <b style="color:var(--ink)">${c?c.name:'— not assigned —'}</b>`;
   $('pcShift').textContent=c?`Shift ${c.shift_start.slice(0,5)} – ${c.shift_end.slice(0,5)} PHT (${c.workdays})`:'';
   const {data:open}=await sb.from('shifts').select('*').eq('staff_id',me.id).is('logout_at',null).order('login_at',{ascending:false}).limit(1);
   curShift=open&&open[0]?open[0]:null;
@@ -529,7 +579,7 @@ async function todaysEntries(){
 
 async function renderToday(){
   $('todayLabel').textContent=fmtNice(phDate(new Date()))+' (PHT)';
-  const es=await todaysEntries(); const cMe=clients.find(x=>x.id===me.client_id); const anchorDate=curShift?phDate(new Date(curShift.login_at)):phDate(new Date()); const myWindow=shiftWindowFor(cMe,anchorDate);
+  const es=await todaysEntries();
   $('entries').innerHTML = es.length? es.map(e=>{
     const bill=!NON_BILLABLE.includes(e.activity);
     return `<tr><td>${e.activity}</td><td class="mono">${phTime(new Date(e.started_at))}</td>
@@ -537,7 +587,7 @@ async function renderToday(){
     <td class="mono">${hm(minutesOf(e))}</td>
     <td><span class="pill ${bill?'p-work':'p-bad'}"><span class="dot"></span>${bill?'Billable':'Non-billable'}</span></td></tr>`;}).join('')
     : `<tr><td colspan="5" class="muted">No entries yet today.</td></tr>`;
-  const s=summarize(es,null,myWindow);
+  const s=summarize(es);
   $('sBill').textContent=hm(s.billable);$('sNon').textContent=hm(s.nonbillable);$('sTot').textContent=hm(s.total);
   const pct=s.total?Math.round(s.billable/s.total*100):0;
   $('sPct').textContent=s.total?pct+'%':'—';$('sBar').style.width=pct+'%';
@@ -553,7 +603,7 @@ async function renderPayPeriod(){
   $('ppLabel').textContent=fmtNice(p.start)+' – '+fmtNice(p.end)+'  (bi-weekly)';
   const rows=await fetchEntriesRange(p.start,p.end,[me.id]);
   const byDay={};rows.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
-  const cMe=clients.find(x=>x.id===me.client_id); let bill=0,non=0;Object.entries(byDay).forEach(([d,es])=>{const w=shiftWindowFor(cMe,d);const s=summarize(es,null,w);bill+=s.billable;non+=s.nonbillable;});
+  let bill=0,non=0;Object.values(byDay).forEach(es=>{const s=summarize(es);bill+=s.billable;non+=s.nonbillable;});
   $('ppBill').textContent=hm(bill);$('ppNon').textContent=hm(non);$('ppDays').textContent=Object.keys(byDay).length;
 }
 
@@ -596,11 +646,11 @@ async function loadRoster(){
     const sh=openShift[s.id];
     const mine=(ents||[]).filter(e=>e.staff_id===s.id&&(sh?e.shift_id===sh.id:phDate(new Date(e.started_at))===today));
     const running=mine.find(e=>!e.ended_at);
-    const anchorDate=sh?phDate(new Date(sh.login_at)):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate));
+    const sum=summarize(mine);
     const status= !sh ? 'Off shift' : (running&&running.activity.includes('Break')?'On break':'Working');
     if(status==='Off shift')off++;else if(status==='On break')br++;else on++;
     if(sum.total>0){pctSum+=sum.billable/sum.total*100;pctN++;}
-    
+    const c=clients.find(c=>c.id===s.client_id);
     return {s,c,status,act:running?running.activity:'—',sum};
   }).filter(r=>(!fc||r.s.client_id===fc)&&(!fs||r.s.id===fs)&&(!fst||r.status===fst));
   $('stOn').textContent=on;$('stBreak').textContent=br;$('stOff').textContent=off;
@@ -627,16 +677,61 @@ async function api(path,opts={}){
 $('toggleAdd').onclick=()=>{$('addForm').classList.toggle('hide');fill('nClient','— no client —',clients.map(c=>[c.id,c.name]));};
 $('cancelAdd').onclick=()=>$('addForm').classList.add('hide');
 $('saveStaff').onclick = async () => {
-  $('saveStaff').disabled=true;$('addMsg').textContent='Creating…';
+  $('saveStaff').disabled=true;$('addMsg').textContent='Creating…';$('addPw').classList.add('hide');
   try{
-    await api('/api/staff',{method:'POST',body:JSON.stringify({
+    const mode=$('nMode').value;
+    const r=await api('/api/staff',{method:'POST',body:JSON.stringify({
       full_name:$('nName').value.trim(),username:$('nUser').value.trim(),email:$('nEmail').value.trim(),
-      client_id:$('nClient').value||null,role:$('nRole').value})});
-    $('addMsg').textContent='Created — setup email sent.';
+      client_id:$('nClient').value||null,role:$('nRole').value,mode})});
+    if(r.temp_password){
+      $('addMsg').textContent='Account created.';
+      $('addPwVal').textContent=$('nUser').value.trim()+'  /  '+r.temp_password;
+      $('addPw').classList.remove('hide');
+    } else {
+      $('addMsg').textContent='Created — setup email sent.';
+    }
     ['nName','nUser','nEmail'].forEach(i=>$(i).value='');
     await reloadStaff();
   }catch(e){$('addMsg').textContent='';alert(e.message);}
   $('saveStaff').disabled=false;
+};
+
+/* ---- bulk add: paste a list, everyone gets a temporary password ---- */
+let bulkResults=[];
+$('toggleBulk').onclick=()=>{
+  const f=$('bulkForm'); f.classList.toggle('hide');
+  $('toggleBulk').textContent=f.classList.contains('hide')?'Open':'Close';
+  fill('bulkClient','— no client —',clients.map(c=>[c.id,c.name]));
+};
+$('bulkRun').onclick = async () => {
+  const rows=$('bulkText').value.split('\n').map(l=>l.trim()).filter(Boolean).map(line=>{
+    const p=line.split(',').map(x=>x.trim());
+    return {full_name:p[0]||'',username:(p[1]||'').toLowerCase(),email:(p[2]||'').toLowerCase(),
+            client_id:$('bulkClient').value||null,role:'staff'};
+  });
+  const bad=rows.filter(r=>!r.full_name||!r.username||!r.email);
+  if(!rows.length) return alert('Paste at least one line first.');
+  if(bad.length)   return alert('These lines are missing a name, username or email:\n\n'+bad.map(b=>b.full_name||'(blank)').join('\n'));
+  $('bulkRun').disabled=true;$('bulkMsg').textContent='Creating '+rows.length+' accounts… this can take a minute.';
+  try{
+    const r=await api('/api/staff/bulk',{method:'POST',body:JSON.stringify({rows})});
+    bulkResults=r.results||[];
+    const okN=bulkResults.filter(x=>x.ok).length;
+    $('bulkMsg').textContent=okN+' created, '+(bulkResults.length-okN)+' failed.';
+    $('bulkOut').innerHTML='<table><thead><tr><th>Name</th><th>Username</th><th>Temporary password</th><th>Result</th></tr></thead><tbody>'+
+      bulkResults.map(x=>`<tr><td>${escapeHtml(x.full_name||'')}</td><td class="mono">${escapeHtml(x.username||'')}</td>
+      <td class="mono" style="color:var(--teal)">${escapeHtml(x.temp_password||'—')}</td>
+      <td>${x.ok?'<span class="pill p-work"><span class="dot"></span>created</span>':'<span class="muted">'+escapeHtml(x.error)+'</span>'}</td></tr>`).join('')+'</tbody></table>';
+    $('bulkCsv').classList.toggle('hide',!okN);
+    await reloadStaff();
+  }catch(e){$('bulkMsg').textContent='';alert(e.message);}
+  $('bulkRun').disabled=false;
+};
+$('bulkCsv').onclick=()=>{
+  const csv=[['Full name','Username','Email','Temporary password']].concat(
+    bulkResults.filter(x=>x.ok).map(x=>[x.full_name,x.username,x.email,x.temp_password])
+  ).map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  downloadCsv(csv,'smb-time-logins');
 };
 async function reloadStaff(){const {data}=await sb.from('staff').select('*').order('full_name');staffList=data||[];renderStaffAdmin();}
 async function reloadClients(){const {data}=await sb.from('clients').select('*').order('name');clients=data||[];renderStaffAdmin();}
@@ -650,12 +745,18 @@ function renderStaffAdmin(){
     <td>${s.role}</td>
     <td><span class="pill ${s.active?'p-work':'p-off'}"><span class="dot"></span>${s.active?'active':'inactive'}</span></td>
     <td style="text-align:right" class="row" >
-      <button class="btn btn-ghost" data-reset="${s.id}">Reset password</button>
+      <button class="btn btn-ghost" data-temp="${s.id}">New temp password</button>
+      <button class="btn btn-ghost" data-reset="${s.id}">Email reset link</button>
       <button class="btn btn-ghost" data-toggle="${s.id}" data-active="${s.active}">${s.active?'Deactivate':'Reactivate'}</button>
       <button class="btn btn-rose" data-del="${s.id}">Delete</button></td></tr>`;}).join('');
   $('staffTable').querySelectorAll('[data-assign]').forEach(sel=>sel.onchange=async()=>{
     const {error}=await sb.from('staff').update({client_id:sel.value||null}).eq('id',sel.dataset.assign);
     if(error)alert(error.message); else reloadStaff();});
+  $('staffTable').querySelectorAll('[data-temp]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Set a new temporary password for this person? Their current password stops working.'))return;
+    try{const r=await api('/api/staff/'+b.dataset.temp+'/temp-password',{method:'POST'});
+      prompt('New temporary password — copy it and send it to them privately:',r.temp_password);
+    }catch(e){alert(e.message);}});
   $('staffTable').querySelectorAll('[data-reset]').forEach(b=>b.onclick=async()=>{
     try{await api('/api/staff/'+b.dataset.reset+'/reset-password',{method:'POST'});alert('Password reset email sent.');}catch(e){alert(e.message);}});
   $('staffTable').querySelectorAll('[data-toggle]').forEach(b=>b.onclick=async()=>{
@@ -727,11 +828,11 @@ async function runSheet(){
   const ents=await fetchEntriesRange(start,end,people.map(s=>s.id));
   sheetRows=[];sheetDetail=[];
   people.forEach(s=>{
-    const mine=ents.filter(e=>e.staff_id===s.id); const sc=clients.find(c=>c.id===s.client_id);
+    const mine=ents.filter(e=>e.staff_id===s.id);
     const byDay={};mine.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
     let bill=0,non=0;
     Object.keys(byDay).sort().forEach(d=>{
-      const sum=summarize(byDay[d],null,shiftWindowFor(sc,d));bill+=sum.billable;non+=sum.nonbillable;
+      const sum=summarize(byDay[d]);bill+=sum.billable;non+=sum.nonbillable;
       byDay[d].forEach(e=>sheetDetail.push({
         staff:s.full_name,username:s.username,client:(clients.find(c=>c.id===s.client_id)||{}).name||'',
         date:d,activity:e.activity,start:phTime(new Date(e.started_at)),end:e.ended_at?phTime(new Date(e.ended_at)):'(still running)',
@@ -799,8 +900,8 @@ function renderPolicy(){
     const bill=!NON_BILLABLE.includes(a);
     return `<tr><td><b>${a}</b></td>
     <td><span class="pill ${bill?'p-work':'p-bad'}"><span class="dot"></span>${bill?'Billable':'Non-billable'}</span></td>
-    <td><input type="number" min="0" step="5" data-alw="${a}" value="${a===OVERTIME?'':Number(allowance[a]||0)}" placeholder="${a===OVERTIME?'No cap':''}" ${a===OVERTIME?'disabled':''} style="width:110px"></td>
-    <td class="muted">${a===OVERTIME?'Always fully billable, even outside the shift window':a==='60min Break'?'Never billable':(Number(allowance[a]||0)?'Minutes beyond this become non-billable':'No deduction')}</td></tr>`;}).join('');
+    <td><input type="number" min="0" step="5" data-alw="${a}" value="${Number(allowance[a]||0)}" style="width:110px"></td>
+    <td class="muted">${a==='60min Break'?'Never billable':(Number(allowance[a]||0)?'Minutes beyond this become non-billable':'No deduction')}</td></tr>`;}).join('');
   $('savePolicy').onclick=async()=>{
     const v={};$('policyTable').querySelectorAll('[data-alw]').forEach(i=>v[i.dataset.alw]=Number(i.value||0));
     const {error}=await sb.from('settings').upsert({key:'break_allowance_minutes',value:v});
