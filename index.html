@@ -6,6 +6,7 @@
 <title>Bayaning Puyat Time Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 :root{--bg:#0B0D12;--card:#151824;--card2:#1D2130;--gold:#E3A63E;--teal:#3FBFAE;--rose:#E2685F;--slate:#6B7183;--ink:#F3F1E9;--muted:#8B90A0;--line:rgba(255,255,255,.07)}
 *{box-sizing:border-box}
@@ -358,6 +359,54 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       </div>
     </section>
 
+    <!-- ---------- ADMIN: ADHERENCE & BREAKS ---------- -->
+    <section id="v-adherence" class="hide grid" style="gap:16px">
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">Filters</h3></div>
+        <div class="row" style="flex-wrap:wrap;gap:10px;align-items:flex-end">
+          <div><label>View</label><select id="aGrain" style="width:auto">
+            <option value="daily">Daily</option><option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option><option value="range">Custom range</option>
+          </select></div>
+          <div id="aDateWrap"><label>Date</label><input type="date" id="aDate" style="width:auto"></div>
+          <div id="aMonthWrap" class="hide"><label>Month</label><input type="month" id="aMonth" style="width:auto"></div>
+          <div id="aRangeWrap" class="hide row" style="gap:8px">
+            <div><label>From</label><input type="date" id="aFrom" style="width:auto"></div>
+            <div><label>To</label><input type="date" id="aTo" style="width:auto"></div>
+          </div>
+          <div><label>Client</label><select id="aClient" style="width:auto"></select></div>
+          <div><label>Staff</label><select id="aStaff" style="width:auto"></select></div>
+          <div><label>Late grace (min)</label><input id="aGrace" type="number" min="0" step="1" value="0" style="width:70px"></div>
+          <button class="btn btn-ghost" id="runAdherence">Run</button>
+          <button class="btn btn-gold" id="dlAdherence">Download CSV</button>
+        </div>
+        <div class="muted" id="adRangeLabel" style="font-size:11.5px;margin-top:8px"></div>
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(5,1fr)">
+        <div class="stat"><div class="k">Total hours logged</div><div class="v" id="adTotalHrs">—</div></div>
+        <div class="stat"><div class="k">Billable</div><div class="v" style="color:var(--teal)" id="adBillHrs">—</div></div>
+        <div class="stat"><div class="k">Total break time</div><div class="v" style="color:var(--gold)" id="adBreakHrs">—</div></div>
+        <div class="stat"><div class="k">Over-allowance break time</div><div class="v" style="color:var(--rose)" id="adOverHrs">—</div></div>
+        <div class="stat"><div class="k">Late log-ins</div><div class="v" style="color:var(--rose)" id="adLateCount">—</div></div>
+      </div>
+      <div class="grid" style="grid-template-columns:1fr 1.6fr;gap:16px">
+        <div class="card">
+          <div class="hdr"><h3 style="font-size:15px">Time breakdown</h3></div>
+          <div class="muted" id="adChartWho" style="font-size:11.5px;margin-bottom:8px">Total hours working vs. all other activities</div>
+          <div style="position:relative;height:260px"><canvas id="adherenceChart"></canvas></div>
+          <div id="adChartLegend" style="margin-top:12px;font-size:11.5px"></div>
+        </div>
+        <div class="card">
+          <div class="hdr"><h3 style="font-size:15px">Adherence by staff</h3></div>
+          <div style="overflow-x:auto"><table><thead><tr>
+            <th>Staff</th><th>Client</th><th>Days</th><th>Total</th><th>Billable</th>
+            <th>15min over</th><th>30min over</th><th>60min used</th><th>Personal over</th>
+            <th>Late log-ins</th><th>Avg late (min)</th>
+          </tr></thead><tbody id="adherenceTable"></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ---------- ADMIN: CORRECTIONS ---------- -->
     <section id="v-corr" class="hide grid" style="gap:16px">
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
@@ -556,12 +605,13 @@ const PAGES={
   'v-status':['📡 Live Status','Live Status','Who is on shift right now'],
   'v-staff' :['👥 Staff & Clients','Staff & Clients','Add or remove staff, manage client shifts'],
   'v-sheets':['📄 Timesheets','Timesheets','Filter by pay period and export'],
+  'v-adherence':['📊 Adherence & Breaks','Adherence & Breaks','Break usage, overages, and late log-ins — filter by staff, client, and date'],
   'v-corr'  :['✏️ Corrections','Corrections','Approve or reject staff correction requests'],
   'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests']
 };
 let view='v-punch';
 function buildNav(){
-  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-sheets','v-corr','v-reqadmin','v-policy'] : ['v-punch','v-req'];
+  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-sheets','v-adherence','v-corr','v-reqadmin','v-policy'] : ['v-punch','v-req'];
   $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   go(view);
@@ -575,6 +625,7 @@ function go(v){
   if(v==='v-status'){initFilters();loadRoster();}
   if(v==='v-staff'){renderStaffAdmin();}
   if(v==='v-sheets'){initSheetFilters();}
+  if(v==='v-adherence'){initAdherenceFilters();}
   if(v==='v-corr'){loadCorrections();}
   if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();}
 }
@@ -1098,6 +1149,148 @@ function downloadCsv(text,name){
   const {start,end}=currentRange();
   const blob=new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${name}-${start}_${end}.csv`;a.click();URL.revokeObjectURL(a.href);
+}
+
+/* ============================================================
+   7z. ADMIN \u2014 ADHERENCE & BREAKS
+   Filter by staff / client / date (daily, weekly, monthly, or a
+   custom range). Shows break usage vs. allowance, minutes spent
+   over the allowance, late log-ins vs. each client's shift start,
+   and a pie/doughnut breakdown of total hours by activity \u2014 handy
+   for 1:1 coaching (billable Working time vs. everything else).
+   ============================================================ */
+const BREAK_ACTS = ['15min Break','30min Break','60min Break','Personal Break'];
+const ACT_COLORS = {
+  'Working':'#3FBFAE','Overtime':'#5B8DEF','Meeting/Coaching':'#9B7EDE',
+  '15min Break':'#E3A63E','30min Break':'#E2685F','60min Break':'#6B7183',
+  'Personal Break':'#4FA0D9','Bio Break':'#D98CC4'
+};
+let adChart=null, adRows=[], adRangeStr='';
+
+function initAdherenceFilters(){
+  fill('aClient','All clients',clients.map(c=>[c.id,c.name]));
+  fill('aStaff','All staff',staffList.map(s=>[s.id,s.full_name]));
+  if(!$('aDate').value) $('aDate').value=phDate(new Date());
+  if(!$('aMonth').value) $('aMonth').value=phDate(new Date()).slice(0,7);
+  if(!$('aFrom').value){ const p=biweeklyPeriod(phDate(new Date())); $('aFrom').value=p.start; $('aTo').value=p.end; }
+  $('aGrain').onchange=toggleAdherenceInputs; toggleAdherenceInputs();
+  $('runAdherence').onclick=runAdherence;
+  $('dlAdherence').onclick=downloadAdherenceCsv;
+  runAdherence();
+}
+function toggleAdherenceInputs(){
+  const g=$('aGrain').value;
+  $('aDateWrap').classList.toggle('hide', g!=='daily'&&g!=='weekly');
+  $('aMonthWrap').classList.toggle('hide', g!=='monthly');
+  $('aRangeWrap').classList.toggle('hide', g!=='range');
+}
+function mondayOf(iso){ const d=new Date(iso+'T00:00:00Z'); const dow=d.getUTCDay(); const back=(dow+6)%7; return addDays(iso,-back); }
+function adherenceRange(){
+  const g=$('aGrain').value;
+  if(g==='daily'){ const d=$('aDate').value||phDate(new Date()); return {start:d,end:d}; }
+  if(g==='weekly'){ const d=$('aDate').value||phDate(new Date()); const s=mondayOf(d); return {start:s,end:addDays(s,6)}; }
+  if(g==='monthly'){ const m=$('aMonth').value||phDate(new Date()).slice(0,7); const [y,mo]=m.split('-').map(Number); const lastDay=new Date(Date.UTC(y,mo,0)).getUTCDate(); return {start:`${m}-01`,end:`${m}-${String(lastDay).padStart(2,'0')}`}; }
+  return {start:$('aFrom').value,end:$('aTo').value};
+}
+async function fetchShiftsRange(startIso,endIso,staffIds){
+  const from=new Date(startIso+'T00:00:00+08:00'); from.setDate(from.getDate()-1);
+  const to=new Date(endIso+'T23:59:59+08:00'); to.setDate(to.getDate()+1);
+  let q=sb.from('shifts').select('*').gte('login_at',from.toISOString()).lte('login_at',to.toISOString()).order('login_at');
+  if(staffIds&&staffIds.length===1) q=q.eq('staff_id',staffIds[0]);
+  const {data}=await q;
+  return (data||[]).filter(sh=>{ const d=phDate(new Date(sh.login_at)); return d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(sh.staff_id)); });
+}
+async function runAdherence(){
+  const {start,end}=adherenceRange();
+  if(!start||!end) return alert('Pick a date.');
+  adRangeStr=`${start}_${end}`;
+  $('adRangeLabel').textContent=`${fmtNice(start)} \u2013 ${fmtNice(end)} (Philippine time)`;
+  const fc=$('aClient').value, fs=$('aStaff').value, grace=Number($('aGrace').value||0);
+  const people=staffList.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs));
+  const ids=people.map(s=>s.id);
+  const [ents,shs]=await Promise.all([fetchEntriesRange(start,end,ids),fetchShiftsRange(start,end,ids)]);
+
+  const grandPer={}; let grandTotal=0,grandBill=0;
+  adRows=[];
+  people.forEach(s=>{
+    const c=clients.find(x=>x.id===s.client_id);
+    const mine=ents.filter(e=>e.staff_id===s.id);
+    const byDay={}; mine.forEach(e=>{ const d=phDate(new Date(e.started_at)); (byDay[d]=byDay[d]||[]).push(e); });
+    let total=0,bill=0; const per={}; const over={'15min Break':0,'30min Break':0,'Personal Break':0};
+    Object.keys(byDay).forEach(d=>{
+      const win=shiftWindowFor(c,d);
+      const sum=summarize(byDay[d],null,win);
+      total+=sum.total; bill+=sum.billable;
+      Object.entries(sum.per).forEach(([act,m])=>{ per[act]=(per[act]||0)+m; grandPer[act]=(grandPer[act]||0)+m; });
+      BREAK_ACTS.filter(a=>a!=='60min Break').forEach(act=>{
+        const cap=Number(allowance[act]||0); const m=sum.per[act]||0;
+        if(cap>0&&m>cap) over[act]+=(m-cap);
+      });
+    });
+    grandTotal+=total; grandBill+=bill;
+    const mySh=shs.filter(sh=>sh.staff_id===s.id);
+    let lateCount=0,lateMinTotal=0;
+    mySh.forEach(sh=>{
+      const d=phDate(new Date(sh.login_at)); const win=shiftWindowFor(c,d);
+      if(!win) return;
+      const lateMin=(new Date(sh.login_at)-win.start)/60000;
+      if(lateMin>grace){ lateCount++; lateMinTotal+=lateMin; }
+    });
+    adRows.push({
+      name:s.full_name, client:c?c.name:'\u2014', days:Object.keys(byDay).length,
+      total, bill, non:total-bill,
+      over15:over['15min Break']||0, over30:over['30min Break']||0,
+      used60:per['60min Break']||0, overPersonal:over['Personal Break']||0,
+      lateCount, avgLate: lateCount? lateMinTotal/lateCount : 0, shifts:mySh.length
+    });
+  });
+
+  $('adTotalHrs').textContent=hm(grandTotal);
+  $('adBillHrs').textContent=hm(grandBill);
+  const breakMins=BREAK_ACTS.reduce((a,act)=>a+(grandPer[act]||0),0);
+  $('adBreakHrs').textContent=hm(breakMins);
+  const overMins=adRows.reduce((a,r)=>a+r.over15+r.over30+r.overPersonal,0);
+  $('adOverHrs').textContent=hm(overMins);
+  $('adLateCount').textContent=adRows.reduce((a,r)=>a+r.lateCount,0);
+
+  $('adChartWho').textContent = fs ? `Breakdown for ${escapeHtml((staffList.find(s=>s.id===fs)||{}).full_name||'')}` : 'Total hours working vs. all other activities (all filtered staff)';
+  renderAdherenceChart(grandPer);
+
+  $('adherenceTable').innerHTML = adRows.length ? adRows.map(r=>`<tr>
+    <td><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td>
+    <td class="mono">${r.days}</td><td class="mono">${hm(r.total)}</td><td class="mono" style="color:var(--teal)">${hm(r.bill)}</td>
+    <td class="mono" style="color:${r.over15?'var(--rose)':'inherit'}">${r.over15?hm(r.over15):'\u2014'}</td>
+    <td class="mono" style="color:${r.over30?'var(--rose)':'inherit'}">${r.over30?hm(r.over30):'\u2014'}</td>
+    <td class="mono">${r.used60?hm(r.used60):'\u2014'}</td>
+    <td class="mono" style="color:${r.overPersonal?'var(--rose)':'inherit'}">${r.overPersonal?hm(r.overPersonal):'\u2014'}</td>
+    <td class="mono" style="color:${r.lateCount?'var(--rose)':'inherit'}">${r.lateCount}/${r.shifts}</td>
+    <td class="mono">${r.lateCount?Math.round(r.avgLate):'\u2014'}</td>
+  </tr>`).join('') : `<tr><td colspan="11" class="muted">No data for that range.</td></tr>`;
+}
+function renderAdherenceChart(per){
+  const labels=Object.keys(per).filter(k=>per[k]>0);
+  const data=labels.map(k=>Math.round(per[k]));
+  const colors=labels.map(k=>ACT_COLORS[k]||'#8B90A0');
+  if(!$('adherenceChart')||typeof Chart==='undefined') return;
+  const ctx=$('adherenceChart').getContext('2d');
+  if(adChart) adChart.destroy();
+  if(!labels.length){ $('adChartLegend').innerHTML='<span class="muted">No data for that range.</span>'; return; }
+  adChart=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'#151824',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.label}: ${hm(c.parsed)}`}}}}});
+  const total=data.reduce((a,b)=>a+b,0)||1;
+  $('adChartLegend').innerHTML=labels.map((l,i)=>`<div class="row" style="justify-content:space-between;margin-top:4px">
+    <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${colors[i]};margin-right:7px"></i>${escapeHtml(l)}</span>
+    <span class="mono muted">${hm(data[i])} \u00b7 ${Math.round(data[i]/total*100)}%</span></div>`).join('');
+}
+function downloadAdherenceCsv(){
+  if(!adRows.length) return alert('Press Run first.');
+  const head=['Staff','Client','Days','Total hrs','Billable hrs','Non-billable hrs','15min Break over (min)','30min Break over (min)','60min Break used (min)','Personal Break over (min)','Late log-ins','Shifts','Avg late (min)'];
+  const lines=[[`Adherence & breaks ${adRangeStr.replace('_',' to ')} (Philippine time)`],[],head];
+  adRows.forEach(r=>lines.push([r.name,r.client,r.days,(r.total/60).toFixed(2),(r.bill/60).toFixed(2),(r.non/60).toFixed(2),
+    Math.round(r.over15),Math.round(r.over30),Math.round(r.used60),Math.round(r.overPersonal),r.lateCount,r.shifts,r.lateCount?Math.round(r.avgLate):0]));
+  const text=lines.map(l=>l.map(csvEscape).join(',')).join('\n');
+  const blob=new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`adherence-breaks-${adRangeStr}.csv`;a.click();URL.revokeObjectURL(a.href);
 }
 
 /* ============================================================
