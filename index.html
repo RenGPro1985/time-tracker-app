@@ -695,6 +695,20 @@ function paintShiftState(){
   renderActs();
 }
 
+/* Close every still-open entry for a shift (not just the one this browser tab remembers
+   as curEntry). Relying on curEntry alone silently orphans entries whenever: a click
+   double-fires, the page was reloaded and curEntry is stale, another device/tab has the
+   shift open too, or the earlier close request simply failed over a bad connection — the
+   next entry gets inserted regardless, so the old one runs forever, inflating that
+   activity's total by (now - started_at) every time reports are computed. Closing by
+   shift_id instead is self-healing: it sweeps up any stray open entries as a side effect
+   of the very next click, and callers now check the result for an error instead of
+   assuming it worked. */
+async function closeOpenEntries(shiftId, endedAt){
+  const {error}=await sb.from('entries').update({ended_at:endedAt}).eq('shift_id',shiftId).is('ended_at',null);
+  return error;
+}
+
 $('loginBtn').onclick = async () => {
   $('loginBtn').disabled=true;
   try{
@@ -707,7 +721,8 @@ $('loginBtn').onclick = async () => {
     }else{
       if(!confirm('End your shift now? This stops all timers.')){$('loginBtn').disabled=false;return;}
       const now=new Date().toISOString();
-      if(curEntry) await sb.from('entries').update({ended_at:now}).eq('id',curEntry.id);
+      const closeErr=await closeOpenEntries(curShift.id, now);
+      if(closeErr) throw closeErr;
       await sb.from('shifts').update({logout_at:now}).eq('id',curShift.id);
       curShift=null;curEntry=null;
     }
@@ -717,19 +732,26 @@ $('loginBtn').onclick = async () => {
 };
 
 $('stopBtn').onclick = async () => {
-  if(!curEntry)return;
-  await sb.from('entries').update({ended_at:new Date().toISOString()}).eq('id',curEntry.id);
+  if(!curShift)return;
+  const closeErr=await closeOpenEntries(curShift.id, new Date().toISOString());
+  if(closeErr) return alert('Could not stop: '+closeErr.message);
   curEntry=null; paintShiftState(); await renderToday();
 };
 
+let switchBusy=false;
 async function switchActivity(act){
   if(!curShift) return alert('Press LOGIN first — activities only run inside a shift.');
   if(curEntry&&curEntry.activity===act) return;
-  const now=new Date().toISOString();
-  if(curEntry) await sb.from('entries').update({ended_at:now}).eq('id',curEntry.id);
-  const {data,error}=await sb.from('entries').insert({shift_id:curShift.id,staff_id:me.id,activity:act,started_at:now}).select().single();
-  if(error) return alert('Could not switch: '+error.message);
-  curEntry=data; paintShiftState(); await renderToday();
+  if(switchBusy) return; // ignore a double-click/rapid re-tap while the previous switch is still in flight
+  switchBusy=true;
+  try{
+    const now=new Date().toISOString();
+    const closeErr=await closeOpenEntries(curShift.id, now);
+    if(closeErr) return alert('Could not switch: '+closeErr.message);
+    const {data,error}=await sb.from('entries').insert({shift_id:curShift.id,staff_id:me.id,activity:act,started_at:now}).select().single();
+    if(error) return alert('Could not switch: '+error.message);
+    curEntry=data; paintShiftState(); await renderToday();
+  } finally { switchBusy=false; }
 }
 
 async function todaysEntries(){
@@ -869,7 +891,11 @@ async function loadRoster(){
     // span two PH dates once midnight passes, so a date match would wrongly go empty.
     const relevant=sh||latestShift[s.id];
     const mine=(ents||[]).filter(e=>e.staff_id===s.id&&relevant&&e.shift_id===relevant.id);
-    const running=mine.find(e=>!e.ended_at);
+    // A shift can briefly (or, for older data, permanently) have more than one open entry —
+    // never show a "current activity" for someone who is off shift, and if several entries
+    // are still open, the most recently started one is the real current one.
+    const openOnes=sh?mine.filter(e=>!e.ended_at):[];
+    const running=openOnes.length?openOnes.reduce((a,b)=>new Date(a.started_at)>new Date(b.started_at)?a:b):null;
     const anchorDate=relevant?phDate(new Date(relevant.login_at)):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate));
     const status= !sh ? 'Off shift' : (running&&running.activity.includes('Break')?'On break':'Working');
     if(status==='Off shift')off++;else if(status==='On break')br++;else on++;
