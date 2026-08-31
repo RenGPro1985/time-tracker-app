@@ -20,15 +20,23 @@ create table if not exists clients (
 
 -- ---------- STAFF (one row per login; id = Supabase auth user id) ----------
 create table if not exists staff (
-  id          uuid primary key references auth.users(id) on delete cascade,
-  username    text not null unique,
-  full_name   text not null,
-  email       text not null unique,
-  client_id   uuid references clients(id) on delete set null,
-  role        text not null default 'staff' check (role in ('staff','admin')),
-  active      boolean not null default true,
-  created_at  timestamptz not null default now()
+  id            uuid primary key references auth.users(id) on delete cascade,
+  username      text not null unique,
+  full_name     text not null,
+  email         text not null unique,
+  client_id     uuid references clients(id) on delete set null,
+  role          text not null default 'staff' check (role in ('staff','admin')),
+  active        boolean not null default true,
+  hire_date     date,
+  birth_date    date,
+  monthly_rate  numeric(12,2) not null default 0,
+  created_at    timestamptz not null default now()
 );
+
+-- safe to re-run on an existing database that predates these columns
+alter table staff add column if not exists hire_date date;
+alter table staff add column if not exists birth_date date;
+alter table staff add column if not exists monthly_rate numeric(12,2) not null default 0;
 
 -- ---------- SHIFTS (LOGIN -> LOGOUT) ----------
 create table if not exists shifts (
