@@ -337,7 +337,7 @@ function biweeklyPeriod(dateIso){const i=Math.floor(daysBetween(BIWEEKLY_ANCHOR,
 function semiPeriod(dateIso){const [y,m,d]=dateIso.split('-').map(Number);
   if(d>=5&&d<=20)return{start:`${y}-${String(m).padStart(2,'0')}-05`,end:`${y}-${String(m).padStart(2,'0')}-20`};
   if(d>=21){const s=`${y}-${String(m).padStart(2,'0')}-21`;const nm=m===12?1:m+1,ny=m===12?y+1:y;return{start:s,end:`${ny}-${String(nm).padStart(2,'0')}-04`};}
-  const pm=m===1?12:m-1,py=m===1?y-1:y;return{start:`${py}-${String(pm).padStart(2,'0')}-21`,end:`${y}-${String(m).padStart(2,'0')}-04`};}
+  const pm=m===1?12:m-1,py=m===1?y-1:y;return{start:`${py}-${String(pm).padStart(2,'0')}-21`,end:`${y}-${String(m).padStart(2,'0')}-04`};} const semiMonthlyPeriod=(d=new Date())=>{const y=d.getFullYear(),m=d.getMonth()+1,day=d.getDate(),lastDay=new Date(y,m,0).getDate();if(day>15)return{start:`${y}-${String(m).padStart(2,'0')}-16`,end:`${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,idx:1};return{start:`${y}-${String(m).padStart(2,'0')}-01`,end:`${y}-${String(m).padStart(2,'0')}-15`,idx:0};}; function myPeriodList(n=12){const out=[];let d=new Date();for(let i=0;i<n;i++){const y=d.getFullYear(),m=d.getMonth()+1,lastDay=new Date(y,m,0).getDate();out.push({start:`${y}-${String(m).padStart(2,'0')}-16`,end:`${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,idx:1,label:`${d.toLocaleString('default',{month:'short'})} 16-${lastDay}, ${y}`});out.push({start:`${y}-${String(m).padStart(2,'0')}-01`,end:`${y}-${String(m).padStart(2,'0')}-15`,idx:0,label:`${d.toLocaleString('default',{month:'short'})} 1-15, ${y}`});d=new Date(y,m-2,1);}return out;} let ppList=[];
 function periodList(type,count=14){const today=phDate(new Date());const out=[];
   if(type==='biweekly'){let p=biweeklyPeriod(today);for(let i=0;i<count;i++){out.push(p);p=biweeklyPeriod(addDays(p.start,-1));}}
   else{let p=semiPeriod(today);for(let i=0;i<count;i++){out.push(p);p=semiPeriod(addDays(p.start,-1));}}
@@ -449,12 +449,12 @@ async function start(){
 }
 
 const PAGES={
-  a'v-punch' :['🕒 Time Tracker','Time Tracker','Your shift, activities and totals'],
+  'v-punch' :['🕒 Time Tracker','Time Tracker','Your shift, activities and totals'],
   'v-status':['📡 Live Status','Live Status','Who is on shift right now'],
   'v-staff' :['👥 Staff & Clients','Staff & Clients','Add or remove staff, manage client shifts'],
   'v-sheets':['📄 Timesheets','Timesheets','Filter by pay period and export'],
   'v-corr'  :['✏️ Corrections','Corrections','Approve or reject staff correction requests'],
-  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests']
+  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests']
 };
 let view='v-punch';
 function buildNav(){
@@ -804,7 +804,7 @@ function refreshPeriods(){
     const list=periodList(t);
     $('pPeriod').innerHTML=list.map(p=>`<option value="${p.start}|${p.end}">${fmtNice(p.start)} – ${fmtNice(p.end)}</option>`).join('');
   }else{
-    if(!ppList.length){ppList=myPeriodList(12);} if($('ppSelect')&&!$('ppSelect').options.length){$('ppSelect').innerHTML=ppList.map((pp,i)=>`<option value="${i}">${pp.label}</option>`).join('');$('ppSelect').onchange=()=>renderPayPeriod();} const idx=$('ppSelect')?Number($('ppSelect').value||0):0; const p=ppList[idx]||semiMonthlyPeriod();$('pFrom').value=p.start;$('pTo').value=p.end;
+    const p=biweeklyPeriod(phDate(new Date()));$('pFrom').value=p.start;$('pTo').value=p.end;
   }
 }
 function currentRange(){
