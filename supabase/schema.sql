@@ -79,6 +79,45 @@ create table if not exists corrections (
   created_at   timestamptz not null default now()
 );
 
+-- ---------- REQUESTS (PTO / salary advance / cash advance) ----------
+create table if not exists requests (
+  id           uuid primary key default gen_random_uuid(),
+  staff_id     uuid not null references staff(id) on delete cascade,
+  type         text not null check (type in ('pto','salary_advance','cash_advance')),
+  start_date   date,
+  end_date     date,
+  amount       numeric(12,2),
+  cutoffs      integer,
+  reason       text,
+  status       text not null default 'pending' check (status in ('pending','approved','rejected','paid')),
+  reviewed_by  uuid references staff(id),
+  reviewed_at  timestamptz,
+  created_at   timestamptz not null default now()
+);
+create index if not exists requests_staff_idx on requests (staff_id, created_at desc);
+
+-- safe to re-run on an existing database that predates these columns
+alter table requests add column if not exists cutoffs integer;
+alter table requests add column if not exists reason text;
+
+-- ---------- ADVANCE DEDUCTIONS ----------
+-- Auto-generated repayment schedule for approved salary/cash advances.
+-- Staff pick how many cutoffs (pay periods) to repay over when they request
+-- the advance. The first deduction always falls on the earliest payout
+-- period after approval (the 15th or the last day of the month, whichever
+-- comes first); each following deduction lands on the next payout after that.
+create table if not exists advance_deductions (
+  id           uuid primary key default gen_random_uuid(),
+  request_id   uuid not null references requests(id) on delete cascade,
+  staff_id     uuid not null references staff(id) on delete cascade,
+  cutoff_date  date not null,
+  amount       numeric(12,2) not null,
+  status       text not null default 'scheduled' check (status in ('scheduled','deducted','waived')),
+  created_at   timestamptz not null default now()
+);
+create index if not exists advance_deductions_staff_idx   on advance_deductions (staff_id, cutoff_date);
+create index if not exists advance_deductions_request_idx on advance_deductions (request_id);
+
 -- ---------- SETTINGS (break allowances etc.) ----------
 create table if not exists settings (
   key   text primary key,
@@ -116,6 +155,8 @@ alter table shifts      enable row level security;
 alter table entries     enable row level security;
 alter table corrections enable row level security;
 alter table settings    enable row level security;
+alter table requests            enable row level security;
+alter table advance_deductions  enable row level security;
 
 drop policy if exists p_clients_read  on clients;
 drop policy if exists p_clients_admin on clients;
@@ -152,6 +193,26 @@ drop policy if exists p_settings_read  on settings;
 drop policy if exists p_settings_admin on settings;
 create policy p_settings_read  on settings for select to authenticated using (true);
 create policy p_settings_admin on settings for all    to authenticated using (is_admin()) with check (is_admin());
+
+drop policy if exists p_requests_own_rw    on requests;
+drop policy if exists p_requests_own_read  on requests;
+drop policy if exists p_requests_admin     on requests;
+-- staff can create and read their own requests, but only admins can change status
+create policy p_requests_own_read on requests for select to authenticated
+  using (staff_id = auth.uid() or is_admin());
+create policy p_requests_own_insert on requests for insert to authenticated
+  with check (staff_id = auth.uid());
+create policy p_requests_admin on requests for update to authenticated
+  using (is_admin()) with check (is_admin());
+create policy p_requests_admin_del on requests for delete to authenticated
+  using (is_admin());
+
+drop policy if exists p_advdeduct_own_read on advance_deductions;
+drop policy if exists p_advdeduct_admin    on advance_deductions;
+create policy p_advdeduct_own_read on advance_deductions for select to authenticated
+  using (staff_id = auth.uid() or is_admin());
+create policy p_advdeduct_admin on advance_deductions for all to authenticated
+  using (is_admin()) with check (is_admin());
 
 -- ============================================================
 -- STARTER DATA (edit the names later in the app)
