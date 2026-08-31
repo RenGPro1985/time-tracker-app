@@ -289,7 +289,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     <section id="v-corr" class="hide grid" style="gap:16px">
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
         <select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Date</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div></div><div style="margin-top:10px"><label>Reason / note</label><input id="reqReason" placeholder="e.g. Family event, or repay in 2 cutoffs" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></section>
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Date</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section>
 
     <!-- ---------- ADMIN: POLICY ---------- -->
     <section id="v-policy" class="hide grid" style="gap:16px">
@@ -343,6 +343,31 @@ function periodList(type,count=14){const today=phDate(new Date());const out=[];
   if(type==='biweekly'){let p=biweeklyPeriod(today);for(let i=0;i<count;i++){out.push(p);p=biweeklyPeriod(addDays(p.start,-1));}}
   else{let p=semiPeriod(today);for(let i=0;i<count;i++){out.push(p);p=semiPeriod(addDays(p.start,-1));}}
   return out;}
+
+/* ---------- payout cutoffs (salary is paid on the 15th and the last day of each month) ----------
+   Advance/cash-advance repayments always begin on the earliest payout period after
+   the request is approved, then continue on each following cutoff. */
+function lastDayOfMonth(y,m){return new Date(Date.UTC(y,m,0)).getUTCDate();} // m is 1-based
+function nextCutoffOnOrAfter(dateIso){
+  const [y,m,d]=dateIso.split('-').map(Number);
+  const ld=lastDayOfMonth(y,m);
+  if(d<=15) return `${y}-${String(m).padStart(2,'0')}-15`;
+  return `${y}-${String(m).padStart(2,'0')}-${String(ld).padStart(2,'0')}`;
+}
+function cutoffAfter(cutoffIso){return nextCutoffOnOrAfter(addDays(cutoffIso,1));}
+function cutoffSchedule(fromIso,count){
+  const out=[];let cur=nextCutoffOnOrAfter(fromIso);
+  for(let i=0;i<count;i++){out.push(cur);cur=cutoffAfter(cur);}
+  return out;
+}
+/* split an amount evenly across N cutoffs; last cutoff absorbs the rounding remainder */
+function splitAmount(total,count){
+  const base=Math.floor((total/count)*100)/100;
+  const out=Array(count).fill(base);
+  const remainder=Math.round((total-base*count)*100)/100;
+  out[count-1]=Math.round((out[count-1]+remainder)*100)/100;
+  return out;
+}
 
 /* ---------- billable math ---------- */
 function minutesOf(e,now){const s=new Date(e.started_at),t=e.ended_at?new Date(e.ended_at):(now||new Date());return Math.max(0,(t-s)/60000);}
@@ -919,7 +944,119 @@ function renderPolicy(){
   };
 }
 
-const TYPE_LABEL={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}; const STATUS_PILL={pending:'p-off',approved:'p-work',rejected:'p-bad',paid:'p-work'}; let myReqs=[]; function reqDetails(r){ if(r.type==='pto') return fmtNice(r.start_date)+' – '+fmtNice(r.end_date); return '₱'+Number(r.amount||0).toLocaleString(); } function outstanding(type){ return myReqs.filter(r=>r.type===type&&r.status==='approved').reduce((a,r)=>a+Number(r.amount||0),0); } async function loadMyRequests(){ const {data}=await sb.from('requests').select('*').eq('staff_id',me.id).order('created_at',{ascending:false}); myReqs=data||[]; $('reqPto').textContent=Number(me.pto_balance||0)+' days'; $('reqSalAdvBal').textContent='₱'+outstanding('salary_advance').toLocaleString(); $('reqCashAdvBal').textContent='₱'+outstanding('cash_advance').toLocaleString(); renderRequests(); } function renderRequests(){ $('reqHistory').innerHTML = myReqs.length? myReqs.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}</td><td>${escapeHtml(r.reason||'')}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td></tr>`).join('') : `<tr><td colspan="5" class="muted">No requests yet.</td></tr>`; } if($('reqType')){ $('reqType').onchange=()=>{ const t=$('reqType').value; $('reqPtoFields').classList.toggle('hide', t!=='pto'); $('reqAmtFields').classList.toggle('hide', t==='pto'); }; $('reqSubmit').onclick=async()=>{ const t=$('reqType').value; const payload={staff_id:me.id,type:t,reason:$('reqReason').value.trim()||null}; if(t==='pto'){ payload.start_date=$('reqStart').value; payload.end_date=$('reqEnd').value; if(!payload.start_date||!payload.end_date) return alert('Pick a start and end date.'); }else{ payload.amount=Number($('reqAmount').value||0); if(!payload.amount||payload.amount<=0) return alert('Enter an amount.'); } $('reqSubmit').disabled=true; const {error}=await sb.from('requests').insert(payload); $('reqSubmit').disabled=false; if(error) return alert(error.message); $('reqReason').value='';$('reqAmount').value='';$('reqStart').value='';$('reqEnd').value=''; $('reqMsg').textContent='Request sent.'; setTimeout(()=>$('reqMsg').textContent='',3000); await loadMyRequests(); }; } let reqAdminList=[]; async function loadReqAdmin(){ if(!$('reqFilter'))return; const filt=$('reqFilter').value; let q=sb.from('requests').select('*').order('created_at',{ascending:false}); if(filt==='pending') q=q.eq('status','pending'); const {data}=await q; reqAdminList=data||[]; const ids=[...new Set(reqAdminList.map(r=>r.staff_id))]; const {data:staffRows}=ids.length? await sb.from('staff').select('id,full_name').in('id',ids) : {data:[]}; const nameOf=id=>{const s=(staffRows||[]).find(x=>x.id===id); return s?s.full_name:'—';}; $('reqAdminTable').innerHTML = reqAdminList.length? reqAdminList.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}</td><td>${escapeHtml(r.reason||'')}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'?`<button class="btn btn-ghost" data-paid="${r.id}">Mark paid</button>`:''}</td></tr>`).join('') : `<tr><td colspan="7" class="muted">No requests.</td></tr>`; $('reqAdminTable').querySelectorAll('[data-appr]').forEach(b=>b.onclick=()=>decideReq(b.dataset.appr,'approved')); $('reqAdminTable').querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>decideReq(b.dataset.rej,'rejected')); $('reqAdminTable').querySelectorAll('[data-paid]').forEach(b=>b.onclick=()=>decideReq(b.dataset.paid,'paid')); } async function decideReq(id,status){ const {error}=await sb.from('requests').update({status,reviewed_by:me.id,reviewed_at:new Date().toISOString()}).eq('id',id); if(error)return alert(error.message); await loadReqAdmin(); } if($('reqFilter')) $('reqFilter').onchange=()=>loadReqAdmin(); /* go */
+const TYPE_LABEL={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance'};
+const STATUS_PILL={pending:'p-off',approved:'p-work',rejected:'p-bad',paid:'p-work',scheduled:'p-off',deducted:'p-work',waived:'p-off'};
+const isAdvanceType=t=>t==='salary_advance'||t==='cash_advance';
+let myReqs=[], myDeductions=[];
+function reqDetails(r){
+  if(r.type==='pto') return fmtNice(r.start_date)+' – '+fmtNice(r.end_date);
+  const amt='₱'+Number(r.amount||0).toLocaleString();
+  return isAdvanceType(r.type)&&r.cutoffs ? `${amt} over ${r.cutoffs} cutoff${r.cutoffs>1?'s':''}` : amt;
+}
+/* remaining balance = sum of deductions not yet taken out of pay */
+function outstanding(type){
+  const reqIds=new Set(myReqs.filter(r=>r.type===type&&r.status==='approved').map(r=>r.id));
+  return myDeductions.filter(d=>reqIds.has(d.request_id)&&d.status==='scheduled').reduce((a,d)=>a+Number(d.amount||0),0);
+}
+async function loadMyRequests(){
+  const {data}=await sb.from('requests').select('*').eq('staff_id',me.id).order('created_at',{ascending:false});
+  myReqs=data||[];
+  const {data:dd}=await sb.from('advance_deductions').select('*').eq('staff_id',me.id).order('cutoff_date',{ascending:true});
+  myDeductions=dd||[];
+  $('reqPto').textContent=Number(me.pto_balance||0)+' days';
+  $('reqSalAdvBal').textContent='₱'+outstanding('salary_advance').toLocaleString();
+  $('reqCashAdvBal').textContent='₱'+outstanding('cash_advance').toLocaleString();
+  renderRequests();
+}
+function renderRequests(){
+  $('reqHistory').innerHTML = myReqs.length? myReqs.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}</td><td>${escapeHtml(r.reason||'')}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td></tr>`).join('') : `<tr><td colspan="5" class="muted">No requests yet.</td></tr>`;
+  const reqById={}; myReqs.forEach(r=>reqById[r.id]=r);
+  const upcoming=myDeductions.filter(d=>d.status!=='waived').sort((a,b)=>a.cutoff_date<b.cutoff_date?-1:1);
+  $('reqDeductions').innerHTML = upcoming.length? upcoming.map(d=>{const r=reqById[d.request_id]; return `<tr><td>${fmtNice(d.cutoff_date)}</td><td>${r?TYPE_LABEL[r.type]:'—'}</td><td>₱${Number(d.amount||0).toLocaleString()}</td><td><span class="pill ${STATUS_PILL[d.status]}"><span class="dot"></span>${d.status}</span></td></tr>`;}).join('') : `<tr><td colspan="4" class="muted">No scheduled deductions.</td></tr>`;
+}
+if($('reqType')){
+  $('reqType').onchange=()=>{
+    const t=$('reqType').value;
+    $('reqPtoFields').classList.toggle('hide', t!=='pto');
+    $('reqAmtFields').classList.toggle('hide', t==='pto');
+    $('reqCutoffFields').classList.toggle('hide', t==='pto');
+  };
+  $('reqSubmit').onclick=async()=>{
+    const t=$('reqType').value;
+    const reason=$('reqReason').value.trim();
+    if(!reason) return alert('Please enter a reason.');
+    const payload={staff_id:me.id,type:t,reason};
+    if(t==='pto'){
+      payload.start_date=$('reqStart').value; payload.end_date=$('reqEnd').value;
+      if(!payload.start_date||!payload.end_date) return alert('Pick a start and end date.');
+    }else{
+      payload.amount=Number($('reqAmount').value||0);
+      if(!payload.amount||payload.amount<=0) return alert('Enter an amount.');
+      payload.cutoffs=Number($('reqCutoffs').value||0);
+      if(!Number.isInteger(payload.cutoffs)||payload.cutoffs<1) return alert('Enter how many cutoffs you will pay this off over (1 or more).');
+    }
+    $('reqSubmit').disabled=true;
+    const {error}=await sb.from('requests').insert(payload);
+    $('reqSubmit').disabled=false;
+    if(error) return alert(error.message);
+    $('reqReason').value='';$('reqAmount').value='';$('reqStart').value='';$('reqEnd').value='';$('reqCutoffs').value='1';
+    $('reqMsg').textContent='Request sent.'; setTimeout(()=>$('reqMsg').textContent='',3000);
+    await loadMyRequests();
+  };
+}
+let reqAdminList=[], dedAdminList=[], dedStaffNames={};
+async function loadReqAdmin(){
+  if(!$('reqFilter'))return;
+  const filt=$('reqFilter').value;
+  let q=sb.from('requests').select('*').order('created_at',{ascending:false});
+  if(filt==='pending') q=q.eq('status','pending');
+  const {data}=await q; reqAdminList=data||[];
+  const ids=[...new Set(reqAdminList.map(r=>r.staff_id))];
+  const {data:staffRows}=ids.length? await sb.from('staff').select('id,full_name').in('id',ids) : {data:[]};
+  const nameOf=id=>{const s=(staffRows||[]).find(x=>x.id===id); return s?s.full_name:'—';};
+  $('reqAdminTable').innerHTML = reqAdminList.length? reqAdminList.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}</td><td>${escapeHtml(r.reason||'')}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'?`<button class="btn btn-ghost" data-paid="${r.id}">Mark paid</button>`:''}</td></tr>`).join('') : `<tr><td colspan="7" class="muted">No requests.</td></tr>`;
+  $('reqAdminTable').querySelectorAll('[data-appr]').forEach(b=>b.onclick=()=>decideReq(b.dataset.appr,'approved'));
+  $('reqAdminTable').querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>decideReq(b.dataset.rej,'rejected'));
+  $('reqAdminTable').querySelectorAll('[data-paid]').forEach(b=>b.onclick=()=>decideReq(b.dataset.paid,'paid'));
+  await loadDedAdmin(staffRows||[]);
+}
+async function loadDedAdmin(knownStaff){
+  if(!$('dedFilter'))return;
+  const filt=$('dedFilter').value;
+  let q=sb.from('advance_deductions').select('*').order('cutoff_date',{ascending:true});
+  if(filt==='scheduled') q=q.eq('status','scheduled');
+  const {data}=await q; dedAdminList=data||[];
+  const ids=[...new Set(dedAdminList.map(d=>d.staff_id))].filter(id=>!knownStaff.some(s=>s.id===id));
+  const {data:extra}= ids.length? await sb.from('staff').select('id,full_name').in('id',ids) : {data:[]};
+  const allStaff=[...knownStaff,...(extra||[])];
+  const nameOf=id=>{const s=allStaff.find(x=>x.id===id); return s?s.full_name:'—';};
+  const reqById={}; reqAdminList.forEach(r=>reqById[r.id]=r);
+  $('dedAdminTable').innerHTML = dedAdminList.length? dedAdminList.map(d=>{const r=reqById[d.request_id]; return `<tr><td>${fmtNice(d.cutoff_date)}</td><td>${escapeHtml(nameOf(d.staff_id))}</td><td>${escapeHtml(r?(r.reason||''):'')}</td><td>₱${Number(d.amount||0).toLocaleString()}</td><td><span class="pill ${STATUS_PILL[d.status]}"><span class="dot"></span>${d.status}</span></td><td style="text-align:right">${d.status==='scheduled'?`<button class="btn btn-ghost" data-ded="${d.id}">Mark deducted</button>`:''}</td></tr>`;}).join('') : `<tr><td colspan="6" class="muted">No deductions.</td></tr>`;
+  $('dedAdminTable').querySelectorAll('[data-ded]').forEach(b=>b.onclick=()=>markDeducted(b.dataset.ded));
+}
+async function markDeducted(id){
+  const {error}=await sb.from('advance_deductions').update({status:'deducted'}).eq('id',id);
+  if(error)return alert(error.message);
+  await loadDedAdmin([]);
+}
+/* build and insert the repayment schedule for an approved salary/cash advance */
+async function scheduleAdvanceDeductions(r){
+  if(!isAdvanceType(r.type)||!r.cutoffs||!r.amount) return;
+  const dates=cutoffSchedule(phDate(new Date()),r.cutoffs);
+  const amounts=splitAmount(Number(r.amount),r.cutoffs);
+  const rows=dates.map((cutoff_date,i)=>({request_id:r.id,staff_id:r.staff_id,cutoff_date,amount:amounts[i],status:'scheduled'}));
+  const {error}=await sb.from('advance_deductions').insert(rows);
+  if(error) alert('Request approved, but the deduction schedule could not be created: '+error.message);
+}
+async function decideReq(id,status){
+  const {error}=await sb.from('requests').update({status,reviewed_by:me.id,reviewed_at:new Date().toISOString()}).eq('id',id);
+  if(error)return alert(error.message);
+  if(status==='approved'){ const r=reqAdminList.find(x=>x.id===id); if(r) await scheduleAdvanceDeductions(r); }
+  await loadReqAdmin();
+}
+if($('reqFilter')) $('reqFilter').onchange=()=>loadReqAdmin();
+if($('dedFilter')) $('dedFilter').onchange=()=>loadReqAdmin();
+/* go */
 boot();
 </script>
 </body>
