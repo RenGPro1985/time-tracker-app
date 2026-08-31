@@ -258,7 +258,7 @@ button.btn{padding:7px 12px;font-size:12px}
           <select id="fStatus" style="width:auto"><option value="">All statuses</option><option>Working</option><option>On break</option><option>Off shift</option></select>
           <button class="btn btn-ghost" id="refreshBtn">Refresh</button></div>
         </div>
-        <table><thead><tr><th>Staff</th><th>Client</th><th>Shift (PHT)</th><th>Status</th><th>Activity</th><th>Logged today</th><th>Billable</th></tr></thead>
+        <table><thead><tr><th>Staff</th><th>Client</th><th>Shift (PHT)</th><th>Status</th><th>Activity</th><th>Time in status</th></tr></thead>
         <tbody id="roster"></tbody></table>
       </div>
     </section>
@@ -733,14 +733,15 @@ async function switchActivity(act){
 }
 
 async function todaysEntries(){
-  const today=phDate(new Date());
   const from=new Date(Date.now()-36*3600*1000).toISOString();
   const [{data},{data:shs}]=await Promise.all([
     sb.from('entries').select('*').eq('staff_id',me.id).gte('started_at',from).order('started_at'),
-    sb.from('shifts').select('*').eq('staff_id',me.id).gte('login_at',from)
+    sb.from('shifts').select('*').eq('staff_id',me.id).gte('login_at',from).order('login_at',{ascending:false})
   ]);
-  const sdm=buildShiftDateMap(shs);
-  return (data||[]).filter(e=> curShift ? e.shift_id===curShift.id : shiftDateOf(e,sdm)===today );
+  // Match by shift_id, not calendar date — right after logging out of an overnight shift
+  // that crossed 12MN, "today" has already advanced past the shift's own PH date.
+  const mostRecent=(shs||[])[0];
+  return (data||[]).filter(e=> curShift ? e.shift_id===curShift.id : (mostRecent&&e.shift_id===mostRecent.id) );
 }
 
 async function renderToday(){
@@ -855,22 +856,26 @@ function fill(id,blank,pairs){$(id).innerHTML=`<option value="">${blank}</option
 async function loadRoster(){
   const from=new Date(Date.now()-36*3600*1000).toISOString();
   const {data:ents}=await sb.from('entries').select('*').gte('started_at',from).order('started_at');
-  const {data:shs}=await sb.from('shifts').select('*').gte('login_at',from);
-  const openShift={}; (shs||[]).forEach(s=>{ if(!s.logout_at) openShift[s.staff_id]=s; });
-  const shiftDateMap=buildShiftDateMap(shs);
+  const {data:shs}=await sb.from('shifts').select('*').gte('login_at',from).order('login_at',{ascending:false});
+  const openShift={}; const latestShift={};
+  (shs||[]).forEach(s=>{ if(!s.logout_at) openShift[s.staff_id]=s; if(!latestShift[s.staff_id]) latestShift[s.staff_id]=s; });
   const today=phDate(new Date());
   const fc=$('fClient').value, fs=$('fStaff').value, fst=$('fStatus').value;
   let on=0,br=0,off=0,pctSum=0,pctN=0;
   const rows=staffList.filter(s=>s.active).map(s=>{
     const sh=openShift[s.id];
-    const mine=(ents||[]).filter(e=>e.staff_id===s.id&&shiftDateOf(e,shiftDateMap)===today);
+    // Match entries to the staff member's current (or most recently ended) shift by
+    // shift_id, never by comparing calendar dates — an overnight shift's entries can
+    // span two PH dates once midnight passes, so a date match would wrongly go empty.
+    const relevant=sh||latestShift[s.id];
+    const mine=(ents||[]).filter(e=>e.staff_id===s.id&&relevant&&e.shift_id===relevant.id);
     const running=mine.find(e=>!e.ended_at);
-    const anchorDate=sh?phDate(new Date(sh.login_at)):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate));
+    const anchorDate=relevant?phDate(new Date(relevant.login_at)):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate));
     const status= !sh ? 'Off shift' : (running&&running.activity.includes('Break')?'On break':'Working');
     if(status==='Off shift')off++;else if(status==='On break')br++;else on++;
     if(sum.total>0){pctSum+=sum.billable/sum.total*100;pctN++;}
     
-    return {s,c,status,act:running?running.activity:'—',sum};
+    return {s,c,status,act:running?running.activity:'—',sum,statusMins:running?minutesOf(running,null):0};
   }).filter(r=>(!fc||r.s.client_id===fc)&&(!fs||r.s.id===fs)&&(!fst||r.status===fst));
   $('stOn').textContent=on;$('stBreak').textContent=br;$('stOff').textContent=off;
   $('stPct').textContent=pctN?Math.round(pctSum/pctN)+'%':'—';
@@ -878,9 +883,9 @@ async function loadRoster(){
   $('roster').innerHTML=rows.length?rows.map(r=>`<tr><td><b>${escapeHtml(r.s.full_name)}</b></td>
    <td class="muted">${r.c?escapeHtml(r.c.name):'—'}</td>
    <td class="mono">${r.c?r.c.shift_start.slice(0,5)+' – '+r.c.shift_end.slice(0,5):'—'}</td>
-   <td>${pill(r.status)}</td><td>${r.act}</td><td class="mono">${hm(r.sum.total)}</td>
-   <td class="mono" style="color:var(--teal)">${hm(r.sum.billable)}</td></tr>`).join('')
-   :`<tr><td colspan="7" class="muted">No staff match those filters.</td></tr>`;
+   <td>${pill(r.status)}</td><td>${r.act}</td>
+   <td class="mono">${r.status==='Off shift'?'—':hm(r.statusMins)}</td></tr>`).join('')
+   :`<tr><td colspan="6" class="muted">No staff match those filters.</td></tr>`;
 }
 
 /* ============================================================
