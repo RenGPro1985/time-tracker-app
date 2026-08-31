@@ -121,7 +121,7 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
 
   <main class="main">
     <div class="top">
-      <div><h1 id="pageTitle" style="font-size:22px">Punch Clock</h1>
+      <div><h1 id="pageTitle" style="font-size:22px">Time Tracker</h1>
       <div class="muted" id="pageSub" style="margin-top:4px;font-size:12.5px"></div></div>
       <div id="roleBadge"></div>
     </div>
@@ -137,9 +137,9 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
             <span id="shiftPill" class="pill p-off"><span class="dot"></span>Logged out</span>
           </div>
           <div class="row" style="align-items:flex-end">
-            <div><div class="muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em">Shift timer</div>
-            <div class="bigtimer" id="shiftTimer">00:00:00</div>
-            <div class="muted mono" style="font-size:12px;margin-top:6px" id="actTimer"></div></div>
+            <div><div class="muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em">Activity timer</div>
+            <div class="bigtimer" id="actTimer">00:00:00</div>
+            <div class="muted mono" style="font-size:12px;margin-top:6px" id="shiftTimer">Shift 00:00:00</div></div>
             <div style="margin-left:auto" class="row">
               <button class="btn btn-teal" id="loginBtn">LOGIN — start shift</button>
               <button class="btn btn-ghost" id="stopBtn">Stop timer</button>
@@ -181,7 +181,7 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
         <div class="card"><h3 style="font-size:15px;margin-bottom:10px">Break usage today</h3><div id="breaks"></div>
           <div class="muted" style="font-size:11.5px;margin-top:6px">No hard caps — minutes over the allowance simply become non-billable.</div></div>
         <div class="card"><h3 style="font-size:15px;margin-bottom:10px">This pay period</h3>
-          <div class="muted mono" style="font-size:12px" id="ppLabel">—</div>
+          <select id="ppSelect" style="width:100%;font-size:12.5px"></select>
           <div class="row" style="justify-content:space-between;margin-top:10px"><span class="muted">Billable</span><b class="mono" style="color:var(--teal)" id="ppBill">0:00</b></div>
           <div class="row" style="justify-content:space-between;margin-top:6px"><span class="muted">Non-billable</span><b class="mono" style="color:var(--gold)" id="ppNon">0:00</b></div>
           <div class="row" style="justify-content:space-between;margin-top:6px"><span class="muted">Days worked</span><b class="mono" id="ppDays">0</b></div>
@@ -231,7 +231,7 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
             <div class="mono" id="addPwVal" style="font-size:18px;margin-top:6px;color:var(--teal)"></div>
           </div>
         </div>
-        <table><thead><tr><th>Name</th><th>Username</th><th>Client</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
+        <table><thead><tr><th>Name</th><th>Username</th><th>Client</th><th>Role</th><th>Status</th><th>PTO balance</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Bulk add staff</h3><button class="btn btn-ghost" id="toggleBulk">Open</button></div>
@@ -286,7 +286,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     <section id="v-corr" class="hide grid" style="gap:16px">
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
         <select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Date</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody id="corrTable"></tbody></table>
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Date</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div></div><div style="margin-top:10px"><label>Reason / note</label><input id="reqReason" placeholder="e.g. Family event, or repay in 2 cutoffs" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></section></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div></div><div style="margin-top:10px"><label>Reason / note</label><input id="reqReason" placeholder="e.g. Family event, or repay in 2 cutoffs" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></section></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div></div><div style="margin-top:10px"><label>Reason / note</label><input id="reqReason" placeholder="e.g. Family event, or repay in 2 cutoffs" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></section></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div></div><div style="margin-top:10px"><label>Reason / note</label><input id="reqReason" placeholder="e.g. Family event, or repay in 2 cutoffs" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></section></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div></div><div style="margin-top:10px"><label>Reason / note</label><input id="reqReason" placeholder="e.g. Family event, or repay in 2 cutoffs" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></section>
       </div>
     </section>
 
@@ -449,16 +449,16 @@ async function start(){
 }
 
 const PAGES={
-  'v-punch' :['🕒 Punch Clock','Punch Clock','Your shift, activities and totals'],
+  a'v-punch' :['🕒 Time Tracker','Time Tracker','Your shift, activities and totals'],
   'v-status':['📡 Live Status','Live Status','Who is on shift right now'],
   'v-staff' :['👥 Staff & Clients','Staff & Clients','Add or remove staff, manage client shifts'],
   'v-sheets':['📄 Timesheets','Timesheets','Filter by pay period and export'],
   'v-corr'  :['✏️ Corrections','Corrections','Approve or reject staff correction requests'],
-  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances']
+  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests']
 };
 let view='v-punch';
 function buildNav(){
-  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-sheets','v-corr','v-policy'] : ['v-punch'];
+  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-sheets','v-corr','v-reqadmin','v-policy'] : ['v-punch','v-req'];
   $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   go(view);
@@ -473,7 +473,7 @@ function go(v){
   if(v==='v-staff'){renderStaffAdmin();}
   if(v==='v-sheets'){initSheetFilters();}
   if(v==='v-corr'){loadCorrections();}
-  if(v==='v-policy'){renderPolicy();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();}
 }
 
 /* clocks + running timers */
@@ -484,7 +484,7 @@ function tick(){
   $('clientTzLabel').textContent = c? 'Client — '+c.timezone : 'Client time';
   $('clientClock').textContent = c? tzClock(now,c.timezone) : '--:--:--';
   if(curShift&&!curShift.logout_at){
-    $('shiftTimer').textContent=hms((now-new Date(curShift.login_at))/1000);
+    $('shiftTimer').textContent='Shift '+hms((now-new Date(curShift.login_at))/1000);
     if(curEntry) $('actTimer').textContent=curEntry.activity+' — '+hms((now-new Date(curEntry.started_at))/1000);
     else $('actTimer').textContent='Timer stopped — pick an activity to resume';
   }
@@ -528,7 +528,7 @@ function paintShiftState(){
   const p=$('shiftPill');
   p.className='pill '+(on?(curEntry&&curEntry.activity.includes('Break')?'p-break':'p-work'):'p-off');
   p.innerHTML=`<span class="dot"></span>${on?(curEntry?curEntry.activity:'On shift — timer stopped'):'Logged out'}`;
-  if(!on){$('shiftTimer').textContent='00:00:00';$('actTimer').textContent='';}
+  if(!on){$('shiftTimer').textContent='Shift 00:00:00';$('actTimer').textContent='';}
   $('stopBtn').disabled=!curEntry;
   renderActs();
 }
@@ -599,8 +599,8 @@ async function renderToday(){
 }
 
 async function renderPayPeriod(){
-  const p=biweeklyPeriod(phDate(new Date()));
-  $('ppLabel').textContent=fmtNice(p.start)+' – '+fmtNice(p.end)+'  (bi-weekly)';
+  if(!ppList.length){ppList=myPeriodList(12);} if($('ppSelect')&&!$('ppSelect').options.length){$('ppSelect').innerHTML=ppList.map((pp,i)=>`<option value="${i}">${pp.label}</option>`).join('');$('ppSelect').onchange=()=>renderPayPeriod();} const idx=$('ppSelect')?Number($('ppSelect').value||0):0; const p=ppList[idx]||semiMonthlyPeriod();
+  
   const rows=await fetchEntriesRange(p.start,p.end,[me.id]);
   const byDay={};rows.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
   const cMe=clients.find(x=>x.id===me.client_id); let bill=0,non=0;Object.entries(byDay).forEach(([d,es])=>{const w=shiftWindowFor(cMe,d);const s=summarize(es,null,w);bill+=s.billable;non+=s.nonbillable;});
@@ -743,7 +743,7 @@ function renderStaffAdmin(){
     <td class="mono">${escapeHtml(s.username)}</td>
     <td><select data-assign="${s.id}" style="width:auto"><option value="">— none —</option>${clients.map(c2=>`<option value="${c2.id}" ${c2.id===s.client_id?'selected':''}>${escapeHtml(c2.name)}</option>`).join('')}</select></td>
     <td>${s.role}</td>
-    <td><span class="pill ${s.active?'p-work':'p-off'}"><span class="dot"></span>${s.active?'active':'inactive'}</span></td>
+    <td><span class="pill ${s.active?'p-work':'p-off'}"><span class="dot"></span>${s.active?'active':'inactive'}</span></td> <td><input type="number" min="0" step="0.5" data-pto="${s.id}" value="${s.pto_balance||0}" style="width:80px"></td>
     <td style="text-align:right" class="row" >
       <button class="btn btn-ghost" data-temp="${s.id}">New temp password</button>
       <button class="btn btn-ghost" data-reset="${s.id}">Email reset link</button>
@@ -751,7 +751,7 @@ function renderStaffAdmin(){
       <button class="btn btn-rose" data-del="${s.id}">Delete</button></td></tr>`;}).join('');
   $('staffTable').querySelectorAll('[data-assign]').forEach(sel=>sel.onchange=async()=>{
     const {error}=await sb.from('staff').update({client_id:sel.value||null}).eq('id',sel.dataset.assign);
-    if(error)alert(error.message); else reloadStaff();});
+    if(error)alert(error.message); else reloadStaff();}); $('staffTable').querySelectorAll('[data-pto]').forEach(inp=>inp.onchange=async()=>{ const {error}=await sb.from('staff').update({pto_balance:Number(inp.value||0)}).eq('id',inp.dataset.pto); if(error)alert(error.message); });
   $('staffTable').querySelectorAll('[data-temp]').forEach(b=>b.onclick=async()=>{
     if(!confirm('Set a new temporary password for this person? Their current password stops working.'))return;
     try{const r=await api('/api/staff/'+b.dataset.temp+'/temp-password',{method:'POST'});
@@ -804,7 +804,7 @@ function refreshPeriods(){
     const list=periodList(t);
     $('pPeriod').innerHTML=list.map(p=>`<option value="${p.start}|${p.end}">${fmtNice(p.start)} – ${fmtNice(p.end)}</option>`).join('');
   }else{
-    const p=biweeklyPeriod(phDate(new Date()));$('pFrom').value=p.start;$('pTo').value=p.end;
+    if(!ppList.length){ppList=myPeriodList(12);} if($('ppSelect')&&!$('ppSelect').options.length){$('ppSelect').innerHTML=ppList.map((pp,i)=>`<option value="${i}">${pp.label}</option>`).join('');$('ppSelect').onchange=()=>renderPayPeriod();} const idx=$('ppSelect')?Number($('ppSelect').value||0):0; const p=ppList[idx]||semiMonthlyPeriod();$('pFrom').value=p.start;$('pTo').value=p.end;
   }
 }
 function currentRange(){
@@ -910,7 +910,7 @@ function renderPolicy(){
   };
 }
 
-/* go */
+const TYPE_LABEL={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}; const STATUS_PILL={pending:'p-off',approved:'p-work',rejected:'p-bad',paid:'p-work'}; let myReqs=[]; function reqDetails(r){ if(r.type==='pto') return fmtNice(r.start_date)+' – '+fmtNice(r.end_date); return '₱'+Number(r.amount||0).toLocaleString(); } function outstanding(type){ return myReqs.filter(r=>r.type===type&&r.status==='approved').reduce((a,r)=>a+Number(r.amount||0),0); } async function loadMyRequests(){ const {data}=await sb.from('requests').select('*').eq('staff_id',me.id).order('created_at',{ascending:false}); myReqs=data||[]; $('reqPto').textContent=Number(me.pto_balance||0)+' days'; $('reqSalAdvBal').textContent='₱'+outstanding('salary_advance').toLocaleString(); $('reqCashAdvBal').textContent='₱'+outstanding('cash_advance').toLocaleString(); renderRequests(); } function renderRequests(){ $('reqHistory').innerHTML = myReqs.length? myReqs.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}</td><td>${escapeHtml(r.reason||'')}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td></tr>`).join('') : `<tr><td colspan="5" class="muted">No requests yet.</td></tr>`; } if($('reqType')){ $('reqType').onchange=()=>{ const t=$('reqType').value; $('reqPtoFields').classList.toggle('hide', t!=='pto'); $('reqAmtFields').classList.toggle('hide', t==='pto'); }; $('reqSubmit').onclick=async()=>{ const t=$('reqType').value; const payload={staff_id:me.id,type:t,reason:$('reqReason').value.trim()||null}; if(t==='pto'){ payload.start_date=$('reqStart').value; payload.end_date=$('reqEnd').value; if(!payload.start_date||!payload.end_date) return alert('Pick a start and end date.'); }else{ payload.amount=Number($('reqAmount').value||0); if(!payload.amount||payload.amount<=0) return alert('Enter an amount.'); } $('reqSubmit').disabled=true; const {error}=await sb.from('requests').insert(payload); $('reqSubmit').disabled=false; if(error) return alert(error.message); $('reqReason').value='';$('reqAmount').value='';$('reqStart').value='';$('reqEnd').value=''; $('reqMsg').textContent='Request sent.'; setTimeout(()=>$('reqMsg').textContent='',3000); await loadMyRequests(); }; } let reqAdminList=[]; async function loadReqAdmin(){ if(!$('reqFilter'))return; const filt=$('reqFilter').value; let q=sb.from('requests').select('*').order('created_at',{ascending:false}); if(filt==='pending') q=q.eq('status','pending'); const {data}=await q; reqAdminList=data||[]; const ids=[...new Set(reqAdminList.map(r=>r.staff_id))]; const {data:staffRows}=ids.length? await sb.from('staff').select('id,full_name').in('id',ids) : {data:[]}; const nameOf=id=>{const s=(staffRows||[]).find(x=>x.id===id); return s?s.full_name:'—';}; $('reqAdminTable').innerHTML = reqAdminList.length? reqAdminList.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}</td><td>${escapeHtml(r.reason||'')}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'?`<button class="btn btn-ghost" data-paid="${r.id}">Mark paid</button>`:''}</td></tr>`).join('') : `<tr><td colspan="7" class="muted">No requests.</td></tr>`; $('reqAdminTable').querySelectorAll('[data-appr]').forEach(b=>b.onclick=()=>decideReq(b.dataset.appr,'approved')); $('reqAdminTable').querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>decideReq(b.dataset.rej,'rejected')); $('reqAdminTable').querySelectorAll('[data-paid]').forEach(b=>b.onclick=()=>decideReq(b.dataset.paid,'paid')); } async function decideReq(id,status){ const {error}=await sb.from('requests').update({status,reviewed_by:me.id,reviewed_at:new Date().toISOString()}).eq('id',id); if(error)return alert(error.message); await loadReqAdmin(); } if($('reqFilter')) $('reqFilter').onchange=()=>loadReqAdmin(); /* go */
 boot();
 </script>
 </body>
