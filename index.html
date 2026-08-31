@@ -449,6 +449,14 @@ function phDate(d){const p=phParts(d);return `${p.year}-${p.month}-${p.day}`;}
 function phTime(d){const p=phParts(d);return `${p.hour}:${p.minute}`;}
 function phClock(d){const p=phParts(d);return `${p.hour}:${p.minute}:${p.second}`;}
 function tzClock(d,tz){try{return new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);}catch(e){return '--:--:--';}} function shiftWindowFor(client,dateIso){ if(!client||!client.shift_start||!client.shift_end) return null; const pad=t=>t.length===5?t+':00':t; const start=new Date(dateIso+'T'+pad(client.shift_start)+'+08:00'); let end=new Date(dateIso+'T'+pad(client.shift_end)+'+08:00'); if(end<=start) end=new Date(end.getTime()+86400000); return {start,end}; }
+/* Shifts that cross 12MN PHT (e.g. 20:00-05:00 for a US-hours client) must be reported
+   as ONE shift-day, not split across the two PH calendar dates they touch. Every entry
+   belongs to a shift (entry.shift_id -> shifts.id); the shift's "shift date" is the PH
+   calendar date its login_at falls on. Group/report by that shift date, never by each
+   entry's own started_at date, or hours logged after midnight silently fall outside
+   that day's shift window and get miscounted as non-billable / attributed to the wrong day. */
+function buildShiftDateMap(shifts){const m={};(shifts||[]).forEach(sh=>{m[sh.id]=phDate(new Date(sh.login_at));});return m;}
+function shiftDateOf(entry,shiftDateMap){return (entry.shift_id&&shiftDateMap[entry.shift_id])||phDate(new Date(entry.started_at));}
 function hm(mins){const m=Math.max(0,Math.round(mins));return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
 function hms(sec){sec=Math.max(0,Math.floor(sec));return [Math.floor(sec/3600),Math.floor(sec/60)%60,sec%60].map(n=>String(n).padStart(2,'0')).join(':');}
 function addDays(iso,n){const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
@@ -727,8 +735,12 @@ async function switchActivity(act){
 async function todaysEntries(){
   const today=phDate(new Date());
   const from=new Date(Date.now()-36*3600*1000).toISOString();
-  const {data}=await sb.from('entries').select('*').eq('staff_id',me.id).gte('started_at',from).order('started_at');
-  return (data||[]).filter(e=> curShift ? e.shift_id===curShift.id : phDate(new Date(e.started_at))===today );
+  const [{data},{data:shs}]=await Promise.all([
+    sb.from('entries').select('*').eq('staff_id',me.id).gte('started_at',from).order('started_at'),
+    sb.from('shifts').select('*').eq('staff_id',me.id).gte('login_at',from)
+  ]);
+  const sdm=buildShiftDateMap(shs);
+  return (data||[]).filter(e=> curShift ? e.shift_id===curShift.id : shiftDateOf(e,sdm)===today );
 }
 
 async function renderToday(){
@@ -778,8 +790,9 @@ async function renderPayPeriod(){
     p=ppList[Number(sel||0)]||semiMonthlyPeriod();
   }
 
-  const rows=await fetchEntriesRange(p.start,p.end,[me.id]);
-  const byDay={};rows.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
+  const [rows,shifts]=await Promise.all([fetchEntriesRange(p.start,p.end,[me.id]),fetchShiftsRange(p.start,p.end,[me.id])]);
+  const sdm=buildShiftDateMap(shifts);
+  const byDay={};rows.forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
   const cMe=clients.find(x=>x.id===me.client_id); let bill=0,non=0;Object.entries(byDay).forEach(([d,es])=>{const w=shiftWindowFor(cMe,d);const s=summarize(es,null,w);bill+=s.billable;non+=s.nonbillable;});
   $('ppBill').textContent=hm(bill);$('ppNon').textContent=hm(non);$('ppDays').textContent=Object.keys(byDay).length;
   renderPayPeriodTable(p,byDay,cMe);
@@ -844,12 +857,13 @@ async function loadRoster(){
   const {data:ents}=await sb.from('entries').select('*').gte('started_at',from).order('started_at');
   const {data:shs}=await sb.from('shifts').select('*').gte('login_at',from);
   const openShift={}; (shs||[]).forEach(s=>{ if(!s.logout_at) openShift[s.staff_id]=s; });
+  const shiftDateMap=buildShiftDateMap(shs);
   const today=phDate(new Date());
   const fc=$('fClient').value, fs=$('fStaff').value, fst=$('fStatus').value;
   let on=0,br=0,off=0,pctSum=0,pctN=0;
   const rows=staffList.filter(s=>s.active).map(s=>{
     const sh=openShift[s.id];
-    const mine=(ents||[]).filter(e=>e.staff_id===s.id&&(sh?e.shift_id===sh.id:phDate(new Date(e.started_at))===today));
+    const mine=(ents||[]).filter(e=>e.staff_id===s.id&&shiftDateOf(e,shiftDateMap)===today);
     const running=mine.find(e=>!e.ended_at);
     const anchorDate=sh?phDate(new Date(sh.login_at)):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate));
     const status= !sh ? 'Off shift' : (running&&running.activity.includes('Break')?'On break':'Working');
@@ -1096,24 +1110,29 @@ function currentRange(){
   const [s,e]=$('pPeriod').value.split('|');return{start:s,end:e};
 }
 async function fetchEntriesRange(startIso,endIso,staffIds){
-  // pull a day of padding on each side, then filter by PH date
+  // pull a day of padding on each side, then filter by the entry's SHIFT date (not its own
+  // raw timestamp date) so the tail of an overnight shift that crosses 12MN PHT — e.g. an
+  // entry logged at 2am belonging to a shift that started 8pm the day before — stays counted
+  // on the shift's day instead of being dropped for landing just outside the range.
   const from=new Date(startIso+'T00:00:00+08:00'); from.setDate(from.getDate()-1);
   const to=new Date(endIso+'T23:59:59+08:00'); to.setDate(to.getDate()+1);
   let q=sb.from('entries').select('*').gte('started_at',from.toISOString()).lte('started_at',to.toISOString()).order('started_at');
   if(staffIds&&staffIds.length===1) q=q.eq('staff_id',staffIds[0]);
-  const {data}=await q;
-  return (data||[]).filter(e=>{const d=phDate(new Date(e.started_at));return d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(e.staff_id));});
+  const [{data},shifts]=await Promise.all([q,fetchShiftsRange(startIso,endIso,staffIds)]);
+  const sdm=buildShiftDateMap(shifts);
+  return (data||[]).filter(e=>{const d=shiftDateOf(e,sdm);return d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(e.staff_id));});
 }
 async function runSheet(){
   const {start,end}=currentRange();
   if(!start||!end)return alert('Pick a date range.');
   const fc=$('pClient').value,fs=$('pStaff').value;
   const people=staffList.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs));
-  const ents=await fetchEntriesRange(start,end,people.map(s=>s.id));
+  const [ents,shifts]=await Promise.all([fetchEntriesRange(start,end,people.map(s=>s.id)),fetchShiftsRange(start,end,people.map(s=>s.id))]);
+  const sdm=buildShiftDateMap(shifts);
   sheetRows=[];sheetDetail=[];
   people.forEach(s=>{
     const mine=ents.filter(e=>e.staff_id===s.id); const sc=clients.find(c=>c.id===s.client_id);
-    const byDay={};mine.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
+    const byDay={};mine.forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
     let bill=0,non=0;
     Object.keys(byDay).sort().forEach(d=>{
       const sum=summarize(byDay[d],null,shiftWindowFor(sc,d));bill+=sum.billable;non+=sum.nonbillable;
@@ -1209,13 +1228,14 @@ async function runAdherence(){
   const people=staffList.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs));
   const ids=people.map(s=>s.id);
   const [ents,shs]=await Promise.all([fetchEntriesRange(start,end,ids),fetchShiftsRange(start,end,ids)]);
+  const shiftDateMap=buildShiftDateMap(shs);
 
   const grandPer={}; let grandTotal=0,grandBill=0;
   adRows=[];
   people.forEach(s=>{
     const c=clients.find(x=>x.id===s.client_id);
     const mine=ents.filter(e=>e.staff_id===s.id);
-    const byDay={}; mine.forEach(e=>{ const d=phDate(new Date(e.started_at)); (byDay[d]=byDay[d]||[]).push(e); });
+    const byDay={}; mine.forEach(e=>{ const d=shiftDateOf(e,shiftDateMap); (byDay[d]=byDay[d]||[]).push(e); });
     let total=0,bill=0; const per={}; const over={'15min Break':0,'30min Break':0,'Personal Break':0};
     Object.keys(byDay).forEach(d=>{
       const win=shiftWindowFor(c,d);
@@ -1360,7 +1380,8 @@ async function renderSheetGrid(){
       return ca===cb ? a.full_name.localeCompare(b.full_name) : ca.localeCompare(cb);
     });
   const days=weekdayList(start,end);
-  const ents=await fetchEntriesRange(start,end,people.map(s=>s.id));
+  const [ents,shifts]=await Promise.all([fetchEntriesRange(start,end,people.map(s=>s.id)),fetchShiftsRange(start,end,people.map(s=>s.id))]);
+  const sdm=buildShiftDateMap(shifts);
   const adj=await fetchAdjustments(start,end,people.map(s=>s.id));
   const adjMap={};adj.forEach(a=>adjMap[a.staff_id+'|'+a.work_date]=Number(a.hours));
 
@@ -1375,7 +1396,7 @@ async function renderSheetGrid(){
     if(lastClient!==null&&cName!==lastClient) rowsHtml+='<tr class="g-sep"><td colspan="'+(5+days.length)+'"></td></tr>';
     lastClient=cName;
     const mine=ents.filter(e=>e.staff_id===s.id);
-    const byDay={};mine.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
+    const byDay={};mine.forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
     let totalHrs=0;
     const cells=days.map(d=>{
       const key=s.id+'|'+d;
