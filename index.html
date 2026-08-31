@@ -1131,22 +1131,26 @@ function weekdayList(startIso,endIso){
   }
   return days;
 }
+/* PGRST205 = PostgREST can't find the table (missing migration or stale schema cache);
+   42P01 = Postgres "undefined_table" from a raw query. Either way, treat it as "adjustments
+   feature isn't set up yet" rather than a hard failure. */
+function isMissingTableError(error){ return error&&(error.code==='42P01'||error.code==='PGRST205'); }
 async function fetchAdjustments(startIso,endIso,staffIds){
   let q=sb.from('timesheet_adjustments').select('*').gte('work_date',startIso).lte('work_date',endIso);
   if(staffIds&&staffIds.length===1)q=q.eq('staff_id',staffIds[0]);
   const {data,error}=await q;
-  if(error){ if(error.code!=='42P01') console.warn('timesheet_adjustments:',error.message); return []; }
+  if(error){ if(!isMissingTableError(error)) console.warn('timesheet_adjustments:',error.message); return []; }
   return data||[];
 }
 async function saveAdjustment(staffId,dateIso,hoursOrNull,cellEl){
   if(hoursOrNull===null){
     const {error}=await sb.from('timesheet_adjustments').delete().eq('staff_id',staffId).eq('work_date',dateIso);
-    if(error)return alert(error.message);
+    if(error)return alert(isMissingTableError(error)?'Daily-hours overrides aren\'t set up on this database yet — ask an admin to run supabase/schema.sql in the Supabase SQL Editor.':error.message);
   }else{
     const {error}=await sb.from('timesheet_adjustments').upsert(
       {staff_id:staffId,work_date:dateIso,hours:hoursOrNull,edited_by:me.id,edited_at:new Date().toISOString()},
       {onConflict:'staff_id,work_date'});
-    if(error)return alert(error.message);
+    if(error)return alert(isMissingTableError(error)?'Daily-hours overrides aren\'t set up on this database yet — ask an admin to run supabase/schema.sql in the Supabase SQL Editor.':error.message);
   }
   renderSheetGrid();
 }
