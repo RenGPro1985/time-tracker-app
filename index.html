@@ -182,6 +182,12 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
           <div class="muted" style="font-size:11.5px;margin-top:6px">No hard caps — minutes over the allowance simply become non-billable.</div></div>
         <div class="card"><h3 style="font-size:15px;margin-bottom:10px">This pay period</h3>
           <select id="ppSelect" style="width:100%;font-size:12.5px"></select>
+          <div id="ppCustomRow" class="row hide" style="margin-top:8px">
+            <input type="date" id="ppCustomStart" style="flex:1;font-size:12.5px">
+            <span class="muted" style="font-size:12px">to</span>
+            <input type="date" id="ppCustomEnd" style="flex:1;font-size:12.5px">
+            <button class="btn btn-ghost" id="ppCustomApply" style="padding:9px 12px;font-size:12px">Apply</button>
+          </div>
           <div class="row" style="justify-content:space-between;margin-top:10px"><span class="muted">Billable</span><b class="mono" style="color:var(--teal)" id="ppBill">0:00</b></div>
           <div class="row" style="justify-content:space-between;margin-top:6px"><span class="muted">Non-billable</span><b class="mono" style="color:var(--gold)" id="ppNon">0:00</b></div>
           <div class="row" style="justify-content:space-between;margin-top:6px"><span class="muted">Days worked</span><b class="mono" id="ppDays">0</b></div>
@@ -338,7 +344,11 @@ function biweeklyPeriod(dateIso){const i=Math.floor(daysBetween(BIWEEKLY_ANCHOR,
 function semiPeriod(dateIso){const [y,m,d]=dateIso.split('-').map(Number);
   if(d>=5&&d<=20)return{start:`${y}-${String(m).padStart(2,'0')}-05`,end:`${y}-${String(m).padStart(2,'0')}-20`};
   if(d>=21){const s=`${y}-${String(m).padStart(2,'0')}-21`;const nm=m===12?1:m+1,ny=m===12?y+1:y;return{start:s,end:`${ny}-${String(nm).padStart(2,'0')}-04`};}
-  const pm=m===1?12:m-1,py=m===1?y-1:y;return{start:`${py}-${String(pm).padStart(2,'0')}-21`,end:`${y}-${String(m).padStart(2,'0')}-04`};} const semiMonthlyPeriod=(d=new Date())=>{const y=d.getFullYear(),m=d.getMonth()+1,day=d.getDate(),lastDay=new Date(y,m,0).getDate();if(day>15)return{start:`${y}-${String(m).padStart(2,'0')}-16`,end:`${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,idx:1};return{start:`${y}-${String(m).padStart(2,'0')}-01`,end:`${y}-${String(m).padStart(2,'0')}-15`,idx:0};}; function myPeriodList(n=12){const out=[];let d=new Date();for(let i=0;i<n;i++){const y=d.getFullYear(),m=d.getMonth()+1,lastDay=new Date(y,m,0).getDate();out.push({start:`${y}-${String(m).padStart(2,'0')}-16`,end:`${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,idx:1,label:`${d.toLocaleString('default',{month:'short'})} 16-${lastDay}, ${y}`});out.push({start:`${y}-${String(m).padStart(2,'0')}-01`,end:`${y}-${String(m).padStart(2,'0')}-15`,idx:0,label:`${d.toLocaleString('default',{month:'short'})} 1-15, ${y}`});d=new Date(y,m-2,1);}return out;} let ppList=[];
+  const pm=m===1?12:m-1,py=m===1?y-1:y;return{start:`${py}-${String(pm).padStart(2,'0')}-21`,end:`${y}-${String(m).padStart(2,'0')}-04`};} const semiMonthlyPeriod=(d=new Date())=>semiPeriod(phDate(d)); function monShort(m){return new Date(Date.UTC(2000,m-1,1)).toLocaleString('default',{month:'short'});}
+function semiLabel(p){const [sy,sm,sd]=p.start.split('-').map(Number);const [ey,em,ed]=p.end.split('-').map(Number);
+  if(sy===ey&&sm===em)return `${monShort(sm)} ${sd}-${ed}, ${sy}`;
+  return `${monShort(sm)} ${sd} - ${monShort(em)} ${ed}, ${ey}`;}
+function myPeriodList(n=12){const out=[];let p=semiPeriod(phDate(new Date()));for(let i=0;i<n;i++){out.push({start:p.start,end:p.end,label:semiLabel(p)});p=semiPeriod(addDays(p.start,-1));}return out;} let ppList=[];
 function periodList(type,count=14){const today=phDate(new Date());const out=[];
   if(type==='biweekly'){let p=biweeklyPeriod(today);for(let i=0;i<count;i++){out.push(p);p=biweeklyPeriod(addDays(p.start,-1));}}
   else{let p=semiPeriod(today);for(let i=0;i<count;i++){out.push(p);p=semiPeriod(addDays(p.start,-1));}}
@@ -625,8 +635,31 @@ async function renderToday(){
 }
 
 async function renderPayPeriod(){
-  if(!ppList.length){ppList=myPeriodList(12);} if($('ppSelect')&&!$('ppSelect').options.length){$('ppSelect').innerHTML=ppList.map((pp,i)=>`<option value="${i}">${pp.label}</option>`).join('');$('ppSelect').onchange=()=>renderPayPeriod();} const idx=$('ppSelect')?Number($('ppSelect').value||0):0; const p=ppList[idx]||semiMonthlyPeriod();
-  
+  if(!ppList.length){ppList=myPeriodList(12);}
+  if($('ppSelect')&&!$('ppSelect').options.length){
+    $('ppSelect').innerHTML=ppList.map((pp,i)=>`<option value="${i}">${pp.label}</option>`).join('')+`<option value="custom">Custom range…</option>`;
+    $('ppSelect').onchange=()=>{
+      const custom=$('ppSelect').value==='custom';
+      $('ppCustomRow').classList.toggle('hide',!custom);
+      if(custom&&!$('ppCustomStart').value){
+        const def=semiMonthlyPeriod();
+        $('ppCustomStart').value=def.start;$('ppCustomEnd').value=def.end;
+      }
+      renderPayPeriod();
+    };
+    $('ppCustomApply').onclick=()=>renderPayPeriod();
+    $('ppCustomStart').onchange=()=>renderPayPeriod();
+    $('ppCustomEnd').onchange=()=>renderPayPeriod();
+  }
+  const sel=$('ppSelect')?$('ppSelect').value:'0';
+  let p;
+  if(sel==='custom'){
+    const cs=$('ppCustomStart').value,ce=$('ppCustomEnd').value;
+    p=(cs&&ce&&cs<=ce)?{start:cs,end:ce}:semiMonthlyPeriod();
+  } else {
+    p=ppList[Number(sel||0)]||semiMonthlyPeriod();
+  }
+
   const rows=await fetchEntriesRange(p.start,p.end,[me.id]);
   const byDay={};rows.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
   const cMe=clients.find(x=>x.id===me.client_id); let bill=0,non=0;Object.entries(byDay).forEach(([d,es])=>{const w=shiftWindowFor(cMe,d);const s=summarize(es,null,w);bill+=s.billable;non+=s.nonbillable;});
