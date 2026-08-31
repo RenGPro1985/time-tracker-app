@@ -214,6 +214,30 @@ create policy p_advdeduct_own_read on advance_deductions for select to authentic
 create policy p_advdeduct_admin on advance_deductions for all to authenticated
   using (is_admin()) with check (is_admin());
 
+-- ---------- TIMESHEET ADJUSTMENTS (admin-entered daily overrides) ----------
+-- Lets an admin type a total-hours override for one staff member on one day
+-- in the Timesheets "Daily hours grid" without touching that person's real
+-- shift/entry records. The grid falls back to hours computed from actual
+-- entries whenever no override row exists for that staff+date.
+create table if not exists timesheet_adjustments (
+  id         uuid primary key default gen_random_uuid(),
+  staff_id   uuid not null references staff(id) on delete cascade,
+  work_date  date not null,
+  hours      numeric(6,2) not null check (hours >= 0),
+  edited_by  uuid references staff(id),
+  edited_at  timestamptz not null default now(),
+  unique (staff_id, work_date)
+);
+create index if not exists timesheet_adj_staff_idx on timesheet_adjustments (staff_id, work_date);
+
+alter table timesheet_adjustments enable row level security;
+drop policy if exists p_tsadj_admin on timesheet_adjustments;
+drop policy if exists p_tsadj_self_read on timesheet_adjustments;
+create policy p_tsadj_admin on timesheet_adjustments for all to authenticated
+  using (is_admin()) with check (is_admin());
+create policy p_tsadj_self_read on timesheet_adjustments for select to authenticated
+  using (staff_id = auth.uid() or is_admin());
+
 -- ============================================================
 -- STARTER DATA (edit the names later in the app)
 -- ============================================================
