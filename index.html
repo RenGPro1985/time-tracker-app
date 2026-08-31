@@ -650,6 +650,7 @@ const BIGTIMER_MAX_PX=54, BIGTIMER_MIN_PX=18;function setActTimer(text){ const e
     if(curEntry) setActTimer(curEntry.activity+' — '+hms((now-new Date(curEntry.started_at))/1000));
     else setActTimer('Timer stopped — pick an activity to resume');
   }
+  tickRosterTimes();
 }
 
 /* ============================================================
@@ -713,11 +714,25 @@ $('loginBtn').onclick = async () => {
   $('loginBtn').disabled=true;
   try{
     if(!curShift){
-      const {data,error}=await sb.from('shifts').insert({staff_id:me.id}).select().single();
-      if(error) throw error;
-      curShift=data;
-      const {data:e}=await sb.from('entries').insert({shift_id:curShift.id,staff_id:me.id,activity:'Working'}).select().single();
-      curEntry=e;
+      // curShift being null only means THIS browser tab doesn't know about an open shift —
+      // it doesn't mean one doesn't exist. A stale tab left open from an earlier session (or
+      // another device) that never re-synced would otherwise insert a second concurrent open
+      // shift for the same person, leaving one of them silently abandoned but still "open" —
+      // its running entry then never gets closed and inflates hours for as long as it sits
+      // there. Re-check the database right before creating one, and adopt an existing open
+      // shift instead of creating a duplicate.
+      const {data:existing}=await sb.from('shifts').select('*').eq('staff_id',me.id).is('logout_at',null).order('login_at',{ascending:false}).limit(1);
+      if(existing&&existing[0]){
+        curShift=existing[0];
+        const {data:oe}=await sb.from('entries').select('*').eq('shift_id',curShift.id).is('ended_at',null).order('started_at',{ascending:false}).limit(1);
+        curEntry=oe&&oe[0]?oe[0]:null;
+      }else{
+        const {data,error}=await sb.from('shifts').insert({staff_id:me.id}).select().single();
+        if(error) throw error;
+        curShift=data;
+        const {data:e}=await sb.from('entries').insert({shift_id:curShift.id,staff_id:me.id,activity:'Working'}).select().single();
+        curEntry=e;
+      }
     }else{
       if(!confirm('End your shift now? This stops all timers.')){$('loginBtn').disabled=false;return;}
       const now=new Date().toISOString();
@@ -901,17 +916,26 @@ async function loadRoster(){
     if(status==='Off shift')off++;else if(status==='On break')br++;else on++;
     if(sum.total>0){pctSum+=sum.billable/sum.total*100;pctN++;}
     
-    return {s,c,status,act:running?running.activity:'—',sum,statusMins:running?minutesOf(running,null):0};
+    return {s,c,status,act:running?running.activity:'—',sum,startedAt:running?running.started_at:null};
   }).filter(r=>(!fc||r.s.client_id===fc)&&(!fs||r.s.id===fs)&&(!fst||r.status===fst));
   $('stOn').textContent=on;$('stBreak').textContent=br;$('stOff').textContent=off;
   $('stPct').textContent=pctN?Math.round(pctSum/pctN)+'%':'—';
   const pill=st=>`<span class="pill ${st==='Working'?'p-work':st==='On break'?'p-break':'p-off'}"><span class="dot"></span>${st}</span>`;
+  // "Time in status" carries data-started so tick() can recompute it with live seconds every
+  // second between the 60s data refreshes — proves to the admin the clock is really running,
+  // not just a snapshot from the last poll.
   $('roster').innerHTML=rows.length?rows.map(r=>`<tr><td><b>${escapeHtml(r.s.full_name)}</b></td>
    <td class="muted">${r.c?escapeHtml(r.c.name):'—'}</td>
    <td class="mono">${r.c?r.c.shift_start.slice(0,5)+' – '+r.c.shift_end.slice(0,5):'—'}</td>
    <td>${pill(r.status)}</td><td>${r.act}</td>
-   <td class="mono">${r.status==='Off shift'?'—':hm(r.statusMins)}</td></tr>`).join('')
+   <td class="mono"${r.startedAt?` data-started="${r.startedAt}"`:''}>${r.startedAt?hms((new Date()-new Date(r.startedAt))/1000):'—'}</td></tr>`).join('')
    :`<tr><td colspan="6" class="muted">No staff match those filters.</td></tr>`;
+}
+function tickRosterTimes(){
+  if($('v-status').classList.contains('hide')) return;
+  document.querySelectorAll('#roster [data-started]').forEach(td=>{
+    td.textContent=hms((new Date()-new Date(td.dataset.started))/1000);
+  });
 }
 
 /* ============================================================
@@ -1609,9 +1633,16 @@ async function scheduleAdvanceDeductions(r){
   if(error) alert('Request approved, but the deduction schedule could not be created: '+error.message);
 }
 async function decideReq(id,status){
-  const {error}=await sb.from('requests').update({status,reviewed_by:me.id,reviewed_at:new Date().toISOString()}).eq('id',id);
+  // Guard the update on the expected FROM status (same shift-id-not-curEntry idea as the
+  // activity-switch fix): a double-click / slow-network re-click on Approve fires this twice,
+  // and without this guard the second call would also run scheduleAdvanceDeductions() and
+  // insert a whole second repayment schedule for the same request. Conditioning the update on
+  // the row still being in the expected prior status means only the FIRST call actually
+  // changes anything — .select() comes back empty for the second, and it's a no-op.
+  const fromStatus = status==='paid' ? 'approved' : 'pending';
+  const {data,error}=await sb.from('requests').update({status,reviewed_by:me.id,reviewed_at:new Date().toISOString()}).eq('id',id).eq('status',fromStatus).select();
   if(error)return alert(error.message);
-  if(status==='approved'){ const r=reqAdminList.find(x=>x.id===id); if(r) await scheduleAdvanceDeductions(r); }
+  if(data&&data.length&&status==='approved'){ await scheduleAdvanceDeductions(data[0]); }
   await loadReqAdmin();
 }
 if($('reqFilter')) $('reqFilter').onchange=()=>loadReqAdmin();
