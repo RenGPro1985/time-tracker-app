@@ -66,6 +66,53 @@ select,input,textarea{background:var(--card2);border:1px solid var(--line);color
 .loginbox{width:100%;max-width:390px}
 label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:12px 0 6px}
 @media(max-width:820px){.app{flex-direction:column}.side{width:100%;height:auto;position:static;flex:0 0 auto}.main{padding:16px}.grid{grid-template-columns:1fr!important}}
+
+/* ---- compact layout: fit This pay period + surrounding cards without page scroll ---- */
+body{font-size:12.5px}
+.main{padding:14px 20px 20px}
+.top{margin-bottom:12px}
+.side{padding:14px 12px}
+.logo{margin-bottom:14px}
+.card{padding:11px;border-radius:14px}
+.grid{gap:10px}
+.card h3{font-size:12.5px;margin-bottom:8px}
+.hdr{margin-bottom:8px}
+.bigtimer{font-size:34px}
+.acts{gap:6px}
+.act{padding:7px 9px}
+.act .n{font-size:12px}
+.act .b{font-size:10px;margin-top:3px}
+.stat{padding:9px 10px;border-radius:12px}
+.stat .v{font-size:18px;margin-top:3px}
+.stat .k{font-size:10.5px}
+table th{padding:6px 8px;font-size:10px}
+table td{padding:6px 8px;font-size:11.5px}
+label{margin:6px 0 4px;font-size:10.5px}
+select,input,textarea{padding:6px 8px;font-size:11.5px}
+button.btn{padding:7px 12px;font-size:12px}
+.row{gap:6px}
+#v-punch{grid-template-columns:1.3fr 1fr}
+#entriesWrap{max-height:118px;overflow-y:auto;display:block}
+#myCorrections{max-height:70px;overflow-y:auto}
+
+/* ---- This pay period: per-weekday hours table ---- */
+.pp-table-wrap{margin-top:10px;overflow-x:auto}
+.pp-table{width:100%;border-collapse:collapse;font-size:10.5px}
+.pp-table th{padding:4px 6px;font-size:9px;text-transform:none;letter-spacing:0;color:var(--muted);border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.pp-table th:first-child{text-align:left}
+.pp-table td{padding:4px 6px;text-align:right;border-bottom:1px solid rgba(255,255,255,.04);font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+.pp-table td:first-child{text-align:left;font-family:Inter,sans-serif;color:var(--muted);white-space:nowrap}
+
+/* ---- admin timesheets: daily hours grid ---- */
+.sheet-grid{font-size:11px;white-space:nowrap;border-collapse:collapse}
+.sheet-grid th{padding:5px 6px;font-size:9.5px;white-space:nowrap;text-align:center}
+.sheet-grid th:nth-child(1),.sheet-grid th:nth-child(2),.sheet-grid th:nth-child(3),.sheet-grid th:nth-child(4){text-align:left}
+.sheet-grid td{padding:4px 6px;white-space:nowrap}
+.sheet-grid td.num{font-family:'IBM Plex Mono',monospace;text-align:center}
+.sheet-grid tr.g-sep td{border-bottom:0;padding:3px 0}
+.sheet-grid input.dayval{width:54px;text-align:center;padding:4px 2px;font-size:11px;background:var(--card2);border:1px solid var(--line);border-radius:6px;color:var(--ink);font-family:'IBM Plex Mono',monospace}
+.sheet-grid input.dayval.is-adj{border-color:var(--gold);box-shadow:0 0 0 1px rgba(227,166,62,.45) inset;color:var(--gold)}
+.sheet-grid td.totalcell{font-family:'IBM Plex Mono',monospace;text-align:center;font-weight:600}
 </style>
 </head>
 <body>
@@ -152,8 +199,8 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
         </div>
         <div class="card">
           <div class="hdr"><h3 style="font-size:15px">Today's entries</h3><span class="badge" id="todayLabel"></span></div>
-          <table><thead><tr><th>Activity</th><th>Start</th><th>End</th><th>Duration</th><th>Type</th></tr></thead>
-          <tbody id="entries"></tbody></table>
+          <div id="entriesWrap"><table><thead><tr><th>Activity</th><th>Start</th><th>End</th><th>Duration</th><th>Type</th></tr></thead>
+          <tbody id="entries"></tbody></table></div>
         </div>
         <div class="card">
           <div class="hdr"><h3 style="font-size:15px">Request a correction</h3><span class="badge">Admin must approve</span></div>
@@ -191,6 +238,7 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
           <div class="row" style="justify-content:space-between;margin-top:10px"><span class="muted">Billable</span><b class="mono" style="color:var(--teal)" id="ppBill">0:00</b></div>
           <div class="row" style="justify-content:space-between;margin-top:6px"><span class="muted">Non-billable</span><b class="mono" style="color:var(--gold)" id="ppNon">0:00</b></div>
           <div class="row" style="justify-content:space-between;margin-top:6px"><span class="muted">Days worked</span><b class="mono" id="ppDays">0</b></div>
+          <div class="pp-table-wrap"><table class="pp-table" id="ppTable"><thead><tr id="ppTableHead"></tr></thead><tbody id="ppTableBody"></tbody></table></div>
         </div>
       </div>
     </section>
@@ -240,7 +288,7 @@ label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.08
             <div class="mono" id="addPwVal" style="font-size:18px;margin-top:6px;color:var(--teal)"></div>
           </div>
         </div>
-        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Birth date</th><th>Client</th><th>Monthly rate</th><th>Role</th><th>Status</th><th>PTO balance</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
+        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Client</th><th>Monthly rate</th><th>Role</th><th>Status</th><th>PTO balance</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Bulk add staff</h3><button class="btn btn-ghost" id="toggleBulk">Open</button></div>
@@ -288,6 +336,12 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
           </div>
         </div>
         <table><thead><tr><th>Staff</th><th>Client</th><th>Days</th><th>Billable</th><th>Non-billable</th><th>Total</th><th>Billable %</th></tr></thead><tbody id="sheetTable"></tbody></table>
+      </div>
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">Daily hours grid</h3>
+          <span class="muted" style="font-size:11.5px">Weekdays only &middot; click a cell to override that day's total &middot; overrides never touch raw time entries</span>
+        </div>
+        <div style="overflow-x:auto"><table class="sheet-grid"><thead><tr id="gridHead"></tr></thead><tbody id="gridBody"></tbody></table></div>
       </div>
     </section>
 
@@ -664,6 +718,33 @@ async function renderPayPeriod(){
   const byDay={};rows.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
   const cMe=clients.find(x=>x.id===me.client_id); let bill=0,non=0;Object.entries(byDay).forEach(([d,es])=>{const w=shiftWindowFor(cMe,d);const s=summarize(es,null,w);bill+=s.billable;non+=s.nonbillable;});
   $('ppBill').textContent=hm(bill);$('ppNon').textContent=hm(non);$('ppDays').textContent=Object.keys(byDay).length;
+  renderPayPeriodTable(p,byDay,cMe);
+}
+
+/* weekday-only (Mon-Fri) hours grid for the pay period card */
+const PP_BREAK_ACTS=['15min Break','30min Break','60min Break','Personal Break','Bio Break'];
+function renderPayPeriodTable(p,byDay,cMe){
+  const head=$('ppTableHead'),body=$('ppTableBody');
+  if(!head||!body)return;
+  const days=[];let cursor=p.start,guard=0;
+  while(cursor<=p.end&&guard<60){
+    const dow=new Date(cursor+'T00:00:00Z').getUTCDay(); // 0=Sun,6=Sat — skip weekends (no weekend shifts)
+    if(dow!==0&&dow!==6)days.push(cursor);
+    cursor=addDays(cursor,1);guard++;
+  }
+  const fmtCol=iso=>new Date(iso+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',day:'numeric',month:'short'});
+  head.innerHTML='<th></th>'+days.map(d=>`<th>${fmtCol(d)}</th>`).join('');
+  const billRow=['Billable Hours'],nonRow=['Non-Billable Hours'],brkRow=['Total Breaks'];
+  days.forEach(d=>{
+    const es=byDay[d]||[];
+    const w=shiftWindowFor(cMe,d);
+    const s=summarize(es,null,w);
+    const brkMins=es.reduce((sum,e)=>PP_BREAK_ACTS.includes(e.activity)?sum+minutesOf(e,null):sum,0);
+    billRow.push(s.billable?hm(s.billable):'—');
+    nonRow.push(s.nonbillable?hm(s.nonbillable):'—');
+    brkRow.push(brkMins?hm(brkMins):'—');
+  });
+  body.innerHTML=[billRow,nonRow,brkRow].map(r=>`<tr><td>${r[0]}</td>${r.slice(1).map(v=>`<td>${v}</td>`).join('')}</tr>`).join('');
 }
 
 /* correction requests (staff side) */
@@ -803,7 +884,6 @@ function renderStaffAdmin(){
     return `<tr><td><b>${escapeHtml(s.full_name)}</b><div class="muted" style="font-size:11.5px">${escapeHtml(s.email)}</div></td>
     <td class="mono">${escapeHtml(s.username)}</td>
     <td><input type="date" data-hire="${s.id}" value="${s.hire_date||''}" style="width:140px"></td>
-    <td><input type="date" data-birth="${s.id}" value="${s.birth_date||''}" style="width:140px"></td>
     <td><select data-assign="${s.id}" style="width:auto"><option value="">— none —</option>${clients.map(c2=>`<option value="${c2.id}" ${c2.id===s.client_id?'selected':''}>${escapeHtml(c2.name)}</option>`).join('')}</select></td>
     <td><input type="number" min="0" step="0.01" data-rate="${s.id}" value="${s.monthly_rate||0}" style="width:100px"></td>
     <td>${s.role}</td>
@@ -817,7 +897,6 @@ function renderStaffAdmin(){
     const {error}=await sb.from('staff').update({client_id:sel.value||null}).eq('id',sel.dataset.assign);
     if(error)alert(error.message); else reloadStaff();}); $('staffTable').querySelectorAll('[data-pto]').forEach(inp=>inp.onchange=async()=>{ const {error}=await sb.from('staff').update({pto_balance:Number(inp.value||0)}).eq('id',inp.dataset.pto); if(error)alert(error.message); });
   $('staffTable').querySelectorAll('[data-hire]').forEach(inp=>inp.onchange=async()=>{ const {error}=await sb.from('staff').update({hire_date:inp.value||null}).eq('id',inp.dataset.hire); if(error)alert(error.message); });
-  $('staffTable').querySelectorAll('[data-birth]').forEach(inp=>inp.onchange=async()=>{ const {error}=await sb.from('staff').update({birth_date:inp.value||null}).eq('id',inp.dataset.birth); if(error)alert(error.message); });
   $('staffTable').querySelectorAll('[data-rate]').forEach(inp=>inp.onchange=async()=>{ const {error}=await sb.from('staff').update({monthly_rate:Number(inp.value||0)}).eq('id',inp.dataset.rate); if(error)alert(error.message); });
   $('staffTable').querySelectorAll('[data-temp]').forEach(b=>b.onclick=async()=>{
     if(!confirm('Set a new temporary password for this person? Their current password stops working.'))return;
@@ -858,9 +937,10 @@ function initSheetFilters(){
   fill('pClient','All clients',clients.map(c=>[c.id,c.name]));
   fill('pStaff','All staff',staffList.map(s=>[s.id,s.full_name]));
   $('pType').onchange=refreshPeriods; refreshPeriods();
-  $('runSheet').onclick=runSheet;
+  $('runSheet').onclick=()=>{runSheet();renderSheetGrid();};
   $('dlSummary').onclick=()=>downloadCsv(summaryCsv(),'timesheet-summary');
   $('dlDetail').onclick=()=>downloadCsv(detailCsv(),'timesheet-detail');
+  renderSheetGrid();
 }
 function refreshPeriods(){
   const t=$('pType').value;
@@ -932,6 +1012,118 @@ function downloadCsv(text,name){
   const {start,end}=currentRange();
   const blob=new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${name}-${start}_${end}.csv`;a.click();URL.revokeObjectURL(a.href);
+}
+
+/* ============================================================
+   7b. ADMIN \u2014 TIMESHEETS: daily hours grid (hire date, tenure,
+   per-weekday hours). Admin can type over a day's total; that is
+   stored as a separate "override" row in timesheet_adjustments and
+   never touches the staff member's raw shift/entry records. Clearing
+   the cell removes the override and the grid falls back to the
+   hours computed from actual entries. Only a correction request
+   (approved by an admin) changes real entries.
+   ============================================================ */
+function mmddyy(iso){ if(!iso)return '—'; const [y,m,d]=iso.split('-'); return `${m}-${d}-${y.slice(2)}`; }
+function tenureStr(hireIso){
+  if(!hireIso)return '\u2014';
+  const h=new Date(hireIso+'T00:00:00Z');
+  const now=new Date(phDate(new Date())+'T00:00:00Z');
+  let y=now.getUTCFullYear()-h.getUTCFullYear();
+  let m=now.getUTCMonth()-h.getUTCMonth();
+  let d=now.getUTCDate()-h.getUTCDate();
+  if(d<0){ m--; const prevMonthLastDay=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),0)).getUTCDate(); d+=prevMonthLastDay; }
+  if(m<0){ y--; m+=12; }
+  if(y<0)return '\u2014';
+  return `${y} YRS, ${m} MOS, ${d} DAYS`;
+}
+function weekdayList(startIso,endIso){
+  const days=[];let cursor=startIso,guard=0;
+  while(cursor<=endIso&&guard<120){
+    const dow=new Date(cursor+'T00:00:00Z').getUTCDay(); // 0=Sun,6=Sat \u2014 no weekend shifts
+    if(dow!==0&&dow!==6)days.push(cursor);
+    cursor=addDays(cursor,1);guard++;
+  }
+  return days;
+}
+async function fetchAdjustments(startIso,endIso,staffIds){
+  let q=sb.from('timesheet_adjustments').select('*').gte('work_date',startIso).lte('work_date',endIso);
+  if(staffIds&&staffIds.length===1)q=q.eq('staff_id',staffIds[0]);
+  const {data,error}=await q;
+  if(error){ if(error.code!=='42P01') console.warn('timesheet_adjustments:',error.message); return []; }
+  return data||[];
+}
+async function saveAdjustment(staffId,dateIso,hoursOrNull,cellEl){
+  if(hoursOrNull===null){
+    const {error}=await sb.from('timesheet_adjustments').delete().eq('staff_id',staffId).eq('work_date',dateIso);
+    if(error)return alert(error.message);
+  }else{
+    const {error}=await sb.from('timesheet_adjustments').upsert(
+      {staff_id:staffId,work_date:dateIso,hours:hoursOrNull,edited_by:me.id,edited_at:new Date().toISOString()},
+      {onConflict:'staff_id,work_date'});
+    if(error)return alert(error.message);
+  }
+  renderSheetGrid();
+}
+async function renderSheetGrid(){
+  const head=$('gridHead'),body=$('gridBody');
+  if(!head||!body)return;
+  const {start,end}=currentRange();
+  if(!start||!end){head.innerHTML='';body.innerHTML='';return;}
+  const fc=$('pClient').value,fs=$('pStaff').value;
+  const people=staffList.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs))
+    .slice().sort((a,b)=>{
+      const ca=(clients.find(c=>c.id===a.client_id)||{}).name||'';
+      const cb=(clients.find(c=>c.id===b.client_id)||{}).name||'';
+      return ca===cb ? a.full_name.localeCompare(b.full_name) : ca.localeCompare(cb);
+    });
+  const days=weekdayList(start,end);
+  const ents=await fetchEntriesRange(start,end,people.map(s=>s.id));
+  const adj=await fetchAdjustments(start,end,people.map(s=>s.id));
+  const adjMap={};adj.forEach(a=>adjMap[a.staff_id+'|'+a.work_date]=Number(a.hours));
+
+  const fmtCol=iso=>{const d=new Date(iso+'T00:00:00Z');
+    return `${d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'})}<br>${d.toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short'}).toUpperCase()}`;};
+  head.innerHTML='<th>Hire date</th><th>Tenure</th><th>Staff name</th><th>Client</th><th>Total hours worked</th>'
+    +days.map(d=>`<th>${fmtCol(d)}</th>`).join('');
+
+  let rowsHtml='';let lastClient=null;
+  people.forEach((s,idx)=>{
+    const cName=(clients.find(c=>c.id===s.client_id)||{}).name||'\u2014 unassigned \u2014';
+    if(lastClient!==null&&cName!==lastClient) rowsHtml+='<tr class="g-sep"><td colspan="'+(5+days.length)+'"></td></tr>';
+    lastClient=cName;
+    const mine=ents.filter(e=>e.staff_id===s.id);
+    const byDay={};mine.forEach(e=>{const d=phDate(new Date(e.started_at));(byDay[d]=byDay[d]||[]).push(e);});
+    let totalHrs=0;
+    const cells=days.map(d=>{
+      const key=s.id+'|'+d;
+      const hasAdj=Object.prototype.hasOwnProperty.call(adjMap,key);
+      let hrs;
+      if(hasAdj){ hrs=adjMap[key]; }
+      else{
+        const w=shiftWindowFor(clients.find(c=>c.id===s.client_id),d);
+        const sum=summarize(byDay[d]||[],null,w);
+        hrs=(sum.billable+sum.nonbillable)/60;
+      }
+      totalHrs+=hrs;
+      const shown=hrs?hrs.toFixed(2):'0.00';
+      return `<td class="num"><input type="number" class="dayval${hasAdj?' is-adj':''}" min="0" step="0.25" data-staff="${s.id}" data-date="${d}" value="${shown}"></td>`;
+    }).join('');
+    rowsHtml+=`<tr><td class="mono">${mmddyy(s.hire_date)}</td><td class="mono">${escapeHtml(tenureStr(s.hire_date))}</td>`
+      +`<td><b>${escapeHtml(s.full_name)}</b></td><td class="muted">${escapeHtml(cName)}</td>`
+      +`<td class="totalcell">${totalHrs.toFixed(2)}</td>${cells}</tr>`;
+  });
+  body.innerHTML=rowsHtml||`<tr><td colspan="${5+days.length}" class="muted">No staff match this filter.</td></tr>`;
+
+  body.querySelectorAll('input.dayval').forEach(inp=>{
+    const baseline=inp.value;
+    inp.onchange=()=>{
+      const v=inp.value.trim();
+      if(v===''){ saveAdjustment(inp.dataset.staff,inp.dataset.date,null,inp); return; }
+      const n=Number(v);
+      if(isNaN(n)||n<0){ alert('Enter a number of hours, 0 or more.'); inp.value=baseline; return; }
+      saveAdjustment(inp.dataset.staff,inp.dataset.date,n,inp);
+    };
+  });
 }
 
 /* ============================================================
