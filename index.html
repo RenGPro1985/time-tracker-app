@@ -265,7 +265,14 @@ button.btn{padding:7px 12px;font-size:12px}
     <!-- ---------- ADMIN: STAFF & CLIENTS ---------- -->
     <section id="v-staff" class="hide grid" style="gap:16px">
       <div class="card">
-        <div class="hdr"><h3 style="font-size:15px">Staff roster</h3><button class="btn btn-gold" id="toggleAdd">+ Add staff</button></div>
+        <div class="hdr"><h3 style="font-size:15px">Staff roster</h3>
+          <div class="row" style="gap:8px">
+            <select id="staffClientFilter" style="width:auto"></select>
+            <button class="btn btn-teal" id="saveStaffTable">Save changes</button>
+            <button class="btn btn-gold" id="toggleAdd">+ Add staff</button>
+          </div>
+        </div>
+        <div class="muted" id="staffSaveMsg" style="font-size:12px;margin-bottom:8px;min-height:14px"></div>
         <div id="addForm" class="hide" style="background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px">
           <div class="grid" style="grid-template-columns:repeat(5,1fr);gap:10px">
             <div><label>Full name</label><input id="nName"></div>
@@ -288,7 +295,7 @@ button.btn{padding:7px 12px;font-size:12px}
             <div class="mono" id="addPwVal" style="font-size:18px;margin-top:6px;color:var(--teal)"></div>
           </div>
         </div>
-        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Client</th><th>Monthly rate</th><th>Role</th><th>Status</th><th>PTO balance</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
+        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Tenure</th><th>Client</th><th>Monthly rate</th><th>Role</th><th>Status</th><th>PTO balance</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Bulk add staff</h3><button class="btn btn-ghost" id="toggleBulk">Open</button></div>
@@ -306,7 +313,13 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         </div>
       </div>
       <div class="card">
-        <div class="hdr"><h3 style="font-size:15px">Clients &amp; shifts</h3><button class="btn btn-gold" id="toggleClient">+ Add client</button></div>
+        <div class="hdr"><h3 style="font-size:15px">Clients &amp; shifts</h3>
+          <div class="row" style="gap:8px">
+            <button class="btn btn-teal" id="saveClientTable">Save changes</button>
+            <button class="btn btn-gold" id="toggleClient">+ Add client</button>
+          </div>
+        </div>
+        <div class="muted" id="clientSaveMsg" style="font-size:12px;margin-bottom:8px;min-height:14px"></div>
         <div id="clientForm" class="hide" style="background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px">
           <div class="grid" style="grid-template-columns:repeat(5,1fr);gap:10px">
             <div><label>Client name</label><input id="cName"></div>
@@ -762,6 +775,7 @@ async function renderMyCorrections(){
     : `<div class="muted" style="font-size:12.5px">No requests yet.</div>`;
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function capFirst(s){s=String(s||'');return s.charAt(0).toUpperCase()+s.slice(1);}
 
 /* ============================================================
    5. ADMIN — LIVE STATUS
@@ -878,12 +892,31 @@ $('bulkCsv').onclick=()=>{
 async function reloadStaff(){const {data}=await sb.from('staff').select('*').order('full_name');staffList=data||[];renderStaffAdmin();}
 async function reloadClients(){const {data}=await sb.from('clients').select('*').order('name');clients=data||[];renderStaffAdmin();}
 
+/* Tenure sort key: earlier hire_date = longer tenure = ranks first. No hire date sinks to the bottom. */
+function tenureSortedStaff(list){
+  return list.slice().sort((a,b)=>{
+    if(!a.hire_date&&!b.hire_date)return a.full_name.localeCompare(b.full_name);
+    if(!a.hire_date)return 1;
+    if(!b.hire_date)return -1;
+    return a.hire_date<b.hire_date?-1:a.hire_date>b.hire_date?1:a.full_name.localeCompare(b.full_name);
+  });
+}
 function renderStaffAdmin(){
-  $('staffTable').innerHTML=staffList.map(s=>{
-    const c=clients.find(c=>c.id===s.client_id);
+  /* client-assignment filter, populated fresh each render so newly added clients show up */
+  const prevFilter=$('staffClientFilter').value;
+  $('staffClientFilter').innerHTML='<option value="">All clients</option><option value="__none__">— unassigned —</option>'
+    +clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  $('staffClientFilter').value=prevFilter&&[...$('staffClientFilter').options].some(o=>o.value===prevFilter)?prevFilter:'';
+  const fc=$('staffClientFilter').value;
+
+  const ordered=tenureSortedStaff(staffList)
+    .filter(s=>!fc||(fc==='__none__'?!s.client_id:s.client_id===fc));
+
+  $('staffTable').innerHTML=ordered.length?ordered.map(s=>{
     return `<tr><td><b>${escapeHtml(s.full_name)}</b><div class="muted" style="font-size:11.5px">${escapeHtml(s.email)}</div></td>
-    <td class="mono">${escapeHtml(s.username)}</td>
+    <td class="mono">${escapeHtml(capFirst(s.username))}</td>
     <td><input type="date" data-hire="${s.id}" value="${s.hire_date||''}" style="width:140px"></td>
+    <td class="mono">${escapeHtml(tenureStr(s.hire_date))}</td>
     <td><select data-assign="${s.id}" style="width:auto"><option value="">— none —</option>${clients.map(c2=>`<option value="${c2.id}" ${c2.id===s.client_id?'selected':''}>${escapeHtml(c2.name)}</option>`).join('')}</select></td>
     <td><input type="number" min="0" step="0.01" data-rate="${s.id}" value="${s.monthly_rate||0}" style="width:100px"></td>
     <td>${s.role}</td>
@@ -892,12 +925,10 @@ function renderStaffAdmin(){
       <button class="btn btn-ghost" data-temp="${s.id}">New temp password</button>
       <button class="btn btn-ghost" data-reset="${s.id}">Email reset link</button>
       <button class="btn btn-ghost" data-toggle="${s.id}" data-active="${s.active}">${s.active?'Deactivate':'Reactivate'}</button>
-      <button class="btn btn-rose" data-del="${s.id}">Delete</button></td></tr>`;}).join('');
-  $('staffTable').querySelectorAll('[data-assign]').forEach(sel=>sel.onchange=async()=>{
-    const {error}=await sb.from('staff').update({client_id:sel.value||null}).eq('id',sel.dataset.assign);
-    if(error)alert(error.message); else reloadStaff();}); $('staffTable').querySelectorAll('[data-pto]').forEach(inp=>inp.onchange=async()=>{ const {error}=await sb.from('staff').update({pto_balance:Number(inp.value||0)}).eq('id',inp.dataset.pto); if(error)alert(error.message); });
-  $('staffTable').querySelectorAll('[data-hire]').forEach(inp=>inp.onchange=async()=>{ const {error}=await sb.from('staff').update({hire_date:inp.value||null}).eq('id',inp.dataset.hire); if(error)alert(error.message); });
-  $('staffTable').querySelectorAll('[data-rate]').forEach(inp=>inp.onchange=async()=>{ const {error}=await sb.from('staff').update({monthly_rate:Number(inp.value||0)}).eq('id',inp.dataset.rate); if(error)alert(error.message); });
+      <button class="btn btn-rose" data-del="${s.id}">Delete</button></td></tr>`;}).join('')
+    :`<tr><td colspan="10" class="muted">No staff match this filter.</td></tr>`;
+  /* Editable fields (hire date, client assignment, rate, PTO) no longer save on every change —
+     they're staged and only written to Supabase when "Save changes" is clicked, below. */
   $('staffTable').querySelectorAll('[data-temp]').forEach(b=>b.onclick=async()=>{
     if(!confirm('Set a new temporary password for this person? Their current password stops working.'))return;
     try{const r=await api('/api/staff/'+b.dataset.temp+'/temp-password',{method:'POST'});
@@ -912,8 +943,11 @@ function renderStaffAdmin(){
     if(!confirm('Delete this account AND all their time records? Deactivate instead if you need the history.'))return;
     try{await api('/api/staff/'+b.dataset.del,{method:'DELETE'});await reloadStaff();}catch(e){alert(e.message);}});
 
-  $('clientTable').innerHTML=clients.map(c=>`<tr><td><b>${escapeHtml(c.name)}</b></td><td class="muted">${escapeHtml(c.timezone)}</td>
-    <td class="mono">${c.shift_start.slice(0,5)} – ${c.shift_end.slice(0,5)}</td><td>${escapeHtml(c.workdays)}</td>
+  $('clientTable').innerHTML=clients.map(c=>`<tr>
+    <td><input data-cname="${c.id}" value="${escapeHtml(c.name)}" style="width:140px"></td>
+    <td><input data-ctz="${c.id}" value="${escapeHtml(c.timezone)}" style="width:150px"></td>
+    <td class="row" style="gap:4px"><input type="time" data-cstart="${c.id}" value="${c.shift_start.slice(0,5)}" style="width:auto"><span class="muted">–</span><input type="time" data-cend="${c.id}" value="${c.shift_end.slice(0,5)}" style="width:auto"></td>
+    <td><input data-cdays="${c.id}" value="${escapeHtml(c.workdays)}" style="width:100px"></td>
     <td class="mono">${staffList.filter(s=>s.client_id===c.id&&s.active).length}</td>
     <td style="text-align:right"><button class="btn btn-ghost" data-delc="${c.id}">Remove</button></td></tr>`).join('');
   $('clientTable').querySelectorAll('[data-delc]').forEach(b=>b.onclick=async()=>{
@@ -921,6 +955,31 @@ function renderStaffAdmin(){
     const {error}=await sb.from('clients').delete().eq('id',b.dataset.delc);
     if(error)alert(error.message); else reloadClients();});
 }
+$('saveStaffTable').onclick=async()=>{
+  $('saveStaffTable').disabled=true;$('staffSaveMsg').textContent='Saving…';
+  const rows=staffList.map(s=>{
+    const hireEl=document.querySelector(`[data-hire="${s.id}"]`);
+    if(!hireEl)return null; // filtered out of view, nothing to save for this row
+    return {
+      id:s.id,
+      hire_date:hireEl.value||null,
+      client_id:document.querySelector(`[data-assign="${s.id}"]`).value||null,
+      monthly_rate:Number(document.querySelector(`[data-rate="${s.id}"]`).value||0),
+      pto_balance:Number(document.querySelector(`[data-pto="${s.id}"]`).value||0),
+    };
+  }).filter(Boolean);
+  try{
+    for(const r of rows){
+      const {error}=await sb.from('staff').update({hire_date:r.hire_date,client_id:r.client_id,monthly_rate:r.monthly_rate,pto_balance:r.pto_balance}).eq('id',r.id);
+      if(error)throw new Error(error.message);
+    }
+    $('staffSaveMsg').textContent='Saved.';
+    await reloadStaff();
+  }catch(e){$('staffSaveMsg').textContent='';alert(e.message);}
+  $('saveStaffTable').disabled=false;
+  setTimeout(()=>{$('staffSaveMsg').textContent='';},2500);
+};
+$('staffClientFilter').onchange=renderStaffAdmin;
 $('toggleClient').onclick=()=>$('clientForm').classList.toggle('hide');
 $('cancelClient').onclick=()=>$('clientForm').classList.add('hide');
 $('saveClient').onclick=async()=>{
@@ -928,6 +987,33 @@ $('saveClient').onclick=async()=>{
   const {error}=await sb.from('clients').insert({name,timezone:$('cTz').value.trim(),shift_start:$('cStart').value,shift_end:$('cEnd').value,workdays:$('cDays').value.trim()});
   if(error)return alert(error.message);
   $('cName').value='';$('clientForm').classList.add('hide');await reloadClients();
+};
+$('saveClientTable').onclick=async()=>{
+  $('saveClientTable').disabled=true;$('clientSaveMsg').textContent='Saving…';
+  const rows=clients.map(c=>{
+    const nameEl=document.querySelector(`[data-cname="${c.id}"]`);
+    if(!nameEl)return null;
+    const name=nameEl.value.trim();
+    if(!name)return {__invalid:c.id};
+    return {
+      id:c.id,name,
+      timezone:document.querySelector(`[data-ctz="${c.id}"]`).value.trim(),
+      shift_start:document.querySelector(`[data-cstart="${c.id}"]`).value,
+      shift_end:document.querySelector(`[data-cend="${c.id}"]`).value,
+      workdays:document.querySelector(`[data-cdays="${c.id}"]`).value.trim(),
+    };
+  }).filter(Boolean);
+  if(rows.some(r=>r.__invalid)){$('saveClientTable').disabled=false;$('clientSaveMsg').textContent='';return alert('Client name can\'t be blank.');}
+  try{
+    for(const r of rows){
+      const {error}=await sb.from('clients').update({name:r.name,timezone:r.timezone,shift_start:r.shift_start,shift_end:r.shift_end,workdays:r.workdays}).eq('id',r.id);
+      if(error)throw new Error(error.message);
+    }
+    $('clientSaveMsg').textContent='Saved.';
+    await reloadClients();
+  }catch(e){$('clientSaveMsg').textContent='';alert(e.message);}
+  $('saveClientTable').disabled=false;
+  setTimeout(()=>{$('clientSaveMsg').textContent='';},2500);
 };
 
 /* ============================================================
