@@ -1461,7 +1461,7 @@ async function renderSheetGrid(){
       else{
         const w=shiftWindowFor(clients.find(c=>c.id===s.client_id),d);
         const sum=summarize(byDay[d]||[],null,w);
-        hrs=(sum.billable+sum.nonbillable)/60;
+        hrs=sum.billable/60;
       }
       totalHrs+=hrs;
       const shown=hrs?hrs.toFixed(2):'0.00';
