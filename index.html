@@ -505,16 +505,61 @@ function splitAmount(total,count){
 
 /* ---------- billable math ---------- */
 function minutesOf(e,now){const s=new Date(e.started_at),t=e.ended_at?new Date(e.ended_at):(now||new Date());return Math.max(0,(t-s)/60000);}
-function summarize(entries,now,window){
+
+/* Two independent ways a shift's logged activities can inflate its reported hours:
+   (1) overlapping/duplicate entries for the same activity (a double-fired switch, a
+   stale tab replaying an old click, a retried insert) each count their own full
+   duration even though they cover the same wall-clock time twice; and (2) an entry
+   that never got its ended_at closed (a missed close, a device that went offline
+   mid-shift) has its duration measured against "now" every time a report runs, so it
+   keeps growing forever — even long after the shift itself ended. mergeIntervals /
+   unionMinutes collapse overlapping spans for the same activity down to the wall-clock
+   time they actually cover, and shiftSpanMinutes below is a hard backstop: nobody can
+   log more billable time in a shift than the shift's own login-to-logout span. */
+function mergeIntervals(intervals){
+  const sorted=intervals.slice().sort((a,b)=>a[0]-b[0]);
+  const out=[];
+  sorted.forEach(iv=>{
+    const last=out[out.length-1];
+    if(last&&iv[0]<=last[1]) last[1]=Math.max(last[1],iv[1]);
+    else out.push(iv.slice());
+  });
+  return out;
+}
+function unionMinutes(intervals){return mergeIntervals(intervals).reduce((a,[s,e])=>a+(e-s),0)/60000;}
+function buildShiftSpanMap(shifts){const m={};(shifts||[]).forEach(sh=>{const end=sh.logout_at?new Date(sh.logout_at):new Date();m[sh.id]=Math.max(0,(end-new Date(sh.login_at))/60000);});return m;}
+function spanFor(entries,spanMap){if(!spanMap)return 0;const ids=[...new Set(entries.map(e=>e.shift_id).filter(Boolean))];return ids.reduce((a,id)=>a+(spanMap[id]||0),0);}
+
+function summarize(entries,now,window,shiftSpanMinutes){
+  const byAct={};
+  entries.forEach(e=>{
+    const s=new Date(e.started_at).getTime();
+    const t=(e.ended_at?new Date(e.ended_at):(now||new Date())).getTime();
+    (byAct[e.activity]=byAct[e.activity]||[]).push([s,Math.max(s,t)]);
+  });
   const per={};let total=0;
-  entries.forEach(e=>{const m=minutesOf(e,now);per[e.activity]=(per[e.activity]||0)+m;total+=m;});
-  const perBillableRaw={}; entries.forEach(e=>{ if(NON_BILLABLE.includes(e.activity))return; let inside; if(e.activity===OVERTIME){ inside=minutesOf(e,now); } else if(!window){ inside=0; } else { const s=new Date(e.started_at), t=e.ended_at?new Date(e.ended_at):(now||new Date()); const clipStart=Math.max(s.getTime(),window.start.getTime()); const clipEnd=Math.min(t.getTime(),window.end.getTime()); inside=Math.max(0,(clipEnd-clipStart)/60000); } perBillableRaw[e.activity]=(perBillableRaw[e.activity]||0)+inside; }); let billable=0;
+  Object.entries(byAct).forEach(([act,ivs])=>{const m=unionMinutes(ivs);per[act]=m;total+=m;});
+
+  const perBillableRaw={};
+  Object.entries(byAct).forEach(([act,ivs])=>{
+    if(NON_BILLABLE.includes(act))return;
+    let m;
+    if(act===OVERTIME){ m=unionMinutes(ivs); }
+    else if(!window){ m=0; }
+    else{
+      const clipped=ivs.map(([s,e])=>[Math.max(s,window.start.getTime()),Math.min(e,window.end.getTime())]).filter(([s,e])=>e>s);
+      m=clipped.length?unionMinutes(clipped):0;
+    }
+    perBillableRaw[act]=m;
+  });
+  let billable=0;
   Object.entries(perBillableRaw).forEach(([act,m])=>{
     if(act===OVERTIME){billable+=m;return;}
     const cap=Number(allowance[act]||0);
     billable+= cap>0 ? Math.min(m,cap) : m;
   });
-  return {per,total,billable,nonbillable:total-billable};
+  if(shiftSpanMinutes>0){ total=Math.min(total,shiftSpanMinutes); billable=Math.min(billable,shiftSpanMinutes); }
+  return {per,total,billable,nonbillable:Math.max(0,total-billable)};
 }
 
 /* ============================================================
@@ -778,12 +823,14 @@ async function todaysEntries(){
   // Match by shift_id, not calendar date — right after logging out of an overnight shift
   // that crossed 12MN, "today" has already advanced past the shift's own PH date.
   const mostRecent=(shs||[])[0];
-  return (data||[]).filter(e=> curShift ? e.shift_id===curShift.id : (mostRecent&&e.shift_id===mostRecent.id) );
+  const relevantShift=curShift||mostRecent||null;
+  const ents=(data||[]).filter(e=> curShift ? e.shift_id===curShift.id : (mostRecent&&e.shift_id===mostRecent.id) );
+  return {entries:ents, shift:relevantShift};
 }
 
 async function renderToday(){
   $('todayLabel').textContent=fmtNice(phDate(new Date()))+' (PHT)';
-  const es=await todaysEntries(); const cMe=clients.find(x=>x.id===me.client_id); const anchorDate=curShift?phDate(new Date(curShift.login_at)):phDate(new Date()); const myWindow=shiftWindowFor(cMe,anchorDate);
+  const {entries:es,shift}=await todaysEntries(); const cMe=clients.find(x=>x.id===me.client_id); const anchorDate=curShift?phDate(new Date(curShift.login_at)):phDate(new Date()); const myWindow=shiftWindowFor(cMe,anchorDate);
   $('entries').innerHTML = es.length? es.map(e=>{
     const bill=!NON_BILLABLE.includes(e.activity);
     return `<tr><td>${e.activity}</td><td class="mono">${phTime(new Date(e.started_at))}</td>
@@ -791,7 +838,8 @@ async function renderToday(){
     <td class="mono">${hm(minutesOf(e))}</td>
     <td><span class="pill ${bill?'p-work':'p-bad'}"><span class="dot"></span>${bill?'Billable':'Non-billable'}</span></td></tr>`;}).join('')
     : `<tr><td colspan="5" class="muted">No entries yet today.</td></tr>`;
-  const s=summarize(es,null,myWindow);
+  const daySpan=shift?buildShiftSpanMap([shift])[shift.id]:0;
+  const s=summarize(es,null,myWindow,daySpan);
   $('sBill').textContent=hm(s.billable);$('sNon').textContent=hm(s.nonbillable);$('sTot').textContent=hm(s.total);
   const pct=s.total?Math.round(s.billable/s.total*100):0;
   $('sPct').textContent=s.total?pct+'%':'—';$('sBar').style.width=pct+'%';
@@ -830,15 +878,16 @@ async function renderPayPeriod(){
 
   const [rows,shifts]=await Promise.all([fetchEntriesRange(p.start,p.end,[me.id]),fetchShiftsRange(p.start,p.end,[me.id])]);
   const sdm=buildShiftDateMap(shifts);
+  const ssm=buildShiftSpanMap(shifts);
   const byDay={};rows.forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
-  const cMe=clients.find(x=>x.id===me.client_id); let bill=0,non=0;Object.entries(byDay).forEach(([d,es])=>{const w=shiftWindowFor(cMe,d);const s=summarize(es,null,w);bill+=s.billable;non+=s.nonbillable;});
+  const cMe=clients.find(x=>x.id===me.client_id); let bill=0,non=0;Object.entries(byDay).forEach(([d,es])=>{const w=shiftWindowFor(cMe,d);const s=summarize(es,null,w,spanFor(es,ssm));bill+=s.billable;non+=s.nonbillable;});
   $('ppBill').textContent=hm(bill);$('ppNon').textContent=hm(non);$('ppDays').textContent=Object.keys(byDay).length;
-  renderPayPeriodTable(p,byDay,cMe);
+  renderPayPeriodTable(p,byDay,cMe,ssm);
 }
 
 /* weekday-only (Mon-Fri) hours grid for the pay period card */
 const PP_BREAK_ACTS=['15min Break','30min Break','60min Break','Personal Break','Bio Break'];
-function renderPayPeriodTable(p,byDay,cMe){
+function renderPayPeriodTable(p,byDay,cMe,ssm){
   const head=$('ppTableHead'),body=$('ppTableBody');
   if(!head||!body)return;
   const days=[];let cursor=p.start,guard=0;
@@ -853,7 +902,7 @@ function renderPayPeriodTable(p,byDay,cMe){
   days.forEach(d=>{
     const es=byDay[d]||[];
     const w=shiftWindowFor(cMe,d);
-    const s=summarize(es,null,w);
+    const s=summarize(es,null,w,spanFor(es,ssm));
     const brkMins=es.reduce((sum,e)=>PP_BREAK_ACTS.includes(e.activity)?sum+minutesOf(e,null):sum,0);
     billRow.push(s.billable?hm(s.billable):'—');
     nonRow.push(s.nonbillable?hm(s.nonbillable):'—');
@@ -896,6 +945,7 @@ async function loadRoster(){
   const {data:shs}=await sb.from('shifts').select('*').gte('login_at',from).order('login_at',{ascending:false});
   const openShift={}; const latestShift={};
   (shs||[]).forEach(s=>{ if(!s.logout_at) openShift[s.staff_id]=s; if(!latestShift[s.staff_id]) latestShift[s.staff_id]=s; });
+  const ssm=buildShiftSpanMap(shs);
   const today=phDate(new Date());
   const fc=$('fClient').value, fs=$('fStaff').value, fst=$('fStatus').value;
   let on=0,br=0,off=0,pctSum=0,pctN=0;
@@ -911,7 +961,7 @@ async function loadRoster(){
     // are still open, the most recently started one is the real current one.
     const openOnes=sh?mine.filter(e=>!e.ended_at):[];
     const running=openOnes.length?openOnes.reduce((a,b)=>new Date(a.started_at)>new Date(b.started_at)?a:b):null;
-    const anchorDate=relevant?phDate(new Date(relevant.login_at)):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate));
+    const anchorDate=relevant?phDate(new Date(relevant.login_at)):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate),relevant?ssm[relevant.id]:0);
     const status= !sh ? 'Off shift' : (running&&running.activity.includes('Break')?'On break':'Working');
     if(status==='Off shift')off++;else if(status==='On break')br++;else on++;
     if(sum.total>0){pctSum+=sum.billable/sum.total*100;pctN++;}
@@ -1184,13 +1234,14 @@ async function runSheet(){
   const people=staffList.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs));
   const [ents,shifts]=await Promise.all([fetchEntriesRange(start,end,people.map(s=>s.id)),fetchShiftsRange(start,end,people.map(s=>s.id))]);
   const sdm=buildShiftDateMap(shifts);
+  const ssm=buildShiftSpanMap(shifts);
   sheetRows=[];sheetDetail=[];
   people.forEach(s=>{
     const mine=ents.filter(e=>e.staff_id===s.id); const sc=clients.find(c=>c.id===s.client_id);
     const byDay={};mine.forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
     let bill=0,non=0;
     Object.keys(byDay).sort().forEach(d=>{
-      const sum=summarize(byDay[d],null,shiftWindowFor(sc,d));bill+=sum.billable;non+=sum.nonbillable;
+      const sum=summarize(byDay[d],null,shiftWindowFor(sc,d),spanFor(byDay[d],ssm));bill+=sum.billable;non+=sum.nonbillable;
       byDay[d].forEach(e=>sheetDetail.push({
         staff:s.full_name,username:s.username,client:(clients.find(c=>c.id===s.client_id)||{}).name||'',
         date:d,activity:e.activity,start:phTime(new Date(e.started_at)),end:e.ended_at?phTime(new Date(e.ended_at)):'(still running)',
@@ -1284,6 +1335,7 @@ async function runAdherence(){
   const ids=people.map(s=>s.id);
   const [ents,shs]=await Promise.all([fetchEntriesRange(start,end,ids),fetchShiftsRange(start,end,ids)]);
   const shiftDateMap=buildShiftDateMap(shs);
+  const shiftSpanMap=buildShiftSpanMap(shs);
 
   const grandPer={}; let grandTotal=0,grandBill=0;
   adRows=[];
@@ -1294,7 +1346,7 @@ async function runAdherence(){
     let total=0,bill=0; const per={}; const over={'15min Break':0,'30min Break':0,'Personal Break':0};
     Object.keys(byDay).forEach(d=>{
       const win=shiftWindowFor(c,d);
-      const sum=summarize(byDay[d],null,win);
+      const sum=summarize(byDay[d],null,win,spanFor(byDay[d],shiftSpanMap));
       total+=sum.total; bill+=sum.billable;
       Object.entries(sum.per).forEach(([act,m])=>{ per[act]=(per[act]||0)+m; grandPer[act]=(grandPer[act]||0)+m; });
       BREAK_ACTS.filter(a=>a!=='60min Break').forEach(act=>{
@@ -1437,6 +1489,7 @@ async function renderSheetGrid(){
   const days=weekdayList(start,end);
   const [ents,shifts]=await Promise.all([fetchEntriesRange(start,end,people.map(s=>s.id)),fetchShiftsRange(start,end,people.map(s=>s.id))]);
   const sdm=buildShiftDateMap(shifts);
+  const ssm=buildShiftSpanMap(shifts);
   const adj=await fetchAdjustments(start,end,people.map(s=>s.id));
   const adjMap={};adj.forEach(a=>adjMap[a.staff_id+'|'+a.work_date]=Number(a.hours));
 
@@ -1460,7 +1513,7 @@ async function renderSheetGrid(){
       if(hasAdj){ hrs=adjMap[key]; }
       else{
         const w=shiftWindowFor(clients.find(c=>c.id===s.client_id),d);
-        const sum=summarize(byDay[d]||[],null,w);
+        const sum=summarize(byDay[d]||[],null,w,spanFor(byDay[d]||[],ssm));
         hrs=sum.billable/60;
       }
       totalHrs+=hrs;
