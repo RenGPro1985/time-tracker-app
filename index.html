@@ -434,6 +434,7 @@ const SERVER_URL        = "https://time-tracker-app-95fe.onrender.com";        /
 
 const ACTIVITIES = ['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','Meeting/Coaching','Overtime'];const OVERTIME = 'Overtime';
 const NON_BILLABLE = ['60min Break'];
+const REGULAR_DAILY_CAP_MIN = 8*60; // hard cap: regular (non-Overtime) billable can never exceed 8h/day
 const BIWEEKLY_ANCHOR = '2026-08-19';       // a Wednesday; bi-weekly periods run Wed -> Tue
 const PH = 'Asia/Manila';
 
@@ -561,12 +562,17 @@ function summarize(entries,now,window,shiftSpanMinutes){
     }
     perBillableRaw[act]=m;
   });
-  let billable=0;
+  let regularBillable=0,overtimeBillable=0;
   Object.entries(perBillableRaw).forEach(([act,m])=>{
-    if(act===OVERTIME){billable+=m;return;}
+    if(act===OVERTIME){overtimeBillable+=m;return;}
     const cap=Number(allowance[act]||0);
-    billable+= cap>0 ? Math.min(m,cap) : m;
+    regularBillable+= cap>0 ? Math.min(m,cap) : m;
   });
+  /* Hard daily cap: no client's shift window/span, and no gap at a window edge (e.g. a
+     break that starts a few minutes before/after the official window), can push regular
+     (non-Overtime) billable past 8h/day. Anything past that must be logged as Overtime. */
+  regularBillable=Math.min(regularBillable,REGULAR_DAILY_CAP_MIN);
+  let billable=regularBillable+overtimeBillable;
   if(shiftSpanMinutes>0){ total=Math.min(total,shiftSpanMinutes); billable=Math.min(billable,shiftSpanMinutes); }
   return {per,total,billable,nonbillable:Math.max(0,total-billable)};
 }
