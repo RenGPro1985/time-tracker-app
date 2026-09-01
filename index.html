@@ -504,6 +504,15 @@ function splitAmount(total,count){
 }
 
 /* ---------- billable math ---------- */
+/* An entry that never got closed keeps growing against "now" forever. The summary columns
+   already cap it at the shift span; the detail export used the raw duration, so the two
+   exports disagreed. Cap an unclosed entry at its shift's logout time when there is one. */
+function entryMinutesForReport(e,shifts){
+  if(e.ended_at) return minutesOf(e);
+  const sh=(shifts||[]).find(x=>x.id===e.shift_id);
+  if(sh&&sh.logout_at) return Math.max(0,(new Date(sh.logout_at)-new Date(e.started_at))/60000);
+  return minutesOf(e);
+}
 function minutesOf(e,now){const s=new Date(e.started_at),t=e.ended_at?new Date(e.ended_at):(now||new Date());return Math.max(0,(t-s)/60000);}
 
 /* Two independent ways a shift's logged activities can inflate its reported hours:
@@ -830,7 +839,12 @@ async function todaysEntries(){
 
 async function renderToday(){
   $('todayLabel').textContent=fmtNice(phDate(new Date()))+' (PHT)';
-  const {entries:es,shift}=await todaysEntries(); const cMe=clients.find(x=>x.id===me.client_id); const anchorDate=curShift?phDate(new Date(curShift.login_at)):phDate(new Date()); const myWindow=shiftWindowFor(cMe,anchorDate);
+  const {entries:es,shift}=await todaysEntries(); const cMe=clients.find(x=>x.id===me.client_id);
+  /* Anchor the shift window to the shift the entries actually belong to. Using today's PH
+     date instead meant that right after logging out of an overnight shift (login 9pm, logout
+     6am next day) the window was built for the WRONG date, no entry fell inside it, and the
+     card reported 0:00 billable for a full shift just worked. */
+  const anchorDate=shift?phDate(new Date(shift.login_at)):phDate(new Date()); const myWindow=shiftWindowFor(cMe,anchorDate);
   $('entries').innerHTML = es.length? es.map(e=>{
     const bill=!NON_BILLABLE.includes(e.activity);
     return `<tr><td>${e.activity}</td><td class="mono">${phTime(new Date(e.started_at))}</td>
@@ -890,10 +904,13 @@ const PP_BREAK_ACTS=['15min Break','30min Break','60min Break','Personal Break',
 function renderPayPeriodTable(p,byDay,cMe,ssm){
   const head=$('ppTableHead'),body=$('ppTableBody');
   if(!head||!body)return;
+  /* Weekends are hidden only when nobody actually worked them. Hard-skipping Sat/Sun
+     dropped real logged shifts for clients on a Sun–Thu / Tue–Sat week, which read as
+     missing (zero) hours in the pay period. */
   const days=[];let cursor=p.start,guard=0;
   while(cursor<=p.end&&guard<60){
-    const dow=new Date(cursor+'T00:00:00Z').getUTCDay(); // 0=Sun,6=Sat — skip weekends (no weekend shifts)
-    if(dow!==0&&dow!==6)days.push(cursor);
+    const dow=new Date(cursor+'T00:00:00Z').getUTCDay(); // 0=Sun,6=Sat
+    if((dow!==0&&dow!==6)||(byDay[cursor]&&byDay[cursor].length))days.push(cursor);
     cursor=addDays(cursor,1);guard++;
   }
   const fmtCol=iso=>new Date(iso+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',day:'numeric',month:'short'});
@@ -941,8 +958,9 @@ function fill(id,blank,pairs){$(id).innerHTML=`<option value="">${blank}</option
 
 async function loadRoster(){
   const from=new Date(Date.now()-36*3600*1000).toISOString();
-  const {data:ents}=await sb.from('entries').select('*').gte('started_at',from).order('started_at');
-  const {data:shs}=await sb.from('shifts').select('*').gte('login_at',from).order('login_at',{ascending:false});
+  const [ents,shs]=await Promise.all([
+    pagedSelect(()=>sb.from('entries').select('*').gte('started_at',from).order('started_at')),
+    pagedSelect(()=>sb.from('shifts').select('*').gte('login_at',from).order('login_at',{ascending:false}))]);
   const openShift={}; const latestShift={};
   (shs||[]).forEach(s=>{ if(!s.logout_at) openShift[s.staff_id]=s; if(!latestShift[s.staff_id]) latestShift[s.staff_id]=s; });
   const ssm=buildShiftSpanMap(shs);
@@ -1214,6 +1232,29 @@ function currentRange(){
   if($('pType').value==='custom')return{start:$('pFrom').value,end:$('pTo').value};
   const [s,e]=$('pPeriod').value.split('|');return{start:s,end:e};
 }
+/* ---------- paged fetch helper ----------
+   Supabase/PostgREST returns at most 1000 rows per request. Every report here used a
+   single unpaged query and (for multi-staff runs) filtered staff CLIENT-side, so once a
+   date range held more than 1000 entries the extra rows were silently dropped — whole
+   days, staff members or clients then showed 0:00 with no error anywhere. pagedSelect
+   pulls every page, and callers now push the staff filter into the query itself. */
+const PAGE_SIZE=1000;
+async function pagedSelect(build){
+  const out=[];let from=0;
+  for(let guard=0;guard<50;guard++){
+    const {data,error}=await build().range(from,from+PAGE_SIZE-1);
+    if(error){console.warn('pagedSelect:',error.message);break;}
+    const rows=data||[];out.push(...rows);
+    if(rows.length<PAGE_SIZE)break;
+    from+=PAGE_SIZE;
+  }
+  return out;
+}
+function applyStaffFilter(q,staffIds){
+  if(!staffIds) return q;
+  if(staffIds.length===1) return q.eq('staff_id',staffIds[0]);
+  return q.in('staff_id',staffIds);
+}
 async function fetchEntriesRange(startIso,endIso,staffIds){
   // pull a day of padding on each side, then filter by the entry's SHIFT date (not its own
   // raw timestamp date) so the tail of an overnight shift that crosses 12MN PHT — e.g. an
@@ -1221,9 +1262,10 @@ async function fetchEntriesRange(startIso,endIso,staffIds){
   // on the shift's day instead of being dropped for landing just outside the range.
   const from=new Date(startIso+'T00:00:00+08:00'); from.setDate(from.getDate()-1);
   const to=new Date(endIso+'T23:59:59+08:00'); to.setDate(to.getDate()+1);
-  let q=sb.from('entries').select('*').gte('started_at',from.toISOString()).lte('started_at',to.toISOString()).order('started_at');
-  if(staffIds&&staffIds.length===1) q=q.eq('staff_id',staffIds[0]);
-  const [{data},shifts]=await Promise.all([q,fetchShiftsRange(startIso,endIso,staffIds)]);
+  if(staffIds&&!staffIds.length) return [];
+  const [data,shifts]=await Promise.all([
+    pagedSelect(()=>applyStaffFilter(sb.from('entries').select('*').gte('started_at',from.toISOString()).lte('started_at',to.toISOString()).order('started_at'),staffIds)),
+    fetchShiftsRange(startIso,endIso,staffIds)]);
   const sdm=buildShiftDateMap(shifts);
   return (data||[]).filter(e=>{const d=shiftDateOf(e,sdm);return d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(e.staff_id));});
 }
@@ -1245,15 +1287,35 @@ async function runSheet(){
       byDay[d].forEach(e=>sheetDetail.push({
         staff:s.full_name,username:s.username,client:(clients.find(c=>c.id===s.client_id)||{}).name||'',
         date:d,activity:e.activity,start:phTime(new Date(e.started_at)),end:e.ended_at?phTime(new Date(e.ended_at)):'(still running)',
-        minutes:Math.round(minutesOf(e)),billable:NON_BILLABLE.includes(e.activity)?'No':'Yes'}));
+        minutes:Math.round(entryMinutesForReport(e,shifts)),billable:NON_BILLABLE.includes(e.activity)?'No':'Yes'}));
     });
-    sheetRows.push({name:s.full_name,client:(clients.find(c=>c.id===s.client_id)||{}).name||'—',days:Object.keys(byDay).length,bill,non,total:bill+non});
+    sheetRows.push({name:s.full_name,client:(clients.find(c=>c.id===s.client_id)||{}).name||'—',days:Object.keys(byDay).length,bill,non,total:bill+non,
+      clientName:sc?sc.name:null,window:sc?`${sc.shift_start.slice(0,5)}–${sc.shift_end.slice(0,5)} PHT`:null});
   });
+  renderSheetWarnings();
   $('sheetTable').innerHTML=sheetRows.length?sheetRows.map(r=>`<tr><td><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td>
     <td class="mono">${r.days}</td><td class="mono" style="color:var(--teal)">${hm(r.bill)}</td>
     <td class="mono" style="color:var(--gold)">${hm(r.non)}</td><td class="mono">${hm(r.total)}</td>
     <td class="mono">${r.total?Math.round(r.bill/r.total*100)+'%':'—'}</td></tr>`).join('')
     :`<tr><td colspan="7" class="muted">No data for that range.</td></tr>`;
+}
+/* "Hours logged but nothing billable" is almost always a client setup problem, not a
+   missing shift: no client assigned, or the client's shift window is typed in the CLIENT's
+   local time instead of PH time, so no logged minute ever falls inside it. Say so out loud
+   instead of quietly printing 0:00. */
+function renderSheetWarnings(){
+  const table=$('sheetTable').closest('table');
+  let box=$('sheetWarn');
+  if(!box){ box=document.createElement('div'); box.id='sheetWarn'; box.className='note'; box.style.marginTop='12px'; table.insertAdjacentElement('afterend',box); }
+  const bad=sheetRows.filter(r=>r.total>0&&r.bill===0);
+  if(!bad.length){ box.style.display='none'; box.innerHTML=''; return; }
+  box.style.display='';
+  box.innerHTML='<b>Logged time, zero billable:</b><br>'+bad.map(r=>{
+    const why=!r.clientName
+      ? 'no client assigned — assign one in Staff &amp; Clients'
+      : `every logged minute falls outside ${escapeHtml(r.clientName)}'s shift window (${escapeHtml(r.window)}). Check that the shift is entered in <b>Philippine time</b>, not the client's local time.`;
+    return `• ${escapeHtml(r.name)} — ${hm(r.non)} logged, 0:00 billable: ${why}`;
+  }).join('<br>');
 }
 function csvEscape(v){return '"'+String(v).replace(/"/g,'""')+'"';}
 function summaryCsv(){
@@ -1320,9 +1382,8 @@ function adherenceRange(){
 async function fetchShiftsRange(startIso,endIso,staffIds){
   const from=new Date(startIso+'T00:00:00+08:00'); from.setDate(from.getDate()-1);
   const to=new Date(endIso+'T23:59:59+08:00'); to.setDate(to.getDate()+1);
-  let q=sb.from('shifts').select('*').gte('login_at',from.toISOString()).lte('login_at',to.toISOString()).order('login_at');
-  if(staffIds&&staffIds.length===1) q=q.eq('staff_id',staffIds[0]);
-  const {data}=await q;
+  if(staffIds&&!staffIds.length) return [];
+  const data=await pagedSelect(()=>applyStaffFilter(sb.from('shifts').select('*').gte('login_at',from.toISOString()).lte('login_at',to.toISOString()).order('login_at'),staffIds));
   return (data||[]).filter(sh=>{ const d=phDate(new Date(sh.login_at)); return d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(sh.staff_id)); });
 }
 async function runAdherence(){
@@ -1357,10 +1418,16 @@ async function runAdherence(){
     grandTotal+=total; grandBill+=bill;
     const mySh=shs.filter(sh=>sh.staff_id===s.id);
     let lateCount=0,lateMinTotal=0;
+    /* For an overnight shift (e.g. 21:00–06:00) somebody who logs in at 00:30 belongs to the
+       window that OPENED the previous PH date. Measuring against the same-date window made
+       them look ~20 hours early instead of 3.5 hours late, so post-midnight late log-ins were
+       never counted. Compare against whichever window start is closest to the log-in. */
     mySh.forEach(sh=>{
-      const d=phDate(new Date(sh.login_at)); const win=shiftWindowFor(c,d);
-      if(!win) return;
-      const lateMin=(new Date(sh.login_at)-win.start)/60000;
+      const at=new Date(sh.login_at); const d=phDate(at);
+      const cands=[shiftWindowFor(c,addDays(d,-1)),shiftWindowFor(c,d)].filter(Boolean);
+      if(!cands.length) return;
+      const win=cands.reduce((a,b)=>Math.abs(at-a.start)<=Math.abs(at-b.start)?a:b);
+      const lateMin=(at-win.start)/60000;
       if(lateMin>grace){ lateCount++; lateMinTotal+=lateMin; }
     });
     adRows.push({
@@ -1442,11 +1509,15 @@ function tenureStr(hireIso){
   if(y<0)return '\u2014';
   return `${y} YRS, ${m} MOS, ${d} DAYS`;
 }
-function weekdayList(startIso,endIso){
+/* Weekend columns appear only when there is something on them (a logged shift or an
+   admin override). Always dropping Sat/Sun silently hid real hours for clients whose
+   week is not Mon–Fri. */
+function weekdayList(startIso,endIso,activeDays){
+  const active=activeDays||new Set();
   const days=[];let cursor=startIso,guard=0;
   while(cursor<=endIso&&guard<120){
-    const dow=new Date(cursor+'T00:00:00Z').getUTCDay(); // 0=Sun,6=Sat \u2014 no weekend shifts
-    if(dow!==0&&dow!==6)days.push(cursor);
+    const dow=new Date(cursor+'T00:00:00Z').getUTCDay(); // 0=Sun,6=Sat
+    if((dow!==0&&dow!==6)||active.has(cursor))days.push(cursor);
     cursor=addDays(cursor,1);guard++;
   }
   return days;
@@ -1457,8 +1528,8 @@ function weekdayList(startIso,endIso){
 function isMissingTableError(error){ return error&&(error.code==='42P01'||error.code==='PGRST205'); }
 async function fetchAdjustments(startIso,endIso,staffIds){
   let q=sb.from('timesheet_adjustments').select('*').gte('work_date',startIso).lte('work_date',endIso);
-  if(staffIds&&staffIds.length===1)q=q.eq('staff_id',staffIds[0]);
-  const {data,error}=await q;
+  q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
+  const {data,error}=await q.range(0,4999);
   if(error){ if(!isMissingTableError(error)) console.warn('timesheet_adjustments:',error.message); return []; }
   return data||[];
 }
@@ -1486,12 +1557,15 @@ async function renderSheetGrid(){
       const cb=(clients.find(c=>c.id===b.client_id)||{}).name||'';
       return ca===cb ? a.full_name.localeCompare(b.full_name) : ca.localeCompare(cb);
     });
-  const days=weekdayList(start,end);
   const [ents,shifts]=await Promise.all([fetchEntriesRange(start,end,people.map(s=>s.id)),fetchShiftsRange(start,end,people.map(s=>s.id))]);
   const sdm=buildShiftDateMap(shifts);
   const ssm=buildShiftSpanMap(shifts);
   const adj=await fetchAdjustments(start,end,people.map(s=>s.id));
   const adjMap={};adj.forEach(a=>adjMap[a.staff_id+'|'+a.work_date]=Number(a.hours));
+  const activeDays=new Set();
+  ents.forEach(e=>activeDays.add(shiftDateOf(e,sdm)));
+  adj.forEach(a=>activeDays.add(a.work_date));
+  const days=weekdayList(start,end,activeDays);
 
   const fmtCol=iso=>{const d=new Date(iso+'T00:00:00Z');
     return `${d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'})}<br>${d.toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short'}).toUpperCase()}`;};
