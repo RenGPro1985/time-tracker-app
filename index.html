@@ -446,6 +446,44 @@ const sb = CONFIGURED ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) :
 const $ = id => document.getElementById(id);
 let me=null, clients=[], staffList=[], allowance={}, curShift=null, curEntry=null, tickBase=0, sheetRows=[], sheetDetail=[];
 
+/* ---------- secure Slack notifications (webhook URLs stay on Render) ---------- */
+const slackWarned=new Set();
+let slackOverbreakBusy=false;
+function showSlackWarning(key,message){
+  if(slackWarned.has(key)) return;
+  slackWarned.add(key);
+  let el=$('slackNotice');
+  if(!el){
+    el=document.createElement('div'); el.id='slackNotice';
+    Object.assign(el.style,{position:'fixed',right:'18px',bottom:'18px',zIndex:'9999',maxWidth:'420px',padding:'12px 14px',borderRadius:'10px',background:'#fff4e5',color:'#7a3e00',border:'1px solid #f0b35a',boxShadow:'0 8px 24px rgba(0,0,0,.16)',fontSize:'13px',lineHeight:'1.4'});
+    document.body.appendChild(el);
+  }
+  el.textContent=message;
+  el.style.display='block';
+  clearTimeout(el._hideTimer);
+  el._hideTimer=setTimeout(()=>{el.style.display='none';},8000);
+}
+async function sendSlackNotice(path,body){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token) throw new Error('Your session expired.');
+  const r=await fetch(SERVER_URL+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify(body)});
+  let j={}; try{j=await r.json();}catch(_e){}
+  if(!r.ok) throw new Error(j.error||'Slack notification failed.');
+  return j;
+}
+function notifyActivity(entryId){
+  sendSlackNotice('/api/slack/activity',{entry_id:entryId}).catch(e=>showSlackWarning('activity:'+entryId,'Activity saved, but the SMB general Slack notice failed: '+e.message));
+}
+async function syncOverbreakAlerts(shiftId){
+  if(!shiftId||slackOverbreakBusy) return;
+  slackOverbreakBusy=true;
+  try{
+    await sendSlackNotice('/api/slack/overbreaks',{shift_id:shiftId});
+  }catch(e){
+    showSlackWarning('overbreak:'+shiftId,'Your time is saved, but an overbreak Slack alert could not be sent. The app will retry automatically.');
+  }finally{slackOverbreakBusy=false;}
+}
+
 /* ---------- date helpers (Philippine time) ---------- */
 function phParts(d){const f=new Intl.DateTimeFormat('en-CA',{timeZone:PH,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
   const o={};f.formatToParts(d).forEach(p=>o[p.type]=p.value);return o;}
@@ -668,6 +706,10 @@ async function start(){
   renderActs();
   await loadPunch();
   setInterval(tick,1000);
+  /* Poll only while a capped activity is actively running. Switching/stopping/logging out
+     also performs a catch-up check, so this catches threshold crossings without sending
+     four backend requests per minute throughout the entire shift. */
+  setInterval(()=>{ if(curShift&&curEntry&&Number(allowance[curEntry.activity]||0)>0) syncOverbreakAlerts(curShift.id); },15000);
   setInterval(()=>{ if(document.getElementById('v-status').classList.contains('hide')===false) loadRoster(); },60000);
 }
 
@@ -741,6 +783,7 @@ async function loadPunch(){
     curEntry=oe&&oe[0]?oe[0]:null;
   }
   paintShiftState();
+  if(curShift) syncOverbreakAlerts(curShift.id); // catches an overbreak after reload/device sleep
   await renderToday();
   await renderPayPeriod();
   await renderMyCorrections();
@@ -799,21 +842,24 @@ $('loginBtn').onclick = async () => {
     }else{
       if(!confirm('End your shift now? This stops all timers.')){$('loginBtn').disabled=false;return;}
       const now=new Date().toISOString();
-      const closeErr=await closeOpenEntries(curShift.id, now);
+      const endedShiftId=curShift.id;
+      const closeErr=await closeOpenEntries(endedShiftId, now);
       if(closeErr) throw closeErr;
-      await sb.from('shifts').update({logout_at:now}).eq('id',curShift.id);
+      await sb.from('shifts').update({logout_at:now}).eq('id',endedShiftId);
+      syncOverbreakAlerts(endedShiftId); // final catch-up before leaving the shift
       curShift=null;curEntry=null;
     }
     paintShiftState(); await renderToday(); await renderPayPeriod();
   }catch(e){alert('Could not save: '+e.message);}
-  $('loginBtn').disabled=false;
+  finally{$('loginBtn').disabled=false;}
 };
 
 $('stopBtn').onclick = async () => {
   if(!curShift)return;
-  const closeErr=await closeOpenEntries(curShift.id, new Date().toISOString());
+  const shiftId=curShift.id;
+  const closeErr=await closeOpenEntries(shiftId, new Date().toISOString());
   if(closeErr) return alert('Could not stop: '+closeErr.message);
-  curEntry=null; paintShiftState(); await renderToday();
+  curEntry=null; paintShiftState(); syncOverbreakAlerts(shiftId); await renderToday();
 };
 
 let switchBusy=false;
@@ -828,7 +874,10 @@ async function switchActivity(act){
     if(closeErr) return alert('Could not switch: '+closeErr.message);
     const {data,error}=await sb.from('entries').insert({shift_id:curShift.id,staff_id:me.id,activity:act,started_at:now}).select().single();
     if(error) return alert('Could not switch: '+error.message);
-    curEntry=data; paintShiftState(); await renderToday();
+    curEntry=data; paintShiftState();
+    notifyActivity(data.id); // record is saved first; Slack failure never rolls time back
+    syncOverbreakAlerts(curShift.id); // checks the activity that just ended
+    await renderToday();
   } finally { switchBusy=false; }
 }
 
@@ -1727,11 +1776,14 @@ if($('reqType')){
       if(!Number.isInteger(payload.cutoffs)||payload.cutoffs<1) return alert('Enter how many cutoffs you will pay this off over (1 or more).');
     }
     $('reqSubmit').disabled=true;
-    const {error}=await sb.from('requests').insert(payload);
+    const {data:saved,error}=await sb.from('requests').insert(payload).select().single();
+    if(error){$('reqSubmit').disabled=false;return alert(error.message);}
+    let slackError='';
+    try{await sendSlackNotice('/api/slack/request',{request_id:saved.id});}
+    catch(e){slackError=e.message;showSlackWarning('request:'+saved.id,'Request saved, but the payroll-and-sheet Slack notice failed: '+e.message);}
     $('reqSubmit').disabled=false;
-    if(error) return alert(error.message);
     $('reqReason').value='';$('reqAmount').value='';$('reqStart').value='';$('reqEnd').value='';$('reqCutoffs').value='1';
-    $('reqMsg').textContent='Request sent.'; setTimeout(()=>$('reqMsg').textContent='',3000);
+    $('reqMsg').textContent=slackError?'Request saved; Slack notice failed.':'Request sent and posted to payroll-and-sheet.'; setTimeout(()=>$('reqMsg').textContent='',5000);
     await loadMyRequests();
   };
 }
