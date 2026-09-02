@@ -275,6 +275,7 @@ button.btn{padding:7px 12px;font-size:12px}
           </div>
         </div>
         <div class="muted" id="staffSaveMsg" style="font-size:12px;margin-bottom:8px;min-height:14px"></div>
+        <div class="muted" style="font-size:11.5px;margin-bottom:10px">PHP Rate is calculated as <span class="mono">(Monthly rate / 22) / 8</span>. PHP Rate and USD Rate are hourly staff rates.</div>
         <div id="addForm" class="hide" style="background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px">
           <div class="grid" style="grid-template-columns:repeat(5,1fr);gap:10px">
             <div><label>Full name</label><input id="nName"></div>
@@ -284,6 +285,7 @@ button.btn{padding:7px 12px;font-size:12px}
             <div><label>Work email</label><input id="nEmail" type="email"></div>
             <div><label>Client</label><select id="nClient"></select></div>
             <div><label>Monthly rate</label><input id="nMonthlyRate" type="number" min="0" step="0.01" placeholder="0.00"></div>
+            <div><label>USD Rate (hourly)</label><input id="nUsdHourlyRate" type="number" min="0" step="0.01" placeholder="0.00"></div>
             <div><label>Role</label><select id="nRole"><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
             <div><label>Access</label><select id="nMode">
               <option value="password">Temporary password (no email needed)</option>
@@ -297,7 +299,7 @@ button.btn{padding:7px 12px;font-size:12px}
             <div class="mono" id="addPwVal" style="font-size:18px;margin-top:6px;color:var(--teal)"></div>
           </div>
         </div>
-        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Tenure</th><th>Client</th><th>Monthly rate</th><th>PTO balance</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
+        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Tenure</th><th>Client</th><th>Monthly rate</th><th title="Calculated as (Monthly rate / 22) / 8">PHP Rate</th><th title="Hourly rate in US dollars">USD Rate</th><th>PTO balance</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Bulk add staff</h3><button class="btn btn-ghost" id="toggleBulk">Open</button></div>
@@ -1033,7 +1035,7 @@ $('saveStaff').onclick = async () => {
       full_name:$('nName').value.trim(),username:$('nUser').value.trim(),email:$('nEmail').value.trim(),
       client_id:$('nClient').value||null,role:$('nRole').value,mode,
       hire_date:$('nHireDate').value||null,birth_date:$('nBirthDate').value||null,
-      monthly_rate:Number($('nMonthlyRate').value||0)})});
+      monthly_rate:Number($('nMonthlyRate').value||0),usd_hourly_rate:Number($('nUsdHourlyRate').value||0)})});
     if(r.temp_password){
       $('addMsg').textContent='Account created.';
       $('addPwVal').textContent=$('nUser').value.trim()+'  /  '+r.temp_password;
@@ -1041,7 +1043,7 @@ $('saveStaff').onclick = async () => {
     } else {
       $('addMsg').textContent='Created — setup email sent.';
     }
-    ['nName','nUser','nEmail','nHireDate','nBirthDate','nMonthlyRate'].forEach(i=>$(i).value='');
+    ['nName','nUser','nEmail','nHireDate','nBirthDate','nMonthlyRate','nUsdHourlyRate'].forEach(i=>$(i).value='');
     await reloadStaff();
   }catch(e){$('addMsg').textContent='';alert(e.message);}
   $('saveStaff').disabled=false;
@@ -1096,6 +1098,16 @@ function tenureSortedStaff(list){
     return a.hire_date<b.hire_date?-1:a.hire_date>b.hire_date?1:a.full_name.localeCompare(b.full_name);
   });
 }
+function phpHourlyRate(monthlyRate){
+  const monthly=Number(monthlyRate||0);
+  return Number.isFinite(monthly)&&monthly>=0?(monthly/22/8).toFixed(2):'0.00';
+}
+function refreshPhpRates(){
+  document.querySelectorAll('#staffTable [data-php-rate]').forEach(el=>{
+    const monthly=document.querySelector(`[data-rate="${el.dataset.phpRate}"]`);
+    el.textContent='₱'+phpHourlyRate(monthly?monthly.value:0);
+  });
+}
 function renderStaffAdmin(){
   /* client-assignment filter, populated fresh each render so newly added clients show up */
   const prevFilter=$('staffClientFilter').value;
@@ -1114,14 +1126,18 @@ function renderStaffAdmin(){
     <td class="mono">${escapeHtml(tenureStr(s.hire_date))}</td>
     <td><select data-assign="${s.id}" style="width:auto"><option value="">— none —</option>${clients.map(c2=>`<option value="${c2.id}" ${c2.id===s.client_id?'selected':''}>${escapeHtml(c2.name)}</option>`).join('')}</select></td>
     <td><input type="number" min="0" step="0.01" data-rate="${s.id}" value="${s.monthly_rate||0}" style="width:100px"></td>
+    <td class="mono"><span data-php-rate="${s.id}" title="(Monthly rate / 22) / 8">₱${phpHourlyRate(s.monthly_rate)}</span></td>
+    <td><input type="number" min="0" step="0.01" data-usd-rate="${s.id}" value="${s.usd_hourly_rate||0}" style="width:90px" aria-label="USD hourly rate for ${escapeHtml(s.full_name)}"></td>
     <td><input type="number" min="0" step="0.5" data-pto="${s.id}" value="${s.pto_balance||0}" style="width:80px"></td>
     <td style="text-align:right;gap:6px;justify-content:flex-end" class="row">
       <button class="btn btn-ghost btn-icon" data-temp="${s.id}" title="Set new password" aria-label="Set new password"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-9.6 9.6"></path><path d="M15.5 7.5l3 3L22 7l-3-3"></path><circle cx="7.5" cy="16.5" r="5.5"></circle></svg></button>
       <button class="btn btn-rose btn-icon" data-del="${s.id}" title="Delete staff" aria-label="Delete staff"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
     </td></tr>`;}).join('')
-    :`<tr><td colspan="8" class="muted">No staff match this filter.</td></tr>`;
-  /* Editable fields (hire date, client assignment, rate, PTO) no longer save on every change —
-     they're staged and only written to Supabase when "Save changes" is clicked, below. */
+    :`<tr><td colspan="10" class="muted">No staff match this filter.</td></tr>`;
+  /* Editable fields (hire date, client assignment, USD rate, monthly rate, PTO) no longer
+     save on every change — they're staged and only written to Supabase when "Save changes"
+     is clicked, below. PHP Rate is derived from the staged Monthly rate and never stored. */
+  $('staffTable').querySelectorAll('[data-rate]').forEach(input=>input.addEventListener('input',refreshPhpRates));
   $('staffTable').querySelectorAll('[data-temp]').forEach(b=>b.onclick=async()=>{
     const pw=prompt('Set a new password for this person (min 6 characters). Leave blank to auto-generate a random one instead:');
     if(pw===null)return; // cancelled
@@ -1156,12 +1172,13 @@ $('saveStaffTable').onclick=async()=>{
       hire_date:hireEl.value||null,
       client_id:document.querySelector(`[data-assign="${s.id}"]`).value||null,
       monthly_rate:Number(document.querySelector(`[data-rate="${s.id}"]`).value||0),
+      usd_hourly_rate:Number(document.querySelector(`[data-usd-rate="${s.id}"]`).value||0),
       pto_balance:Number(document.querySelector(`[data-pto="${s.id}"]`).value||0),
     };
   }).filter(Boolean);
   try{
     for(const r of rows){
-      const {error}=await sb.from('staff').update({hire_date:r.hire_date,client_id:r.client_id,monthly_rate:r.monthly_rate,pto_balance:r.pto_balance}).eq('id',r.id);
+      const {error}=await sb.from('staff').update({hire_date:r.hire_date,client_id:r.client_id,monthly_rate:r.monthly_rate,usd_hourly_rate:r.usd_hourly_rate,pto_balance:r.pto_balance}).eq('id',r.id);
       if(error)throw new Error(error.message);
     }
     $('staffSaveMsg').textContent='Saved.';
