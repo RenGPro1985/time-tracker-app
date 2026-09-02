@@ -54,10 +54,11 @@ async function createOneStaff(body, mode){
   const role      = body?.role === 'admin' ? 'admin' : 'staff';
   // The Staff form collects these; they used to be dropped on the floor here, so every new
   // hire landed with no hire date, no birthday and a 0 monthly rate until someone re-typed
-  // them in the staff table.
-  const hire_date    = body?.hire_date  || null;
-  const birth_date   = body?.birth_date || null;
-  const monthly_rate = body?.monthly_rate != null && body.monthly_rate !== '' ? Number(body.monthly_rate) : 0;
+  // them in the staff table. USD Rate is an optional manually entered hourly rate.
+  const hire_date      = body?.hire_date  || null;
+  const birth_date     = body?.birth_date || null;
+  const monthly_rate   = body?.monthly_rate != null && body.monthly_rate !== '' ? Number(body.monthly_rate) : 0;
+  const usd_hourly_rate = body?.usd_hourly_rate != null && body.usd_hourly_rate !== '' ? Number(body.usd_hourly_rate) : 0;
   if (!full_name || !username || !email) return { error: 'Name, username and email are required.' };
   if (!/^[a-z0-9._-]+$/.test(username)) return { error: 'Username can only contain letters, numbers, dots, dashes and underscores.' };
   if (!/^[^\s,@]+@[^\s,@]+\.[^\s,@]+$/.test(email)) return { error: 'That email address does not look valid.' };
@@ -85,7 +86,7 @@ async function createOneStaff(body, mode){
   }
 
   const { error: insErr } = await admin.from('staff')
-    .insert({ id: userId, full_name, username, email, client_id, role, hire_date, birth_date, monthly_rate });
+    .insert({ id: userId, full_name, username, email, client_id, role, hire_date, birth_date, monthly_rate, usd_hourly_rate });
   if (insErr) {
     await admin.auth.admin.deleteUser(userId); // roll back so nothing is half-created
     return { error: 'Could not save staff row: ' + insErr.message };
