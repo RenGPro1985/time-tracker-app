@@ -1900,6 +1900,13 @@ async function decideReq(id,status,rejectionReason=''){
   if(error){alert(error.message);return false;}
   if(!data||!data.length){alert('This request was already reviewed. Refreshing the list.');await loadReqAdmin();return false;}
   if(data&&data.length&&status==='approved'){ await scheduleAdvanceDeductions(data[0]); }
+  if(status==='rejected'){
+    try{await sendSlackNotice('/api/slack/request-rejected',{request_id:id});}
+    catch(e){
+      showSlackWarning('request-rejected:'+id,'Request rejected, but the payroll-and-sheet Slack notice failed: '+e.message);
+      alert('Request rejected, but the payroll-and-sheet Slack notification failed. Refresh and try Reject again only if the request is still pending.');
+    }
+  }
   await loadReqAdmin();
   return true;
 }
