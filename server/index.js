@@ -52,11 +52,21 @@ async function createOneStaff(body, mode){
   const email     = String(body?.email || '').trim().toLowerCase();
   const client_id = body?.client_id || null;
   const role      = body?.role === 'admin' ? 'admin' : 'staff';
+  // The Staff form collects these; they used to be dropped on the floor here, so every new
+  // hire landed with no hire date, no birthday and a 0 monthly rate until someone re-typed
+  // them in the staff table.
+  const hire_date    = body?.hire_date  || null;
+  const birth_date   = body?.birth_date || null;
+  const monthly_rate = body?.monthly_rate != null && body.monthly_rate !== '' ? Number(body.monthly_rate) : 0;
   if (!full_name || !username || !email) return { error: 'Name, username and email are required.' };
+  if (!/^[a-z0-9._-]+$/.test(username)) return { error: 'Username can only contain letters, numbers, dots, dashes and underscores.' };
+  if (!/^[^\s,@]+@[^\s,@]+\.[^\s,@]+$/.test(email)) return { error: 'That email address does not look valid.' };
 
-  const { data: dupe } = await admin.from('staff').select('id')
-    .or(`username.eq.${username},email.eq.${email}`).maybeSingle();
-  if (dupe) return { error: 'That username or email already exists.' };
+  // Two plain equality checks instead of an interpolated .or() filter: a value containing a
+  // comma or parenthesis used to be parsed as extra PostgREST filter syntax.
+  const { data: dupeUser } = await admin.from('staff').select('id').eq('username', username).maybeSingle();
+  const { data: dupeMail } = await admin.from('staff').select('id').eq('email', email).maybeSingle();
+  if (dupeUser || dupeMail) return { error: 'That username or email already exists.' };
 
   let userId, temp = null;
   if (mode === 'password') {
@@ -75,7 +85,7 @@ async function createOneStaff(body, mode){
   }
 
   const { error: insErr } = await admin.from('staff')
-    .insert({ id: userId, full_name, username, email, client_id, role });
+    .insert({ id: userId, full_name, username, email, client_id, role, hire_date, birth_date, monthly_rate });
   if (insErr) {
     await admin.auth.admin.deleteUser(userId); // roll back so nothing is half-created
     return { error: 'Could not save staff row: ' + insErr.message };
@@ -165,10 +175,12 @@ app.post('/api/staff/:id/reset-password', async (req, res) => {
   res.json({ ok: true });
 });
 
-// --- 4b. set a NEW temporary password (no email needed) ------------------
+// --- 4b. set a new password (admin can type one, or leave blank for a random temp one) ---
 app.post('/api/staff/:id/temp-password', async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
-  const temp = tempPassword();
+  const custom = (req.body && req.body.password) ? String(req.body.password) : '';
+  if (custom && custom.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+  const temp = custom || tempPassword();
   const { error } = await admin.auth.admin.updateUserById(req.params.id, { password: temp, email_confirm: true });
   if (error) return res.status(400).json({ error: error.message });
   res.json({ ok: true, temp_password: temp });
