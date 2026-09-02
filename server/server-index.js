@@ -122,7 +122,7 @@ async function requireAdmin(req, res) {
   if (!token) { res.status(401).json({ error: 'Not logged in.' }); return null; }
   const { data: u, error } = await admin.auth.getUser(token);
   if (error || !u?.user) { res.status(401).json({ error: 'Session expired, please log in again.' }); return null; }
-  const { data: row } = await admin.from('staff').select('id, role, active').eq('id', u.user.id).single();
+  const { data: row } = await admin.from('staff').select('id, full_name, role, active').eq('id', u.user.id).single();
   if (!row || row.role !== 'admin' || !row.active) { res.status(403).json({ error: 'Admins only.' }); return null; }
   return row;
 }
@@ -162,12 +162,12 @@ function peso(value){
 function inclusiveDays(start,end){
   return Math.max(1,Math.round((Date.parse(end+'T00:00:00Z')-Date.parse(start+'T00:00:00Z'))/86400000)+1);
 }
-function slackPayload(title, fields, context, reason=''){
+function slackPayload(title, fields, context, reason='', reasonLabel='Reason / note'){
   const blocks=[
     {type:'header',text:{type:'plain_text',text:title,emoji:true}},
     {type:'section',fields:fields.map(([label,value])=>({type:'mrkdwn',text:`*${safeSlack(label,80)}:*\n${safeSlack(value)}`}))}
   ];
-  if(reason) blocks.push({type:'section',text:{type:'mrkdwn',text:`*Reason / note:*\n${safeSlack(reason,1200)}`}});
+  if(reason) blocks.push({type:'section',text:{type:'mrkdwn',text:`*${safeSlack(reasonLabel,80)}:*\n${safeSlack(reason,1200)}`}});
   if(context) blocks.push({type:'context',elements:[{type:'mrkdwn',text:safeSlack(context,500)}]});
   const fallback=fields.map(([k,v])=>`${k}: ${v}`).join(' | ');
   return {text:safeSlack(`${title} — ${fallback}`,2500),blocks};
@@ -362,7 +362,37 @@ app.post('/api/slack/request', async (req, res) => {
   }catch(e){console.error('Slack request notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
 });
 
-// --- 7. Slack: first overbreak per shift/activity -> payroll-and-sheet ----
+// --- 7. Slack: rejected PTO/advance request -> payroll-and-sheet ----------
+app.post('/api/slack/request-rejected', async (req, res) => {
+  try{
+    const adminRow=await requireAdmin(req,res); if(!adminRow) return;
+    const requestId=String(req.body?.request_id||'');
+    if(!uuidRe.test(requestId)) return res.status(400).json({error:'Valid request_id required.'});
+    const {data:r,error}=await admin.from('requests').select('*').eq('id',requestId).single();
+    if(error||!r) return res.status(404).json({error:'Request not found.'});
+    if(r.status!=='rejected'||!String(r.rejection_reason||'').trim()){
+      return res.status(409).json({error:'The request must be rejected with a reason before notifying payroll.'});
+    }
+    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}[r.type];
+    if(!typeLabel) return res.status(400).json({error:'Unsupported request type.'});
+    const {data:staff,error:staffErr}=await admin.from('staff')
+      .select('id, full_name, client_id').eq('id',r.staff_id).single();
+    if(staffErr||!staff) return res.status(404).json({error:'Request staff account not found.'});
+    const client=await clientName(staff.client_id);
+    const fields=[['Staff',staff.full_name],['Client',client],['Request',typeLabel]];
+    if(r.type==='pto'){
+      fields.push(['Dates',`${phtDate(r.start_date+'T00:00:00+08:00')} – ${phtDate(r.end_date+'T00:00:00+08:00')}`],['Requested',`${inclusiveDays(r.start_date,r.end_date)} calendar day(s)`]);
+    }else{
+      fields.push(['Amount',peso(r.amount)],['Repayment',`${Number(r.cutoffs||0)} cutoff(s)`]);
+    }
+    fields.push(['Rejected by',adminRow.full_name||'Admin'],['Reviewed',phtDateTime(r.reviewed_at||new Date())]);
+    const payload=slackPayload(`❌ ${typeLabel} Request Rejected`,fields,'Status: Rejected',r.rejection_reason,'Rejection reason');
+    const result=await sendSlackOnce({eventKey:`request-rejected:${r.id}`,destination:'payroll-and-sheet',eventType:'request',entityId:r.id,webhook:SLACK_PAYROLL_WEBHOOK_URL,payload});
+    res.json({ok:true,...result});
+  }catch(e){console.error('Slack rejection notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
+});
+
+// --- 8. Slack: first overbreak per shift/activity -> payroll-and-sheet ----
 app.post('/api/slack/overbreaks', async (req, res) => {
   try{
     const caller=await requireActiveUser(req,res); if(!caller) return;
