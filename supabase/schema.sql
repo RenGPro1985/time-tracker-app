@@ -29,14 +29,16 @@ create table if not exists staff (
   active        boolean not null default true,
   hire_date     date,
   birth_date    date,
-  monthly_rate  numeric(12,2) not null default 0,
-  created_at    timestamptz not null default now()
+  monthly_rate    numeric(12,2) not null default 0,
+  usd_hourly_rate  numeric(12,2) not null default 0,
+  created_at      timestamptz not null default now()
 );
 
 -- safe to re-run on an existing database that predates these columns
 alter table staff add column if not exists hire_date date;
 alter table staff add column if not exists birth_date date;
 alter table staff add column if not exists monthly_rate numeric(12,2) not null default 0;
+alter table staff add column if not exists usd_hourly_rate numeric(12,2) not null default 0;
 
 -- ---------- SHIFTS (LOGIN -> LOGOUT) ----------
 create table if not exists shifts (
