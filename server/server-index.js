@@ -403,7 +403,7 @@ app.post('/api/slack/overbreaks', async (req, res) => {
     if(shift.staff_id!==caller.user.id) return res.status(403).json({error:'You can only check your own shift.'});
     const [{data:setting,error:setErr},{data:entries,error:entryErr}]=await Promise.all([
       admin.from('settings').select('value').eq('key','break_allowance_minutes').maybeSingle(),
-      admin.from('entries').select('activity, started_at, ended_at').eq('shift_id',shiftId).in('activity',BREAK_ACTIVITIES)
+      admin.from('entries').select('activity, started_at, ended_at').eq('shift_id',shiftId).eq('active',true).in('activity',BREAK_ACTIVITIES)
     ]);
     if(setErr||entryErr) throw setErr||entryErr;
     const allowances=setting?.value||{};
