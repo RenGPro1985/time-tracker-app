@@ -451,7 +451,55 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
         <select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section>
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+  <!-- STAFF VIEW -->
+  <div id="portalStaffView" class="grid" style="gap:16px">
+    <div class="card">
+      <div class="hdr"><h3 style="font-size:15px">Company Documents</h3></div>
+      <table><thead><tr><th>Title</th><th>Category</th><th>Status</th><th></th></tr></thead><tbody id="portalCompanyDocs"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="hdr"><h3 style="font-size:15px">My Documents</h3></div>
+      <table><thead><tr><th>Title</th><th>Category</th><th>Status</th><th></th></tr></thead><tbody id="portalMyDocs"></tbody></table>
+    </div>
+    <div class="card hide" id="portalSignCard">
+      <div class="hdr"><h3 style="font-size:15px">Sign Document</h3></div>
+      <div class="muted" id="portalSignDocTitle" style="margin-bottom:10px"></div>
+      <div class="row" style="align-items:flex-end;gap:10px">
+        <div style="flex:1"><label>Type your full legal name to sign</label><input id="portalSignName" placeholder="e.g. Juan Dela Cruz"></div>
+        <div style="flex:0 0 auto"><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="portalSignAgree"> I acknowledge and agree</label></div>
+        <div><button class="btn btn-gold" id="portalSignSubmit">Submit Signature</button></div>
+      </div>
+      <div class="muted" id="portalSignMsg" style="font-size:12px;margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN VIEW -->
+  <div id="portalAdminView" class="grid hide" style="gap:16px">
+    <div class="card">
+      <div class="hdr"><h3 style="font-size:15px">Upload Document</h3></div>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        <div style="flex:1 1 200px"><label>Title</label><input id="portalUpTitle" placeholder="e.g. Employment Contract 2026"></div>
+        <div style="flex:0 0 180px"><label>Category</label>
+          <select id="portalUpCategory">
+            <option>Contract</option><option>House Rules</option><option>Onboarding</option><option>Coaching</option><option>Other</option>
+          </select>
+        </div>
+        <div style="flex:0 0 220px"><label>Assign to</label>
+          <select id="portalUpVisibility"><option value="all">Everyone (company-wide)</option></select>
+        </div>
+        <div style="flex:0 0 auto"><label style="display:flex;align-items:center;gap:6px;margin-top:22px"><input type="checkbox" id="portalUpSig"> Requires signature</label></div>
+        <div style="flex:1 1 220px"><label>File</label><input type="file" id="portalUpFile"></div>
+        <div style="flex:0 0 auto"><button class="btn btn-teal" id="portalUpBtn" style="margin-top:22px">Upload to Drive</button></div>
+      </div>
+      <div class="muted" id="portalUpMsg" style="font-size:12px;margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <div class="hdr"><h3 style="font-size:15px">All Documents</h3></div>
+      <table><thead><tr><th>Title</th><th>Category</th><th>Assigned to</th><th>Signatures</th><th></th></tr></thead><tbody id="portalAdminDocs"></tbody></table>
+    </div>
+  </div>
+</section>
 
     <!-- ---------- ADMIN: POLICY ---------- -->
     <section id="v-policy" class="hide grid" style="gap:16px">
@@ -800,11 +848,11 @@ const PAGES={
   'v-sheets':['📄 Timesheets','Timesheets','Filter by pay period and export'],
   'v-adherence':['📊 Adherence & Breaks','Adherence & Breaks','Break usage, overages, and late log-ins — filter by staff, client, and date'],
   'v-corr'  :['✏️ Corrections','Corrections','Approve or reject staff correction requests'],
-  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests']
+  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests'], 'v-portal':['🗂️ Freelancer Hole','Freelancer Hole','Documents, contracts, and signatures']
 };
 let view='v-punch';
 function buildNav(){
-  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-sheets','v-adherence','v-corr','v-reqadmin','v-policy'] : ['v-punch','v-req'];
+  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-sheets','v-adherence','v-corr','v-reqadmin','v-policy','v-portal'] : ['v-punch','v-req','v-portal'];
   $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   go(view);
@@ -820,7 +868,7 @@ function go(v){
   if(v==='v-sheets'){initSheetFilters();}
   if(v==='v-adherence'){initAdherenceFilters();}
   if(v==='v-corr'){loadCorrections();}
-  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();}
 }
 
 /* clocks + running timers */
@@ -2137,6 +2185,143 @@ if($('reqFilter')) $('reqFilter').onchange=()=>loadReqAdmin();
 if($('dedFilter')) $('dedFilter').onchange=()=>loadReqAdmin();
 /* go */
 boot();
+</script>
+<script>
+/* ============================================================
+   SMB VS PORTAL — documents, assignments, signatures
+   ============================================================ */
+const PORTAL_CAT_LABEL = { Contract:'Contract', 'House Rules':'House Rules', Onboarding:'Onboarding', Coaching:'Coaching', Other:'Other' };
+let portalDocsCache = [];
+
+async function apiUpload(path, formData) {
+  const { data: { session } } = await sb.auth.getSession();
+  const r = await fetch(SERVER_URL + path, { method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token }, body: formData });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ('Server error ' + r.status));
+  return j;
+}
+
+async function loadPortal() {
+  if (me.role === 'admin') {
+    $('portalStaffView').classList.add('hide');
+    $('portalAdminView').classList.remove('hide');
+    fillPortalAssignDropdown();
+    await loadPortalAdminDocs();
+  } else {
+    $('portalAdminView').classList.add('hide');
+    $('portalStaffView').classList.remove('hide');
+    await loadPortalStaffDocs();
+  }
+}
+
+function fillPortalAssignDropdown() {
+  const sel = $('portalUpVisibility');
+  const current = sel.value;
+  sel.innerHTML = '<option value="all">Everyone (company-wide)</option>' +
+    staffList.map(s => `<option value="${s.id}">${escapeHtml(s.full_name)}</option>`).join('');
+  sel.value = current || 'all';
+}
+
+async function loadPortalStaffDocs() {
+  let j;
+  try { j = await api('/api/portal/docs'); } catch (e) { alert(e.message); return; }
+  portalDocsCache = j.docs || [];
+  const company = portalDocsCache.filter(d => d.visibility === 'all');
+  const mine = portalDocsCache.filter(d => d.visibility !== 'all');
+  $('portalCompanyDocs').innerHTML = renderStaffDocRows(company);
+  $('portalMyDocs').innerHTML = renderStaffDocRows(mine);
+  wirePortalDocActions();
+}
+
+function renderStaffDocRows(docs) {
+  if (!docs.length) return `<tr><td colspan="4" class="muted">No documents yet.</td></tr>`;
+  return docs.map(d => {
+    const status = !d.requires_signature ? '<span class="pill">—</span>'
+      : d.signed_at ? `<span class="pill p-work"><span class="dot"></span>Signed ${escapeHtml(fmtNice(d.signed_at.slice(0,10)))}</span>`
+      : `<span class="pill p-break"><span class="dot"></span>Needs signature</span>`;
+    const action = d.requires_signature && !d.signed_at
+      ? `<button class="btn btn-gold" data-sign="${d.id}" data-title="${escapeHtml(d.title)}">Sign</button>`
+      : `<a class="btn btn-ghost" href="${d.drive_link}" target="_blank" rel="noopener">View</a>`;
+    return `<tr><td><b>${escapeHtml(d.title)}</b></td><td class="muted">${escapeHtml(d.category)}</td><td>${status}</td><td style="text-align:right">${action}</td></tr>`;
+  }).join('');
+}
+
+function wirePortalDocActions() {
+  document.querySelectorAll('[data-sign]').forEach(btn => {
+    btn.onclick = () => {
+      $('portalSignCard').classList.remove('hide');
+      $('portalSignCard').dataset.docId = btn.dataset.sign;
+      $('portalSignDocTitle').textContent = 'Signing: ' + btn.dataset.title;
+      $('portalSignName').value = '';
+      $('portalSignAgree').checked = false;
+      $('portalSignMsg').textContent = '';
+      $('portalSignCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+  });
+}
+
+$('portalSignSubmit').onclick = async () => {
+  const docId = $('portalSignCard').dataset.docId;
+  const name = $('portalSignName').value.trim();
+  if (!name) { $('portalSignMsg').textContent = 'Please type your full name.'; return; }
+  if (!$('portalSignAgree').checked) { $('portalSignMsg').textContent = 'Please check the agreement box.'; return; }
+  $('portalSignSubmit').disabled = true;
+  $('portalSignMsg').textContent = 'Saving…';
+  try {
+    await api('/api/portal/sign', { method: 'POST', body: JSON.stringify({ doc_id: docId, signature_name: name }) });
+    $('portalSignCard').classList.add('hide');
+    await loadPortalStaffDocs();
+  } catch (e) {
+    $('portalSignMsg').textContent = e.message;
+  } finally {
+    $('portalSignSubmit').disabled = false;
+  }
+};
+
+async function loadPortalAdminDocs() {
+  let j;
+  try { j = await api('/api/portal/docs'); } catch (e) { alert(e.message); return; }
+  portalDocsCache = j.docs || [];
+  $('portalAdminDocs').innerHTML = portalDocsCache.length ? portalDocsCache.map(d => {
+    const assignee = d.visibility === 'all' ? 'Everyone' : escapeHtml((staffList.find(s => s.id === d.visibility) || {}).full_name || '—');
+    const sigCol = d.requires_signature ? `${d.signed_count}/${d.eligible_count}` : '—';
+    return `<tr><td><a href="${d.drive_link}" target="_blank" rel="noopener"><b>${escapeHtml(d.title)}</b></a></td><td class="muted">${escapeHtml(d.category)}</td><td>${assignee}</td><td>${sigCol}</td><td style="text-align:right"><button class="btn btn-rose" data-del="${d.id}">Delete</button></td></tr>`;
+  }).join('') : `<tr><td colspan="5" class="muted">No documents yet.</td></tr>`;
+  document.querySelectorAll('[data-del]').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm('Delete this document? This also trashes it in Drive.')) return;
+      try { await api('/api/portal/docs/' + btn.dataset.del, { method: 'DELETE' }); await loadPortalAdminDocs(); }
+      catch (e) { alert(e.message); }
+    };
+  });
+}
+
+$('portalUpBtn').onclick = async () => {
+  const title = $('portalUpTitle').value.trim();
+  const category = $('portalUpCategory').value;
+  const visibility = $('portalUpVisibility').value;
+  const requiresSig = $('portalUpSig').checked;
+  const file = $('portalUpFile').files[0];
+  if (!title || !file) { $('portalUpMsg').textContent = 'Title and a file are required.'; return; }
+  $('portalUpBtn').disabled = true;
+  $('portalUpMsg').textContent = 'Uploading to Drive…';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('title', title);
+    fd.append('category', category);
+    fd.append('visibility', visibility);
+    fd.append('requires_signature', requiresSig ? 'true' : 'false');
+    await apiUpload('/api/portal/upload', fd);
+    $('portalUpMsg').textContent = 'Uploaded.';
+    $('portalUpTitle').value = ''; $('portalUpFile').value = ''; $('portalUpSig').checked = false;
+    await loadPortalAdminDocs();
+  } catch (e) {
+    $('portalUpMsg').textContent = e.message;
+  } finally {
+    $('portalUpBtn').disabled = false;
+  }
+};
 </script>
 </body>
 </html>
