@@ -11,6 +11,9 @@
 import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
+import multer from 'multer';
+import { google } from 'googleapis';
+import { Readable } from 'stream';
 
 const {
   SUPABASE_URL,
@@ -19,6 +22,8 @@ const {
   APP_URL = '',
   SLACK_GENERAL_WEBHOOK_URL = '',
   SLACK_PAYROLL_WEBHOOK_URL = '',
+  DRIVE_PORTAL_FOLDER_ID = '',
+  GOOGLE_SERVICE_ACCOUNT_JSON = '',
   PORT = 10000
 } = process.env;
 
@@ -224,206 +229,4 @@ async function sendSlackOnce({eventKey,destination,eventType,entityId,webhook,pa
     await admin.from('slack_notification_log').update({status:'sent',sent_at:now,last_error:null,updated_at:now}).eq('event_key',eventKey);
     return {sent:true};
   }catch(e){
-    await admin.from('slack_notification_log').update({status:'failed',last_error:String(e.message||e).slice(0,1000),updated_at:new Date().toISOString()}).eq('event_key',eventKey);
-    throw e;
-  }
-}
-function unionMinutes(entries,nowMs=Date.now()){
-  const intervals=entries.map(e=>[new Date(e.started_at).getTime(),e.ended_at?new Date(e.ended_at).getTime():nowMs])
-    .filter(([s,t])=>Number.isFinite(s)&&Number.isFinite(t)&&t>s).sort((a,b)=>a[0]-b[0]);
-  const merged=[];
-  for(const iv of intervals){const last=merged[merged.length-1];if(last&&iv[0]<=last[1])last[1]=Math.max(last[1],iv[1]);else merged.push(iv.slice());}
-  return merged.reduce((sum,[s,t])=>sum+(t-s),0)/60000;
-}
-
-// --- 1. username -> email (used by the login screen) --------------------
-app.post('/api/resolve-username', async (req, res) => {
-  const username = String(req.body?.username || '').trim().toLowerCase();
-  if (!username) return res.status(400).json({ error: 'Username required.' });
-  const { data } = await admin.from('staff').select('email, active').eq('username', username).maybeSingle();
-  if (!data || !data.active) return res.status(404).json({ error: 'Username not found.' });
-  res.json({ email: data.email });
-});
-
-// --- 2. create ONE staff account ----------------------------------------
-// body.mode: 'password' (instant, no email) or 'invite' (emails a setup link)
-app.post('/api/staff', async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
-  const mode = req.body?.mode === 'invite' ? 'invite' : 'password';
-  const r = await createOneStaff(req.body, mode);
-  if (r.error) return res.status(400).json({ error: r.error });
-  res.json(r);
-});
-
-// --- 2b. create MANY staff at once --------------------------------------
-// body.rows = [{full_name, username, email, client_id, role}, ...]
-// Always uses temporary passwords, so it never depends on email delivery.
-app.post('/api/staff/bulk', async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
-  const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
-  if (!rows.length) return res.status(400).json({ error: 'No rows sent.' });
-  if (rows.length > 100) return res.status(400).json({ error: 'Maximum 100 people at a time.' });
-  const results = [];
-  for (const row of rows) {
-    const r = await createOneStaff(row, 'password');
-    results.push({
-      full_name: row.full_name, username: row.username, email: row.email,
-      ok: !!r.ok, temp_password: r.temp_password || '', error: r.error || ''
-    });
-  }
-  res.json({ results });
-});
-
-// --- 3a. deactivate (keeps their history) --------------------------------
-app.post('/api/staff/:id/deactivate', async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
-  const { error } = await admin.from('staff').update({ active: false }).eq('id', req.params.id);
-  if (error) return res.status(400).json({ error: error.message });
-  res.json({ ok: true });
-});
-
-app.post('/api/staff/:id/reactivate', async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
-  const { error } = await admin.from('staff').update({ active: true }).eq('id', req.params.id);
-  if (error) return res.status(400).json({ error: error.message });
-  res.json({ ok: true });
-});
-
-// --- 3b. delete for good (also deletes their time records) ---------------
-app.delete('/api/staff/:id', async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
-  const { error } = await admin.auth.admin.deleteUser(req.params.id); // staff row cascades
-  if (error) return res.status(400).json({ error: error.message });
-  res.json({ ok: true });
-});
-
-// --- 4. password reset email --------------------------------------------
-app.post('/api/staff/:id/reset-password', async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
-  const { data: row } = await admin.from('staff').select('email').eq('id', req.params.id).single();
-  if (!row) return res.status(404).json({ error: 'Staff not found.' });
-  const { error } = await admin.auth.resetPasswordForEmail(row.email, { redirectTo: APP_URL || undefined });
-  if (error) return res.status(400).json({ error: error.message });
-  res.json({ ok: true });
-});
-
-// --- 4b. set a new password (admin can type one, or leave blank for a random temp one) ---
-app.post('/api/staff/:id/temp-password', async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
-  const custom = (req.body && req.body.password) ? String(req.body.password) : '';
-  if (custom && custom.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
-  const temp = custom || tempPassword();
-  const { error } = await admin.auth.admin.updateUserById(req.params.id, { password: temp, email_confirm: true });
-  if (error) return res.status(400).json({ error: error.message });
-  res.json({ ok: true, temp_password: temp });
-});
-
-
-// --- 5. Slack: manual activity selection -> SMB general ------------------
-app.post('/api/slack/activity', async (req, res) => {
-  try{
-    const caller=await requireActiveUser(req,res); if(!caller) return;
-    const entryId=String(req.body?.entry_id||'');
-    if(!uuidRe.test(entryId)) return res.status(400).json({error:'Valid entry_id required.'});
-    const {data:entry,error}=await admin.from('entries').select('id, staff_id, activity, started_at').eq('id',entryId).single();
-    if(error||!entry) return res.status(404).json({error:'Activity entry not found.'});
-    if(entry.staff_id!==caller.user.id) return res.status(403).json({error:'You can only notify your own activity.'});
-    const client=await clientName(caller.row.client_id);
-    const payload=slackPayload('🕒 SMB Time Activity',[
-      ['Staff',caller.row.full_name],['Client',client],['Activity',entry.activity],['Started',phtDateTime(entry.started_at)]
-    ],'Posted automatically by SMB Time');
-    const result=await sendSlackOnce({eventKey:`activity:${entry.id}`,destination:'SMB general',eventType:'activity',entityId:entry.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
-    res.json({ok:true,...result});
-  }catch(e){console.error('Slack activity notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
-});
-
-// --- 6. Slack: PTO/advance request -> payroll-and-sheet ------------------
-app.post('/api/slack/request', async (req, res) => {
-  try{
-    const caller=await requireActiveUser(req,res); if(!caller) return;
-    const requestId=String(req.body?.request_id||'');
-    if(!uuidRe.test(requestId)) return res.status(400).json({error:'Valid request_id required.'});
-    const {data:r,error}=await admin.from('requests').select('*').eq('id',requestId).single();
-    if(error||!r) return res.status(404).json({error:'Request not found.'});
-    if(r.staff_id!==caller.user.id) return res.status(403).json({error:'You can only notify your own request.'});
-    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}[r.type];
-    if(!typeLabel) return res.status(400).json({error:'Unsupported request type.'});
-    const client=await clientName(caller.row.client_id);
-    const fields=[['Staff',caller.row.full_name],['Client',client],['Request',typeLabel]];
-    if(r.type==='pto'){
-      fields.push(['Dates',`${phtDate(r.start_date+'T00:00:00+08:00')} – ${phtDate(r.end_date+'T00:00:00+08:00')}`],['Requested',`${inclusiveDays(r.start_date,r.end_date)} calendar day(s)`]);
-    }else{
-      fields.push(['Amount',peso(r.amount)],['Repayment',`${Number(r.cutoffs||0)} cutoff(s)`]);
-    }
-    fields.push(['Submitted',phtDateTime(r.created_at)]);
-    const payload=slackPayload(`🧾 New ${typeLabel} Request`,fields,'Status: Pending admin review',r.reason||'');
-    const result=await sendSlackOnce({eventKey:`request:${r.id}`,destination:'payroll-and-sheet',eventType:'request',entityId:r.id,webhook:SLACK_PAYROLL_WEBHOOK_URL,payload});
-    res.json({ok:true,...result});
-  }catch(e){console.error('Slack request notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
-});
-
-// --- 7. Slack: rejected PTO/advance request -> payroll-and-sheet ----------
-app.post('/api/slack/request-rejected', async (req, res) => {
-  try{
-    const adminRow=await requireAdmin(req,res); if(!adminRow) return;
-    const requestId=String(req.body?.request_id||'');
-    if(!uuidRe.test(requestId)) return res.status(400).json({error:'Valid request_id required.'});
-    const {data:r,error}=await admin.from('requests').select('*').eq('id',requestId).single();
-    if(error||!r) return res.status(404).json({error:'Request not found.'});
-    if(r.status!=='rejected'||!String(r.rejection_reason||'').trim()){
-      return res.status(409).json({error:'The request must be rejected with a reason before notifying payroll.'});
-    }
-    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}[r.type];
-    if(!typeLabel) return res.status(400).json({error:'Unsupported request type.'});
-    const {data:staff,error:staffErr}=await admin.from('staff')
-      .select('id, full_name, client_id').eq('id',r.staff_id).single();
-    if(staffErr||!staff) return res.status(404).json({error:'Request staff account not found.'});
-    const client=await clientName(staff.client_id);
-    const fields=[['Staff',staff.full_name],['Client',client],['Request',typeLabel]];
-    if(r.type==='pto'){
-      fields.push(['Dates',`${phtDate(r.start_date+'T00:00:00+08:00')} – ${phtDate(r.end_date+'T00:00:00+08:00')}`],['Requested',`${inclusiveDays(r.start_date,r.end_date)} calendar day(s)`]);
-    }else{
-      fields.push(['Amount',peso(r.amount)],['Repayment',`${Number(r.cutoffs||0)} cutoff(s)`]);
-    }
-    fields.push(['Rejected by',adminRow.full_name||'Admin'],['Reviewed',phtDateTime(r.reviewed_at||new Date())]);
-    const payload=slackPayload(`❌ ${typeLabel} Request Rejected`,fields,'Status: Rejected',r.rejection_reason,'Rejection reason');
-    const result=await sendSlackOnce({eventKey:`request-rejected:${r.id}`,destination:'payroll-and-sheet',eventType:'request',entityId:r.id,webhook:SLACK_PAYROLL_WEBHOOK_URL,payload});
-    res.json({ok:true,...result});
-  }catch(e){console.error('Slack rejection notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
-});
-
-// --- 8. Slack: first overbreak per shift/activity -> payroll-and-sheet ----
-app.post('/api/slack/overbreaks', async (req, res) => {
-  try{
-    const caller=await requireActiveUser(req,res); if(!caller) return;
-    const shiftId=String(req.body?.shift_id||'');
-    if(!uuidRe.test(shiftId)) return res.status(400).json({error:'Valid shift_id required.'});
-    const {data:shift,error:shiftErr}=await admin.from('shifts').select('id, staff_id, login_at, logout_at').eq('id',shiftId).single();
-    if(shiftErr||!shift) return res.status(404).json({error:'Shift not found.'});
-    if(shift.staff_id!==caller.user.id) return res.status(403).json({error:'You can only check your own shift.'});
-    const [{data:setting,error:setErr},{data:entries,error:entryErr}]=await Promise.all([
-      admin.from('settings').select('value').eq('key','break_allowance_minutes').maybeSingle(),
-      admin.from('entries').select('activity, started_at, ended_at').eq('shift_id',shiftId).in('activity',BREAK_ACTIVITIES)
-    ]);
-    if(setErr||entryErr) throw setErr||entryErr;
-    const allowances=setting?.value||{};
-    const client=await clientName(caller.row.client_id);
-    const crossed=[];
-    for(const activity of BREAK_ACTIVITIES){
-      const cap=Number(allowances[activity]||0);
-      if(cap<=0) continue; // current app semantics: zero means unlimited/no deduction
-      const used=unionMinutes((entries||[]).filter(e=>e.activity===activity));
-      if(used<=cap) continue;
-      const usedRounded=Math.ceil(used),overRounded=Math.max(1,Math.ceil(used-cap));
-      const payload=slackPayload('⚠️ SMB Time Overbreak Alert',[
-        ['Staff',caller.row.full_name],['Client',client],['Activity',activity],['Allowance',`${cap} min`],['Used',`${usedRounded} min`],['Over by',`${overRounded} min`]
-      ],`Shift: ${phtDate(shift.login_at)} PHT · First alert for this activity in this shift`);
-      const result=await sendSlackOnce({eventKey:`overbreak:${shift.id}:${activity}`,destination:'payroll-and-sheet',eventType:'overbreak',entityId:shift.id,webhook:SLACK_PAYROLL_WEBHOOK_URL,payload});
-      crossed.push({activity,...result});
-      if(result.sent) await sleep(1200); // Slack incoming webhooks may drop bursts faster than ~1/sec
-    }
-    res.json({ok:true,crossed});
-  }catch(e){console.error('Slack overbreak notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
-});
-
-app.listen(PORT, () => console.log('SMB Time server listening on ' + PORT));
+    await admin.from('slack_notification_log').update({status:'failed',last_error:String(e.message||e).slice(0,1000...
