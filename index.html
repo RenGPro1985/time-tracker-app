@@ -511,6 +511,9 @@ async function sendSlackNotice(path,body){
 function notifyActivity(entryId){
   sendSlackNotice('/api/slack/activity',{entry_id:entryId}).catch(e=>showSlackWarning('activity:'+entryId,'Activity saved, but the SMB general Slack notice failed: '+e.message));
 }
+function notifyForceLogout(shiftId){
+  sendSlackNotice('/api/slack/force-logout',{shift_id:shiftId}).catch(e=>showSlackWarning('forcelogout:'+shiftId,'Force logout saved, but the Slack alert failed: '+e.message));
+}
 async function syncOverbreakAlerts(shiftId){
   if(!shiftId||slackOverbreakBusy) return;
   slackOverbreakBusy=true;
@@ -528,6 +531,46 @@ function phDate(d){const p=phParts(d);return `${p.year}-${p.month}-${p.day}`;}
 function phTime(d){const p=phParts(d);return `${p.hour}:${p.minute}`;}
 function phClock(d){const p=phParts(d);return `${p.hour}:${p.minute}:${p.second}`;}
 function tzClock(d,tz){try{return new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);}catch(e){return '--:--:--';}} function shiftWindowFor(client,dateIso){ if(!client||!client.shift_start||!client.shift_end) return null; const pad=t=>t.length===5?t+':00':t; const start=new Date(dateIso+'T'+pad(client.shift_start)+'+08:00'); let end=new Date(dateIso+'T'+pad(client.shift_end)+'+08:00'); if(end<=start) end=new Date(end.getTime()+86400000); return {start,end}; }
+
+/* ---------- early-login guard (staff may only log in up to 15min before shift start) ---------- */
+const EARLY_LOGIN_GRACE_MIN=15;
+function checkLoginWindow(client,now){
+  if(!client||!client.shift_start||!client.shift_end) return {ok:true}; // no client assigned — nothing to enforce against
+  const todayIso=phDate(now), yestIso=phDate(new Date(now.getTime()-86400000));
+  for(const dIso of [todayIso,yestIso]){
+    const w=shiftWindowFor(client,dIso);
+    if(!w) continue;
+    const earliest=new Date(w.start.getTime()-EARLY_LOGIN_GRACE_MIN*60000);
+    if(now>=earliest && now<=w.end) return {ok:true};
+  }
+  const todayWindow=shiftWindowFor(client,todayIso);
+  return {ok:false, message:`You can only log in starting ${EARLY_LOGIN_GRACE_MIN} minutes before your shift begins.`+(todayWindow?` Your shift starts at ${phTime(todayWindow.start)} PHT.`:'')};
+}
+
+/* ---------- force-logout guard (10h shift cap, waived while on Overtime) ---------- */
+const FORCE_LOGOUT_MS=10*3600*1000;
+let forceLogoutBusy=false;
+async function checkForceLogout(){
+  if(!curShift||curShift.logout_at||forceLogoutBusy) return;
+  if(Date.now()-new Date(curShift.login_at).getTime() < FORCE_LOGOUT_MS) return;
+  if(curEntry && curEntry.activity===OVERTIME) return; // staff is on Overtime — no cap while there
+  forceLogoutBusy=true;
+  try{
+    const now=new Date().toISOString();
+    const endedShiftId=curShift.id;
+    const closeErr=await closeOpenEntries(endedShiftId, now);
+    if(closeErr) return;
+    const {error}=await sb.from('shifts').update({logout_at:now}).eq('id',endedShiftId);
+    if(error) return;
+    curShift=null; curEntry=null;
+    paintShiftState(); await renderToday(); await renderPayPeriod();
+    syncOverbreakAlerts(endedShiftId);
+    notifyForceLogout(endedShiftId);
+    alert('You were automatically logged out after 10 hours on shift. Log back in and select Overtime if you need to keep working.');
+  }catch(e){
+    showSlackWarning('forcelogout:err','Force-logout check failed: '+e.message);
+  }finally{forceLogoutBusy=false;}
+}
 /* Shifts that cross 12MN PHT (e.g. 20:00-05:00 for a US-hours client) must be reported
    as ONE shift-day, not split across the two PH calendar dates they touch. Every entry
    belongs to a shift (entry.shift_id -> shifts.id); the shift's "shift date" is the PH
@@ -791,6 +834,7 @@ const BIGTIMER_MAX_PX=54, BIGTIMER_MIN_PX=18;function setActTimer(text){ const e
     $('shiftTimer').textContent='Shift '+hms((now-new Date(curShift.login_at))/1000);
     if(curEntry) setActTimer(curEntry.activity+' — '+hms((now-new Date(curEntry.started_at))/1000));
     else setActTimer('Timer stopped — pick an activity to resume');
+    checkForceLogout();
   }
   tickRosterTimes();
 }
@@ -871,6 +915,9 @@ $('loginBtn').onclick = async () => {
         const {data:oe}=await sb.from('entries').select('*').eq('shift_id',curShift.id).eq('active',true).is('ended_at',null).order('started_at',{ascending:false}).limit(1);
         curEntry=oe&&oe[0]?oe[0]:null;
       }else{
+        const cMe=clients.find(x=>x.id===me.client_id);
+        const win=checkLoginWindow(cMe,new Date());
+        if(!win.ok){ alert(win.message); return; }
         const {data,error}=await sb.from('shifts').insert({staff_id:me.id}).select().single();
         if(error) throw error;
         curShift=data;
