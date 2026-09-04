@@ -229,4 +229,397 @@ async function sendSlackOnce({eventKey,destination,eventType,entityId,webhook,pa
     await admin.from('slack_notification_log').update({status:'sent',sent_at:now,last_error:null,updated_at:now}).eq('event_key',eventKey);
     return {sent:true};
   }catch(e){
-    await admin.from('slack_notification_log').update({status:'failed',last_error:String(e.message||e).slice(0,1000...
+    await admin.from('slack_notification_log').update({status:'failed',last_error:String(e.message||e).slice(0,1000),updated_at:new Date().toISOString()}).eq('event_key',eventKey);
+    throw e;
+  }
+}
+function unionMinutes(entries,nowMs=Date.now()){
+  const intervals=entries.map(e=>[new Date(e.started_at).getTime(),e.ended_at?new Date(e.ended_at).getTime():nowMs])
+    .filter(([s,t])=>Number.isFinite(s)&&Number.isFinite(t)&&t>s).sort((a,b)=>a[0]-b[0]);
+  const merged=[];
+  for(const iv of intervals){const last=merged[merged.length-1];if(last&&iv[0]<=last[1])last[1]=Math.max(last[1],iv[1]);else merged.push(iv.slice());}
+  return merged.reduce((sum,[s,t])=>sum+(t-s),0)/60000;
+}
+
+// --- 1. username -> email (used by the login screen) --------------------
+app.post('/api/resolve-username', async (req, res) => {
+  const username = String(req.body?.username || '').trim().toLowerCase();
+  if (!username) return res.status(400).json({ error: 'Username required.' });
+  const { data } = await admin.from('staff').select('email, active').eq('username', username).maybeSingle();
+  if (!data || !data.active) return res.status(404).json({ error: 'Username not found.' });
+  res.json({ email: data.email });
+});
+
+// --- 2. create ONE staff account ----------------------------------------
+// body.mode: 'password' (instant, no email) or 'invite' (emails a setup link)
+app.post('/api/staff', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const mode = req.body?.mode === 'invite' ? 'invite' : 'password';
+  const r = await createOneStaff(req.body, mode);
+  if (r.error) return res.status(400).json({ error: r.error });
+  res.json(r);
+});
+
+// --- 2b. create MANY staff at once --------------------------------------
+// body.rows = [{full_name, username, email, client_id, role}, ...]
+// Always uses temporary passwords, so it never depends on email delivery.
+app.post('/api/staff/bulk', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+  if (!rows.length) return res.status(400).json({ error: 'No rows sent.' });
+  if (rows.length > 100) return res.status(400).json({ error: 'Maximum 100 people at a time.' });
+  const results = [];
+  for (const row of rows) {
+    const r = await createOneStaff(row, 'password');
+    results.push({
+      full_name: row.full_name, username: row.username, email: row.email,
+      ok: !!r.ok, temp_password: r.temp_password || '', error: r.error || ''
+    });
+  }
+  res.json({ results });
+});
+
+// --- 3a. deactivate (keeps their history) --------------------------------
+app.post('/api/staff/:id/deactivate', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { error } = await admin.from('staff').update({ active: false }).eq('id', req.params.id);
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+app.post('/api/staff/:id/reactivate', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { error } = await admin.from('staff').update({ active: true }).eq('id', req.params.id);
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+// --- 3b. delete for good (also deletes their time records) ---------------
+app.delete('/api/staff/:id', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { error } = await admin.auth.admin.deleteUser(req.params.id); // staff row cascades
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+// --- 4. password reset email --------------------------------------------
+app.post('/api/staff/:id/reset-password', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { data: row } = await admin.from('staff').select('email').eq('id', req.params.id).single();
+  if (!row) return res.status(404).json({ error: 'Staff not found.' });
+  const { error } = await admin.auth.resetPasswordForEmail(row.email, { redirectTo: APP_URL || undefined });
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+// --- 4b. set a new password (admin can type one, or leave blank for a random temp one) ---
+app.post('/api/staff/:id/temp-password', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const custom = (req.body && req.body.password) ? String(req.body.password) : '';
+  if (custom && custom.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+  const temp = custom || tempPassword();
+  const { error } = await admin.auth.admin.updateUserById(req.params.id, { password: temp, email_confirm: true });
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ ok: true, temp_password: temp });
+});
+
+
+// --- 5. Slack: manual activity selection -> SMB general ------------------
+app.post('/api/slack/activity', async (req, res) => {
+  try{
+    const caller=await requireActiveUser(req,res); if(!caller) return;
+    const entryId=String(req.body?.entry_id||'');
+    if(!uuidRe.test(entryId)) return res.status(400).json({error:'Valid entry_id required.'});
+    const {data:entry,error}=await admin.from('entries').select('id, staff_id, activity, started_at').eq('id',entryId).single();
+    if(error||!entry) return res.status(404).json({error:'Activity entry not found.'});
+    if(entry.staff_id!==caller.user.id) return res.status(403).json({error:'You can only notify your own activity.'});
+    const client=await clientName(caller.row.client_id);
+    const payload=slackPayload('🕒 SMB Time Activity',[
+      ['Staff',caller.row.full_name],['Client',client],['Activity',entry.activity],['Started',phtDateTime(entry.started_at)]
+    ],'Posted automatically by SMB Time');
+    const result=await sendSlackOnce({eventKey:`activity:${entry.id}`,destination:'SMB general',eventType:'activity',entityId:entry.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
+    res.json({ok:true,...result});
+  }catch(e){console.error('Slack activity notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
+});
+
+// --- 6. Slack: PTO/advance request -> payroll-and-sheet ------------------
+app.post('/api/slack/request', async (req, res) => {
+  try{
+    const caller=await requireActiveUser(req,res); if(!caller) return;
+    const requestId=String(req.body?.request_id||'');
+    if(!uuidRe.test(requestId)) return res.status(400).json({error:'Valid request_id required.'});
+    const {data:r,error}=await admin.from('requests').select('*').eq('id',requestId).single();
+    if(error||!r) return res.status(404).json({error:'Request not found.'});
+    if(r.staff_id!==caller.user.id) return res.status(403).json({error:'You can only notify your own request.'});
+    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}[r.type];
+    if(!typeLabel) return res.status(400).json({error:'Unsupported request type.'});
+    const client=await clientName(caller.row.client_id);
+    const fields=[['Staff',caller.row.full_name],['Client',client],['Request',typeLabel]];
+    if(r.type==='pto'){
+      fields.push(['Dates',`${phtDate(r.start_date+'T00:00:00+08:00')} – ${phtDate(r.end_date+'T00:00:00+08:00')}`],['Requested',`${inclusiveDays(r.start_date,r.end_date)} calendar day(s)`]);
+    }else{
+      fields.push(['Amount',peso(r.amount)],['Repayment',`${Number(r.cutoffs||0)} cutoff(s)`]);
+    }
+    fields.push(['Submitted',phtDateTime(r.created_at)]);
+    const payload=slackPayload(`🧾 New ${typeLabel} Request`,fields,'Status: Pending admin review',r.reason||'');
+    const result=await sendSlackOnce({eventKey:`request:${r.id}`,destination:'payroll-and-sheet',eventType:'request',entityId:r.id,webhook:SLACK_PAYROLL_WEBHOOK_URL,payload});
+    res.json({ok:true,...result});
+  }catch(e){console.error('Slack request notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
+});
+
+// --- 7. Slack: rejected PTO/advance request -> payroll-and-sheet ----------
+app.post('/api/slack/request-rejected', async (req, res) => {
+  try{
+    const adminRow=await requireAdmin(req,res); if(!adminRow) return;
+    const requestId=String(req.body?.request_id||'');
+    if(!uuidRe.test(requestId)) return res.status(400).json({error:'Valid request_id required.'});
+    const {data:r,error}=await admin.from('requests').select('*').eq('id',requestId).single();
+    if(error||!r) return res.status(404).json({error:'Request not found.'});
+    if(r.status!=='rejected'||!String(r.rejection_reason||'').trim()){
+      return res.status(409).json({error:'The request must be rejected with a reason before notifying payroll.'});
+    }
+    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}[r.type];
+    if(!typeLabel) return res.status(400).json({error:'Unsupported request type.'});
+    const {data:staff,error:staffErr}=await admin.from('staff')
+      .select('id, full_name, client_id').eq('id',r.staff_id).single();
+    if(staffErr||!staff) return res.status(404).json({error:'Request staff account not found.'});
+    const client=await clientName(staff.client_id);
+    const fields=[['Staff',staff.full_name],['Client',client],['Request',typeLabel]];
+    if(r.type==='pto'){
+      fields.push(['Dates',`${phtDate(r.start_date+'T00:00:00+08:00')} – ${phtDate(r.end_date+'T00:00:00+08:00')}`],['Requested',`${inclusiveDays(r.start_date,r.end_date)} calendar day(s)`]);
+    }else{
+      fields.push(['Amount',peso(r.amount)],['Repayment',`${Number(r.cutoffs||0)} cutoff(s)`]);
+    }
+    fields.push(['Rejected by',adminRow.full_name||'Admin'],['Reviewed',phtDateTime(r.reviewed_at||new Date())]);
+    const payload=slackPayload(`❌ ${typeLabel} Request Rejected`,fields,'Status: Rejected',r.rejection_reason,'Rejection reason');
+    const result=await sendSlackOnce({eventKey:`request-rejected:${r.id}`,destination:'payroll-and-sheet',eventType:'request',entityId:r.id,webhook:SLACK_PAYROLL_WEBHOOK_URL,payload});
+    res.json({ok:true,...result});
+  }catch(e){console.error('Slack rejection notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
+});
+
+// --- 8. Slack: first overbreak per shift/activity -> payroll-and-sheet ----
+app.post('/api/slack/overbreaks', async (req, res) => {
+  try{
+    const caller=await requireActiveUser(req,res); if(!caller) return;
+    const shiftId=String(req.body?.shift_id||'');
+    if(!uuidRe.test(shiftId)) return res.status(400).json({error:'Valid shift_id required.'});
+    const {data:shift,error:shiftErr}=await admin.from('shifts').select('id, staff_id, login_at, logout_at').eq('id',shiftId).single();
+    if(shiftErr||!shift) return res.status(404).json({error:'Shift not found.'});
+    if(shift.staff_id!==caller.user.id) return res.status(403).json({error:'You can only check your own shift.'});
+    const [{data:setting,error:setErr},{data:entries,error:entryErr}]=await Promise.all([
+      admin.from('settings').select('value').eq('key','break_allowance_minutes').maybeSingle(),
+      admin.from('entries').select('activity, started_at, ended_at').eq('shift_id',shiftId).in('activity',BREAK_ACTIVITIES)
+    ]);
+    if(setErr||entryErr) throw setErr||entryErr;
+    const allowances=setting?.value||{};
+    const client=await clientName(caller.row.client_id);
+    const crossed=[];
+    for(const activity of BREAK_ACTIVITIES){
+      const cap=Number(allowances[activity]||0);
+      if(cap<=0) continue; // current app semantics: zero means unlimited/no deduction
+      const used=unionMinutes((entries||[]).filter(e=>e.activity===activity));
+      if(used<=cap) continue;
+      const usedRounded=Math.ceil(used),overRounded=Math.max(1,Math.ceil(used-cap));
+      const payload=slackPayload('⚠️ SMB Time Overbreak Alert',[
+        ['Staff',caller.row.full_name],['Client',client],['Activity',activity],['Allowance',`${cap} min`],['Used',`${usedRounded} min`],['Over by',`${overRounded} min`]
+      ],`Shift: ${phtDate(shift.login_at)} PHT · First alert for this activity in this shift`);
+      const result=await sendSlackOnce({eventKey:`overbreak:${shift.id}:${activity}`,destination:'payroll-and-sheet',eventType:'overbreak',entityId:shift.id,webhook:SLACK_PAYROLL_WEBHOOK_URL,payload});
+      crossed.push({activity,...result});
+      if(result.sent) await sleep(1200); // Slack incoming webhooks may drop bursts faster than ~1/sec
+    }
+    res.json({ok:true,crossed});
+  }catch(e){console.error('Slack overbreak notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
+});
+
+
+// --- 9. Slack: auto force-logout after 10h shift cap -> payroll-and-sheet --
+app.post('/api/slack/force-logout', async (req, res) => {
+  try{
+    const caller=await requireActiveUser(req,res); if(!caller) return;
+    const shiftId=String(req.body?.shift_id||'');
+    if(!uuidRe.test(shiftId)) return res.status(400).json({error:'Valid shift_id required.'});
+    const {data:shift,error}=await admin.from('shifts').select('id, staff_id, login_at, logout_at').eq('id',shiftId).single();
+    if(error||!shift) return res.status(404).json({error:'Shift not found.'});
+    if(shift.staff_id!==caller.user.id) return res.status(403).json({error:'You can only notify your own shift.'});
+    if(!shift.logout_at) return res.status(409).json({error:'Shift is not closed yet.'});
+    const client=await clientName(caller.row.client_id);
+    const durationMin=Math.round((new Date(shift.logout_at)-new Date(shift.login_at))/60000);
+    const payload=slackPayload('⏰ SMB Time Auto Force-Logout (10h cap)',[
+      ['Staff',caller.row.full_name],['Client',client],['Shift start',phtDateTime(shift.login_at)],['Auto logout',phtDateTime(shift.logout_at)],['Total shift time',`${Math.floor(durationMin/60)}h ${durationMin%60}m`]
+    ],'Staff exceeded 10 hours on shift without selecting Overtime — auto logged out by SMB Time.');
+    const result=await sendSlackOnce({eventKey:`force-logout:${shift.id}`,destination:'payroll-and-sheet',eventType:'force-logout',entityId:shift.id,webhook:SLACK_PAYROLL_WEBHOOK_URL,payload});
+    res.json({ok:true,...result});
+  }catch(e){console.error('Slack force-logout notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
+});
+
+
+// ============================================================
+// SMB VS PORTAL — document storage (Google Drive) + signatures
+// ============================================================
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+
+let driveClient = null;
+function getDrive() {
+  if (driveClient) return driveClient;
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON is not configured on the server.');
+  }
+  const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const auth = new google.auth.GoogleAuth({ credentials: creds, scopes: ['https://www.googleapis.com/auth/drive'] });
+  driveClient = google.drive({ version: 'v3', auth });
+  return driveClient;
+}
+
+// Cache of staff-name -> Drive subfolder id so we don't re-create folders on every upload.
+const staffFolderCache = new Map();
+async function getOrCreateStaffFolder(staffFullName) {
+  if (staffFolderCache.has(staffFullName)) return staffFolderCache.get(staffFullName);
+  const drive = getDrive();
+  const rootId = process.env.DRIVE_PORTAL_FOLDER_ID;
+  const safeName = staffFullName.replace(/['"\\]/g, '');
+  const q = `'${rootId}' in parents and name = '${safeName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const found = await drive.files.list({ q, fields: 'files(id, name)' });
+  let folderId;
+  if (found.data.files && found.data.files.length) {
+    folderId = found.data.files[0].id;
+  } else {
+    const created = await drive.files.create({
+      requestBody: { name: staffFullName, mimeType: 'application/vnd.google-apps.folder', parents: [rootId] },
+      fields: 'id'
+    });
+    folderId = created.data.id;
+  }
+  staffFolderCache.set(staffFullName, folderId);
+  return folderId;
+}
+
+// --- 9. Portal: admin uploads a document ----------------------------------
+// multipart/form-data fields: file, title, category, visibility ('all' or a staff id), requires_signature ('true'/'false')
+app.post('/api/portal/upload', upload.single('file'), async (req, res) => {
+  try {
+    const caller = await requireAdmin(req, res); if (!caller) return;
+    const { title, category, visibility, requires_signature } = req.body || {};
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+    if (!title || !category) return res.status(400).json({ error: 'Title and category are required.' });
+    const isAll = !visibility || visibility === 'all';
+
+    let parentFolderId = process.env.DRIVE_PORTAL_FOLDER_ID;
+    let targetStaff = null;
+    if (!isAll) {
+      const { data: staffRow } = await admin.from('staff').select('id, full_name').eq('id', visibility).single();
+      if (!staffRow) return res.status(400).json({ error: 'Selected staff not found.' });
+      targetStaff = staffRow;
+      parentFolderId = await getOrCreateStaffFolder(staffRow.full_name);
+    }
+
+    const drive = getDrive();
+    const driveFile = await drive.files.create({
+      requestBody: { name: req.file.originalname, parents: [parentFolderId] },
+      media: { mimeType: req.file.mimetype, body: Readable.from(req.file.buffer) },
+      fields: 'id, webViewLink'
+    });
+
+    const { data: docRow, error: insErr } = await admin.from('portal_docs').insert({
+      title,
+      category,
+      visibility: isAll ? 'all' : targetStaff.id,
+      drive_file_id: driveFile.data.id,
+      drive_link: driveFile.data.webViewLink,
+      file_type: req.file.mimetype,
+      requires_signature: requires_signature === 'true' || requires_signature === true,
+      uploaded_by: caller.id
+    }).select().single();
+    if (insErr) throw insErr;
+
+    res.json({ ok: true, doc: docRow });
+  } catch (e) {
+    console.error('Portal upload failed:', e);
+    res.status(500).json({ error: e.message || 'Upload failed.' });
+  }
+});
+
+// --- 10. Portal: list documents (staff sees their own + company-wide; admin sees all) ---
+app.get('/api/portal/docs', async (req, res) => {
+  try {
+    const caller = await requireActiveUser(req, res); if (!caller) return;
+    const { data: staffRow } = await admin.from('staff').select('role').eq('id', caller.user.id).single();
+    const isAdmin = staffRow?.role === 'admin';
+
+    let query = admin.from('portal_docs').select('*').order('created_at', { ascending: false });
+    if (!isAdmin) query = query.or(`visibility.eq.all,visibility.eq.${caller.user.id}`);
+    const { data: docs, error } = await query;
+    if (error) throw error;
+
+    const { data: mySigs } = await admin.from('portal_signatures').select('doc_id, signed_at').eq('staff_id', caller.user.id);
+    const signedMap = Object.fromEntries((mySigs || []).map(s => [s.doc_id, s.signed_at]));
+
+    if (isAdmin) {
+      // attach signature progress per doc that requires signature
+      const docIds = docs.filter(d => d.requires_signature).map(d => d.id);
+      let sigCounts = {};
+      if (docIds.length) {
+        const { data: allSigs } = await admin.from('portal_signatures').select('doc_id').in('doc_id', docIds);
+        for (const s of allSigs || []) sigCounts[s.doc_id] = (sigCounts[s.doc_id] || 0) + 1;
+      }
+      const { count: staffCount } = await admin.from('staff').select('id', { count: 'exact', head: true }).eq('active', true);
+      const withCounts = docs.map(d => ({
+        ...d,
+        signed_count: sigCounts[d.id] || 0,
+        eligible_count: d.visibility === 'all' ? (staffCount || 0) : 1
+      }));
+      return res.json({ ok: true, docs: withCounts });
+    }
+
+    const withStatus = docs.map(d => ({ ...d, signed_at: signedMap[d.id] || null }));
+    res.json({ ok: true, docs: withStatus });
+  } catch (e) {
+    console.error('Portal docs list failed:', e);
+    res.status(500).json({ error: e.message || 'Could not load documents.' });
+  }
+});
+
+// --- 11. Portal: staff signs/acknowledges a document -----------------------
+app.post('/api/portal/sign', async (req, res) => {
+  try {
+    const caller = await requireActiveUser(req, res); if (!caller) return;
+    const { doc_id, signature_name } = req.body || {};
+    if (!doc_id || !signature_name || !signature_name.trim()) {
+      return res.status(400).json({ error: 'Document and typed name are required.' });
+    }
+    const { data: doc } = await admin.from('portal_docs').select('id, visibility').eq('id', doc_id).single();
+    if (!doc) return res.status(404).json({ error: 'Document not found.' });
+    if (doc.visibility !== 'all' && doc.visibility !== caller.user.id) {
+      return res.status(403).json({ error: 'This document is not assigned to you.' });
+    }
+    const { data: sig, error } = await admin.from('portal_signatures').upsert({
+      doc_id,
+      staff_id: caller.user.id,
+      signature_name: signature_name.trim(),
+      ip: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim(),
+      user_agent: req.headers['user-agent'] || ''
+    }, { onConflict: 'doc_id,staff_id' }).select().single();
+    if (error) throw error;
+    res.json({ ok: true, signature: sig });
+  } catch (e) {
+    console.error('Portal signature failed:', e);
+    res.status(500).json({ error: e.message || 'Could not save signature.' });
+  }
+});
+
+// --- 12. Portal: admin deletes a document (removes DB row + trashes Drive file) ---
+app.delete('/api/portal/docs/:id', async (req, res) => {
+  try {
+    const caller = await requireAdmin(req, res); if (!caller) return;
+    const { data: doc } = await admin.from('portal_docs').select('drive_file_id').eq('id', req.params.id).single();
+    if (!doc) return res.status(404).json({ error: 'Document not found.' });
+    try { await getDrive().files.update({ fileId: doc.drive_file_id, requestBody: { trashed: true } }); } catch (_) {}
+    const { error } = await admin.from('portal_docs').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Portal delete failed:', e);
+    res.status(500).json({ error: e.message || 'Could not delete document.' });
+  }
+});
+
+app.listen(PORT, () => console.log('SMB Time server listening on ' + PORT));
