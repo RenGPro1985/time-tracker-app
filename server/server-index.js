@@ -403,7 +403,7 @@ app.post('/api/slack/overbreaks', async (req, res) => {
     if(shift.staff_id!==caller.user.id) return res.status(403).json({error:'You can only check your own shift.'});
     const [{data:setting,error:setErr},{data:entries,error:entryErr}]=await Promise.all([
       admin.from('settings').select('value').eq('key','break_allowance_minutes').maybeSingle(),
-      admin.from('entries').select('activity, started_at, ended_at').eq('shift_id',shiftId).eq('active',true).in('activity',BREAK_ACTIVITIES)
+      admin.from('entries').select('activity, started_at, ended_at').eq('shift_id',shiftId).in('activity',BREAK_ACTIVITIES)
     ]);
     if(setErr||entryErr) throw setErr||entryErr;
     const allowances=setting?.value||{};
@@ -424,6 +424,26 @@ app.post('/api/slack/overbreaks', async (req, res) => {
     }
     res.json({ok:true,crossed});
   }catch(e){console.error('Slack overbreak notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
+});
+
+// --- 9. Slack: auto force-logout after 10h shift cap -> payroll-and-sheet --
+app.post('/api/slack/force-logout', async (req, res) => {
+  try{
+    const caller=await requireActiveUser(req,res); if(!caller) return;
+    const shiftId=String(req.body?.shift_id||'');
+    if(!uuidRe.test(shiftId)) return res.status(400).json({error:'Valid shift_id required.'});
+    const {data:shift,error}=await admin.from('shifts').select('id, staff_id, login_at, logout_at').eq('id',shiftId).single();
+    if(error||!shift) return res.status(404).json({error:'Shift not found.'});
+    if(shift.staff_id!==caller.user.id) return res.status(403).json({error:'You can only notify your own shift.'});
+    if(!shift.logout_at) return res.status(409).json({error:'Shift is not closed yet.'});
+    const client=await clientName(caller.row.client_id);
+    const durationMin=Math.round((new Date(shift.logout_at)-new Date(shift.login_at))/60000);
+    const payload=slackPayload('⏰ SMB Time Auto Force-Logout (10h cap)',[
+      ['Staff',caller.row.full_name],['Client',client],['Shift start',phtDateTime(shift.login_at)],['Auto logout',phtDateTime(shift.logout_at)],['Total shift time',`${Math.floor(durationMin/60)}h ${durationMin%60}m`]
+    ],'Staff exceeded 10 hours on shift without selecting Overtime — auto logged out by SMB Time.');
+    const result=await sendSlackOnce({eventKey:`force-logout:${shift.id}`,destination:'payroll-and-sheet',eventType:'force-logout',entityId:shift.id,webhook:SLACK_PAYROLL_WEBHOOK_URL,payload});
+    res.json({ok:true,...result});
+  }catch(e){console.error('Slack force-logout notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
 });
 
 app.listen(PORT, () => console.log('SMB Time server listening on ' + PORT));
