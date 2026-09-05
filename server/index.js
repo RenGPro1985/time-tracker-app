@@ -622,4 +622,93 @@ app.delete('/api/portal/docs/:id', async (req, res) => {
   }
 });
 
+// ============================================================
+// SERVER-SIDE 10H AUTO FORCE-LOGOUT SWEEP
+// The in-browser checkForceLogout() only runs while a staff member's tab is
+// open. If they close the laptop / lose connection / crash the tab before it
+// fires, the shift just stays open forever (this is what happened to Kat
+// Barrameda and Fatima Payuno on 2026-09-04). This sweep is the real,
+// browser-independent fix: it runs on the server every 5 minutes and force-
+// closes any shift open >10h, same 10h cap and Overtime waiver as the client.
+// ============================================================
+const FORCE_LOGOUT_MS = 10 * 3600 * 1000;
+const OVERTIME_ACTIVITY = 'Overtime';
+
+async function closeOpenEntries(shiftId, endedAt) {
+  const { error } = await admin.from('entries').update({ ended_at: endedAt })
+    .eq('shift_id', shiftId).eq('active', true).is('ended_at', null);
+  return error;
+}
+
+// Shared by both the automatic sweep and the admin's manual "Force Logout" button.
+async function forceLogoutShift(shift, endedAtIso, { manual = false, adminName = '' } = {}) {
+  const closeErr = await closeOpenEntries(shift.id, endedAtIso);
+  if (closeErr) throw closeErr;
+  const { error } = await admin.from('shifts').update({ logout_at: endedAtIso }).eq('id', shift.id);
+  if (error) throw error;
+
+  const { data: staffRow } = await admin.from('staff').select('full_name, client_id').eq('id', shift.staff_id).single();
+  const client = await clientName(staffRow?.client_id);
+  const durationMin = Math.round((new Date(endedAtIso) - new Date(shift.login_at)) / 60000);
+  const title = manual ? '⏰ SMB Time Force-Logout (admin)' : '⏰ SMB Time Auto Force-Logout (10h cap)';
+  const context = manual
+    ? `Manually force-logged-out by admin${adminName ? ' ' + adminName : ''}.`
+    : 'Staff exceeded 10 hours on shift without selecting Overtime — auto logged out by the server sweep (browser was not required to be open).';
+  const payload = slackPayload(title, [
+    ['Staff', staffRow?.full_name || shift.staff_id],
+    ['Client', client],
+    ['Shift start', phtDateTime(shift.login_at)],
+    ['Logged out', phtDateTime(endedAtIso)],
+    ['Total shift time', `${Math.floor(durationMin / 60)}h ${durationMin % 60}m`]
+  ], context);
+  await sendSlackOnce({
+    eventKey: `force-logout:${shift.id}${manual ? ':manual' : ':sweep'}`,
+    destination: 'payroll-and-sheet', eventType: 'force-logout', entityId: shift.id,
+    webhook: SLACK_PAYROLL_WEBHOOK_URL, payload
+  }).catch(e => console.error('Force-logout Slack notice failed:', e.message));
+}
+
+async function sweepStaleShifts() {
+  try {
+    const cutoff = new Date(Date.now() - FORCE_LOGOUT_MS).toISOString();
+    const { data: staleShifts, error } = await admin.from('shifts')
+      .select('id, staff_id, login_at').is('logout_at', null).lt('login_at', cutoff);
+    if (error) { console.error('Force-logout sweep query failed:', error.message); return; }
+    for (const shift of staleShifts || []) {
+      try {
+        const { data: openEntry } = await admin.from('entries')
+          .select('activity').eq('shift_id', shift.id).eq('active', true).is('ended_at', null)
+          .order('started_at', { ascending: false }).limit(1).maybeSingle();
+        if (openEntry?.activity === OVERTIME_ACTIVITY) continue; // waived while on Overtime, same as client rule
+        await forceLogoutShift(shift, new Date().toISOString());
+        console.log('Force-logout sweep closed stale shift', shift.id, 'staff', shift.staff_id);
+      } catch (e) {
+        console.error('Force-logout sweep failed for shift', shift.id, e.message);
+      }
+    }
+  } catch (e) {
+    console.error('Force-logout sweep crashed:', e.message);
+  }
+}
+setInterval(sweepStaleShifts, 5 * 60 * 1000);
+sweepStaleShifts(); // also run once at boot so a stale shift never waits up to 5 min after a deploy
+
+// --- 13. Admin: manual "Force Logout" button (Live Status tab) -----------
+app.post('/api/admin/shifts/:id/force-logout', async (req, res) => {
+  try {
+    const adminCaller = await requireAdmin(req, res); if (!adminCaller) return;
+    const shiftId = String(req.params.id || '');
+    if (!uuidRe.test(shiftId)) return res.status(400).json({ error: 'Valid shift id required.' });
+    const { data: shift, error } = await admin.from('shifts')
+      .select('id, staff_id, login_at, logout_at').eq('id', shiftId).single();
+    if (error || !shift) return res.status(404).json({ error: 'Shift not found.' });
+    if (shift.logout_at) return res.status(409).json({ error: 'That shift is already closed.' });
+    await forceLogoutShift(shift, new Date().toISOString(), { manual: true, adminName: adminCaller.full_name });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Admin force-logout failed:', e);
+    res.status(500).json({ error: e.message || 'Force-logout failed.' });
+  }
+});
+
 app.listen(PORT, () => console.log('SMB Time server listening on ' + PORT));
