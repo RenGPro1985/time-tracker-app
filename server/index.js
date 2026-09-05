@@ -12,8 +12,7 @@ import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 import multer from 'multer';
-import { google } from 'googleapis';
-import { Readable } from 'stream';
+import { randomUUID } from 'crypto';
 
 const {
   SUPABASE_URL,
@@ -22,8 +21,6 @@ const {
   APP_URL = '',
   SLACK_GENERAL_WEBHOOK_URL = '',
   SLACK_PAYROLL_WEBHOOK_URL = '',
-  DRIVE_PORTAL_FOLDER_ID = '',
-  GOOGLE_SERVICE_ACCOUNT_JSON = '',
   PORT = 10000
 } = process.env;
 
@@ -454,44 +451,15 @@ app.post('/api/slack/force-logout', async (req, res) => {
 
 
 // ============================================================
-// SMB VS PORTAL — document storage (Google Drive) + signatures
+// SMB VS PORTAL — document storage (Supabase Storage) + signatures
+// Switched from Google Drive on 2026-09-05: the destination folder lived in
+// a personal Gmail account, and Google service accounts always have 0
+// storage quota — they can only own files inside a paid Shared Drive or via
+// full OAuth delegation. Supabase Storage avoids that entirely (same
+// project/creds we already use for the DB, normal quota, no separate auth).
 // ============================================================
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
-
-let driveClient = null;
-function getDrive() {
-  if (driveClient) return driveClient;
-  if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON is not configured on the server.');
-  }
-  const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-  const auth = new google.auth.GoogleAuth({ credentials: creds, scopes: ['https://www.googleapis.com/auth/drive'] });
-  driveClient = google.drive({ version: 'v3', auth });
-  return driveClient;
-}
-
-// Cache of staff-name -> Drive subfolder id so we don't re-create folders on every upload.
-const staffFolderCache = new Map();
-async function getOrCreateStaffFolder(staffFullName) {
-  if (staffFolderCache.has(staffFullName)) return staffFolderCache.get(staffFullName);
-  const drive = getDrive();
-  const rootId = process.env.DRIVE_PORTAL_FOLDER_ID;
-  const safeName = staffFullName.replace(/['"\\]/g, '');
-  const q = `'${rootId}' in parents and name = '${safeName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-  const found = await drive.files.list({ q, fields: 'files(id, name)' });
-  let folderId;
-  if (found.data.files && found.data.files.length) {
-    folderId = found.data.files[0].id;
-  } else {
-    const created = await drive.files.create({
-      requestBody: { name: staffFullName, mimeType: 'application/vnd.google-apps.folder', parents: [rootId] },
-      fields: 'id'
-    });
-    folderId = created.data.id;
-  }
-  staffFolderCache.set(staffFullName, folderId);
-  return folderId;
-}
+const PORTAL_BUCKET = 'portal-docs';
 
 // --- 9. Portal: admin uploads a document ----------------------------------
 // multipart/form-data fields: file, title, category, visibility ('all' or a staff id), requires_signature ('true'/'false')
@@ -503,28 +471,29 @@ app.post('/api/portal/upload', upload.single('file'), async (req, res) => {
     if (!title || !category) return res.status(400).json({ error: 'Title and category are required.' });
     const isAll = !visibility || visibility === 'all';
 
-    let parentFolderId = process.env.DRIVE_PORTAL_FOLDER_ID;
     let targetStaff = null;
+    let folderSegment = 'all';
     if (!isAll) {
       const { data: staffRow } = await admin.from('staff').select('id, full_name').eq('id', visibility).single();
       if (!staffRow) return res.status(400).json({ error: 'Selected staff not found.' });
       targetStaff = staffRow;
-      parentFolderId = await getOrCreateStaffFolder(staffRow.full_name);
+      folderSegment = staffRow.id;
     }
 
-    const drive = getDrive();
-    const driveFile = await drive.files.create({
-      requestBody: { name: req.file.originalname, parents: [parentFolderId] },
-      media: { mimeType: req.file.mimetype, body: Readable.from(req.file.buffer) },
-      fields: 'id, webViewLink'
+    const safeName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storagePath = `${folderSegment}/${Date.now()}-${randomUUID()}-${safeName}`;
+
+    const { error: upErr } = await admin.storage.from(PORTAL_BUCKET).upload(storagePath, req.file.buffer, {
+      contentType: req.file.mimetype,
+      upsert: false
     });
+    if (upErr) throw upErr;
 
     const { data: docRow, error: insErr } = await admin.from('portal_docs').insert({
       title,
       category,
       visibility: isAll ? 'all' : targetStaff.id,
-      drive_file_id: driveFile.data.id,
-      drive_link: driveFile.data.webViewLink,
+      storage_path: storagePath,
       file_type: req.file.mimetype,
       requires_signature: requires_signature === 'true' || requires_signature === true,
       uploaded_by: caller.id
@@ -547,8 +516,20 @@ app.get('/api/portal/docs', async (req, res) => {
 
     let query = admin.from('portal_docs').select('*').order('created_at', { ascending: false });
     if (!isAdmin) query = query.or(`visibility.eq.all,visibility.eq.${caller.user.id}`);
-    const { data: docs, error } = await query;
+    const { data: rawDocs, error } = await query;
     if (error) throw error;
+
+    // Storage is private, so hand back a short-lived signed URL per doc instead
+    // of a permanent link. Field stays named `drive_link` so the existing
+    // frontend (which just does <a href="${d.drive_link}">) needs no changes.
+    const docs = await Promise.all((rawDocs || []).map(async d => {
+      let drive_link = null;
+      if (d.storage_path) {
+        const { data: signed } = await admin.storage.from(PORTAL_BUCKET).createSignedUrl(d.storage_path, 3600);
+        drive_link = signed?.signedUrl || null;
+      }
+      return { ...d, drive_link };
+    }));
 
     const { data: mySigs } = await admin.from('portal_signatures').select('doc_id, signed_at').eq('staff_id', caller.user.id);
     const signedMap = Object.fromEntries((mySigs || []).map(s => [s.doc_id, s.signed_at]));
@@ -606,13 +587,15 @@ app.post('/api/portal/sign', async (req, res) => {
   }
 });
 
-// --- 12. Portal: admin deletes a document (removes DB row + trashes Drive file) ---
+// --- 12. Portal: admin deletes a document (removes DB row + storage object) ---
 app.delete('/api/portal/docs/:id', async (req, res) => {
   try {
     const caller = await requireAdmin(req, res); if (!caller) return;
-    const { data: doc } = await admin.from('portal_docs').select('drive_file_id').eq('id', req.params.id).single();
+    const { data: doc } = await admin.from('portal_docs').select('storage_path').eq('id', req.params.id).single();
     if (!doc) return res.status(404).json({ error: 'Document not found.' });
-    try { await getDrive().files.update({ fileId: doc.drive_file_id, requestBody: { trashed: true } }); } catch (_) {}
+    if (doc.storage_path) {
+      try { await admin.storage.from(PORTAL_BUCKET).remove([doc.storage_path]); } catch (_) {}
+    }
     const { error } = await admin.from('portal_docs').delete().eq('id', req.params.id);
     if (error) throw error;
     res.json({ ok: true });
@@ -621,6 +604,7 @@ app.delete('/api/portal/docs/:id', async (req, res) => {
     res.status(500).json({ error: e.message || 'Could not delete document.' });
   }
 });
+
 
 // ============================================================
 // SERVER-SIDE 10H AUTO FORCE-LOGOUT SWEEP
