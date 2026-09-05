@@ -295,7 +295,7 @@ button.btn{padding:7px 12px;font-size:12px}
           <select id="fStatus" style="width:auto"><option value="">All statuses</option><option>Working</option><option>On break</option><option>Off shift</option></select>
           <button class="btn btn-ghost" id="refreshBtn">Refresh</button></div>
         </div>
-        <table><thead><tr><th>Staff</th><th>Client</th><th>Shift (PHT)</th><th>Status</th><th>Activity</th><th>Time in status</th></tr></thead>
+        <table><thead><tr><th>Staff</th><th>Client</th><th>Shift (PHT)</th><th>Status</th><th>Activity</th><th>Time in status</th><th></th></tr></thead>
         <tbody id="roster"></tbody></table>
       </div>
     </section>
@@ -451,7 +451,55 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
         <select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section>
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Hours pulled from the time tracker, rate from the Staff tab. Night Diff (10PM–6AM) is a 10% premium on top of Regular/OT Pay, not extra hours.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div style="overflow-x:auto"><table><thead><tr><th>Staff</th><th>Client</th><th>Monthly Rate (₱)</th><th>PHP Hourly Rate</th><th>Regular Hrs</th><th>Night Diff Hrs</th><th>OT Hrs</th><th>Regular Pay</th><th>Night Diff Premium</th><th>OT Pay</th><th>Total Pay</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="note" style="margin-top:12px">v1: hours + pay only, pulled live from the time tracker. No EWT/tax withholding (these are contractors, not employees) and no allowances/bonuses/advance-recoupment rows — those are finance decisions, not something this tab auto-computes.</div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+  <!-- STAFF VIEW -->
+  <div id="portalStaffView" class="grid" style="gap:16px">
+    <div class="card">
+      <div class="hdr"><h3 style="font-size:15px">Company Documents</h3></div>
+      <table><thead><tr><th>Title</th><th>Category</th><th>Status</th><th></th></tr></thead><tbody id="portalCompanyDocs"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="hdr"><h3 style="font-size:15px">My Documents</h3></div>
+      <table><thead><tr><th>Title</th><th>Category</th><th>Status</th><th></th></tr></thead><tbody id="portalMyDocs"></tbody></table>
+    </div>
+    <div class="card hide" id="portalSignCard">
+      <div class="hdr"><h3 style="font-size:15px">Sign Document</h3></div>
+      <div class="muted" id="portalSignDocTitle" style="margin-bottom:10px"></div>
+      <div class="row" style="align-items:flex-end;gap:10px">
+        <div style="flex:1"><label>Type your full legal name to sign</label><input id="portalSignName" placeholder="e.g. Juan Dela Cruz"></div>
+        <div style="flex:0 0 auto"><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="portalSignAgree"> I acknowledge and agree</label></div>
+        <div><button class="btn btn-gold" id="portalSignSubmit">Submit Signature</button></div>
+      </div>
+      <div class="muted" id="portalSignMsg" style="font-size:12px;margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN VIEW -->
+  <div id="portalAdminView" class="grid hide" style="gap:16px">
+    <div class="card">
+      <div class="hdr"><h3 style="font-size:15px">Upload Document</h3></div>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        <div style="flex:1 1 200px"><label>Title</label><input id="portalUpTitle" placeholder="e.g. Employment Contract 2026"></div>
+        <div style="flex:0 0 180px"><label>Category</label>
+          <select id="portalUpCategory">
+            <option>Contract</option><option>House Rules</option><option>Onboarding</option><option>Coaching</option><option>Other</option>
+          </select>
+        </div>
+        <div style="flex:0 0 220px"><label>Assign to</label>
+          <select id="portalUpVisibility"><option value="all">Everyone (company-wide)</option></select>
+        </div>
+        <div style="flex:0 0 auto"><label style="display:flex;align-items:center;gap:6px;margin-top:22px"><input type="checkbox" id="portalUpSig"> Requires signature</label></div>
+        <div style="flex:1 1 220px"><label>File</label><input type="file" id="portalUpFile"></div>
+        <div style="flex:0 0 auto"><button class="btn btn-teal" id="portalUpBtn" style="margin-top:22px">Upload to Drive</button></div>
+      </div>
+      <div class="muted" id="portalUpMsg" style="font-size:12px;margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <div class="hdr"><h3 style="font-size:15px">All Documents</h3></div>
+      <table><thead><tr><th>Title</th><th>Category</th><th>Assigned to</th><th>Signatures</th><th></th></tr></thead><tbody id="portalAdminDocs"></tbody></table>
+    </div>
+  </div>
+</section>
 
     <!-- ---------- ADMIN: POLICY ---------- -->
     <section id="v-policy" class="hide grid" style="gap:16px">
@@ -695,7 +743,127 @@ function summarize(entries,now,window,shiftSpanMinutes){
   regularBillable=Math.min(regularBillable,REGULAR_DAILY_CAP_MIN);
   let billable=regularBillable+overtimeBillable;
   if(shiftSpanMinutes>0){ total=Math.min(total,shiftSpanMinutes); billable=Math.min(billable,shiftSpanMinutes); }
-  return {per,total,billable,nonbillable:Math.max(0,total-billable)};
+  /* regularBillable/overtimeBillable below are exposed pre-span-cap (Contractor Ledger use);
+     the combined 'billable' figure above stays the source of truth for Timesheets/Adherence. */
+  return {per,total,billable,nonbillable:Math.max(0,total-billable),regularBillable,overtimeBillable};
+}
+
+/* ============================================================
+   7y. ADMIN — CONTRACTOR LEDGER (semi-monthly hours + pay, pulled
+   from the time tracker; night differential is a 10% premium on
+   top of whatever hours already qualify as Regular or Overtime —
+   it is NOT an extra bucket of hours on top of those two. Night
+   window is 10:00 PM–6:00 AM PHT, computed hour-by-hour against
+   the actual clipped billable intervals, not the whole shift.
+   Known limitation: night-diff minutes are measured against
+   billable intervals BEFORE per-activity allowance caps and the
+   8h/day regular cap are applied, so in a rare edge case where an
+   over-allowance excess happens to fall at night, Night Diff Hrs
+   could read slightly high versus the capped Regular Hrs total —
+   flagged in the UI note, not hidden.
+   ============================================================ */
+const NIGHT_START_HOUR=22, NIGHT_END_HOUR=6; // 10PM–6AM PHT
+function intersectIntervals(a,b){
+  const out=[];let i=0,j=0;
+  while(i<a.length&&j<b.length){
+    const s=Math.max(a[i][0],b[j][0]),e=Math.min(a[i][1],b[j][1]);
+    if(s<e)out.push([s,e]);
+    if(a[i][1]<b[j][1])i++;else j++;
+  }
+  return out;
+}
+function nightWindowsForRange(startIso,endIso){
+  const wins=[];
+  let d=new Date(startIso+'T00:00:00+08:00'); d.setUTCDate(d.getUTCDate()-1);
+  const endD=new Date(endIso+'T00:00:00+08:00'); endD.setUTCDate(endD.getUTCDate()+1);
+  while(d<=endD){
+    const iso=phDate(d);
+    const s=new Date(iso+'T'+String(NIGHT_START_HOUR).padStart(2,'0')+':00:00+08:00');
+    const e=new Date(s.getTime()+(24-NIGHT_START_HOUR+NIGHT_END_HOUR)*3600*1000);
+    wins.push([s.getTime(),e.getTime()]);
+    d=new Date(d.getTime()+86400000);
+  }
+  return mergeIntervals(wins);
+}
+function billableIntervalsForDay(entries,window){
+  const byAct={};
+  entries.forEach(e=>{
+    if(NON_BILLABLE.includes(e.activity))return;
+    const s=new Date(e.started_at).getTime();
+    const t=(e.ended_at?new Date(e.ended_at):new Date()).getTime();
+    (byAct[e.activity]=byAct[e.activity]||[]).push([s,Math.max(s,t)]);
+  });
+  let ivs=[];
+  Object.entries(byAct).forEach(([act,list])=>{
+    if(act===OVERTIME){ ivs=ivs.concat(list); }
+    else if(window){ list.forEach(([s,e])=>{const cs=Math.max(s,window.start.getTime()),ce=Math.min(e,window.end.getTime()); if(ce>cs)ivs.push([cs,ce]);}); }
+  });
+  return mergeIntervals(ivs);
+}
+let ledgerRows=[];
+function initLedgerFilters(){
+  fill('lgStaff','All staff',staffList.map(s=>[s.id,s.full_name]));
+  if(!$('lgPeriod').innerHTML) refreshLedgerPeriods();
+  $('runLedger').onclick=runLedger;
+  $('dlLedger').onclick=()=>downloadLedgerCsv();
+}
+function refreshLedgerPeriods(){
+  const list=periodList('semi');
+  $('lgPeriod').innerHTML=list.map(p=>`<option value="${p.start}|${p.end}">${fmtNice(p.start)} – ${fmtNice(p.end)}</option>`).join('');
+}
+async function runLedger(){
+  const [start,end]=$('lgPeriod').value.split('|');
+  if(!start||!end)return alert('Pick a pay period.');
+  const fs=$('lgStaff').value;
+  const people=staffList.filter(s=>!fs||s.id===fs);
+  const [ents,shifts]=await Promise.all([fetchEntriesRange(start,end,people.map(s=>s.id)),fetchShiftsRange(start,end,people.map(s=>s.id))]);
+  const sdm=buildShiftDateMap(shifts);
+  const ssm=buildShiftSpanMap(shifts);
+  const nightWins=nightWindowsForRange(start,end);
+  ledgerRows=[];
+  people.forEach(s=>{
+    const mine=ents.filter(e=>e.staff_id===s.id); const sc=clients.find(c=>c.id===s.client_id);
+    const byDay={};mine.forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
+    let regularMin=0,otMin=0,nightMin=0;
+    Object.keys(byDay).forEach(d=>{
+      const window=shiftWindowFor(sc,d);
+      const sum=summarize(byDay[d],null,window,spanFor(byDay[d],ssm));
+      regularMin+=sum.regularBillable; otMin+=sum.overtimeBillable;
+      const dayIvs=billableIntervalsForDay(byDay[d],window);
+      const dayNight=intersectIntervals(dayIvs,nightWins).reduce((a,[s,e])=>a+(e-s),0)/60000;
+      nightMin+=Math.min(dayNight,sum.regularBillable+sum.overtimeBillable);
+    });
+    const rate=Number(phpHourlyRate(s.monthly_rate));
+    const regularPay=regularMin/60*rate, otPay=otMin/60*rate, nightPremium=nightMin/60*rate*0.10;
+    ledgerRows.push({name:s.full_name,client:sc?sc.name:'—',monthly:Number(s.monthly_rate||0),rate,
+      regularHrs:regularMin/60,nightHrs:nightMin/60,otHrs:otMin/60,
+      regularPay,nightPremium,otPay,total:regularPay+otPay+nightPremium});
+  });
+  renderLedgerTable(start,end);
+}
+function renderLedgerTable(start,end){
+  const grand=ledgerRows.reduce((a,r)=>a+r.total,0);
+  $('lgTotal').textContent='₱'+grand.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  $('lgRangeLabel').textContent=start&&end?`${fmtNice(start)} – ${fmtNice(end)}`:'—';
+  $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr>
+    <td><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td>
+    <td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.rate.toFixed(2)}</td>
+    <td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td>
+    <td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td>
+    <td class="mono" style="color:var(--gold);font-weight:600">${r.total.toFixed(2)}</td></tr>`).join('')
+    :`<tr><td colspan="11" class="muted">No data for that period. Press Run.</td></tr>`;
+}
+function ledgerCsv(){
+  const head=['Staff','Client','Monthly Rate (PHP)','PHP Hourly Rate','Regular Hrs','Night Diff Hrs','OT Hrs','Regular Pay','Night Diff Premium','OT Pay','Total Pay'];
+  const lines=[head];
+  ledgerRows.forEach(r=>lines.push([r.name,r.client,r.monthly.toFixed(2),r.rate.toFixed(2),r.regularHrs.toFixed(2),r.nightHrs.toFixed(2),r.otHrs.toFixed(2),r.regularPay.toFixed(2),r.nightPremium.toFixed(2),r.otPay.toFixed(2),r.total.toFixed(2)]));
+  return lines.map(l=>l.map(csvEscape).join(',')).join('\n');
+}
+function downloadLedgerCsv(){
+  if(!ledgerRows.length)return alert('Press Run first.');
+  const [start,end]=$('lgPeriod').value.split('|');
+  const blob=new Blob(['\ufeff'+ledgerCsv()],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`contractor-ledger-${start}_${end}.csv`;a.click();URL.revokeObjectURL(a.href);
 }
 
 /* ============================================================
@@ -800,11 +968,12 @@ const PAGES={
   'v-sheets':['📄 Timesheets','Timesheets','Filter by pay period and export'],
   'v-adherence':['📊 Adherence & Breaks','Adherence & Breaks','Break usage, overages, and late log-ins — filter by staff, client, and date'],
   'v-corr'  :['✏️ Corrections','Corrections','Approve or reject staff correction requests'],
-  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests']
+  'v-ledger':['🧾 Contractor Ledger','Contractor Ledger','Semi-monthly hours & pay pulled from the time tracker — admin only'],
+  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests'], 'v-portal':['🗂️ Freelancer Hole','Freelancer Hole','Documents, contracts, and signatures']
 };
 let view='v-punch';
 function buildNav(){
-  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-sheets','v-adherence','v-corr','v-reqadmin','v-policy'] : ['v-punch','v-req'];
+  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-sheets','v-adherence','v-corr','v-ledger','v-reqadmin','v-policy','v-portal'] : ['v-punch','v-req','v-portal'];
   $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   go(view);
@@ -820,7 +989,8 @@ function go(v){
   if(v==='v-sheets'){initSheetFilters();}
   if(v==='v-adherence'){initAdherenceFilters();}
   if(v==='v-corr'){loadCorrections();}
-  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();}
+  if(v==='v-ledger'){initLedgerFilters();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();}
 }
 
 /* clocks + running timers */
@@ -1160,7 +1330,7 @@ async function loadRoster(){
     if(status==='Off shift')off++;else if(status==='On break')br++;else on++;
     if(sum.total>0){pctSum+=sum.billable/sum.total*100;pctN++;}
     
-    return {s,c,status,act:running?running.activity:'—',sum,startedAt:running?running.started_at:null};
+    return {s,c,status,act:running?running.activity:'—',sum,startedAt:running?running.started_at:null,shiftId:sh?sh.id:null};
   }).filter(r=>(!fc||r.s.client_id===fc)&&(!fs||r.s.id===fs)&&(!fst||r.status===fst));
   $('stOn').textContent=on;$('stBreak').textContent=br;$('stOff').textContent=off;
   $('stPct').textContent=pctN?Math.round(pctSum/pctN)+'%':'—';
@@ -1172,9 +1342,28 @@ async function loadRoster(){
    <td class="muted">${r.c?escapeHtml(r.c.name):'—'}</td>
    <td class="mono">${r.c?r.c.shift_start.slice(0,5)+' – '+r.c.shift_end.slice(0,5):'—'}</td>
    <td>${pill(r.status)}</td><td>${r.act}</td>
-   <td class="mono"${r.startedAt?` data-started="${r.startedAt}"`:''}>${r.startedAt?hms((new Date()-new Date(r.startedAt))/1000):'—'}</td></tr>`).join('')
-   :`<tr><td colspan="6" class="muted">No staff match those filters.</td></tr>`;
+   <td class="mono"${r.startedAt?` data-started="${r.startedAt}"`:''}>${r.startedAt?hms((new Date()-new Date(r.startedAt))/1000):'—'}</td>
+   <td>${r.shiftId?`<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" data-force-logout="${r.shiftId}" data-staff-name="${escapeHtml(r.s.full_name)}">Force Logout</button>`:''}</td></tr>`).join('')
+   :`<tr><td colspan="7" class="muted">No staff match those filters.</td></tr>`;
 }
+// Manual force-logout — for exactly this case: staff stuck "on shift" whose browser
+// closed before the 10h client-side check could fire. Admin-only server endpoint;
+// it ends their open entry + closes the shift at the moment of THIS click (accurate,
+// since an admin action has no ambiguity about "when did they really stop").
+document.getElementById('roster').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-force-logout]');
+  if (!btn) return;
+  const shiftId = btn.dataset.forceLogout, name = btn.dataset.staffName;
+  if (!confirm(`Force logout ${name} now? This closes their current shift immediately.`)) return;
+  btn.disabled = true; btn.textContent = 'Logging out…';
+  try {
+    await api(`/api/admin/shifts/${shiftId}/force-logout`, { method: 'POST' });
+    await loadRoster();
+  } catch (err) {
+    alert('Force logout failed: ' + err.message);
+    btn.disabled = false; btn.textContent = 'Force Logout';
+  }
+});
 function tickRosterTimes(){
   if($('v-status').classList.contains('hide')) return;
   document.querySelectorAll('#roster [data-started]').forEach(td=>{
@@ -2137,6 +2326,143 @@ if($('reqFilter')) $('reqFilter').onchange=()=>loadReqAdmin();
 if($('dedFilter')) $('dedFilter').onchange=()=>loadReqAdmin();
 /* go */
 boot();
+</script>
+<script>
+/* ============================================================
+   SMB VS PORTAL — documents, assignments, signatures
+   ============================================================ */
+const PORTAL_CAT_LABEL = { Contract:'Contract', 'House Rules':'House Rules', Onboarding:'Onboarding', Coaching:'Coaching', Other:'Other' };
+let portalDocsCache = [];
+
+async function apiUpload(path, formData) {
+  const { data: { session } } = await sb.auth.getSession();
+  const r = await fetch(SERVER_URL + path, { method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token }, body: formData });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ('Server error ' + r.status));
+  return j;
+}
+
+async function loadPortal() {
+  if (me.role === 'admin') {
+    $('portalStaffView').classList.add('hide');
+    $('portalAdminView').classList.remove('hide');
+    fillPortalAssignDropdown();
+    await loadPortalAdminDocs();
+  } else {
+    $('portalAdminView').classList.add('hide');
+    $('portalStaffView').classList.remove('hide');
+    await loadPortalStaffDocs();
+  }
+}
+
+function fillPortalAssignDropdown() {
+  const sel = $('portalUpVisibility');
+  const current = sel.value;
+  sel.innerHTML = '<option value="all">Everyone (company-wide)</option>' +
+    staffList.map(s => `<option value="${s.id}">${escapeHtml(s.full_name)}</option>`).join('');
+  sel.value = current || 'all';
+}
+
+async function loadPortalStaffDocs() {
+  let j;
+  try { j = await api('/api/portal/docs'); } catch (e) { alert(e.message); return; }
+  portalDocsCache = j.docs || [];
+  const company = portalDocsCache.filter(d => d.visibility === 'all');
+  const mine = portalDocsCache.filter(d => d.visibility !== 'all');
+  $('portalCompanyDocs').innerHTML = renderStaffDocRows(company);
+  $('portalMyDocs').innerHTML = renderStaffDocRows(mine);
+  wirePortalDocActions();
+}
+
+function renderStaffDocRows(docs) {
+  if (!docs.length) return `<tr><td colspan="4" class="muted">No documents yet.</td></tr>`;
+  return docs.map(d => {
+    const status = !d.requires_signature ? '<span class="pill">—</span>'
+      : d.signed_at ? `<span class="pill p-work"><span class="dot"></span>Signed ${escapeHtml(fmtNice(d.signed_at.slice(0,10)))}</span>`
+      : `<span class="pill p-break"><span class="dot"></span>Needs signature</span>`;
+    const action = d.requires_signature && !d.signed_at
+      ? `<button class="btn btn-gold" data-sign="${d.id}" data-title="${escapeHtml(d.title)}">Sign</button>`
+      : `<a class="btn btn-ghost" href="${d.drive_link}" target="_blank" rel="noopener">View</a>`;
+    return `<tr><td><b>${escapeHtml(d.title)}</b></td><td class="muted">${escapeHtml(d.category)}</td><td>${status}</td><td style="text-align:right">${action}</td></tr>`;
+  }).join('');
+}
+
+function wirePortalDocActions() {
+  document.querySelectorAll('[data-sign]').forEach(btn => {
+    btn.onclick = () => {
+      $('portalSignCard').classList.remove('hide');
+      $('portalSignCard').dataset.docId = btn.dataset.sign;
+      $('portalSignDocTitle').textContent = 'Signing: ' + btn.dataset.title;
+      $('portalSignName').value = '';
+      $('portalSignAgree').checked = false;
+      $('portalSignMsg').textContent = '';
+      $('portalSignCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+  });
+}
+
+$('portalSignSubmit').onclick = async () => {
+  const docId = $('portalSignCard').dataset.docId;
+  const name = $('portalSignName').value.trim();
+  if (!name) { $('portalSignMsg').textContent = 'Please type your full name.'; return; }
+  if (!$('portalSignAgree').checked) { $('portalSignMsg').textContent = 'Please check the agreement box.'; return; }
+  $('portalSignSubmit').disabled = true;
+  $('portalSignMsg').textContent = 'Saving…';
+  try {
+    await api('/api/portal/sign', { method: 'POST', body: JSON.stringify({ doc_id: docId, signature_name: name }) });
+    $('portalSignCard').classList.add('hide');
+    await loadPortalStaffDocs();
+  } catch (e) {
+    $('portalSignMsg').textContent = e.message;
+  } finally {
+    $('portalSignSubmit').disabled = false;
+  }
+};
+
+async function loadPortalAdminDocs() {
+  let j;
+  try { j = await api('/api/portal/docs'); } catch (e) { alert(e.message); return; }
+  portalDocsCache = j.docs || [];
+  $('portalAdminDocs').innerHTML = portalDocsCache.length ? portalDocsCache.map(d => {
+    const assignee = d.visibility === 'all' ? 'Everyone' : escapeHtml((staffList.find(s => s.id === d.visibility) || {}).full_name || '—');
+    const sigCol = d.requires_signature ? `${d.signed_count}/${d.eligible_count}` : '—';
+    return `<tr><td><a href="${d.drive_link}" target="_blank" rel="noopener"><b>${escapeHtml(d.title)}</b></a></td><td class="muted">${escapeHtml(d.category)}</td><td>${assignee}</td><td>${sigCol}</td><td style="text-align:right"><button class="btn btn-rose" data-del="${d.id}">Delete</button></td></tr>`;
+  }).join('') : `<tr><td colspan="5" class="muted">No documents yet.</td></tr>`;
+  document.querySelectorAll('[data-del]').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm('Delete this document? This also trashes it in Drive.')) return;
+      try { await api('/api/portal/docs/' + btn.dataset.del, { method: 'DELETE' }); await loadPortalAdminDocs(); }
+      catch (e) { alert(e.message); }
+    };
+  });
+}
+
+$('portalUpBtn').onclick = async () => {
+  const title = $('portalUpTitle').value.trim();
+  const category = $('portalUpCategory').value;
+  const visibility = $('portalUpVisibility').value;
+  const requiresSig = $('portalUpSig').checked;
+  const file = $('portalUpFile').files[0];
+  if (!title || !file) { $('portalUpMsg').textContent = 'Title and a file are required.'; return; }
+  $('portalUpBtn').disabled = true;
+  $('portalUpMsg').textContent = 'Uploading to Drive…';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('title', title);
+    fd.append('category', category);
+    fd.append('visibility', visibility);
+    fd.append('requires_signature', requiresSig ? 'true' : 'false');
+    await apiUpload('/api/portal/upload', fd);
+    $('portalUpMsg').textContent = 'Uploaded.';
+    $('portalUpTitle').value = ''; $('portalUpFile').value = ''; $('portalUpSig').checked = false;
+    await loadPortalAdminDocs();
+  } catch (e) {
+    $('portalUpMsg').textContent = e.message;
+  } finally {
+    $('portalUpBtn').disabled = false;
+  }
+};
 </script>
 </body>
 </html>
