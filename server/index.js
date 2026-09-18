@@ -420,7 +420,7 @@ app.post('/api/slack/overbreaks', async (req, res) => {
       const payload=slackPayload('⚠️ SMB Time Overbreak Alert',[
         ['Staff',caller.row.full_name],['Client',client],['Activity',activity],['Allowance',`${cap} min`],['Used',`${usedRounded} min`],['Over by',`${overRounded} min`]
       ],`Shift: ${phtDate(shift.login_at)} PHT · First alert for this activity in this shift`);
-      const result=await sendSlackOnce({eventKey:`overbreak:${shift.id}:${activity}`,destination:'payroll-and-sheet',eventType:'overbreak',entityId:shift.id,webhook:SLACK_PAYROLL_WEBHOOK_URL,payload});
+      const result=await sendSlackOnce({eventKey:`overbreak:${shift.id}:${activity}`,destination:'SMB general',eventType:'overbreak',entityId:shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
       crossed.push({activity,...result});
       if(result.sent) await sleep(1200); // Slack incoming webhooks may drop bursts faster than ~1/sec
     }
