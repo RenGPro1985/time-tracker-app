@@ -24,6 +24,9 @@ const {
   PORT = 10000
 } = process.env;
 
+const OVERBREAK_GRACE_MIN = 1;   // tolerated overbreak, never flagged
+const OVERBREAK_FLAG_MIN  = 2;   // Slack alert only when over the allowance by MORE than this
+
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.');
 }
@@ -394,7 +397,7 @@ app.post('/api/slack/request-rejected', async (req, res) => {
   }catch(e){console.error('Slack rejection notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
 });
 
-// --- 8. Slack: first overbreak per shift/activity -> payroll-and-sheet ----
+// --- 8. Slack: first overbreak per shift/activity -> SMB general ---------
 app.post('/api/slack/overbreaks', async (req, res) => {
   try{
     const caller=await requireActiveUser(req,res); if(!caller) return;
@@ -415,11 +418,12 @@ app.post('/api/slack/overbreaks', async (req, res) => {
       const cap=Number(allowances[activity]||0);
       if(cap<=0) continue; // current app semantics: zero means unlimited/no deduction
       const used=unionMinutes((entries||[]).filter(e=>e.activity===activity));
-      if(used<=cap) continue;
-      const usedRounded=Math.ceil(used),overRounded=Math.max(1,Math.ceil(used-cap));
+      const over=used-cap;
+      if(over<=OVERBREAK_FLAG_MIN) continue; // 1 min grace; flag only when over by MORE than 2 min
+      const usedRounded=Math.ceil(used),overRounded=Math.max(1,Math.ceil(over));
       const payload=slackPayload('⚠️ SMB Time Overbreak Alert',[
-        ['Staff',caller.row.full_name],['Client',client],['Activity',activity],['Allowance',`${cap} min`],['Used',`${usedRounded} min`],['Over by',`${overRounded} min`]
-      ],`Shift: ${phtDate(shift.login_at)} PHT · First alert for this activity in this shift`);
+        ['Staff',caller.row.full_name],['Client',client],['Activity',activity],['Allowance',`${cap} min (+${OVERBREAK_GRACE_MIN} min grace)`],['Used',`${usedRounded} min`],['Over by',`${overRounded} min`]
+      ],`Shift: ${phtDate(shift.login_at)} PHT · First alert for this activity in this shift · Flagged only past ${OVERBREAK_FLAG_MIN} min over`);
       const result=await sendSlackOnce({eventKey:`overbreak:${shift.id}:${activity}`,destination:'SMB general',eventType:'overbreak',entityId:shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
       crossed.push({activity,...result});
       if(result.sent) await sleep(1200); // Slack incoming webhooks may drop bursts faster than ~1/sec
