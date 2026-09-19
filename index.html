@@ -453,7 +453,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
         <select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Night Diff is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. Premium is 10% on top of Regular/OT Pay. PCH/PTO Pay = daily rate (Monthly Rate ÷ 22) × approved PCH/PTO days in the period — no hours or Night Diff attached.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div style="overflow-x:auto"><table><thead><tr><th>Staff</th><th>Client</th><th>Monthly Rate (₱)</th><th>PHP Hourly Rate</th><th>Regular Hrs</th><th>Night Diff Hrs</th><th>OT Hrs</th><th>Regular Pay</th><th>Night Diff Premium</th><th>OT Pay</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Total Pay</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div><div class="note" style="margin-top:12px">Hours are pulled live from the tracker. No EWT/tax withholding, allowances, bonuses, or advance recoupment is auto-computed here.</div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div style="overflow-x:auto"><table><thead><tr><th>Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Fee Basis</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div><div class="note" style="margin-top:12px">Hours are pulled live from the tracker. No EWT/tax withholding, allowances, bonuses, or advance recoupment is auto-computed here.</div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
   <!-- STAFF VIEW -->
   <div id="portalStaffView" class="grid" style="gap:16px">
     <div class="card">
@@ -846,6 +846,66 @@ function ledgerShiftRow(staff,client,shift,entries,nightWins){
     nightPremium:nightMin/60*rate*.10,missingLunch,virtualMin};
 }
 let ledgerRows=[],ledgerDetailRows=[];
+/* ---------- Ledger add-on line items (bonuses/allowances/Fee Advance/Adjustments) ----------
+   Payout reality: salary is disbursed on the 15th and on the last day of the month
+   (see nextCutoffOnOrAfter). The Ledger's own "period" (5th-20th / 21st-4th) is the hours
+   window that FEEDS that payout, so the payout cutoff for a given Ledger period is
+   nextCutoffOnOrAfter(period.end). Completion Bonus only shows on the 15th-cutoff payout;
+   the rest of the bonus/allowance fields only show on the end-of-month payout. Fee Advance
+   and Adjustments show on every payout since they're deducted every payroll (per Rendy,
+   2026-09-19). */
+function payoutCutoffFor(periodEnd){return nextCutoffOnOrAfter(periodEnd);}
+function payoutPhase(cutoffIso){return Number(cutoffIso.split('-')[2])===15?'mid':'eom';}
+/* eligible once a full month has passed since hire, measured against the payout cutoff date */
+function eligibleAfterOneMonth(hireIso,asOfIso){
+  if(!hireIso)return false;
+  const d=new Date(hireIso+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+1);
+  return d.toISOString().slice(0,10)<=asOfIso;
+}
+/* phase: 'mid' = 15th payout only, 'eom' = end-of-month payout only, 'both' = every payout.
+   group: 'addon' (adds to pay) or 'deduction' (subtracts from pay).
+   default(staff,cutoffIso): optional starting value shown before any admin edit/override. */
+const LEDGER_EXTRA_FIELDS=[
+  {key:'completion_bonus',label:'Completion Bonus',phase:'mid',group:'addon'},
+  {key:'relationship_bonus',label:'Relationship-Milestone Bonus',phase:'eom',group:'addon'},
+  {key:'meal_allowance',label:'Meal/Rice Allowance',phase:'eom',group:'addon',
+    default:(staff,cutoffIso)=>eligibleAfterOneMonth(staff.hire_date,cutoffIso)?250:0},
+  {key:'statutory_allowance',label:'Statutory Contribution Support Allowance',phase:'eom',group:'addon',
+    default:(staff,cutoffIso)=>eligibleAfterOneMonth(staff.hire_date,cutoffIso)?1000:0},
+  {key:'workspace_allowance',label:'Workspace/Facilities Allowance',phase:'eom',group:'addon'},
+  {key:'scope_differential',label:'Scope Differential Fee',phase:'eom',group:'addon'},
+  {key:'adhoc_project_fee',label:'Ad Hoc Project Fee',phase:'eom',group:'addon'},
+  {key:'incentive_award',label:'Incentive/Contest Award',phase:'eom',group:'addon'},
+  {key:'reimbursable_expenses',label:'Reimbursable Expenses',phase:'eom',group:'addon'},
+  {key:'other_fee_items',label:'Other Contracted Fee Items',phase:'eom',group:'addon'},
+  {key:'fee_advance',label:'Fee Advance',phase:'both',group:'deduction'}, // default set live from advance_deductions
+  {key:'adjustments',label:'Adjustments',phase:'both',group:'deduction'},
+];
+async function fetchLedgerExtras(cutoffIso,staffIds){
+  let q=sb.from('ledger_extras').select('*').eq('cutoff_date',cutoffIso);
+  q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
+  const {data,error}=await q.range(0,4999);
+  if(error){ if(!isMissingTableError(error)) console.warn('ledger_extras:',error.message); return []; }
+  return data||[];
+}
+async function fetchScheduledAdvances(cutoffIso,staffIds){
+  let q=sb.from('advance_deductions').select('*').eq('cutoff_date',cutoffIso).neq('status','waived');
+  q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
+  const {data,error}=await q.range(0,4999);
+  if(error){ console.warn('advance_deductions:',error.message); return []; }
+  return data||[];
+}
+async function saveLedgerExtra(staffId,cutoffIso,fieldKey,amount,inputEl){
+  const {error}=await sb.from('ledger_extras').upsert(
+    {staff_id:staffId,cutoff_date:cutoffIso,field_key:fieldKey,amount,updated_by:me.id,updated_at:new Date().toISOString()},
+    {onConflict:'staff_id,cutoff_date,field_key'});
+  if(error){
+    alert(isMissingTableError(error)?'Ledger add-on items aren\'t set up on this database yet — ask an admin to run the ledger_extras migration in the Supabase SQL Editor.':error.message);
+    return false;
+  }
+  if(inputEl)inputEl.dataset.baseline=inputEl.value;
+  return true;
+}
 function initLedgerFilters(){
   fill('lgClient','All clients',clients.map(c=>[c.id,c.name]));
   refreshLedgerStaff();
@@ -881,18 +941,62 @@ async function runLedger(){
      never contributes Night Diff — leave_days rows carry no shift/entries at all. */
   const leaves=await fetchLeaveDays(start,end,ids);
   const leavesByStaff={};leaves.forEach(l=>{(leavesByStaff[l.staff_id]=leavesByStaff[l.staff_id]||[]).push(l);});
+  /* Which real payroll cutoff (15th or end-of-month) this Ledger period pays out on, and
+     which add-on fields are in play for that cutoff — see LEDGER_EXTRA_FIELDS notes above. */
+  const cutoffIso=payoutCutoffFor(end),phase=payoutPhase(cutoffIso);
+  const [extrasRaw,advancesRaw]=await Promise.all([fetchLedgerExtras(cutoffIso,ids),fetchScheduledAdvances(cutoffIso,ids)]);
+  const extrasByStaff={};extrasRaw.forEach(e=>{(extrasByStaff[e.staff_id]=extrasByStaff[e.staff_id]||{})[e.field_key]=Number(e.amount);});
+  const advanceByStaff={};advancesRaw.forEach(d=>{advanceByStaff[d.staff_id]=(advanceByStaff[d.staff_id]||0)+Number(d.amount||0);});
   ledgerRows=people.map(staff=>{
     const rows=ledgerDetailRows.filter(r=>r.staffId===staff.id);
     const client=clients.find(c=>c.id===staff.client_id),regularMin=rows.reduce((a,r)=>a+r.regularMin,0),otMin=rows.reduce((a,r)=>a+r.otMin,0),nightMin=rows.reduce((a,r)=>a+r.nightMin,0),rate=Number(phpHourlyRate(staff.monthly_rate));
     const regularPay=regularMin/60*rate,otPay=otMin/60*rate,nightPremium=nightMin/60*rate*.10;
     const myLeaves=leavesByStaff[staff.id]||[],pchPtoDays=myLeaves.length,dailyRate=Number(staff.monthly_rate||0)/22,pchPtoPay=pchPtoDays*dailyRate;
-    return {staffId:staff.id,name:staff.full_name,client:client?client.name:'—',monthly:Number(staff.monthly_rate||0),rate,regularHrs:regularMin/60,nightHrs:nightMin/60,otHrs:otMin/60,regularPay,nightPremium,otPay,pchPtoDays,pchPtoPay,total:regularPay+nightPremium+otPay+pchPtoPay};
+    const mine=extrasByStaff[staff.id]||{};
+    const extras={};
+    LEDGER_EXTRA_FIELDS.forEach(f=>{
+      if(f.phase!=='both'&&f.phase!==phase){extras[f.key]=null;return;} // not applicable this payout
+      if(Object.prototype.hasOwnProperty.call(mine,f.key)){extras[f.key]=mine[f.key];return;}
+      if(f.key==='fee_advance'){extras[f.key]=advanceByStaff[staff.id]||0;return;}
+      extras[f.key]=f.default?f.default(staff,cutoffIso):0;
+    });
+    const addonSubtotal=LEDGER_EXTRA_FIELDS.filter(f=>f.group==='addon').reduce((a,f)=>a+(extras[f.key]||0),0);
+    const deductionSubtotal=LEDGER_EXTRA_FIELDS.filter(f=>f.group==='deduction').reduce((a,f)=>a+(extras[f.key]||0),0);
+    const total=regularPay+nightPremium+otPay+pchPtoPay+addonSubtotal-deductionSubtotal;
+    return {staffId:staff.id,name:staff.full_name,client:client?client.name:'—',monthly:Number(staff.monthly_rate||0),rate,
+      regularHrs:regularMin/60,nightHrs:nightMin/60,otHrs:otMin/60,regularPay,nightPremium,otPay,pchPtoDays,pchPtoPay,
+      cutoffIso,phase,extras,addonSubtotal,deductionSubtotal,total};
   });
   renderLedgerTable(start,end);
 }
+/* value===null means this field doesn't apply to the current payout cutoff (e.g. Completion
+   Bonus on an end-of-month payout) — shown as a plain dash, no input, nothing saved there. */
+function extraCellHtml(r,fieldKey){
+  const v=r.extras[fieldKey];
+  if(v===null)return '<td class="num muted">—</td>';
+  return `<td class="num"><input type="number" class="ledger-extra" min="0" step="0.01" data-staff="${r.staffId}" data-cutoff="${r.cutoffIso}" data-field="${fieldKey}" value="${v.toFixed(2)}" style="width:88px"></td>`;
+}
 function renderLedgerTable(start,end){
   const grand=ledgerRows.reduce((a,r)=>a+r.total,0);$('lgTotal').textContent='₱'+grand.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});$('lgRangeLabel').textContent=start&&end?`${fmtNice(start)} – ${fmtNice(end)}`:'—';
-  $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr><td><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.rate.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td><td class="mono" style="color:var(--gold);font-weight:600">${r.total.toFixed(2)}</td></tr>`).join(''):`<tr><td colspan="13" class="muted">No staff match this filter. Press Run.</td></tr>`;
+  $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr><td><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.rate.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
+    +extraCellHtml(r,'completion_bonus')+extraCellHtml(r,'relationship_bonus')+extraCellHtml(r,'meal_allowance')+extraCellHtml(r,'statutory_allowance')+extraCellHtml(r,'workspace_allowance')+extraCellHtml(r,'scope_differential')+extraCellHtml(r,'adhoc_project_fee')+extraCellHtml(r,'incentive_award')+extraCellHtml(r,'reimbursable_expenses')+extraCellHtml(r,'other_fee_items')
+    +`<td class="mono" style="color:var(--teal)">${r.addonSubtotal.toFixed(2)}</td>`
+    +extraCellHtml(r,'fee_advance')+extraCellHtml(r,'adjustments')
+    +`<td class="mono" style="color:var(--rose)">${r.deductionSubtotal.toFixed(2)}</td>`
+    +`<td class="mono" style="color:var(--gold);font-weight:600">${r.total.toFixed(2)}</td></tr>`).join(''):`<tr><td colspan="27" class="muted">No staff match this filter. Press Run.</td></tr>`;
+  $('ledgerTable').querySelectorAll('input.ledger-extra').forEach(inp=>{
+    const baseline=inp.value;
+    inp.onchange=async()=>{
+      const v=inp.value.trim();
+      const n=v===''?0:Number(v);
+      if(isNaN(n)||n<0){alert('Enter an amount, 0 or more.');inp.value=baseline;return;}
+      inp.disabled=true;
+      const ok=await saveLedgerExtra(inp.dataset.staff,inp.dataset.cutoff,inp.dataset.field,n,inp);
+      inp.disabled=false;
+      if(!ok){inp.value=baseline;return;}
+      await runLedger(); // recompute Sub Total / Adjustments Subtotal / Net Amount Payable from the saved value
+    };
+  });
   renderLedgerGrid(start,end);
 }
 function renderLedgerGrid(start,end){
@@ -934,7 +1038,16 @@ function showLedgerShiftInspector(staffId,date){
   box.classList.remove('hide');box.innerHTML=`<b>${escapeHtml(r0.name)} — ${escapeHtml(r0.client)} · ${date}</b><br>`+rows.map(r=>`Login <b class="mono">${r.login}</b> · Logout <b class="mono" style="color:${r.logout==='Open'?'var(--rose)':'var(--ink)'}">${r.logout}</b>${r.missingLunch?` · <b style="color:var(--gold)">⚠ No 60min Break logged — ${r.virtualMin} min deducted as unpaid lunch</b>`:''}`).join('<br>')+`<br><span class="muted">Regular:</span> <b>${reg.toFixed(2)}h</b> · <span class="muted">Night Diff:</span> <b style="color:#9B7EDE">${nd.toFixed(2)}h</b> · <span class="muted">ND premium:</span> <b>₱${premium.toFixed(2)}</b> · <span class="muted">OT:</span> <b style="color:#5B8DEF">${ot.toFixed(2)}h</b>`;
   box.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
-function ledgerCsv(){const h=['Staff','Client','Monthly Rate (PHP)','PHP Hourly Rate','Regular Hrs','Night Diff Hrs','OT Hrs','Regular Pay','Night Diff Premium','OT Pay','PCH/PTO Days','PCH/PTO Pay','Total Pay'];return[h].concat(ledgerRows.map(r=>[r.name,r.client,r.monthly.toFixed(2),r.rate.toFixed(2),r.regularHrs.toFixed(2),r.nightHrs.toFixed(2),r.otHrs.toFixed(2),r.regularPay.toFixed(2),r.nightPremium.toFixed(2),r.otPay.toFixed(2),String(r.pchPtoDays),r.pchPtoPay.toFixed(2),r.total.toFixed(2)])).map(r=>r.map(csvEscape).join(',')).join('\n');}
+function ledgerCsv(){
+  const h=['Staff','Client','Contract Fee (PHP)','Contracted Fee Basis','Contracted Hours','Extended-Hours Fee Differential (Hrs)','Extended-Hours (Hrs)','Total Contract Fee','Extended-Hours Fee Differential (Pay)','Extended-Hours (Pay)','PCH/PTO Days','PCH/PTO Pay',
+    'Completion Bonus','Relationship-Milestone Bonus','Meal/Rice Allowance','Statutory Contribution Support Allowance','Workspace/Facilities Allowance','Scope Differential Fee','Ad Hoc Project Fee','Incentive/Contest Award','Reimbursable Expenses','Other Contracted Fee Items','Sub Total',
+    'Fee Advance','Adjustments','Adjustments Subtotal','Net Amount Payable'];
+  const extraVal=(r,k)=>r.extras[k]===null?'':r.extras[k].toFixed(2);
+  return[h].concat(ledgerRows.map(r=>[r.name,r.client,r.monthly.toFixed(2),r.rate.toFixed(2),r.regularHrs.toFixed(2),r.nightHrs.toFixed(2),r.otHrs.toFixed(2),r.regularPay.toFixed(2),r.nightPremium.toFixed(2),r.otPay.toFixed(2),String(r.pchPtoDays),r.pchPtoPay.toFixed(2),
+    extraVal(r,'completion_bonus'),extraVal(r,'relationship_bonus'),extraVal(r,'meal_allowance'),extraVal(r,'statutory_allowance'),extraVal(r,'workspace_allowance'),extraVal(r,'scope_differential'),extraVal(r,'adhoc_project_fee'),extraVal(r,'incentive_award'),extraVal(r,'reimbursable_expenses'),extraVal(r,'other_fee_items'),r.addonSubtotal.toFixed(2),
+    extraVal(r,'fee_advance'),extraVal(r,'adjustments'),r.deductionSubtotal.toFixed(2),r.total.toFixed(2)]))
+    .map(r=>r.map(csvEscape).join(',')).join('\n');
+}
 function ledgerDetailCsv(){const h=['Shift Date (PHT)','Staff','Client','Login (PHT)','Logout (PHT)','Regular Hrs','Night Diff Hrs','Night Diff Premium','OT Hrs','Lunch log'];return[h].concat(ledgerDetailRows.map(r=>[r.date,r.name,r.client,r.login,r.logout,(r.regularMin/60).toFixed(2),(r.nightMin/60).toFixed(2),r.nightPremium.toFixed(2),(r.otMin/60).toFixed(2),r.missingLunch?`MISSING - flat ${r.virtualMin} min deducted`:''])).map(r=>r.map(csvEscape).join(',')).join('\n');}
 function downloadLedgerFile(text,name){if(!ledgerRows.length)return alert('Press Run first.');const [start,end]=$('lgPeriod').value.split('|'),blob=new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${name}-${start}_${end}.csv`;a.click();URL.revokeObjectURL(a.href);}
 function downloadLedgerCsv(){downloadLedgerFile(ledgerCsv(),'contractor-ledger');}
