@@ -115,7 +115,7 @@ button.btn{padding:7px 12px;font-size:12px}
 .sheet-grid input.dayval{width:54px;text-align:center;padding:4px 2px;font-size:11px;background:var(--card2);border:1px solid var(--line);border-radius:6px;color:var(--ink);font-family:'IBM Plex Mono',monospace}
 .sheet-grid input.dayval.is-adj{border-color:var(--gold);box-shadow:0 0 0 1px rgba(227,166,62,.45) inset;color:var(--gold)}
 .sheet-grid td.totalcell{font-family:'IBM Plex Mono',monospace;text-align:center;font-weight:600}
-.ledger-grid .ledger-day{min-width:58px;border:1px solid var(--line);border-radius:6px;padding:4px 5px;background:var(--card2);color:var(--ink);font:11px 'IBM Plex Mono',monospace;cursor:pointer}.ledger-grid .ledger-day:hover{border-color:var(--teal);color:var(--teal)}.ledger-grid .ledger-day small{display:block;font-size:9px;color:#9B7EDE;margin-top:2px}
+.ledger-grid .ledger-day{min-width:58px;border:1px solid var(--line);border-radius:6px;padding:4px 5px;background:var(--card2);color:var(--ink);font:11px 'IBM Plex Mono',monospace;cursor:pointer}.ledger-grid .ledger-day:hover{border-color:var(--teal);color:var(--teal)}.ledger-grid .ledger-day small{display:block;font-size:9px;color:#9B7EDE;margin-top:2px}.ledger-grid .ledger-day.no-lunch{border-color:var(--gold);color:var(--gold)}
 </style>
 </head>
 <body>
@@ -369,9 +369,10 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
             <div><label>Shift end (PHT)</label><input id="cEnd" type="time" value="06:00"></div>
             <div><label>Workdays</label><input id="cDays" value="Mon-Fri"></div>
           </div>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px"><input type="checkbox" id="cUnpaid" style="width:auto"> Unpaid 60min break (night shifts without a logged 60min Break get a flat 60-min Night Diff deduction and are flagged)</label>
           <div class="row" style="margin-top:12px"><button class="btn btn-teal" id="saveClient">Save client</button><button class="btn btn-ghost" id="cancelClient">Cancel</button></div>
         </div>
-        <table><thead><tr><th>Client</th><th>Timezone</th><th>Shift (PHT)</th><th>Workdays</th><th>Staff</th><th></th></tr></thead><tbody id="clientTable"></tbody></table>
+        <table><thead><tr><th>Client</th><th>Timezone</th><th>Shift (PHT)</th><th>Workdays</th><th title="Staff of this client have an unpaid 60min lunch. Night shifts with no 60min Break logged get a flat 60-min deduction in the Contractor Ledger and are flagged.">Unpaid 60m break</th><th>Staff</th><th></th></tr></thead><tbody id="clientTable"></tbody></table>
       </div>
     </section>
 
@@ -452,7 +453,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
         <select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Night Diff is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Premium is 10% on top of Regular/OT Pay.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div style="overflow-x:auto"><table><thead><tr><th>Staff</th><th>Client</th><th>Monthly Rate (₱)</th><th>PHP Hourly Rate</th><th>Regular Hrs</th><th>Night Diff Hrs</th><th>OT Hrs</th><th>Regular Pay</th><th>Night Diff Premium</th><th>OT Pay</th><th>Total Pay</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div><div class="note" style="margin-top:12px">Hours are pulled live from the tracker. No EWT/tax withholding, allowances, bonuses, or advance recoupment is auto-computed here.</div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Night Diff is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. Premium is 10% on top of Regular/OT Pay.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div style="overflow-x:auto"><table><thead><tr><th>Staff</th><th>Client</th><th>Monthly Rate (₱)</th><th>PHP Hourly Rate</th><th>Regular Hrs</th><th>Night Diff Hrs</th><th>OT Hrs</th><th>Regular Pay</th><th>Night Diff Premium</th><th>OT Pay</th><th>Total Pay</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div><div class="note" style="margin-top:12px">Hours are pulled live from the tracker. No EWT/tax withholding, allowances, bonuses, or advance recoupment is auto-computed here.</div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
   <!-- STAFF VIEW -->
   <div id="portalStaffView" class="grid" style="gap:16px">
     <div class="card">
@@ -530,7 +531,7 @@ const PH = 'Asia/Manila';
 const CONFIGURED = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SERVER_URL.startsWith('http');
 const sb = CONFIGURED ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 const $ = id => document.getElementById(id);
-let me=null, clients=[], staffList=[], allowance={}, curShift=null, curEntry=null, tickBase=0, sheetRows=[], sheetDetail=[];
+let me=null, clients=[], staffList=[], allowance={}, unpaidBreakClients=new Set(), curShift=null, curEntry=null, tickBase=0, sheetRows=[], sheetDetail=[];
 
 /* ---------- secure Slack notifications (webhook URLs stay on Render) ---------- */
 const slackWarned=new Set();
@@ -796,8 +797,13 @@ function rawActivityIntervals(entries,activity){
     const s=new Date(e.started_at).getTime(),t=(e.ended_at?new Date(e.ended_at):new Date()).getTime();return[s,Math.max(s,t)];
   }));
 }
-function payableIntervalsForShift(entries,window){
-  const break60=rawActivityIntervals(entries,'60min Break');
+function takeLastMinutes(intervals,minutes){
+  const out=[];let left=Math.max(0,minutes);
+  mergeIntervals(intervals).slice().reverse().forEach(([s,e])=>{const f=Math.max(s,e-left*60000);if(e>f)out.unshift([f,e]);left-=Math.max(0,(e-f)/60000);});
+  return out;
+}
+function payableIntervalsForShift(entries,window,extraBlackouts){
+  const break60=mergeIntervals(rawActivityIntervals(entries,'60min Break').concat(extraBlackouts||[]));
   const activityNames=[...new Set(entries.map(e=>e.activity))];
   let regular=[],overtime=[];
   activityNames.forEach(act=>{
@@ -816,14 +822,28 @@ function payableIntervalsForShift(entries,window){
   overtime=mergeIntervals(overtime);
   return {regular,overtime};
 }
+/* Hybrid unpaid-lunch rule (clients ticked "Unpaid 60m break" in Staff & Clients):
+   - a logged 60min Break is always removed from payable time (and therefore from Night Diff);
+   - if a NIGHT shift (any payable minute inside 10PM–6AM) has NO 60min Break logged at all,
+     we insert a virtual 60-min break over the last hour of night-time payable work, so the
+     shift is paid exactly as if lunch had been taken inside the window (flat 60-min ND
+     deduction), and the shift is flagged so admins can call out the missing lunch log. */
 function ledgerShiftRow(staff,client,shift,entries,nightWins){
   const date=phDate(new Date(shift.login_at)),window=shiftWindowFor(client,date);
-  const payable=payableIntervalsForShift(entries,window);
+  let payable=payableIntervalsForShift(entries,window),missingLunch=false,virtualMin=0;
+  const hasLunch=entries.some(e=>e.activity==='60min Break');
+  if(client&&unpaidBreakClients.has(client.id)&&!hasLunch){
+    const nightPayable=intersectIntervals(mergeIntervals(payable.regular.concat(payable.overtime)),nightWins);
+    if(minutesInIntervals(nightPayable)>0){
+      const virtual=takeLastMinutes(nightPayable,60);virtualMin=minutesInIntervals(virtual);
+      payable=payableIntervalsForShift(entries,window,virtual);missingLunch=true;
+    }
+  }
   const regularMin=minutesInIntervals(payable.regular),otMin=minutesInIntervals(payable.overtime);
   const nightMin=minutesInIntervals(intersectIntervals(mergeIntervals(payable.regular.concat(payable.overtime)),nightWins));
   const rate=Number(phpHourlyRate(staff.monthly_rate));
   return {staffId:staff.id,date,name:staff.full_name,client:client?client.name:'—',login:phTime(new Date(shift.login_at)),logout:shift.logout_at?phTime(new Date(shift.logout_at)):'Open',regularMin,otMin,nightMin,rate,
-    nightPremium:nightMin/60*rate*.10};
+    nightPremium:nightMin/60*rate*.10,missingLunch,virtualMin};
 }
 let ledgerRows=[],ledgerDetailRows=[];
 function initLedgerFilters(){
@@ -886,20 +906,31 @@ function renderLedgerGrid(start,end){
     if(lastClient!==null&&client!==lastClient)html+='<tr class="g-sep"><td colspan="'+(6+days.length)+'"></td></tr>';
     lastClient=client;const rows=ledgerDetailRows.filter(r=>r.staffId===staff.id),reg=rows.reduce((a,r)=>a+r.regularMin,0)/60,nd=rows.reduce((a,r)=>a+r.nightMin,0)/60,premium=rows.reduce((a,r)=>a+r.nightPremium,0),ot=rows.reduce((a,r)=>a+r.otMin,0)/60;
     const cells=days.map(date=>{const rs=rows.filter(r=>r.date===date);if(!rs.length)return '<td class="num muted">—</td>';const hrs=rs.reduce((a,r)=>a+r.regularMin+r.otMin,0)/60,ndH=rs.reduce((a,r)=>a+r.nightMin,0)/60;
-      return `<td class="num"><button class="ledger-day" data-staff="${staff.id}" data-date="${date}" title="View login/logout and earnings">${hrs.toFixed(2)}${ndH?`<small>ND ${ndH.toFixed(2)}</small>`:''}</button></td>`;}).join('');
+      const miss=rs.some(r=>r.missingLunch);
+      return `<td class="num"><button class="ledger-day${miss?' no-lunch':''}" data-staff="${staff.id}" data-date="${date}" title="${miss?'No 60min Break logged — flat 60-min deduction applied. ':''}View login/logout and earnings">${miss?'⚠ ':''}${hrs.toFixed(2)}${ndH?`<small>ND ${ndH.toFixed(2)}</small>`:''}</button></td>`;}).join('');
     html+=`<tr><td><b>${escapeHtml(staff.full_name)}</b></td><td class="muted">${escapeHtml(client)}</td><td class="totalcell">${reg.toFixed(2)}</td><td class="totalcell" style="color:#9B7EDE">${nd.toFixed(2)}</td><td class="totalcell">₱${premium.toFixed(2)}</td><td class="totalcell" style="color:#5B8DEF">${ot.toFixed(2)}</td>${cells}</tr>`;
   });
   body.innerHTML=html||`<tr><td colspan="${6+days.length}" class="muted">No shifts for this filter.</td></tr>`;
   body.querySelectorAll('.ledger-day').forEach(b=>b.onclick=()=>showLedgerShiftInspector(b.dataset.staff,b.dataset.date));
+  renderLedgerLunchWarnings();
+}
+function renderLedgerLunchWarnings(){
+  let box=$('ledgerLunchWarn');
+  if(!box){box=document.createElement('div');box.id='ledgerLunchWarn';box.className='note';box.style.marginTop='12px';$('ledgerShiftInspector').insertAdjacentElement('afterend',box);}
+  const bad=ledgerDetailRows.filter(r=>r.missingLunch);
+  if(!bad.length){box.style.display='none';box.innerHTML='';return;}
+  box.style.display='';
+  box.innerHTML=`<b>⚠ ${bad.length} night shift${bad.length>1?'s':''} with no 60min Break logged</b> (unpaid-lunch clients — flat 60-min deduction applied, paid as if lunch was taken):<br>`
+    +bad.map(r=>`• ${r.date} — ${escapeHtml(r.name)} (${escapeHtml(r.client)}) · Login ${r.login} · Logout ${r.logout}`).join('<br>');
 }
 function showLedgerShiftInspector(staffId,date){
   const box=$('ledgerShiftInspector'),rows=ledgerDetailRows.filter(r=>r.staffId===staffId&&r.date===date);if(!rows.length)return;
   const r0=rows[0],reg=rows.reduce((a,r)=>a+r.regularMin,0)/60,nd=rows.reduce((a,r)=>a+r.nightMin,0)/60,premium=rows.reduce((a,r)=>a+r.nightPremium,0),ot=rows.reduce((a,r)=>a+r.otMin,0)/60;
-  box.classList.remove('hide');box.innerHTML=`<b>${escapeHtml(r0.name)} — ${escapeHtml(r0.client)} · ${date}</b><br>`+rows.map(r=>`Login <b class="mono">${r.login}</b> · Logout <b class="mono" style="color:${r.logout==='Open'?'var(--rose)':'var(--ink)'}">${r.logout}</b>`).join('<br>')+`<br><span class="muted">Regular:</span> <b>${reg.toFixed(2)}h</b> · <span class="muted">Night Diff:</span> <b style="color:#9B7EDE">${nd.toFixed(2)}h</b> · <span class="muted">ND premium:</span> <b>₱${premium.toFixed(2)}</b> · <span class="muted">OT:</span> <b style="color:#5B8DEF">${ot.toFixed(2)}h</b>`;
+  box.classList.remove('hide');box.innerHTML=`<b>${escapeHtml(r0.name)} — ${escapeHtml(r0.client)} · ${date}</b><br>`+rows.map(r=>`Login <b class="mono">${r.login}</b> · Logout <b class="mono" style="color:${r.logout==='Open'?'var(--rose)':'var(--ink)'}">${r.logout}</b>${r.missingLunch?` · <b style="color:var(--gold)">⚠ No 60min Break logged — ${r.virtualMin} min deducted as unpaid lunch</b>`:''}`).join('<br>')+`<br><span class="muted">Regular:</span> <b>${reg.toFixed(2)}h</b> · <span class="muted">Night Diff:</span> <b style="color:#9B7EDE">${nd.toFixed(2)}h</b> · <span class="muted">ND premium:</span> <b>₱${premium.toFixed(2)}</b> · <span class="muted">OT:</span> <b style="color:#5B8DEF">${ot.toFixed(2)}h</b>`;
   box.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function ledgerCsv(){const h=['Staff','Client','Monthly Rate (PHP)','PHP Hourly Rate','Regular Hrs','Night Diff Hrs','OT Hrs','Regular Pay','Night Diff Premium','OT Pay','Total Pay'];return[h].concat(ledgerRows.map(r=>[r.name,r.client,r.monthly.toFixed(2),r.rate.toFixed(2),r.regularHrs.toFixed(2),r.nightHrs.toFixed(2),r.otHrs.toFixed(2),r.regularPay.toFixed(2),r.nightPremium.toFixed(2),r.otPay.toFixed(2),r.total.toFixed(2)])).map(r=>r.map(csvEscape).join(',')).join('\n');}
-function ledgerDetailCsv(){const h=['Shift Date (PHT)','Staff','Client','Login (PHT)','Logout (PHT)','Regular Hrs','Night Diff Hrs','Night Diff Premium','OT Hrs'];return[h].concat(ledgerDetailRows.map(r=>[r.date,r.name,r.client,r.login,r.logout,(r.regularMin/60).toFixed(2),(r.nightMin/60).toFixed(2),r.nightPremium.toFixed(2),(r.otMin/60).toFixed(2)])).map(r=>r.map(csvEscape).join(',')).join('\n');}
+function ledgerDetailCsv(){const h=['Shift Date (PHT)','Staff','Client','Login (PHT)','Logout (PHT)','Regular Hrs','Night Diff Hrs','Night Diff Premium','OT Hrs','Lunch log'];return[h].concat(ledgerDetailRows.map(r=>[r.date,r.name,r.client,r.login,r.logout,(r.regularMin/60).toFixed(2),(r.nightMin/60).toFixed(2),r.nightPremium.toFixed(2),(r.otMin/60).toFixed(2),r.missingLunch?`MISSING - flat ${r.virtualMin} min deducted`:''])).map(r=>r.map(csvEscape).join(',')).join('\n');}
 function downloadLedgerFile(text,name){if(!ledgerRows.length)return alert('Press Run first.');const [start,end]=$('lgPeriod').value.split('|'),blob=new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${name}-${start}_${end}.csv`;a.click();URL.revokeObjectURL(a.href);}
 function downloadLedgerCsv(){downloadLedgerFile(ledgerCsv(),'contractor-ledger');}
 function downloadLedgerDetailCsv(){downloadLedgerFile(ledgerDetailCsv(),'contractor-ledger-shift-detail');}
@@ -986,6 +1017,8 @@ async function start(){
   const {data:cl}=await sb.from('clients').select('*').order('name'); clients=cl||[];
   const {data:st}=await sb.from('settings').select('*').eq('key','break_allowance_minutes').maybeSingle();
   allowance=st?.value||{};
+  const {data:ub}=await sb.from('settings').select('*').eq('key','unpaid_break_clients').maybeSingle();
+  unpaidBreakClients=new Set((ub?.value?.ids)||[]);
   if(me.role==='admin'){const {data:sl}=await sb.from('staff').select('*').order('full_name'); staffList=sl||[];}
 
   buildNav();
@@ -1556,6 +1589,7 @@ function renderStaffAdmin(){
     <td><input data-ctz="${c.id}" value="${escapeHtml(c.timezone)}" style="width:150px"></td>
     <td class="row" style="gap:4px"><input type="time" data-cstart="${c.id}" value="${c.shift_start.slice(0,5)}" style="width:auto"><span class="muted">–</span><input type="time" data-cend="${c.id}" value="${c.shift_end.slice(0,5)}" style="width:auto"></td>
     <td><input data-cdays="${c.id}" value="${escapeHtml(c.workdays)}" style="width:100px"></td>
+    <td style="text-align:center"><input type="checkbox" data-cunpaid="${c.id}" ${unpaidBreakClients.has(c.id)?'checked':''} style="width:auto"></td>
     <td class="mono">${staffList.filter(s=>s.client_id===c.id&&s.active).length}</td>
     <td style="text-align:right"><button class="btn btn-ghost" data-delc="${c.id}">Remove</button></td></tr>`).join('');
   $('clientTable').querySelectorAll('[data-delc]').forEach(b=>b.onclick=async()=>{
@@ -1593,10 +1627,12 @@ $('toggleClient').onclick=()=>$('clientForm').classList.toggle('hide');
 $('cancelClient').onclick=()=>$('clientForm').classList.add('hide');
 $('saveClient').onclick=async()=>{
   const name=$('cName').value.trim(); if(!name)return alert('Client name required.');
-  const {error}=await sb.from('clients').insert({name,timezone:$('cTz').value.trim(),shift_start:$('cStart').value,shift_end:$('cEnd').value,workdays:$('cDays').value.trim()});
+  const {data:created,error}=await sb.from('clients').insert({name,timezone:$('cTz').value.trim(),shift_start:$('cStart').value,shift_end:$('cEnd').value,workdays:$('cDays').value.trim()}).select().single();
   if(error)return alert(error.message);
-  $('cName').value='';$('clientForm').classList.add('hide');await reloadClients();
+  if($('cUnpaid').checked&&created?.id){unpaidBreakClients.add(created.id);const {error:e2}=await saveUnpaidBreakClients();if(e2)alert('Client saved, but the unpaid-break flag did not save: '+e2.message);}
+  $('cUnpaid').checked=false;$('cName').value='';$('clientForm').classList.add('hide');await reloadClients();
 };
+async function saveUnpaidBreakClients(){return sb.from('settings').upsert({key:'unpaid_break_clients',value:{ids:[...unpaidBreakClients]}});}
 $('saveClientTable').onclick=async()=>{
   $('saveClientTable').disabled=true;$('clientSaveMsg').textContent='Saving…';
   const rows=clients.map(c=>{
@@ -1610,6 +1646,7 @@ $('saveClientTable').onclick=async()=>{
       shift_start:document.querySelector(`[data-cstart="${c.id}"]`).value,
       shift_end:document.querySelector(`[data-cend="${c.id}"]`).value,
       workdays:document.querySelector(`[data-cdays="${c.id}"]`).value.trim(),
+      unpaid:!!(document.querySelector(`[data-cunpaid="${c.id}"]`)||{}).checked,
     };
   }).filter(Boolean);
   if(rows.some(r=>r.__invalid)){$('saveClientTable').disabled=false;$('clientSaveMsg').textContent='';return alert('Client name can\'t be blank.');}
@@ -1618,6 +1655,8 @@ $('saveClientTable').onclick=async()=>{
       const {error}=await sb.from('clients').update({name:r.name,timezone:r.timezone,shift_start:r.shift_start,shift_end:r.shift_end,workdays:r.workdays}).eq('id',r.id);
       if(error)throw new Error(error.message);
     }
+    unpaidBreakClients=new Set(rows.filter(r=>r.unpaid).map(r=>r.id));
+    const {error:ue}=await saveUnpaidBreakClients();if(ue)throw new Error('Client details saved, but the unpaid-break flags did not: '+ue.message);
     $('clientSaveMsg').textContent='Saved.';
     await reloadClients();
   }catch(e){$('clientSaveMsg').textContent='';alert(e.message);}
