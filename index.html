@@ -57,6 +57,22 @@ select,input,textarea{background:var(--card2);border:1px solid var(--line);color
 .act{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px 13px;cursor:pointer}
 .act:hover{border-color:rgba(255,255,255,.18)}
 .act.on{border-color:var(--gold);background:rgba(227,166,62,.10)}
+/* SMB Benefits tab: compact rows + a checklist dropdown for the staff picker (native
+   multi-select <select multiple> reads as unfamiliar/hidden to non-technical admins). */
+#v-benefits td,#v-benefits th{padding:7px 10px;font-size:12.5px}
+#v-benefits input[type=number]{padding:6px 8px;font-size:12.5px}
+.ben-staff-dd{position:relative;min-width:170px}
+.ben-staff-dd summary{list-style:none;cursor:pointer;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:7px 9px;font-size:12.5px;display:flex;align-items:center;justify-content:space-between;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ben-staff-dd summary::-webkit-details-marker{display:none}
+.ben-staff-dd summary:after{content:'▾';color:var(--muted);flex:0 0 auto}
+.ben-staff-dd[open] summary{border-color:rgba(255,255,255,.18)}
+.ben-staff-panel{position:absolute;z-index:20;top:calc(100% + 4px);left:0;min-width:210px;max-height:220px;overflow-y:auto;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:8px;box-shadow:0 12px 28px rgba(0,0,0,.35)}
+.ben-staff-opt{display:flex;align-items:center;gap:8px;padding:5px 4px;font-size:12.5px;cursor:pointer;border-radius:6px}
+.ben-staff-opt:hover{background:rgba(255,255,255,.05)}
+.ben-staff-opt input{width:auto}
+.ben-staff-sep{height:1px;background:var(--line);margin:4px 0}
+.ben-staff-pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.ben-staff-pills .pill{font-size:10.5px;padding:2px 8px}
 .act .n{font-weight:600;font-size:13.5px}.act .b{font-size:11px;margin-top:5px}
 .bar{height:8px;background:var(--card2);border-radius:99px;overflow:hidden}.bar>i{display:block;height:100%;background:var(--teal)}
 .hide{display:none!important}
@@ -340,7 +356,7 @@ button.btn{padding:7px 12px;font-size:12px}
             <div class="mono" id="addPwVal" style="font-size:18px;margin-top:6px;color:var(--teal)"></div>
           </div>
         </div>
-        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Tenure</th><th>Client</th><th>Monthly rate</th><th title="Calculated as (Monthly rate / 22) / 8">PHP Rate</th><th title="Hourly rate in US dollars">USD Rate</th><th>PTO balance</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
+        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Tenure</th><th>Client</th><th>Monthly rate</th><th title="Calculated as (Monthly rate / 22) / 8">PHP Rate</th><th title="Hourly rate in US dollars">USD Rate</th><th>PTO balance</th><th title="Unticking removes them from Timesheets, the Contractor Ledger, and SMB Benefits staff pickers without deleting their account or history.">Active</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Bulk add staff</h3><button class="btn btn-ghost" id="toggleBulk">Open</button></div>
@@ -382,20 +398,16 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 
     <!-- ---------- ADMIN: SMB BENEFITS ---------- -->
     <section id="v-benefits" class="hide grid" style="gap:16px">
-      <div class="card">
-        <div class="hdr"><h3 style="font-size:15px">Standing allowance &amp; bonus rules</h3>
+      <div class="card" style="padding:14px">
+        <div class="hdr" style="margin-bottom:6px"><h3 style="font-size:14px">Standing allowance &amp; bonus rules</h3>
           <div class="row" style="gap:8px"><button class="btn btn-teal" id="saveBenefits">Save changes</button></div>
         </div>
-        <div class="muted" id="benefitsSaveMsg" style="font-size:12px;margin-bottom:8px;min-height:14px"></div>
-        <div class="muted" style="font-size:11.5px;margin-bottom:10px">
-          Nominate an amount once per row, tick which payout(s) it fires on, and pick who's eligible. Saving here takes effect on the
-          <b>current pay period's Ledger and every future one</b> until you change or deselect it here — no need to re-enter it every cutoff.
-          You can still hand-edit any individual staff's amount directly inside the Contractor Ledger for a one-off change; a manual Ledger edit
-          always wins over what's set here for that one payout. Meal/Rice and Statutory Contribution Support Allowance still require the staff
-          member to have completed 1 month of tenure as of the payout date &mdash; that rule overrides this table regardless of what's ticked below.
-          Incentive/Contest Award and Reimbursable Expenses have 3 rows each so you can award different amounts to different staff in the same period.
+        <div class="muted" id="benefitsSaveMsg" style="font-size:11.5px;margin-bottom:6px;min-height:14px"></div>
+        <div class="muted" style="font-size:11px;margin-bottom:8px;line-height:1.4">
+          Amount + payout tick(s) + eligible staff = the rule. Applies to the <b>current pay period and every future one</b> until changed here.
+          A manual edit inside the Ledger always wins for that one payout. Meal/Rice &amp; Statutory Allowance still require 1 month tenure regardless of what's ticked.
         </div>
-        <div style="overflow-x:auto"><table><thead><tr><th style="width:22%">Allowance / Bonus</th><th style="width:12%">Amount (₱)</th><th style="width:14%">Payout window</th><th style="width:36%">Eligible staff</th><th style="width:10%">Status</th></tr></thead><tbody id="benefitsTable"></tbody></table></div>
+        <div style="overflow-x:auto"><table><thead><tr><th style="width:22%">Allowance / Bonus</th><th style="width:11%">Amount (₱)</th><th style="width:13%">Payout window</th><th style="width:34%">Eligible staff</th><th style="width:9%">Status</th></tr></thead><tbody id="benefitsTable"></tbody></table></div>
       </div>
     </section>
 
@@ -917,7 +929,7 @@ const BENEFIT_RULE_FIELDS=[
   {key:'meal_allowance',label:'Meal/Rice Allowance'},
   {key:'statutory_allowance',label:'Statutory Contribution Support Allowance'},
   {key:'workspace_allowance',label:'Workspace/Facilities Allowance'},
-  {key:'scope_differential',label:'Scope Differential Fee'},
+  {key:'scope_differential',label:'Scope Differential Fee',multi:3},
   {key:'adhoc_project_fee',label:'Ad Hoc Project Fee'},
   {key:'incentive_award',label:'Incentive/Contest Award',multi:3},
   {key:'reimbursable_expenses',label:'Reimbursable Expenses',multi:3},
@@ -940,26 +952,62 @@ function benefitRuleAmount(fieldKey,staff,phase,cutoffIso,rulesByField){
   return matching.reduce((a,r)=>a+Number(r.amount||0),0);
 }
 function findBenefitRule(fieldKey,slot){return benefitRules.find(r=>r.field_key===fieldKey&&r.slot===slot);}
+function benStaffPanelHtml(activeStaff,scope,staffIds){
+  return `<label class="ben-staff-opt"><input type="checkbox" class="ben-all-cb" ${scope==='all'?'checked':''}> All staff</label>
+    <div class="ben-staff-sep"></div>
+    ${activeStaff.map(s=>`<label class="ben-staff-opt"><input type="checkbox" class="ben-one-cb" value="${s.id}" data-name="${escapeHtml(s.full_name)}" ${scope==='custom'&&staffIds.includes(s.id)?'checked':''}> ${escapeHtml(s.full_name)}</label>`).join('')}`;
+}
+/* Reflects the current checkbox state into the summary label + pill row under a
+   staff-picker dropdown. "All staff" disables and clears the individual checkboxes. */
+function refreshBenStaffUI(dd){
+  const allCb=dd.querySelector('.ben-all-cb'),oneCbs=[...dd.querySelectorAll('.ben-one-cb')];
+  const summary=dd.querySelector('summary'),pillsEl=dd.parentElement.querySelector('.ben-staff-pills');
+  const checked=oneCbs.filter(cb=>cb.checked);
+  if(allCb.checked){
+    oneCbs.forEach(cb=>{cb.checked=false;cb.disabled=true;});
+    summary.textContent='All staff';pillsEl.innerHTML='';
+  }else{
+    oneCbs.forEach(cb=>cb.disabled=false);
+    if(!checked.length){summary.textContent='Select staff';pillsEl.innerHTML='';}
+    else if(checked.length===1){summary.textContent=checked[0].dataset.name;pillsEl.innerHTML=`<span class="pill" style="background:rgba(227,166,62,.14);color:var(--gold)">${escapeHtml(checked[0].dataset.name)}</span>`;}
+    else{
+      summary.textContent='Multiple staff selected';
+      const shown=checked.slice(0,2).map(cb=>`<span class="pill" style="background:rgba(227,166,62,.14);color:var(--gold)">${escapeHtml(cb.dataset.name)}</span>`).join('');
+      const more=checked.length>2?`<span class="pill" style="background:transparent;box-shadow:inset 0 0 0 1px var(--line);color:var(--muted)">+${checked.length-2} more</span>`:'';
+      pillsEl.innerHTML=shown+more;
+    }
+  }
+}
+// Close any open staff-picker dropdown when clicking elsewhere on the page.
+document.addEventListener('click',e=>{
+  document.querySelectorAll('.ben-staff-dd[open]').forEach(dd=>{ if(!dd.contains(e.target)) dd.removeAttribute('open'); });
+});
 async function renderBenefits(){
   benefitRules=await fetchBenefitRules();
+  const activeStaff=staffList.filter(s=>s.active);
   const rows=[];
   BENEFIT_RULE_FIELDS.forEach(f=>{ const n=f.multi||1; for(let slot=1;slot<=n;slot++) rows.push({field:f,slot,label:n>1?`${f.label} #${slot}`:f.label}); });
   $('benefitsTable').innerHTML=rows.map(row=>{
     const r=findBenefitRule(row.field.key,row.slot)||{};
     const amount=Number(r.amount||0),pay15=!!r.pay_15th,payEom=!!r.pay_eom;
     const scope=r.staff_scope||'all',staffIds=r.staff_ids||[];
-    const staffOptions=`<option value="__all__" ${scope==='all'?'selected':''}>— All staff —</option>`
-      +staffList.map(s=>`<option value="${s.id}" ${scope==='custom'&&staffIds.includes(s.id)?'selected':''}>${escapeHtml(s.full_name)}</option>`).join('');
     return `<tr data-field="${row.field.key}" data-slot="${row.slot}">
       <td><b>${escapeHtml(row.label)}</b></td>
-      <td><input type="number" class="ben-amt" min="0" step="0.01" value="${amount.toFixed(2)}" style="width:110px"></td>
+      <td><input type="number" class="ben-amt" min="0" step="0.01" value="${amount.toFixed(2)}" style="width:95px"></td>
       <td><label class="row" style="gap:4px;font-size:12px"><input type="checkbox" class="ben-15" ${pay15?'checked':''}> 15th</label>
-        <label class="row" style="gap:4px;font-size:12px;margin-top:4px"><input type="checkbox" class="ben-eom" ${payEom?'checked':''}> End of month</label></td>
-      <td><select class="ben-staff" multiple size="4" style="min-width:190px">${staffOptions}</select>
-        <div class="muted" style="font-size:11px;margin-top:2px">Ctrl/Cmd-click for multiple. "All staff" overrides other picks.</div></td>
+        <label class="row" style="gap:4px;font-size:12px;margin-top:3px"><input type="checkbox" class="ben-eom" ${payEom?'checked':''}> End of month</label></td>
+      <td><details class="ben-staff-dd"><summary></summary><div class="ben-staff-panel">${benStaffPanelHtml(activeStaff,scope,staffIds)}</div></details>
+        <div class="ben-staff-pills"></div></td>
       <td class="ben-status muted">${r.active?'Active':'Inactive'}</td>
     </tr>`;
   }).join('');
+  $('benefitsTable').querySelectorAll('.ben-staff-dd').forEach(dd=>{
+    refreshBenStaffUI(dd);
+    dd.addEventListener('change',e=>{
+      if(e.target.classList.contains('ben-one-cb')&&e.target.checked)dd.querySelector('.ben-all-cb').checked=false;
+      refreshBenStaffUI(dd);
+    });
+  });
 }
 $('saveBenefits').onclick=async()=>{
   $('saveBenefits').disabled=true;$('benefitsSaveMsg').textContent='Saving…';
@@ -968,9 +1016,10 @@ $('saveBenefits').onclick=async()=>{
     const fieldKey=tr.dataset.field,slot=Number(tr.dataset.slot);
     const amount=Number(tr.querySelector('.ben-amt').value||0);
     const pay15=tr.querySelector('.ben-15').checked,payEom=tr.querySelector('.ben-eom').checked;
-    const sel=[...tr.querySelector('.ben-staff').selectedOptions].map(o=>o.value);
-    const scope=sel.includes('__all__')?'all':'custom';
-    const staffIds=scope==='custom'?sel.filter(v=>v!=='__all__'):[];
+    const dd=tr.querySelector('.ben-staff-dd');
+    const allChecked=dd.querySelector('.ben-all-cb').checked;
+    const staffIds=allChecked?[]:[...dd.querySelectorAll('.ben-one-cb')].filter(cb=>cb.checked).map(cb=>cb.value);
+    const scope=allChecked?'all':'custom';
     const active=amount>0&&(pay15||payEom)&&(scope==='all'||staffIds.length>0);
     tr.querySelector('.ben-status').textContent=active?'Active':'Inactive';
     return {field_key:fieldKey,slot,amount,pay_15th:pay15,pay_eom:payEom,staff_scope:scope,staff_ids:staffIds,active,updated_by:me.id,updated_at:new Date().toISOString()};
@@ -1023,14 +1072,14 @@ function initLedgerFilters(){
 }
 function refreshLedgerStaff(){
   const old=$('lgStaff').value,fc=$('lgClient').value;
-  fill('lgStaff','All staff',staffList.filter(s=>!fc||s.client_id===fc).map(s=>[s.id,s.full_name]));
+  fill('lgStaff','All staff',staffList.filter(s=>s.active&&(!fc||s.client_id===fc)).map(s=>[s.id,s.full_name]));
   if([...$('lgStaff').options].some(o=>o.value===old))$('lgStaff').value=old;
 }
 function refreshLedgerPeriods(){const list=periodList('semi');$('lgPeriod').innerHTML=list.map(p=>`<option value="${p.start}|${p.end}">${fmtNice(p.start)} – ${fmtNice(p.end)}</option>`).join('');}
 async function runLedger(){
   const [start,end]=$('lgPeriod').value.split('|');if(!start||!end)return alert('Pick a pay period.');
   const fc=$('lgClient').value,fs=$('lgStaff').value;
-  const people=staffList.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs));
+  const people=staffList.filter(s=>s.active&&(!fc||s.client_id===fc)&&(!fs||s.id===fs));
   const ids=people.map(s=>s.id);
   const [ents,shifts]=await Promise.all([fetchEntriesRange(start,end,ids),fetchShiftsRange(start,end,ids)]);
   const sdm=buildShiftDateMap(shifts),nightWins=nightWindowsForRange(start,end);ledgerDetailRows=[];
@@ -1794,11 +1843,12 @@ function renderStaffAdmin(){
     <td class="mono"><span data-php-rate="${s.id}" title="(Monthly rate / 22) / 8">₱${phpHourlyRate(s.monthly_rate)}</span></td>
     <td><input type="number" min="0" step="0.01" data-usd-rate="${s.id}" value="${s.usd_hourly_rate||0}" style="width:90px" aria-label="USD hourly rate for ${escapeHtml(s.full_name)}"></td>
     <td><input type="number" min="0" step="0.5" data-pto="${s.id}" value="${s.pto_balance||0}" style="width:80px"></td>
+    <td style="text-align:center"><input type="checkbox" data-active="${s.id}" ${s.active?'checked':''} style="width:auto" aria-label="Active — ${escapeHtml(s.full_name)}"></td>
     <td style="text-align:right;gap:6px;justify-content:flex-end" class="row">
       <button class="btn btn-ghost btn-icon" data-temp="${s.id}" title="Set new password" aria-label="Set new password"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-9.6 9.6"></path><path d="M15.5 7.5l3 3L22 7l-3-3"></path><circle cx="7.5" cy="16.5" r="5.5"></circle></svg></button>
       <button class="btn btn-rose btn-icon" data-del="${s.id}" title="Delete staff" aria-label="Delete staff"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
     </td></tr>`;}).join('')
-    :`<tr><td colspan="10" class="muted">No staff match this filter.</td></tr>`;
+    :`<tr><td colspan="11" class="muted">No staff match this filter.</td></tr>`;
   /* Editable fields (hire date, client assignment, USD rate, monthly rate, PTO) no longer
      save on every change — they're staged and only written to Supabase when "Save changes"
      is clicked, below. PHP Rate is derived from the staged Monthly rate and never stored. */
@@ -1840,11 +1890,12 @@ $('saveStaffTable').onclick=async()=>{
       monthly_rate:Number(document.querySelector(`[data-rate="${s.id}"]`).value||0),
       usd_hourly_rate:Number(document.querySelector(`[data-usd-rate="${s.id}"]`).value||0),
       pto_balance:Number(document.querySelector(`[data-pto="${s.id}"]`).value||0),
+      active:document.querySelector(`[data-active="${s.id}"]`).checked,
     };
   }).filter(Boolean);
   try{
     for(const r of rows){
-      const {error}=await sb.from('staff').update({hire_date:r.hire_date,client_id:r.client_id,monthly_rate:r.monthly_rate,usd_hourly_rate:r.usd_hourly_rate,pto_balance:r.pto_balance}).eq('id',r.id);
+      const {error}=await sb.from('staff').update({hire_date:r.hire_date,client_id:r.client_id,monthly_rate:r.monthly_rate,usd_hourly_rate:r.usd_hourly_rate,pto_balance:r.pto_balance,active:r.active}).eq('id',r.id);
       if(error)throw new Error(error.message);
     }
     $('staffSaveMsg').textContent='Saved.';
@@ -1900,7 +1951,7 @@ $('saveClientTable').onclick=async()=>{
    ============================================================ */
 function initSheetFilters(){
   fill('pClient','All clients',clients.map(c=>[c.id,c.name]));
-  fill('pStaff','All staff',staffList.map(s=>[s.id,s.full_name]));
+  fill('pStaff','All staff',staffList.filter(s=>s.active).map(s=>[s.id,s.full_name]));
   $('pType').onchange=refreshPeriods; refreshPeriods();
   $('runSheet').onclick=()=>{runSheet();renderSheetGrid();};
   $('dlSummary').onclick=()=>downloadCsv(summaryCsv(),'timesheet-summary');
@@ -1964,7 +2015,7 @@ async function runSheet(){
   const {start,end}=currentRange();
   if(!start||!end)return alert('Pick a date range.');
   const fc=$('pClient').value,fs=$('pStaff').value;
-  const people=staffList.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs));
+  const people=staffList.filter(s=>s.active&&(!fc||s.client_id===fc)&&(!fs||s.id===fs));
   const [ents,shifts]=await Promise.all([fetchEntriesRange(start,end,people.map(s=>s.id)),fetchShiftsRange(start,end,people.map(s=>s.id))]);
   const sdm=buildShiftDateMap(shifts);
   const ssm=buildShiftSpanMap(shifts);
@@ -2259,7 +2310,7 @@ async function renderSheetGrid(){
   const {start,end}=currentRange();
   if(!start||!end){head.innerHTML='';body.innerHTML='';return;}
   const fc=$('pClient').value,fs=$('pStaff').value;
-  const people=staffList.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs))
+  const people=staffList.filter(s=>s.active&&(!fc||s.client_id===fc)&&(!fs||s.id===fs))
     .slice().sort((a,b)=>{
       const ca=(clients.find(c=>c.id===a.client_id)||{}).name||'';
       const cb=(clients.find(c=>c.id===b.client_id)||{}).name||'';
