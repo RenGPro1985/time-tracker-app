@@ -380,6 +380,25 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       </div>
     </section>
 
+    <!-- ---------- ADMIN: SMB BENEFITS ---------- -->
+    <section id="v-benefits" class="hide grid" style="gap:16px">
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">Standing allowance &amp; bonus rules</h3>
+          <div class="row" style="gap:8px"><button class="btn btn-teal" id="saveBenefits">Save changes</button></div>
+        </div>
+        <div class="muted" id="benefitsSaveMsg" style="font-size:12px;margin-bottom:8px;min-height:14px"></div>
+        <div class="muted" style="font-size:11.5px;margin-bottom:10px">
+          Nominate an amount once per row, tick which payout(s) it fires on, and pick who's eligible. Saving here takes effect on the
+          <b>current pay period's Ledger and every future one</b> until you change or deselect it here — no need to re-enter it every cutoff.
+          You can still hand-edit any individual staff's amount directly inside the Contractor Ledger for a one-off change; a manual Ledger edit
+          always wins over what's set here for that one payout. Meal/Rice and Statutory Contribution Support Allowance still require the staff
+          member to have completed 1 month of tenure as of the payout date &mdash; that rule overrides this table regardless of what's ticked below.
+          Incentive/Contest Award and Reimbursable Expenses have 3 rows each so you can award different amounts to different staff in the same period.
+        </div>
+        <div style="overflow-x:auto"><table><thead><tr><th style="width:22%">Allowance / Bonus</th><th style="width:12%">Amount (₱)</th><th style="width:14%">Payout window</th><th style="width:36%">Eligible staff</th><th style="width:10%">Status</th></tr></thead><tbody id="benefitsTable"></tbody></table></div>
+      </div>
+    </section>
+
     <!-- ---------- ADMIN: TIMESHEETS ---------- -->
     <section id="v-sheets" class="hide grid" style="gap:16px">
       <div class="card">
@@ -868,14 +887,14 @@ function eligibleAfterOneMonth(hireIso,asOfIso){
 }
 /* phase: 'mid' = 15th payout only, 'eom' = end-of-month payout only, 'both' = every payout.
    group: 'addon' (adds to pay) or 'deduction' (subtracts from pay).
-   default(staff,cutoffIso): optional starting value shown before any admin edit/override. */
+   Fields in RULE_DRIVEN_KEYS below no longer use a fixed phase — the SMB Benefits tab
+   (benefit_rules table) decides, per staff, whether each fires on the 15th, end-of-month,
+   both, or neither. The `phase` on those entries is now unused/historical. */
 const LEDGER_EXTRA_FIELDS=[
   {key:'completion_bonus',label:'Completion Bonus',phase:'mid',group:'addon'},
   {key:'relationship_bonus',label:'Relationship-Milestone Bonus',phase:'eom',group:'addon'},
-  {key:'meal_allowance',label:'Meal/Rice Allowance',phase:'eom',group:'addon',
-    default:(staff,cutoffIso)=>eligibleAfterOneMonth(staff.hire_date,cutoffIso)?250:0},
-  {key:'statutory_allowance',label:'Statutory Contribution Support Allowance',phase:'eom',group:'addon',
-    default:(staff,cutoffIso)=>eligibleAfterOneMonth(staff.hire_date,cutoffIso)?1000:0},
+  {key:'meal_allowance',label:'Meal/Rice Allowance',phase:'eom',group:'addon'},
+  {key:'statutory_allowance',label:'Statutory Contribution Support Allowance',phase:'eom',group:'addon'},
   {key:'workspace_allowance',label:'Workspace/Facilities Allowance',phase:'eom',group:'addon'},
   {key:'scope_differential',label:'Scope Differential Fee',phase:'eom',group:'addon'},
   {key:'adhoc_project_fee',label:'Ad Hoc Project Fee',phase:'eom',group:'addon'},
@@ -885,6 +904,85 @@ const LEDGER_EXTRA_FIELDS=[
   {key:'fee_advance',label:'Fee Advance',phase:'both',group:'deduction'}, // default set live from advance_deductions
   {key:'adjustments',label:'Adjustments',phase:'both',group:'deduction'},
 ];
+/* These 10 fields are driven by the SMB Benefits admin tab (benefit_rules table) instead of
+   a hardcoded phase/default. Fee Advance and Adjustments are untouched by that tab. */
+const RULE_DRIVEN_KEYS=new Set(['completion_bonus','relationship_bonus','meal_allowance','statutory_allowance',
+  'workspace_allowance','scope_differential','adhoc_project_fee','incentive_award','reimbursable_expenses','other_fee_items']);
+/* SMB Benefits tab config: which fields exist, and how many independent rows ("slots") each
+   gets. Incentive/Contest Award and Reimbursable Expenses get 3 rows so different amounts can
+   go to different staff groups in the same period (per Rendy, 2026-09-20). */
+const BENEFIT_RULE_FIELDS=[
+  {key:'completion_bonus',label:'Completion Bonus'},
+  {key:'relationship_bonus',label:'Relationship-Milestone Bonus'},
+  {key:'meal_allowance',label:'Meal/Rice Allowance'},
+  {key:'statutory_allowance',label:'Statutory Contribution Support Allowance'},
+  {key:'workspace_allowance',label:'Workspace/Facilities Allowance'},
+  {key:'scope_differential',label:'Scope Differential Fee'},
+  {key:'adhoc_project_fee',label:'Ad Hoc Project Fee'},
+  {key:'incentive_award',label:'Incentive/Contest Award',multi:3},
+  {key:'reimbursable_expenses',label:'Reimbursable Expenses',multi:3},
+  {key:'other_fee_items',label:'Other Contracted Fee Items'},
+];
+let benefitRules=[];
+async function fetchBenefitRules(){
+  const {data,error}=await sb.from('benefit_rules').select('*');
+  if(error){ if(!isMissingTableError(error)) console.warn('benefit_rules:',error.message); return []; }
+  return data||[];
+}
+/* Returns the amount this field pays a given staff member on this payout phase, from active
+   SMB Benefits rules only — null means "not applicable this payout" (shown as a dash, nothing
+   saved). A manual Ledger override (checked by the caller first) always wins over this. */
+function benefitRuleAmount(fieldKey,staff,phase,cutoffIso,rulesByField){
+  const rules=(rulesByField[fieldKey]||[]).filter(r=>r.active&&(phase==='mid'?r.pay_15th:r.pay_eom));
+  const matching=rules.filter(r=>r.staff_scope==='all'||(r.staff_ids||[]).includes(staff.id));
+  if(!matching.length) return null;
+  if((fieldKey==='meal_allowance'||fieldKey==='statutory_allowance')&&!eligibleAfterOneMonth(staff.hire_date,cutoffIso)) return null; // tenure gate supersedes the rule
+  return matching.reduce((a,r)=>a+Number(r.amount||0),0);
+}
+function findBenefitRule(fieldKey,slot){return benefitRules.find(r=>r.field_key===fieldKey&&r.slot===slot);}
+async function renderBenefits(){
+  benefitRules=await fetchBenefitRules();
+  const rows=[];
+  BENEFIT_RULE_FIELDS.forEach(f=>{ const n=f.multi||1; for(let slot=1;slot<=n;slot++) rows.push({field:f,slot,label:n>1?`${f.label} #${slot}`:f.label}); });
+  $('benefitsTable').innerHTML=rows.map(row=>{
+    const r=findBenefitRule(row.field.key,row.slot)||{};
+    const amount=Number(r.amount||0),pay15=!!r.pay_15th,payEom=!!r.pay_eom;
+    const scope=r.staff_scope||'all',staffIds=r.staff_ids||[];
+    const staffOptions=`<option value="__all__" ${scope==='all'?'selected':''}>— All staff —</option>`
+      +staffList.map(s=>`<option value="${s.id}" ${scope==='custom'&&staffIds.includes(s.id)?'selected':''}>${escapeHtml(s.full_name)}</option>`).join('');
+    return `<tr data-field="${row.field.key}" data-slot="${row.slot}">
+      <td><b>${escapeHtml(row.label)}</b></td>
+      <td><input type="number" class="ben-amt" min="0" step="0.01" value="${amount.toFixed(2)}" style="width:110px"></td>
+      <td><label class="row" style="gap:4px;font-size:12px"><input type="checkbox" class="ben-15" ${pay15?'checked':''}> 15th</label>
+        <label class="row" style="gap:4px;font-size:12px;margin-top:4px"><input type="checkbox" class="ben-eom" ${payEom?'checked':''}> End of month</label></td>
+      <td><select class="ben-staff" multiple size="4" style="min-width:190px">${staffOptions}</select>
+        <div class="muted" style="font-size:11px;margin-top:2px">Ctrl/Cmd-click for multiple. "All staff" overrides other picks.</div></td>
+      <td class="ben-status muted">${r.active?'Active':'Inactive'}</td>
+    </tr>`;
+  }).join('');
+}
+$('saveBenefits').onclick=async()=>{
+  $('saveBenefits').disabled=true;$('benefitsSaveMsg').textContent='Saving…';
+  const trs=[...$('benefitsTable').querySelectorAll('tr[data-field]')];
+  const payload=trs.map(tr=>{
+    const fieldKey=tr.dataset.field,slot=Number(tr.dataset.slot);
+    const amount=Number(tr.querySelector('.ben-amt').value||0);
+    const pay15=tr.querySelector('.ben-15').checked,payEom=tr.querySelector('.ben-eom').checked;
+    const sel=[...tr.querySelector('.ben-staff').selectedOptions].map(o=>o.value);
+    const scope=sel.includes('__all__')?'all':'custom';
+    const staffIds=scope==='custom'?sel.filter(v=>v!=='__all__'):[];
+    const active=amount>0&&(pay15||payEom)&&(scope==='all'||staffIds.length>0);
+    tr.querySelector('.ben-status').textContent=active?'Active':'Inactive';
+    return {field_key:fieldKey,slot,amount,pay_15th:pay15,pay_eom:payEom,staff_scope:scope,staff_ids:staffIds,active,updated_by:me.id,updated_at:new Date().toISOString()};
+  });
+  try{
+    const {error}=await sb.from('benefit_rules').upsert(payload,{onConflict:'field_key,slot'});
+    if(error) throw new Error(isMissingTableError(error)?'SMB Benefits rules aren\'t set up on this database yet — run the benefit_rules migration in the Supabase SQL Editor first.':error.message);
+    $('benefitsSaveMsg').textContent='Saved — applies to the current pay period\'s Ledger and every future one until changed here.';
+  }catch(e){$('benefitsSaveMsg').textContent='';alert(e.message);}
+  $('saveBenefits').disabled=false;
+  setTimeout(()=>{$('benefitsSaveMsg').textContent='';},5000);
+};
 async function fetchLedgerExtras(cutoffIso,staffIds){
   let q=sb.from('ledger_extras').select('*').eq('cutoff_date',cutoffIso);
   q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
@@ -952,9 +1050,10 @@ async function runLedger(){
   /* Which real payroll cutoff (15th or end-of-month) this Ledger period pays out on, and
      which add-on fields are in play for that cutoff — see LEDGER_EXTRA_FIELDS notes above. */
   const cutoffIso=payoutCutoffFor(end),phase=payoutPhase(cutoffIso);
-  const [extrasRaw,advancesRaw]=await Promise.all([fetchLedgerExtras(cutoffIso,ids),fetchScheduledAdvances(cutoffIso,ids)]);
+  const [extrasRaw,advancesRaw,rulesRaw]=await Promise.all([fetchLedgerExtras(cutoffIso,ids),fetchScheduledAdvances(cutoffIso,ids),fetchBenefitRules()]);
   const extrasByStaff={};extrasRaw.forEach(e=>{(extrasByStaff[e.staff_id]=extrasByStaff[e.staff_id]||{})[e.field_key]=Number(e.amount);});
   const advanceByStaff={};advancesRaw.forEach(d=>{advanceByStaff[d.staff_id]=(advanceByStaff[d.staff_id]||0)+Number(d.amount||0);});
+  const rulesByField={};rulesRaw.forEach(r=>{(rulesByField[r.field_key]=rulesByField[r.field_key]||[]).push(r);});
   ledgerRows=people.map(staff=>{
     const rows=ledgerDetailRows.filter(r=>r.staffId===staff.id);
     const client=clients.find(c=>c.id===staff.client_id),regularMin=rows.reduce((a,r)=>a+r.regularMin,0),otMin=rows.reduce((a,r)=>a+r.otMin,0),nightMin=rows.reduce((a,r)=>a+r.nightMin,0),rate=Number(phpHourlyRate(staff.monthly_rate));
@@ -963,10 +1062,12 @@ async function runLedger(){
     const mine=extrasByStaff[staff.id]||{};
     const extras={};
     LEDGER_EXTRA_FIELDS.forEach(f=>{
-      if(f.phase!=='both'&&f.phase!==phase){extras[f.key]=null;return;} // not applicable this payout
+      // A manual per-staff, per-period Ledger edit always wins over an SMB Benefits rule.
       if(Object.prototype.hasOwnProperty.call(mine,f.key)){extras[f.key]=mine[f.key];return;}
+      if(RULE_DRIVEN_KEYS.has(f.key)){extras[f.key]=benefitRuleAmount(f.key,staff,phase,cutoffIso,rulesByField);return;}
+      if(f.phase!=='both'&&f.phase!==phase){extras[f.key]=null;return;} // not applicable this payout
       if(f.key==='fee_advance'){extras[f.key]=advanceByStaff[staff.id]||0;return;}
-      extras[f.key]=f.default?f.default(staff,cutoffIso):0;
+      extras[f.key]=0;
     });
     const addonSubtotal=LEDGER_EXTRA_FIELDS.filter(f=>f.group==='addon').reduce((a,f)=>a+(extras[f.key]||0),0);
     const deductionSubtotal=LEDGER_EXTRA_FIELDS.filter(f=>f.group==='deduction').reduce((a,f)=>a+(extras[f.key]||0),0);
@@ -1165,6 +1266,7 @@ const PAGES={
   'v-punch' :['🕒 Time Tracker','Time Tracker','Your shift, activities and totals'],
   'v-status':['📡 Live Status','Live Status','Who is on shift right now'],
   'v-staff' :['👥 Staff & Clients','Staff & Clients','Add or remove staff, manage client shifts'],
+  'v-benefits':['🎁 SMB Benefits','SMB Benefits','Nominate standing allowance & bonus rules — amount, payout window, and eligible staff'],
   'v-sheets':['📄 Timesheets','Timesheets','Filter by pay period and export'],
   'v-adherence':['📊 Adherence & Breaks','Adherence & Breaks','Break usage, overages, and late log-ins — filter by staff, client, and date'],
   'v-corr'  :['✏️ Corrections','Corrections','Approve or reject staff correction requests'],
@@ -1173,7 +1275,7 @@ const PAGES={
 };
 let view='v-punch';
 function buildNav(){
-  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-sheets','v-adherence','v-corr','v-ledger','v-reqadmin','v-policy','v-portal'] : ['v-punch','v-ledger','v-req','v-portal'];
+  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-benefits','v-sheets','v-adherence','v-corr','v-ledger','v-reqadmin','v-policy','v-portal'] : ['v-punch','v-ledger','v-req','v-portal'];
   $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   go(view);
@@ -1186,6 +1288,7 @@ function go(v){
   $('nav').querySelectorAll('button').forEach(b=>b.className=(b.dataset.v===v?'on':''));
   if(v==='v-status'){initFilters();loadRoster();}
   if(v==='v-staff'){renderStaffAdmin();}
+  if(v==='v-benefits'){renderBenefits();}
   if(v==='v-sheets'){initSheetFilters();}
   if(v==='v-adherence'){initAdherenceFilters();}
   if(v==='v-corr'){loadCorrections();}
