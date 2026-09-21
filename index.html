@@ -1036,7 +1036,7 @@ const BENEFIT_RULE_FIELDS=[
 ];
 let benefitRules=[];
 async function fetchBenefitRules(){
-  const {data,error}=await sb.from('benefit_rules').select('*');
+  const {data,error}=await sb.rpc('visible_benefit_rules');
   if(error){ if(!isMissingTableError(error)) console.warn('benefit_rules:',error.message); return []; }
   return data||[];
 }
@@ -3763,7 +3763,9 @@ $('portalUpBtn').onclick = async () => {
     );
   }
   async function fetchBenefitRulesStrict(sb) {
-    return strictPagedSelect(() => sb.from('benefit_rules').select('*'), 'benefit_rules');
+    const { data, error } = await sb.rpc('visible_benefit_rules');
+    if (error) throw new Error(`visible_benefit_rules: ${error.message}`);
+    return data || [];
   }
   async function fetchAdjustmentsForCutoffStrict(sb, cutoffIso, staffIds) {
     const { data, error } = await sb.rpc('adjustments_for_cutoff', {
