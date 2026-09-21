@@ -545,7 +545,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
             <button class="btn btn-ghost" id="dlDetail">Download detail CSV</button>
           </div>
         </div>
-        <table><thead><tr><th>Staff</th><th>Days</th><th>Billable</th><th>Non-billable</th><th title="Minutes over the allowance cap across 15min/30min/60min/Personal/Bio breaks, summed for the period">Over Break</th><th>Personal Breaks</th><th>Bio Breaks</th><th>Total</th><th>Billable %</th></tr></thead><tbody id="sheetTable"></tbody></table>
+        <table><thead><tr><th>Staff</th><th>Days</th><th>Billable</th><th style="white-space:normal;max-width:60px">Non-<br>billable</th><th style="white-space:normal;max-width:60px" title="Minutes over the allowance cap across 15min/30min/60min/Personal/Bio breaks, summed for the period">Over<br>Break</th><th style="white-space:normal;max-width:60px">Personal<br>Breaks</th><th style="white-space:normal;max-width:60px">Personal<br>Minutes</th><th style="white-space:normal;max-width:60px">Bio<br>Breaks</th><th style="white-space:normal;max-width:60px">Bio<br>Minutes</th><th>Total</th><th>Billable %</th><th style="white-space:normal;max-width:70px" title="Billable hours minus total Personal Break and Bio Break minutes for the period">Actual<br>Working<br>Hours</th></tr></thead><tbody id="sheetTable"></tbody></table>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Daily hours grid</h3>
@@ -2681,7 +2681,7 @@ async function runSheet(){
   people.forEach(s=>{
     const mine=ents.filter(e=>e.staff_id===s.id); const sc=clients.find(c=>c.id===s.client_id);
     const byDay={};mine.forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
-    let bill=0,non=0,overBreak=0;
+    let bill=0,non=0,overBreak=0,personalMinutes=0,bioMinutes=0;
     const personalCount=mine.filter(e=>e.activity==='Personal Break').length;
     const bioCount=mine.filter(e=>e.activity==='Bio Break').length;
     Object.keys(byDay).sort().forEach(d=>{
@@ -2692,12 +2692,17 @@ async function runSheet(){
         const cap=Number(allowance[act]||0); const m=sum.per[act]||0;
         if(cap>0&&m>cap) overBreak+=(m-cap);
       });
+      personalMinutes+=sum.per['Personal Break']||0;
+      bioMinutes+=sum.per['Bio Break']||0;
       byDay[d].forEach(e=>sheetDetail.push({
         staff:s.full_name,username:s.username,client:(clients.find(c=>c.id===s.client_id)||{}).name||'',
         date:d,activity:e.activity,start:phTime(new Date(e.started_at)),end:e.ended_at?phTime(new Date(e.ended_at)):'(still running)',
         minutes:Math.round(entryMinutesForReport(e,shifts)),billing_rule:detailBillingRule(e.activity)}));
     });
-    sheetRows.push({staffId:s.id,name:s.full_name,client:(clients.find(c=>c.id===s.client_id)||{}).name||'—',days:Object.keys(byDay).length,bill,non,overBreak,personalCount,bioCount,total:bill+non,
+    // Actual Working Hours = Billable minus ALL Personal Break + Bio Break time for the
+    // period (not just the over-allowance portion) — floored at 0 defensively.
+    const actualWorking=Math.max(0,bill-personalMinutes-bioMinutes);
+    sheetRows.push({staffId:s.id,name:s.full_name,client:(clients.find(c=>c.id===s.client_id)||{}).name||'—',days:Object.keys(byDay).length,bill,non,overBreak,personalCount,personalMinutes,bioCount,bioMinutes,actualWorking,total:bill+non,
       clientName:sc?sc.name:null,window:sc?`${sc.shift_start.slice(0,5)}–${sc.shift_end.slice(0,5)} PHT`:null});
   });
   renderSheetWarnings();
@@ -2705,11 +2710,13 @@ async function runSheet(){
     <td class="mono">${r.days}</td><td class="mono" style="color:var(--teal)">${hm(r.bill)}</td>
     <td class="mono" style="color:var(--gold)">${hm(r.non)}</td>
     <td class="mono" style="color:var(--rose)">${hm(r.overBreak)}</td>
-    <td class="mono">${r.personalCount}</td><td class="mono">${r.bioCount}</td>
+    <td class="mono">${r.personalCount}</td><td class="mono">${hm(r.personalMinutes)}</td>
+    <td class="mono">${r.bioCount}</td><td class="mono">${hm(r.bioMinutes)}</td>
     <td class="mono">${hm(r.total)}</td>
     <td class="mono">${r.total?Math.round(r.bill/r.total*100)+'%':'—'}</td>
+    <td class="mono">${hm(r.actualWorking)}</td>
     </tr>`).join('')
-    :`<tr><td colspan="9" class="muted">No data for that range.</td></tr>`;
+    :`<tr><td colspan="12" class="muted">No data for that range.</td></tr>`;
 }
 /* "Hours logged but nothing billable" is almost always a client setup problem, not a
    missing shift: no client assigned, or the client's shift window is typed in the CLIENT's
@@ -2732,10 +2739,10 @@ function renderSheetWarnings(){
 function csvEscape(v){return '"'+String(v).replace(/"/g,'""')+'"';}
 function summaryCsv(){
   const {start,end}=currentRange();
-  const head=['Staff','Days worked','Billable hours','Non-billable hours','Over Break (hrs)','Personal Breaks','Bio Breaks','Total hours','Billable %'];
+  const head=['Staff','Days worked','Billable hours','Non-billable hours','Over Break (hrs)','Personal Breaks','Personal Minutes (hrs)','Bio Breaks','Bio Minutes (hrs)','Total hours','Billable %','Actual Working Hours'];
   const lines=[[`Pay period ${start} to ${end} (Philippine time)`],[],head];
   sheetRows.forEach(r=>{
-    const row=[r.name,r.days,(r.bill/60).toFixed(2),(r.non/60).toFixed(2),(r.overBreak/60).toFixed(2),r.personalCount,r.bioCount,(r.total/60).toFixed(2),r.total?Math.round(r.bill/r.total*100)+'%':''];
+    const row=[r.name,r.days,(r.bill/60).toFixed(2),(r.non/60).toFixed(2),(r.overBreak/60).toFixed(2),r.personalCount,(r.personalMinutes/60).toFixed(2),r.bioCount,(r.bioMinutes/60).toFixed(2),(r.total/60).toFixed(2),r.total?Math.round(r.bill/r.total*100)+'%':'',(r.actualWorking/60).toFixed(2)];
     lines.push(row);
   });
   return lines.map(l=>l.map(csvEscape).join(',')).join('\n');
