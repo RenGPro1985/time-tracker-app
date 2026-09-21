@@ -2675,7 +2675,7 @@ async function runSheet(){
   const {start,end}=currentRange();
   if(!start||!end)return alert('Pick a date range.');
   const fc=$('pClient').value,fs=$('pStaff').value;
-  const people=staffList.filter(s=>s.active&&(!fc||s.client_id===fc)&&(!fs||s.id===fs));
+  const people=sortStaffByClientTenure(staffList.filter(s=>s.active&&(!fc||s.client_id===fc)&&(!fs||s.id===fs)));
   const [ents,shifts]=await Promise.all([fetchEntriesRange(start,end,people.map(s=>s.id)),fetchShiftsRange(start,end,people.map(s=>s.id))]);
   const sdm=buildShiftDateMap(shifts);
   const ssm=buildShiftSpanMap(shifts);
