@@ -135,6 +135,17 @@ button.btn{padding:7px 12px;font-size:12px}
 .sheet-grid input.dayval{width:54px;text-align:center;padding:4px 2px;font-size:11px;background:var(--card2);border:1px solid var(--line);border-radius:6px;color:var(--ink);font-family:'IBM Plex Mono',monospace}
 .sheet-grid input.dayval.is-adj{border-color:var(--gold);box-shadow:0 0 0 1px rgba(227,166,62,.45) inset;color:var(--gold)}
 .sheet-grid td.totalcell{font-family:'IBM Plex Mono',monospace;text-align:center;font-weight:600}
+/* ---- 1366-1440px desktop fit for the biweekly (14-column) Daily Hours Grid,
+   after removing the Client column: shrink cell padding/handle width just
+   enough that the grid's natural width stops forcing the overflow-x:auto
+   wrapper into a horizontal scrollbar at common laptop widths. Verified with
+   a real Chromium viewport in tests/mock_playwright.py, not just by eyeballing
+   the CSS. ---- */
+@media (max-width:1440px){
+  .sheet-grid th{padding:4px 3px;font-size:8.8px}
+  .sheet-grid td{padding:3px 3px}
+  .sheet-grid input.dayval{width:42px;padding:3px 1px;font-size:10.5px}
+}
 .ledger-grid .ledger-day{min-width:58px;border:1px solid var(--line);border-radius:6px;padding:4px 5px;background:var(--card2);color:var(--ink);font:11px 'IBM Plex Mono',monospace;cursor:pointer}.ledger-grid .ledger-day:hover{border-color:var(--teal);color:var(--teal)}.ledger-grid .ledger-day small{display:block;font-size:9px;color:#9B7EDE;margin-top:2px}.ledger-grid .ledger-day.no-lunch{border-color:var(--gold);color:var(--gold)}
 </style>
 </head>
@@ -188,6 +199,19 @@ button.btn{padding:7px 12px;font-size:12px}
   </div>
 </div>
 
+<div id="payConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:71;align-items:center;justify-content:center;padding:20px">
+  <div class="card" style="width:100%;max-width:480px">
+    <h3 style="font-size:15px;margin-bottom:8px">Confirm PAID</h3>
+    <div class="muted" style="font-size:12px;margin-bottom:10px">This locks the payout figures for this staff member and cutoff, deducts any scheduled Fee Advance repayment for this cutoff, and sends them an in-app notification. It cannot be unchecked — a correction after this point requires an audited reversal with a reason.</div>
+    <div id="payConfirmDetail" class="note" style="font-size:12.5px"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn btn-teal" id="payConfirmYes">Confirm PAID</button>
+      <button class="btn btn-ghost" id="payConfirmCancel">Cancel</button>
+    </div>
+    <div class="muted" id="payConfirmMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div>
+  </div>
+</div>
+
 <div id="corrReviewOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:72;align-items:center;justify-content:center;padding:20px;overflow:auto">
   <div class="card" style="width:100%;max-width:760px;margin:auto;max-height:calc(100vh - 40px);overflow:auto">
     <div class="hdr"><h3 style="font-size:15px">Review time correction</h3><button class="btn btn-ghost" id="corrReviewClose">Close</button></div>
@@ -225,7 +249,18 @@ button.btn{padding:7px 12px;font-size:12px}
     <div class="top">
       <div><h1 id="pageTitle" style="font-size:22px">Time Tracker</h1>
       <div class="muted" id="pageSub" style="margin-top:4px;font-size:12.5px"></div></div>
-      <div id="roleBadge"></div>
+      <div class="row" style="gap:10px;align-items:center">
+        <div style="position:relative">
+          <button class="btn btn-ghost btn-icon" id="notifBell" aria-label="Notifications" style="position:relative">
+            🔔<span id="notifBadge" class="hide" style="position:absolute;top:-4px;right:-4px;background:var(--rose);color:#20090a;font-size:10px;font-weight:700;border-radius:999px;min-width:16px;height:16px;line-height:16px;text-align:center;padding:0 3px">0</span>
+          </button>
+          <div id="notifPanel" class="card hide" style="position:absolute;right:0;top:calc(100% + 8px);width:340px;max-height:380px;overflow:auto;z-index:60;padding:10px">
+            <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:12.5px">Notifications</b><button class="btn btn-ghost" id="notifMarkAll" style="padding:4px 8px;font-size:11px">Mark all read</button></div>
+            <div id="notifList" class="muted" style="font-size:12px">No notifications yet.</div>
+          </div>
+        </div>
+        <div id="roleBadge"></div>
+      </div>
     </div>
     <div id="banner"></div>
 
@@ -411,6 +446,66 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       </div>
     </section>
 
+    <!-- ---------- ADMIN: ADJUSTMENTS + FEE ADVANCE ---------- -->
+    <section id="v-adjustments" class="hide grid" style="gap:16px">
+      <div class="card" style="padding:14px">
+        <div class="hdr" style="margin-bottom:6px"><h3 style="font-size:14px">Adjustments (5 slots)</h3>
+          <div class="row" style="gap:8px"><button class="btn btn-teal" id="saveAdjustments">Save changes</button></div>
+        </div>
+        <div class="muted" id="adjustmentsSaveMsg" style="font-size:11.5px;margin-bottom:6px;min-height:14px"></div>
+        <div class="muted" style="font-size:11px;margin-bottom:8px;line-height:1.4">
+          Each row is an independent adjustment: label, amount, and either a one-time date or a recurring 15th/end-of-month/both
+          schedule with an effective start date, plus who it applies to. Feeds the Ledger's "Adjustments" column on every matching
+          payout — a manual edit inside the Ledger for a specific staff+cutoff always wins over these rules, same as SMB Benefits.
+          Staff never see this tab; they only see the resulting amount on their own Ledger row.
+        </div>
+        <div style="overflow-x:auto"><table><thead><tr><th style="width:16%">Label</th><th style="width:10%">Amount (₱)</th><th style="width:30%">Timing</th><th style="width:30%">Staff</th><th style="width:8%">Status</th></tr></thead><tbody id="adjustmentsTable"></tbody></table></div>
+      </div>
+
+      <div class="card" style="padding:14px">
+        <div class="hdr" style="margin-bottom:6px"><h3 style="font-size:14px">Fee Advance</h3></div>
+        <div class="muted" style="font-size:11px;margin-bottom:10px;line-height:1.4">
+          Integrates the existing Salary/Cash Advance request flow (Advance &amp; PTO Requests tab) — approving a staff request there
+          still builds its repayment schedule exactly as before. Use the form below only for advances issued directly by an admin
+          (never through a staff request). Every repayment shown here becomes "deducted" only when that staff member's cutoff is
+          marked PAID on the Contractor Ledger — there is no independent "mark deducted" action anymore.
+        </div>
+        <div class="row" style="align-items:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+          <div style="flex:0 0 190px"><label>Staff</label><select id="advStaff"></select></div>
+          <div style="flex:0 0 150px"><label>Type</label><select id="advType"><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div>
+          <div style="flex:0 0 130px"><label>Amount (₱)</label><input type="number" id="advAmount" min="0" step="0.01"></div>
+          <div style="flex:0 0 140px"><label title="Amount already repaid outside the app before this record was entered">Opening repaid (₱)</label><input type="number" id="advOpening" min="0" step="0.01" value="0"></div>
+          <div style="flex:0 0 150px"><label>Date issued</label><input type="date" id="advIssuedDate"></div>
+        </div>
+        <div class="row" style="align-items:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+          <div style="flex:0 0 140px"><label>Repay over (cutoffs)</label><input type="number" id="advCutoffs" min="1" step="1" value="1"></div>
+          <div style="flex:0 0 160px"><label title="Leave blank to auto-pick the earliest payout on/after the issue date">First cutoff (optional)</label><input type="date" id="advFirstCutoff"></div>
+          <div style="flex:0 0 160px"><label title="Leave blank for an even split across the cutoffs">Per-cutoff amount (₱, optional)</label><input type="number" id="advPerCutoff" min="0" step="0.01"></div>
+          <div style="flex:0 0 170px"><label>Frequency</label><select id="advFrequency"><option value="each_cutoff">Each payout cutoff</option><option value="eom_only">End-of-month only</option></select></div>
+          <div style="flex:1 1 220px"><label>Reason (required)</label><input id="advReason" placeholder="e.g. Emergency cash advance issued 9/20"></div>
+        </div>
+        <div class="row" style="margin-bottom:14px">
+          <button class="btn btn-gold" id="advCreate">Log manual advance</button>
+          <span class="muted" id="advCreateMsg" style="font-size:12px"></span>
+        </div>
+        <div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+          <div style="flex:0 0 170px"><label>Staff</label><select id="advFStaff"><option value="">All staff</option></select></div>
+          <div style="flex:0 0 150px"><label>Type</label><select id="advFType"><option value="">All types</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div>
+          <div style="flex:0 0 150px"><label>Source</label><select id="advFSource"><option value="">All sources</option><option value="staff_request">Staff request</option><option value="admin_manual">Admin manual</option></select></div>
+          <div style="flex:0 0 130px"><label title="Paid/Unpaid reflects the advance's remaining balance, not any single installment's status">Status</label><select id="advFStatus"><option value="">All</option><option value="unpaid">Unpaid</option><option value="paid">Paid</option></select></div>
+          <button class="btn btn-ghost" id="advFRun">Filter</button>
+        </div>
+        <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:10px">
+          <div class="stat"><div class="k">Total advanced</div><div class="v" style="color:var(--gold)" id="advTotalAdvanced">—</div></div>
+          <div class="stat"><div class="k">Total repaid</div><div class="v" style="color:var(--teal)" id="advRepaid">—</div></div>
+          <div class="stat"><div class="k">Outstanding balance</div><div class="v" id="advOutstanding">—</div></div>
+          <div class="stat"><div class="k" title="Sum of the scheduled deductions falling on the earliest upcoming cutoff among the filtered advances">Next cutoff deductions</div><div class="v" id="advNextCutoffTotal">—</div></div>
+        </div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Staff</th><th>Type / source</th><th class="num">Advance</th><th class="num">Repaid</th><th class="num">Balance</th><th class="num">Per cutoff</th><th>Next deduction</th><th>Status</th><th></th></tr></thead><tbody id="advTable"></tbody></table></div>
+        <div class="muted" style="font-size:11px;margin-top:8px">Unpaid includes partially repaid advances. "View" opens the repayment schedule and running-balance history. Only confirmed repayments (deductions applied via a PAID cutoff) reduce the balance; the final deduction never exceeds the remaining amount.</div>
+      </div>
+    </section>
+
     <!-- ---------- ADMIN: TIMESHEETS ---------- -->
     <section id="v-sheets" class="hide grid" style="gap:16px">
       <div class="card">
@@ -421,11 +516,14 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
             <input type="date" id="pFrom" class="hide" style="width:auto"><input type="date" id="pTo" class="hide" style="width:auto">
             <select id="pClient" style="width:auto"></select><select id="pStaff" style="width:auto"></select>
             <button class="btn btn-ghost" id="runSheet">Run</button>
+            <input type="number" id="pFx" class="hide" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px">
+            <button class="btn btn-ghost hide" id="saveFx">Save FX</button>
+            <button class="btn btn-ghost hide" id="goToEarningBtn" title="Opens the matching period on the SMB PH Earning tab — does not lock or write anything from here">Go to SMB PH Earning to LOCK IN…</button>
             <button class="btn btn-gold" id="dlSummary">Download summary CSV</button>
             <button class="btn btn-ghost" id="dlDetail">Download detail CSV</button>
           </div>
         </div>
-        <table><thead><tr><th>Staff</th><th>Client</th><th>Days</th><th>Billable</th><th>Non-billable</th><th>Total</th><th>Billable %</th></tr></thead><tbody id="sheetTable"></tbody></table>
+        <table><thead><tr><th>Staff</th><th>Days</th><th>Billable</th><th>Non-billable</th><th>Total</th><th>Billable %</th><th class="fin-col hide">USD Rate</th><th class="fin-col hide">FX (₱/$1)</th><th class="fin-col hide">Net Amount Payable</th><th class="fin-col hide">VSPH (Net Amount)</th><th class="fin-col hide">ROI</th><th class="fin-col hide">Margin %</th></tr></thead><tbody id="sheetTable"></tbody></table><div id="sheetFinBanner" class="note hide" style="margin-top:8px"></div>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Daily hours grid</h3>
@@ -488,7 +586,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
         <select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Fee Basis</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-earning" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Net Amount Payable, VSPH, ROI and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th>FX</th><th>Net Amount Payable</th><th>VSPH (Net Amount)</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div><div class="row" style="justify-content:flex-end;margin-top:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px" id="egAggMargin">—</span></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/payable/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances on the Adjustments tab.</div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
   <!-- STAFF VIEW -->
   <div id="portalStaffView" class="grid" style="gap:16px">
     <div class="card">
@@ -1032,6 +1130,284 @@ $('saveBenefits').onclick=async()=>{
   $('saveBenefits').disabled=false;
   setTimeout(()=>{$('benefitsSaveMsg').textContent='';},5000);
 };
+
+/* ============================================================
+   ADJUSTMENTS TAB (5 independent slots) + FEE ADVANCE PANEL
+   Admin-only tab, directly below SMB Benefits. Reuses the exact same
+   staff-picker component (ben-staff-dd/benStaffPanelHtml/refreshBenStaffUI)
+   as SMB Benefits. The five rows are independent adjustments (not one field
+   with slots) — each has its own label/amount/timing/staff scope, stored in
+   adjustment_rules (unique per slot 1-5).
+   ============================================================ */
+const ADJUSTMENT_SLOTS=[1,2,3,4,5];
+let adjustmentRules=[];
+async function fetchAdjustmentRules(){
+  const {data,error}=await sb.from('adjustment_rules').select('*');
+  if(error){ if(!isMissingTableError(error)) console.warn('adjustment_rules:',error.message); return []; }
+  return data||[];
+}
+function findAdjustmentRule(slot){return adjustmentRules.find(r=>r.slot===slot);}
+function adjTimingHtml(r){
+  const timing=r.timing||'recurring',isOneTime=timing==='one_time';
+  return `<div class="row" style="gap:6px;flex-wrap:wrap;align-items:center">
+    <label class="row" style="gap:4px;font-size:12px"><input type="radio" name="adjtiming-${r.slot||''}" class="adj-timing" value="one_time" ${isOneTime?'checked':''}> One-time</label>
+    <label class="row" style="gap:4px;font-size:12px"><input type="radio" name="adjtiming-${r.slot||''}" class="adj-timing" value="recurring" ${!isOneTime?'checked':''}> Recurring</label>
+    <input type="date" class="adj-onetime-date" value="${r.one_time_date||''}" style="width:130px;${isOneTime?'':'display:none'}">
+    <select class="adj-phase" style="width:100px;${!isOneTime?'':'display:none'}">
+      <option value="mid" ${r.recurring_phase==='mid'?'selected':''}>15th</option>
+      <option value="eom" ${r.recurring_phase==='eom'?'selected':''}>End of month</option>
+      <option value="both" ${!r.recurring_phase||r.recurring_phase==='both'?'selected':''}>Both</option>
+    </select>
+    <input type="date" class="adj-effective" value="${r.effective_start||''}" placeholder="Effective start" title="Effective start" style="width:130px;${!isOneTime?'':'display:none'}">
+  </div>`;
+}
+function wireAdjTimingRow(tr){
+  const radios=[...tr.querySelectorAll('.adj-timing')];
+  const dateEl=tr.querySelector('.adj-onetime-date'),phaseEl=tr.querySelector('.adj-phase'),effEl=tr.querySelector('.adj-effective');
+  const sync=()=>{
+    const oneTime=tr.querySelector('.adj-timing[value="one_time"]').checked;
+    dateEl.style.display=oneTime?'':'none';
+    phaseEl.style.display=oneTime?'none':'';
+    effEl.style.display=oneTime?'none':'';
+  };
+  radios.forEach(r=>r.addEventListener('change',sync));
+  sync();
+}
+async function renderAdjustments(){
+  adjustmentRules=await fetchAdjustmentRules();
+  const activeStaff=staffList.filter(s=>s.active);
+  $('adjustmentsTable').innerHTML=ADJUSTMENT_SLOTS.map(slot=>{
+    const r=findAdjustmentRule(slot)||{slot};
+    const scope=r.staff_scope||'all',staffIds=r.staff_ids||[];
+    return `<tr data-slot="${slot}">
+      <td><input type="text" class="adj-label" value="${escapeHtml(r.label||'')}" placeholder="Adjustment ${slot}" style="width:100%"></td>
+      <td><input type="number" class="adj-amt" min="0" step="0.01" value="${Number(r.amount||0).toFixed(2)}" style="width:95px"></td>
+      <td>${adjTimingHtml(r)}</td>
+      <td><details class="ben-staff-dd"><summary></summary><div class="ben-staff-panel">${benStaffPanelHtml(activeStaff,scope,staffIds)}</div></details>
+        <div class="ben-staff-pills"></div></td>
+      <td class="adj-status muted">${r.active?'Active':'Inactive'}</td>
+    </tr>`;
+  }).join('');
+  $('adjustmentsTable').querySelectorAll('tr[data-slot]').forEach(tr=>{
+    wireAdjTimingRow(tr);
+    const dd=tr.querySelector('.ben-staff-dd');
+    refreshBenStaffUI(dd);
+    dd.addEventListener('change',e=>{
+      if(e.target.classList.contains('ben-one-cb')&&e.target.checked)dd.querySelector('.ben-all-cb').checked=false;
+      refreshBenStaffUI(dd);
+    });
+  });
+}
+$('saveAdjustments').onclick=async()=>{
+  $('saveAdjustments').disabled=true;$('adjustmentsSaveMsg').textContent='Saving…';
+  const trs=[...$('adjustmentsTable').querySelectorAll('tr[data-slot]')];
+  const payload=[];
+  for(const tr of trs){
+    const slot=Number(tr.dataset.slot);
+    const label=tr.querySelector('.adj-label').value.trim();
+    const amount=Number(tr.querySelector('.adj-amt').value||0);
+    const timing=tr.querySelector('.adj-timing[value="one_time"]').checked?'one_time':'recurring';
+    const oneTimeDate=tr.querySelector('.adj-onetime-date').value||null;
+    const phase=tr.querySelector('.adj-phase').value;
+    const effectiveStart=tr.querySelector('.adj-effective').value||null;
+    const dd=tr.querySelector('.ben-staff-dd');
+    const allChecked=dd.querySelector('.ben-all-cb').checked;
+    const staffIds=allChecked?[]:[...dd.querySelectorAll('.ben-one-cb')].filter(cb=>cb.checked).map(cb=>cb.value);
+    const scope=allChecked?'all':'custom';
+    if(timing==='one_time'&&!oneTimeDate){$('saveAdjustments').disabled=false;$('adjustmentsSaveMsg').textContent='';return alert(`Adjustment ${slot}: pick a one-time date, or switch it to Recurring.`);}
+    if(timing==='recurring'&&!effectiveStart){$('saveAdjustments').disabled=false;$('adjustmentsSaveMsg').textContent='';return alert(`Adjustment ${slot}: set an effective start date for the recurring schedule.`);}
+    const active=amount>0&&label.length>0&&(scope==='all'||staffIds.length>0);
+    tr.querySelector('.adj-status').textContent=active?'Active':'Inactive';
+    payload.push({slot,label,amount,timing,one_time_date:timing==='one_time'?oneTimeDate:null,
+      recurring_phase:timing==='recurring'?phase:null,effective_start:timing==='recurring'?effectiveStart:null,
+      staff_scope:scope,staff_ids:staffIds,active,updated_by:me.id,updated_at:new Date().toISOString()});
+  }
+  try{
+    const {error}=await sb.from('adjustment_rules').upsert(payload,{onConflict:'slot'});
+    if(error) throw new Error(isMissingTableError(error)?'Adjustments aren\'t set up on this database yet — run the migration in the Supabase SQL Editor first.':error.message);
+    $('adjustmentsSaveMsg').textContent='Saved — applies to every matching payout cutoff until changed here.';
+  }catch(e){$('adjustmentsSaveMsg').textContent='';alert(e.message);}
+  $('saveAdjustments').disabled=false;
+  setTimeout(()=>{$('adjustmentsSaveMsg').textContent='';},5000);
+};
+
+/* ---------- Fee Advance panel: integrates the existing request+advance_deductions flow.
+   Approving a staff request (v-reqadmin) still runs scheduleAdvanceDeductions() exactly as
+   before — this panel only ADDS manual admin-issued advances (create_manual_advance RPC)
+   and a filterable read-only history/balance view. There is no "mark deducted" action here
+   or anywhere else — a deduction becomes 'deducted' only via confirm_cutoff_paid. ---------- */
+let advRequestsRaw=[],advDeductionsByRequest={},advOpenViewId=null;
+function advFillStaffSelects(){
+  const opts=staffList.filter(s=>s.active).map(s=>[s.id,s.full_name]);
+  if($('advStaff'))$('advStaff').innerHTML=opts.map(p=>`<option value="${p[0]}">${escapeHtml(p[1])}</option>`).join('');
+  if($('advFStaff'))fill('advFStaff','All staff',opts);
+}
+async function fetchAdvanceRequestsById(ids){
+  if(!ids.length) return {};
+  const {data}=await sb.from('requests').select('id,staff_id,type,reason,source,amount,opening_repaid_amount,issued_date').in('id',ids);
+  const map={}; (data||[]).forEach(r=>map[r.id]=r); return map;
+}
+/* Request-first: an advance (Salary/Cash Advance) is the unit of record, not any one
+   installment. A fully opening-repaid advance schedules ZERO advance_deductions rows
+   (create_manual_advance skips the schedule when nothing remains) — a deduction-row-first
+   view would make that advance invisible entirely, which is the bug this rewrite fixes.
+   Every approved/paid advance request appears here even with no deduction rows at all. */
+async function loadFeeAdvancePanel(){
+  if(!$('advTable'))return;
+  advFillStaffSelects();
+  let q=sb.from('requests').select('id,staff_id,type,reason,source,amount,opening_repaid_amount,issued_date,status,created_at')
+    .in('type',['salary_advance','cash_advance']).in('status',['approved','paid']).order('created_at',{ascending:false});
+  const fStaff=$('advFStaff').value; if(fStaff)q=q.eq('staff_id',fStaff);
+  const fType=$('advFType').value; if(fType)q=q.eq('type',fType);
+  const fSource=$('advFSource').value; if(fSource)q=q.eq('source',fSource);
+  let advRequestsPageErr=null, advDeductionsPageErr=null;
+  advRequestsRaw=[];
+  try{
+    let from=0; const PAGE=500;
+    for(let guard=0;guard<200;guard++){
+      const {data,error}=await q.range(from,from+PAGE-1);
+      if(error) throw new Error(error.message);
+      const rows=data||[]; advRequestsRaw.push(...rows);
+      if(rows.length<PAGE) break;
+      from+=PAGE;
+      if(guard===199) throw new Error('Too many Fee Advance requests to page through safely — refusing to show a possibly-truncated list.');
+    }
+  }catch(e){ advRequestsPageErr=e.message; }
+  const reqIds=advRequestsRaw.map(r=>r.id);
+  advDeductionsByRequest={};
+  if(reqIds.length&&!advRequestsPageErr){
+    try{
+      const CHUNK=500;
+      for(let i=0;i<reqIds.length;i+=CHUNK){
+        const idChunk=reqIds.slice(i,i+CHUNK);
+        let from=0; const PAGE=500;
+        for(let guard=0;guard<200;guard++){
+          const {data,error}=await sb.from('advance_deductions').select('*').in('request_id',idChunk).order('cutoff_date',{ascending:true}).range(from,from+PAGE-1);
+          if(error) throw new Error(error.message);
+          const rows=data||[];
+          rows.forEach(d=>{ (advDeductionsByRequest[d.request_id]=advDeductionsByRequest[d.request_id]||[]).push(d); });
+          if(rows.length<PAGE) break;
+          from+=PAGE;
+          if(guard===199) throw new Error('Too many advance_deductions rows to page through safely for this batch — refusing to show a possibly-truncated schedule.');
+        }
+      }
+    }catch(e){ advDeductionsPageErr=e.message; }
+  }
+  let advBanner=$('advLoadBanner');
+  if(!advBanner){ advBanner=document.createElement('div'); advBanner.id='advLoadBanner'; advBanner.className='note'; advBanner.style.marginBottom='10px'; const t=$('advTable').closest('table'); if(t) t.insertAdjacentElement('beforebegin',advBanner); }
+  if(advRequestsPageErr||advDeductionsPageErr){
+    advBanner.classList.remove('hide');
+    advBanner.innerHTML='<b>Could not load Fee Advance data — showing nothing rather than a wrong or partial balance.</b><br>'+escapeHtml(advRequestsPageErr||advDeductionsPageErr);
+    $('advTable').innerHTML='<tr><td colspan="9" class="muted">Load failed — see the message above.</td></tr>';
+    ['advTotalAdvanced','advRepaid','advOutstanding','advNextCutoffTotal'].forEach(id=>{ if($(id)) $(id).textContent='—'; });
+    return;
+  }
+  advBanner.classList.add('hide'); advBanner.innerHTML='';
+  const staffName=id=>{const s=staffList.find(x=>x.id===id);return s?s.full_name:'—';};
+  const todayIso=phDate(new Date());
+  // Per-request computed stats: advance_total, opening_repaid, repaid_from_deductions,
+  // repaid_total, scheduled remaining, balance, per_cutoff, next_deduction, status.
+  const computed=advRequestsRaw.map(r=>{
+    const deds=advDeductionsByRequest[r.id]||[];
+    const opening=Number(r.opening_repaid_amount||0);
+    const repaidFromDeds=deds.filter(d=>d.status==='deducted').reduce((a,d)=>a+Number(d.amount||0),0);
+    const waived=deds.filter(d=>d.status==='waived').reduce((a,d)=>a+Number(d.amount||0),0);
+    const scheduled=deds.filter(d=>d.status==='scheduled').sort((a,b)=>a.cutoff_date<b.cutoff_date?-1:1);
+    const repaidTotal=opening+repaidFromDeds;
+    const advanceTotal=Number(r.amount||0);
+    const balance=Math.max(0,advanceTotal-repaidTotal-waived);
+    const next=scheduled[0]||null;
+    const statusKey=balance<=0.01?'paid':'unpaid';
+    return {req:r,deds,opening,repaidFromDeds,waived,repaidTotal,advanceTotal,balance,next,scheduled,statusKey};
+  });
+  const fStatus=$('advFStatus').value;
+  const rows=computed.filter(c=>!fStatus||c.statusKey===fStatus);
+  const totalAdvanced=rows.reduce((a,c)=>a+c.advanceTotal,0);
+  const totalRepaid=rows.reduce((a,c)=>a+c.repaidTotal,0);
+  const outstandingBalance=rows.reduce((a,c)=>a+c.balance,0);
+  // "Next cutoff deductions" = sum of scheduled amounts landing on the single earliest
+  // upcoming cutoff date found among the filtered rows (matches the mockup's single figure,
+  // not a per-row sum of arbitrary future cutoffs).
+  const upcomingDates=rows.map(c=>c.next&&c.next.cutoff_date).filter(Boolean).sort();
+  const nextCutoffDate=upcomingDates[0]||null;
+  const nextCutoffTotal=nextCutoffDate?rows.reduce((a,c)=>a+c.scheduled.filter(d=>d.cutoff_date===nextCutoffDate).reduce((x,d)=>x+Number(d.amount||0),0),0):0;
+  $('advTotalAdvanced').textContent='₱'+totalAdvanced.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  $('advRepaid').textContent='₱'+totalRepaid.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  $('advOutstanding').textContent='₱'+outstandingBalance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  $('advNextCutoffTotal').textContent='₱'+nextCutoffTotal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  $('advTable').innerHTML=rows.length?rows.map(c=>{
+    const r=c.req;
+    const sourceLabel=(r.source||'staff_request')==='admin_manual'?'Manual':'Request';
+    const perCutoff=c.next?Number(c.next.amount||0):null;
+    const nextDate=c.next?fmtNice(c.next.cutoff_date):'—';
+    const pillCls=c.statusKey==='paid'?'p-work':'p-break';
+    const pillLabel=c.statusKey==='paid'?'Paid':'Unpaid';
+    const isOpen=advOpenViewId===r.id;
+    let historyHtml='';
+    if(isOpen){
+      // Running-balance history: opening-repaid line (if any) first, then every
+      // deduction row oldest-first. A 'scheduled' line does not reduce the balance
+      // (it hasn't been paid yet); 'deducted'/'waived' lines do — this reads top-to-
+      // bottom like a real repayment ledger.
+      const allDeds=c.deds.slice().sort((a,b)=>a.cutoff_date<b.cutoff_date?-1:1);
+      let bal=c.advanceTotal;
+      const ordered=[];
+      if(c.opening>0)ordered.push({label:'Opening repaid',date:r.issued_date||'',amount:c.opening,status:'opening'});
+      allDeds.forEach(d=>ordered.push({label:d.status==='scheduled'?'Scheduled':d.status==='deducted'?'Deducted':'Waived',date:d.cutoff_date,amount:Number(d.amount||0),status:d.status}));
+      const historyRows=ordered.map(line=>{
+        if(line.status!=='scheduled')bal-=line.amount;
+        const balanceAfter=bal;
+        return `<tr><td>${line.date?fmtNice(line.date):'—'}</td><td>${escapeHtml(line.label)}</td><td class="num mono">₱${line.amount.toLocaleString()}</td><td class="num mono">₱${balanceAfter.toLocaleString()}</td></tr>`;
+      }).join('');
+      historyHtml=`<tr><td colspan="9" style="padding:0"><div class="history" style="padding:10px 16px;background:rgba(255,255,255,.02)">
+        <div class="small" style="margin-bottom:6px">Repayment schedule &amp; running balance for ${escapeHtml(r.reason||TYPE_LABEL[r.type]||'this advance')}</div>
+        <table style="width:100%"><thead><tr><th>Date</th><th>Line</th><th class="num">Amount</th><th class="num">Balance after</th></tr></thead>
+        <tbody>${historyRows||'<tr><td colspan="4" class="muted">No repayment lines recorded yet.</td></tr>'}</tbody></table>
+        </div></td></tr>`;
+    }
+    return `<tr><td><b>${escapeHtml(staffName(r.staff_id))}</b></td>
+      <td>${TYPE_LABEL[r.type]||'—'}<br><span class="small muted">${sourceLabel}</span></td>
+      <td class="num mono">₱${c.advanceTotal.toLocaleString()}</td>
+      <td class="num mono">₱${c.repaidTotal.toLocaleString()}</td>
+      <td class="num mono">₱${c.balance.toLocaleString()}</td>
+      <td class="num mono">${perCutoff!==null?'₱'+perCutoff.toLocaleString():'—'}</td>
+      <td>${nextDate}</td>
+      <td><span class="pill ${pillCls}"><span class="dot"></span>${pillLabel}</span></td>
+      <td><a href="#" class="adv-view" data-req="${r.id}" style="color:var(--teal);text-decoration:none">${isOpen?'Hide':'View'}</a></td></tr>${historyHtml}`;
+  }).join(''):`<tr><td colspan="9" class="muted">No advances match this filter.</td></tr>`;
+  $('advTable').querySelectorAll('a.adv-view').forEach(a=>a.onclick=(e)=>{
+    e.preventDefault();
+    advOpenViewId=advOpenViewId===a.dataset.req?null:a.dataset.req;
+    loadFeeAdvancePanel();
+  });
+}
+if($('advFRun'))$('advFRun').onclick=loadFeeAdvancePanel;
+if($('advCreate'))$('advCreate').onclick=async()=>{
+  const staffId=$('advStaff').value,type=$('advType').value,amount=Number($('advAmount').value||0);
+  const cutoffs=Number($('advCutoffs').value||0),opening=Number($('advOpening').value||0),reason=$('advReason').value.trim();
+  const issuedDate=$('advIssuedDate').value||null,firstCutoff=$('advFirstCutoff').value||null;
+  const perCutoffRaw=$('advPerCutoff').value.trim(),perCutoff=perCutoffRaw===''?null:Number(perCutoffRaw);
+  const frequency=$('advFrequency').value;
+  if(!staffId)return alert('Pick a staff member.');
+  if(!amount||amount<=0)return alert('Enter an amount greater than zero.');
+  if(!Number.isInteger(cutoffs)||cutoffs<1)return alert('Enter how many cutoffs to repay over (1 or more).');
+  if(perCutoff!==null&&(isNaN(perCutoff)||perCutoff<=0))return alert('Per-cutoff amount must be greater than zero, or leave it blank for an even split.');
+  if(!reason)return alert('Enter a reason for this manual advance.');
+  $('advCreate').disabled=true;$('advCreateMsg').textContent='Saving…';
+  try{
+    const {error}=await sb.rpc('create_manual_advance',{
+      p_staff_id:staffId,p_type:type,p_amount:amount,p_cutoffs:cutoffs,p_opening_repaid:opening,p_reason:reason,
+      p_issued_date:issuedDate,p_first_cutoff:firstCutoff,p_per_cutoff_amount:perCutoff,p_frequency:frequency});
+    if(error) throw new Error(isMissingTableError(error)?'This database hasn\'t run the Adjustments migration yet — ask an admin to run it in the Supabase SQL Editor.':error.message);
+    $('advCreateMsg').textContent='Manual advance logged and scheduled.';
+    $('advAmount').value='';$('advCutoffs').value='1';$('advOpening').value='0';$('advReason').value='';
+    $('advIssuedDate').value='';$('advFirstCutoff').value='';$('advPerCutoff').value='';$('advFrequency').value='each_cutoff';
+    await loadFeeAdvancePanel();
+  }catch(e){$('advCreateMsg').textContent='';alert(e.message);}
+  $('advCreate').disabled=false;
+  setTimeout(()=>{$('advCreateMsg').textContent='';},5000);
+};
+
 async function fetchLedgerExtras(cutoffIso,staffIds){
   let q=sb.from('ledger_extras').select('*').eq('cutoff_date',cutoffIso);
   q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
@@ -1044,6 +1420,18 @@ async function fetchScheduledAdvances(cutoffIso,staffIds){
   q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
   const {data,error}=await q.range(0,4999);
   if(error){ console.warn('advance_deductions:',error.message); return []; }
+  return data||[];
+}
+async function fetchAdjustmentsForCutoff(cutoffIso,staffIds){
+  const {data,error}=await sb.rpc('adjustments_for_cutoff',{p_cutoff_date:cutoffIso,p_staff_ids:staffIds&&staffIds.length?staffIds:null});
+  if(error){ if(!isMissingTableError(error)) console.warn('adjustments_for_cutoff:',error.message); return []; }
+  return data||[];
+}
+async function fetchPaidCutoffs(cutoffIso,staffIds){
+  let q=sb.from('paid_cutoffs').select('*').eq('cutoff_date',cutoffIso);
+  q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
+  const {data,error}=await q.range(0,4999);
+  if(error){ if(!isMissingTableError(error)) console.warn('paid_cutoffs:',error.message); return []; }
   return data||[];
 }
 async function saveLedgerExtra(staffId,cutoffIso,fieldKey,amount,inputEl){
@@ -1076,6 +1464,61 @@ function refreshLedgerStaff(){
   if([...$('lgStaff').options].some(o=>o.value===old))$('lgStaff').value=old;
 }
 function refreshLedgerPeriods(){const list=periodList('semi');$('lgPeriod').innerHTML=list.map(p=>`<option value="${p.start}|${p.end}">${fmtNice(p.start)} – ${fmtNice(p.end)}</option>`).join('');}
+/* Extracted verbatim from the original inline runLedger() map callback — the
+   ONE place Net Amount Payable/regularPay/nightPremium/otPay/addonSubtotal/
+   deductionSubtotal/the frozen-snapshot override are computed. Both runLedger()
+   below AND the SMB PH Earning / Timesheets-finance loader (earnings-runtime.js)
+   call this exact function — there is no second, reconstructed copy of this
+   formula anywhere in this build. */
+function computeLedgerRowPure(staff,ctx){
+  const {clients,ledgerDetailRows,leavesByStaff,extrasByStaff,rulesByField,advanceByStaff,adjustmentsByStaff,paidByStaff,cutoffIso,phase}=ctx;
+
+    const rows=ledgerDetailRows.filter(r=>r.staffId===staff.id);
+    const client=clients.find(c=>c.id===staff.client_id),regularMin=rows.reduce((a,r)=>a+r.regularMin,0),otMin=rows.reduce((a,r)=>a+r.otMin,0),nightMin=rows.reduce((a,r)=>a+r.nightMin,0),rate=Number(phpHourlyRate(staff.monthly_rate));
+    const regularPay=regularMin/60*rate,otPay=otMin/60*rate,nightPremium=nightMin/60*rate*.10;
+    const myLeaves=leavesByStaff[staff.id]||[],pchPtoDays=myLeaves.length,dailyRate=Number(staff.monthly_rate||0)/22,pchPtoPay=pchPtoDays*dailyRate;
+    const mine=extrasByStaff[staff.id]||{};
+    const extras={};
+    LEDGER_EXTRA_FIELDS.forEach(f=>{
+      // A manual per-staff, per-period Ledger edit always wins over an SMB Benefits/
+      // Adjustments rule — same precedence for every add-on field, including Adjustments.
+      if(Object.prototype.hasOwnProperty.call(mine,f.key)){extras[f.key]=mine[f.key];return;}
+      if(RULE_DRIVEN_KEYS.has(f.key)){extras[f.key]=benefitRuleAmount(f.key,staff,phase,cutoffIso,rulesByField);return;}
+      if(f.phase!=='both'&&f.phase!==phase){extras[f.key]=null;return;} // not applicable this payout
+      if(f.key==='fee_advance'){extras[f.key]=advanceByStaff[staff.id]||0;return;}
+      if(f.key==='adjustments'){extras[f.key]=adjustmentsByStaff[staff.id]||0;return;}
+      extras[f.key]=0;
+    });
+    const addonSubtotal=LEDGER_EXTRA_FIELDS.filter(f=>f.group==='addon').reduce((a,f)=>a+(extras[f.key]||0),0);
+    const deductionSubtotal=LEDGER_EXTRA_FIELDS.filter(f=>f.group==='deduction').reduce((a,f)=>a+(extras[f.key]||0),0);
+    const total=regularPay+nightPremium+otPay+pchPtoPay+addonSubtotal-deductionSubtotal;
+    const paidRec=paidByStaff[staff.id]||null;
+    /* Frozen ledger snapshot: once a cutoff is PAID, every displayed figure for that row
+       comes from paid_cutoffs.snapshot — never a fresh live recomputation — so an
+       after-the-fact edit to ledger_extras/benefit_rules/adjustment_rules can never
+       silently change what a confirmed, already-paid cutoff appears to show. */
+    let finalExtras=extras,finalAddon=addonSubtotal,finalDeduction=deductionSubtotal,finalTotal=total,
+      finalRegularPay=regularPay,finalNightPremium=nightPremium,finalOtPay=otPay,finalPchPtoPay=pchPtoPay;
+    if(paidRec&&paidRec.snapshot&&paidRec.status==='paid'){
+      const snap=paidRec.snapshot;
+      finalRegularPay=Number(snap.regular_pay??regularPay);
+      finalNightPremium=Number(snap.night_premium??nightPremium);
+      finalOtPay=Number(snap.ot_pay??otPay);
+      finalPchPtoPay=Number(snap.pchpto_pay??pchPtoPay);
+      finalAddon=Number(snap.addon_subtotal??addonSubtotal);
+      finalDeduction=Number(snap.deduction_subtotal??deductionSubtotal);
+      finalTotal=Number(snap.net_amount_payable??total);
+      finalExtras={...extras};
+      if(snap.extras) Object.keys(finalExtras).forEach(k=>{ if(Object.prototype.hasOwnProperty.call(snap.extras,k)) finalExtras[k]=snap.extras[k]; });
+      else { finalExtras.fee_advance=Number(snap.fee_advance??extras.fee_advance); finalExtras.adjustments=Number(snap.adjustments??extras.adjustments); }
+    }
+    return {staffId:staff.id,name:staff.full_name,client:client?client.name:'—',monthly:Number(staff.monthly_rate||0),rate,
+      regularHrs:regularMin/60,nightHrs:nightMin/60,otHrs:otMin/60,regularPay:finalRegularPay,nightPremium:finalNightPremium,
+      otPay:finalOtPay,pchPtoDays,pchPtoPay:finalPchPtoPay,
+      cutoffIso,phase,extras:finalExtras,addonSubtotal:finalAddon,deductionSubtotal:finalDeduction,total:finalTotal,
+      paid:paidRec,frozen:!!(paidRec&&paidRec.status==='paid')};
+  
+}
 async function runLedger(){
   const [start,end]=$('lgPeriod').value.split('|');if(!start||!end)return alert('Pick a pay period.');
   const fc=$('lgClient').value,fs=$('lgStaff').value;
@@ -1099,32 +1542,20 @@ async function runLedger(){
   /* Which real payroll cutoff (15th or end-of-month) this Ledger period pays out on, and
      which add-on fields are in play for that cutoff — see LEDGER_EXTRA_FIELDS notes above. */
   const cutoffIso=payoutCutoffFor(end),phase=payoutPhase(cutoffIso);
-  const [extrasRaw,advancesRaw,rulesRaw]=await Promise.all([fetchLedgerExtras(cutoffIso,ids),fetchScheduledAdvances(cutoffIso,ids),fetchBenefitRules()]);
+  const [extrasRaw,advancesRaw,rulesRaw,adjustmentsRaw,paidRaw]=await Promise.all([
+    fetchLedgerExtras(cutoffIso,ids),fetchScheduledAdvances(cutoffIso,ids),fetchBenefitRules(),
+    fetchAdjustmentsForCutoff(cutoffIso,ids),fetchPaidCutoffs(cutoffIso,ids)]);
   const extrasByStaff={};extrasRaw.forEach(e=>{(extrasByStaff[e.staff_id]=extrasByStaff[e.staff_id]||{})[e.field_key]=Number(e.amount);});
   const advanceByStaff={};advancesRaw.forEach(d=>{advanceByStaff[d.staff_id]=(advanceByStaff[d.staff_id]||0)+Number(d.amount||0);});
   const rulesByField={};rulesRaw.forEach(r=>{(rulesByField[r.field_key]=rulesByField[r.field_key]||[]).push(r);});
-  ledgerRows=people.map(staff=>{
-    const rows=ledgerDetailRows.filter(r=>r.staffId===staff.id);
-    const client=clients.find(c=>c.id===staff.client_id),regularMin=rows.reduce((a,r)=>a+r.regularMin,0),otMin=rows.reduce((a,r)=>a+r.otMin,0),nightMin=rows.reduce((a,r)=>a+r.nightMin,0),rate=Number(phpHourlyRate(staff.monthly_rate));
-    const regularPay=regularMin/60*rate,otPay=otMin/60*rate,nightPremium=nightMin/60*rate*.10;
-    const myLeaves=leavesByStaff[staff.id]||[],pchPtoDays=myLeaves.length,dailyRate=Number(staff.monthly_rate||0)/22,pchPtoPay=pchPtoDays*dailyRate;
-    const mine=extrasByStaff[staff.id]||{};
-    const extras={};
-    LEDGER_EXTRA_FIELDS.forEach(f=>{
-      // A manual per-staff, per-period Ledger edit always wins over an SMB Benefits rule.
-      if(Object.prototype.hasOwnProperty.call(mine,f.key)){extras[f.key]=mine[f.key];return;}
-      if(RULE_DRIVEN_KEYS.has(f.key)){extras[f.key]=benefitRuleAmount(f.key,staff,phase,cutoffIso,rulesByField);return;}
-      if(f.phase!=='both'&&f.phase!==phase){extras[f.key]=null;return;} // not applicable this payout
-      if(f.key==='fee_advance'){extras[f.key]=advanceByStaff[staff.id]||0;return;}
-      extras[f.key]=0;
-    });
-    const addonSubtotal=LEDGER_EXTRA_FIELDS.filter(f=>f.group==='addon').reduce((a,f)=>a+(extras[f.key]||0),0);
-    const deductionSubtotal=LEDGER_EXTRA_FIELDS.filter(f=>f.group==='deduction').reduce((a,f)=>a+(extras[f.key]||0),0);
-    const total=regularPay+nightPremium+otPay+pchPtoPay+addonSubtotal-deductionSubtotal;
-    return {staffId:staff.id,name:staff.full_name,client:client?client.name:'—',monthly:Number(staff.monthly_rate||0),rate,
-      regularHrs:regularMin/60,nightHrs:nightMin/60,otHrs:otMin/60,regularPay,nightPremium,otPay,pchPtoDays,pchPtoPay,
-      cutoffIso,phase,extras,addonSubtotal,deductionSubtotal,total};
-  });
+  // adjustments_for_cutoff (a SECURITY DEFINER RPC) is the only correct source for the
+  // "Adjustments" rule-driven amount — staff cannot read adjustment_rules directly (same
+  // admin-only RLS as benefit_rules), so computing this client-side from a raw table select
+  // would silently show 0 on a staff member's own Ledger row. Admins get every staff id
+  // they asked for in one call; a non-admin always gets back exactly their own row.
+  const adjustmentsByStaff={};adjustmentsRaw.forEach(a=>{adjustmentsByStaff[a.staff_id]=Number(a.amount);});
+  const paidByStaff={};paidRaw.forEach(p=>{paidByStaff[p.staff_id]=p;});
+  ledgerRows=people.map(staff=>computeLedgerRowPure(staff,{clients,ledgerDetailRows,leavesByStaff,extrasByStaff,rulesByField,advanceByStaff,adjustmentsByStaff,paidByStaff,cutoffIso,phase}));
   renderLedgerTable(start,end);
 }
 /* value===null means this field doesn't apply to the current payout cutoff (e.g. Completion
@@ -1132,17 +1563,96 @@ async function runLedger(){
 function extraCellHtml(r,fieldKey){
   const v=r.extras[fieldKey];
   if(v===null)return '<td class="num muted">—</td>';
-  if(me.role!=='admin')return `<td class="num mono">${v.toFixed(2)}</td>`;
+  // Once PAID, every add-on cell is frozen read-only for EVERY role (admin included) —
+  // editing ledger_extras/benefit_rules after the fact can't retroactively change what
+  // was actually confirmed/paid, so the UI stops implying it still can.
+  if(me.role!=='admin'||r.frozen)return `<td class="num mono"${r.frozen?' title="Locked — this cutoff is already PAID"':''}>${v.toFixed(2)}</td>`;
   return `<td class="num"><input type="number" class="ledger-extra" min="0" step="0.01" data-staff="${r.staffId}" data-cutoff="${r.cutoffIso}" data-field="${fieldKey}" value="${v.toFixed(2)}" style="width:88px"></td>`;
 }
+/* ---------- PAID column: per-staff, per-cutoff confirmation (confirm_cutoff_paid RPC).
+   Locked once paid — no direct uncheck, and there is no reversal path in this release
+   (reverse_cutoff_payment exists server-side for a possible future correction workflow,
+   but its EXECUTE grant is revoked from the authenticated role, so no UI calls it). A
+   future cutoff is never checkable. Staff see a read-only status pill instead of a
+   checkbox (own row only, since staff never see other rows). ---------- */
+function paidStatusLabel(r){
+  if(!r.paid) return 'Unpaid';
+  return r.paid.status==='reversed' ? 'Reversed' : 'Paid';
+}
+/* `extras` is included in full (not just fee_advance/adjustments) so that once a cutoff
+   is PAID, every column in that row — including the 10 bonus/allowance cells — can be
+   rendered straight from this frozen snapshot instead of the live (and therefore
+   editable-after-the-fact) ledger_extras/benefit_rules tables. The server only validates
+   the top-level keys it needs (fee_advance/adjustments/subtotals/net); everything else
+   here is informational display fidelity. */
+function buildPaidSnapshot(r){
+  return {staff_id:r.staffId,cutoff_date:r.cutoffIso,phase:r.phase,
+    regular_pay:r.regularPay,night_premium:r.nightPremium,ot_pay:r.otPay,pchpto_pay:r.pchPtoPay,
+    addon_subtotal:r.addonSubtotal,fee_advance:r.extras.fee_advance||0,adjustments:r.extras.adjustments||0,
+    deduction_subtotal:r.deductionSubtotal,net_amount_payable:r.total,extras:r.extras};
+}
+function paidCellHtml(r){
+  const todayIso=phDate(new Date());
+  const isFuture=r.cutoffIso>todayIso;
+  if(me.role!=='admin'){
+    const label=paidStatusLabel(r);
+    const cls=label==='Paid'?'p-work':label==='Reversed'?'p-bad':'p-off';
+    return `<td><span class="pill ${cls}"><span class="dot"></span>${label}</span></td>`;
+  }
+  if(r.paid&&r.paid.status==='paid'){
+    return `<td><label class="row" style="gap:5px;font-size:12px;align-items:center" title="Locked — payment confirmed, cannot be unchecked here"><input type="checkbox" checked disabled> Paid</label></td>`;
+  }
+  if(r.paid&&r.paid.status==='reversed'){
+    return `<td><span class="pill p-bad" title="${escapeHtml(r.paid.reversed_reason||'')}"><span class="dot"></span>Reversed</span></td>`;
+  }
+  if(isFuture){
+    return `<td><label class="row" style="gap:5px;font-size:12px;align-items:center" title="A future cutoff cannot be marked paid yet."><input type="checkbox" disabled> Paid</label></td>`;
+  }
+  return `<td><label class="row" style="gap:5px;font-size:12px;align-items:center"><input type="checkbox" class="paid-cb" data-staff="${r.staffId}" data-cutoff="${r.cutoffIso}"> Paid</label></td>`;
+}
+let payConfirmTarget=null;
+function wirePaidCheckboxes(){
+  $('ledgerTable').querySelectorAll('input.paid-cb').forEach(cb=>{
+    cb.onchange=()=>{
+      if(!cb.checked)return; // no direct uncheck path exists — nothing to do if somehow unchecked
+      const r=ledgerRows.find(x=>x.staffId===cb.dataset.staff&&x.cutoffIso===cb.dataset.cutoff);
+      if(!r){cb.checked=false;return;}
+      cb.checked=false; // stays unchecked until the confirm dialog is accepted
+      payConfirmTarget=r;
+      $('payConfirmDetail').innerHTML=`<b>${escapeHtml(r.name)}</b> — cutoff ${fmtNice(r.cutoffIso)} (${r.phase==='mid'?'15th':'End of month'})<br>
+        Fee Advance: ₱${Number(r.extras.fee_advance||0).toLocaleString()} · Adjustments: ₱${Number(r.extras.adjustments||0).toLocaleString()}<br>
+        <b>Net Amount Payable: ₱${r.total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</b>`;
+      $('payConfirmMsg').textContent='';
+      $('payConfirmOverlay').style.display='flex';
+    };
+  });
+}
+function closePayConfirm(){payConfirmTarget=null;$('payConfirmOverlay').style.display='none';}
+$('payConfirmCancel').onclick=closePayConfirm;
+$('payConfirmOverlay').onclick=e=>{if(e.target===$('payConfirmOverlay'))closePayConfirm();};
+$('payConfirmYes').onclick=async()=>{
+  if(!payConfirmTarget)return closePayConfirm();
+  $('payConfirmYes').disabled=true;$('payConfirmMsg').textContent='Confirming…';
+  try{
+    const {error}=await sb.rpc('confirm_cutoff_paid',{
+      p_staff_id:payConfirmTarget.staffId,p_cutoff_date:payConfirmTarget.cutoffIso,
+      p_snapshot:buildPaidSnapshot(payConfirmTarget)});
+    if(error) throw new Error(isMissingTableError(error)?'This database hasn\'t run the Adjustments migration yet — ask an admin to run it in the Supabase SQL Editor.':error.message);
+    closePayConfirm();
+    await runLedger(); // re-fetch so the checkbox locks and reflects the frozen snapshot
+  }catch(e){$('payConfirmMsg').textContent='';alert(e.message);}
+  $('payConfirmYes').disabled=false;
+};
 function renderLedgerTable(start,end){
   const grand=ledgerRows.reduce((a,r)=>a+r.total,0);$('lgTotal').textContent='₱'+grand.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});$('lgRangeLabel').textContent=start&&end?`${fmtNice(start)} – ${fmtNice(end)}`:'—';
-  $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr><td class="sticky-col"><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.rate.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
+  $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr><td class="sticky-col"><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
     +extraCellHtml(r,'completion_bonus')+extraCellHtml(r,'relationship_bonus')+extraCellHtml(r,'meal_allowance')+extraCellHtml(r,'statutory_allowance')+extraCellHtml(r,'workspace_allowance')+extraCellHtml(r,'scope_differential')+extraCellHtml(r,'adhoc_project_fee')+extraCellHtml(r,'incentive_award')+extraCellHtml(r,'reimbursable_expenses')+extraCellHtml(r,'other_fee_items')
     +`<td class="mono" style="color:var(--teal)">${r.addonSubtotal.toFixed(2)}</td>`
     +extraCellHtml(r,'fee_advance')+extraCellHtml(r,'adjustments')
     +`<td class="mono" style="color:var(--rose)">${r.deductionSubtotal.toFixed(2)}</td>`
-    +`<td class="mono" style="color:var(--gold);font-weight:600">${r.total.toFixed(2)}</td></tr>`).join(''):`<tr><td colspan="27" class="muted">No staff match this filter. Press Run.</td></tr>`;
+    +`<td class="mono" style="color:var(--gold);font-weight:600">${r.total.toFixed(2)}</td>`
+    +paidCellHtml(r)+`</tr>`).join(''):`<tr><td colspan="27" class="muted">No staff match this filter. Press Run.</td></tr>`;
+  wirePaidCheckboxes();
   $('ledgerTable').querySelectorAll('input.ledger-extra').forEach(inp=>{
     const baseline=inp.value;
     inp.onchange=async()=>{
@@ -1167,7 +1677,7 @@ function renderLedgerGrid(start,end){
     const ca=(clients.find(c=>c.id===a.client_id)||{}).name||'',cb=(clients.find(c=>c.id===b.client_id)||{}).name||'';return ca===cb?a.full_name.localeCompare(b.full_name):ca.localeCompare(cb);
   });
   const fmtCol=iso=>{const d=new Date(iso+'T00:00:00Z');return `${d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'})}<br>${d.toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short'}).toUpperCase()}`;};
-  head.innerHTML='<th class="sticky-col">Staff name</th><th>Client</th><th>Regular hrs</th><th>Night Diff hrs</th><th>ND premium</th><th>OT hrs</th>'+days.map(d=>`<th>${fmtCol(d)}</th>`).join('');
+  head.innerHTML='<th class="sticky-col">Staff name</th><th>Client</th><th>Contracted HRS</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours</th>'+days.map(d=>`<th>${fmtCol(d)}</th>`).join('');
   let html='',lastClient=null;
   people.forEach(staff=>{
     const client=(clients.find(c=>c.id===staff.client_id)||{}).name||'— unassigned —';
@@ -1194,20 +1704,20 @@ function renderLedgerLunchWarnings(){
 function showLedgerShiftInspector(staffId,date){
   const box=$('ledgerShiftInspector'),rows=ledgerDetailRows.filter(r=>r.staffId===staffId&&r.date===date);if(!rows.length)return;
   const r0=rows[0],reg=rows.reduce((a,r)=>a+r.regularMin,0)/60,nd=rows.reduce((a,r)=>a+r.nightMin,0)/60,premium=rows.reduce((a,r)=>a+r.nightPremium,0),ot=rows.reduce((a,r)=>a+r.otMin,0)/60;
-  box.classList.remove('hide');box.innerHTML=`<b>${escapeHtml(r0.name)} — ${escapeHtml(r0.client)} · ${date}</b><br>`+rows.map(r=>`Login <b class="mono">${r.login}</b> · Logout <b class="mono" style="color:${r.logout==='Open'?'var(--rose)':'var(--ink)'}">${r.logout}</b>${r.missingLunch?` · <b style="color:var(--gold)">⚠ No 60min Break logged — ${r.virtualMin} min deducted as unpaid lunch</b>`:''}`).join('<br>')+`<br><span class="muted">Regular:</span> <b>${reg.toFixed(2)}h</b> · <span class="muted">Night Diff:</span> <b style="color:#9B7EDE">${nd.toFixed(2)}h</b> · <span class="muted">ND premium:</span> <b>₱${premium.toFixed(2)}</b> · <span class="muted">OT:</span> <b style="color:#5B8DEF">${ot.toFixed(2)}h</b>`;
+  box.classList.remove('hide');box.innerHTML=`<b>${escapeHtml(r0.name)} — ${escapeHtml(r0.client)} · ${date}</b><br>`+rows.map(r=>`Login <b class="mono">${r.login}</b> · Logout <b class="mono" style="color:${r.logout==='Open'?'var(--rose)':'var(--ink)'}">${r.logout}</b>${r.missingLunch?` · <b style="color:var(--gold)">⚠ No 60min Break logged — ${r.virtualMin} min deducted as unpaid lunch</b>`:''}`).join('<br>')+`<br><span class="muted">Contracted:</span> <b>${reg.toFixed(2)}h</b> · <span class="muted">Extended-Hours Fee Differential:</span> <b style="color:#9B7EDE">${nd.toFixed(2)}h</b> · <span class="muted">Extended-Hours Fee Differential (Pay):</span> <b>₱${premium.toFixed(2)}</b> · <span class="muted">Extended-Hours:</span> <b style="color:#5B8DEF">${ot.toFixed(2)}h</b>`;
   box.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function ledgerCsv(){
-  const h=['Staff','Client','Contract Fee (PHP)','Contracted Fee Basis','Contracted Hours','Extended-Hours Fee Differential (Hrs)','Extended-Hours (Hrs)','Total Contract Fee','Extended-Hours Fee Differential (Pay)','Extended-Hours (Pay)','PCH/PTO Days','PCH/PTO Pay',
+  const h=['Staff','Client','Contract Fee (PHP)','Contracted Hours','Extended-Hours Fee Differential (Hrs)','Extended-Hours (Hrs)','Total Contract Fee','Extended-Hours Fee Differential (Pay)','Extended-Hours (Pay)','PCH/PTO Days','PCH/PTO Pay',
     'Completion Bonus','Relationship-Milestone Bonus','Meal/Rice Allowance','Statutory Contribution Support Allowance','Workspace/Facilities Allowance','Scope Differential Fee','Ad Hoc Project Fee','Incentive/Contest Award','Reimbursable Expenses','Other Contracted Fee Items','Sub Total',
-    'Fee Advance','Adjustments','Adjustments Subtotal','Net Amount Payable'];
+    'Fee Advance','Adjustments','Adjustments Subtotal','Net Amount Payable','PAID'];
   const extraVal=(r,k)=>r.extras[k]===null?'':r.extras[k].toFixed(2);
-  return[h].concat(ledgerRows.map(r=>[r.name,r.client,r.monthly.toFixed(2),r.rate.toFixed(2),r.regularHrs.toFixed(2),r.nightHrs.toFixed(2),r.otHrs.toFixed(2),r.regularPay.toFixed(2),r.nightPremium.toFixed(2),r.otPay.toFixed(2),String(r.pchPtoDays),r.pchPtoPay.toFixed(2),
+  return[h].concat(ledgerRows.map(r=>[r.name,r.client,r.monthly.toFixed(2),r.regularHrs.toFixed(2),r.nightHrs.toFixed(2),r.otHrs.toFixed(2),r.regularPay.toFixed(2),r.nightPremium.toFixed(2),r.otPay.toFixed(2),String(r.pchPtoDays),r.pchPtoPay.toFixed(2),
     extraVal(r,'completion_bonus'),extraVal(r,'relationship_bonus'),extraVal(r,'meal_allowance'),extraVal(r,'statutory_allowance'),extraVal(r,'workspace_allowance'),extraVal(r,'scope_differential'),extraVal(r,'adhoc_project_fee'),extraVal(r,'incentive_award'),extraVal(r,'reimbursable_expenses'),extraVal(r,'other_fee_items'),r.addonSubtotal.toFixed(2),
-    extraVal(r,'fee_advance'),extraVal(r,'adjustments'),r.deductionSubtotal.toFixed(2),r.total.toFixed(2)]))
+    extraVal(r,'fee_advance'),extraVal(r,'adjustments'),r.deductionSubtotal.toFixed(2),r.total.toFixed(2),paidStatusLabel(r)]))
     .map(r=>r.map(csvEscape).join(',')).join('\n');
 }
-function ledgerDetailCsv(){const h=['Shift Date (PHT)','Staff','Client','Login (PHT)','Logout (PHT)','Regular Hrs','Night Diff Hrs','Night Diff Premium','OT Hrs','Lunch log'];return[h].concat(ledgerDetailRows.map(r=>[r.date,r.name,r.client,r.login,r.logout,(r.regularMin/60).toFixed(2),(r.nightMin/60).toFixed(2),r.nightPremium.toFixed(2),(r.otMin/60).toFixed(2),r.missingLunch?`MISSING - flat ${r.virtualMin} min deducted`:''])).map(r=>r.map(csvEscape).join(',')).join('\n');}
+function ledgerDetailCsv(){const h=['Shift Date (PHT)','Staff','Client','Login (PHT)','Logout (PHT)','Contracted Hrs','Extended-Hours Fee Differential (Hrs)','Extended-Hours Fee Differential (Pay)','Extended-Hours','Lunch log'];return[h].concat(ledgerDetailRows.map(r=>[r.date,r.name,r.client,r.login,r.logout,(r.regularMin/60).toFixed(2),(r.nightMin/60).toFixed(2),r.nightPremium.toFixed(2),(r.otMin/60).toFixed(2),r.missingLunch?`MISSING - flat ${r.virtualMin} min deducted`:''])).map(r=>r.map(csvEscape).join(',')).join('\n');}
 function downloadLedgerFile(text,name){if(!ledgerRows.length)return alert('Press Run first.');const [start,end]=$('lgPeriod').value.split('|'),blob=new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${name}-${start}_${end}.csv`;a.click();URL.revokeObjectURL(a.href);}
 function downloadLedgerCsv(){downloadLedgerFile(ledgerCsv(),'contractor-ledger');}
 function downloadLedgerDetailCsv(){downloadLedgerFile(ledgerDetailCsv(),'contractor-ledger-shift-detail');}
@@ -1309,22 +1819,63 @@ async function start(){
   setInterval(()=>{ if(curShift&&curEntry&&Number(allowance[curEntry.activity]||0)>0) syncOverbreakAlerts(curShift.id); },15000);
   setInterval(()=>{ if(document.getElementById('v-status').classList.contains('hide')===false) loadRoster(); },60000);
   setInterval(()=>{ if(me&&document.getElementById('v-dash').classList.contains('hide')===false) renderPayPeriod(); },300000);
+  await refreshNotifications();
+  setInterval(refreshNotifications,60000);
 }
+
+/* ---------- in-app notifications bell ---------- */
+let notifications=[];
+async function refreshNotifications(){
+  const {data,error}=await sb.from('in_app_notifications').select('*').order('created_at',{ascending:false}).limit(30);
+  if(error){ if(!isMissingTableError(error)) console.warn('in_app_notifications:',error.message); return; }
+  notifications=data||[];
+  renderNotifBell();
+}
+function renderNotifBell(){
+  const unread=notifications.filter(n=>!n.read_at).length;
+  $('notifBadge').classList.toggle('hide',unread===0);
+  $('notifBadge').textContent=unread>9?'9+':String(unread);
+  $('notifList').innerHTML=notifications.length?notifications.map(n=>`<div class="row" data-notif="${n.id}" style="gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--line);cursor:pointer;opacity:${n.read_at?'.6':'1'}">
+    <div style="flex:1"><b style="font-size:12px">${escapeHtml(n.title)}</b><div class="muted" style="font-size:11.5px;margin-top:2px">${escapeHtml(n.body)}</div>
+    <div class="muted" style="font-size:10px;margin-top:2px">${fmtNice(phDate(new Date(n.created_at)))}</div></div>
+    ${n.read_at?'':'<span class="dot" style="width:7px;height:7px;border-radius:50%;background:var(--gold);flex:0 0 auto;margin-top:4px"></span>'}
+  </div>`).join(''):'No notifications yet.';
+  $('notifList').querySelectorAll('[data-notif]').forEach(el=>el.onclick=()=>markNotifRead(el.dataset.notif));
+}
+async function markNotifRead(id){
+  const n=notifications.find(x=>x.id===id);
+  if(!n||n.read_at)return;
+  const {error}=await sb.rpc('mark_notification_read',{p_id:id});
+  if(error){ console.warn('mark_notification_read:',error.message); return; }
+  n.read_at=new Date().toISOString();
+  renderNotifBell();
+}
+$('notifBell').onclick=e=>{e.stopPropagation();$('notifPanel').classList.toggle('hide');};
+$('notifMarkAll').onclick=async e=>{
+  e.stopPropagation();
+  const unread=notifications.filter(n=>!n.read_at);
+  await Promise.all(unread.map(n=>sb.rpc('mark_notification_read',{p_id:n.id})));
+  unread.forEach(n=>n.read_at=new Date().toISOString());
+  renderNotifBell();
+};
+document.addEventListener('click',e=>{ if(!$('notifPanel').contains(e.target)&&e.target!==$('notifBell')) $('notifPanel').classList.add('hide'); });
 
 const PAGES={
   'v-punch' :['🕒 Time Tracker','Time Tracker','Your shift, activities and totals'],
   'v-status':['📡 Live Status','Live Status','Who is on shift right now'],
   'v-staff' :['👥 Staff & Clients','Staff & Clients','Add or remove staff, manage client shifts'],
   'v-benefits':['🎁 SMB Benefits','SMB Benefits','Nominate standing allowance & bonus rules — amount, payout window, and eligible staff'],
+  'v-adjustments':['➕ Adjustments','Adjustments','Five adjustment rules + the integrated Fee Advance ledger'],
   'v-sheets':['📄 Timesheets','Timesheets','Filter by pay period and export'],
   'v-adherence':['📊 Adherence & Breaks','Adherence & Breaks','Break usage, overages, and late log-ins — filter by staff, client, and date'],
   'v-corr'  :['✏️ Corrections','Corrections','Approve or reject staff correction requests'],
   'v-ledger':['🧾 Contractor Ledger','Contractor Ledger','Semi-monthly hours & pay pulled from the time tracker'],
+  'v-earning':['💰 SMB PH Earning','SMB PH Earning','Admin-only immutable per-semi-monthly-period FX + VSPH/ROI/margin LOCK IN'],
   'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests'], 'v-portal':['🗂️ Freelancer Hole','Freelancer Hole','Documents, contracts, and signatures']
 };
 let view='v-punch';
 function buildNav(){
-  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-benefits','v-sheets','v-adherence','v-corr','v-ledger','v-reqadmin','v-policy','v-portal'] : ['v-punch','v-ledger','v-req','v-portal'];
+  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-earning','v-reqadmin','v-policy','v-portal'] : ['v-punch','v-ledger','v-req','v-portal'];
   $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   go(view);
@@ -1338,10 +1889,12 @@ function go(v){
   if(v==='v-status'){initFilters();loadRoster();}
   if(v==='v-staff'){renderStaffAdmin();}
   if(v==='v-benefits'){renderBenefits();}
+  if(v==='v-adjustments'){renderAdjustments();loadFeeAdvancePanel();}
   if(v==='v-sheets'){initSheetFilters();}
   if(v==='v-adherence'){initAdherenceFilters();}
   if(v==='v-corr'){loadCorrections();}
   if(v==='v-ledger'){initLedgerFilters();}
+  if(v==='v-earning'){initEarningFilters();}
   if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();}
 }
 
@@ -2031,15 +2584,19 @@ async function runSheet(){
         date:d,activity:e.activity,start:phTime(new Date(e.started_at)),end:e.ended_at?phTime(new Date(e.ended_at)):'(still running)',
         minutes:Math.round(entryMinutesForReport(e,shifts)),billing_rule:detailBillingRule(e.activity)}));
     });
-    sheetRows.push({name:s.full_name,client:(clients.find(c=>c.id===s.client_id)||{}).name||'—',days:Object.keys(byDay).length,bill,non,total:bill+non,
+    sheetRows.push({staffId:s.id,name:s.full_name,client:(clients.find(c=>c.id===s.client_id)||{}).name||'—',days:Object.keys(byDay).length,bill,non,total:bill+non,
       clientName:sc?sc.name:null,window:sc?`${sc.shift_start.slice(0,5)}–${sc.shift_end.slice(0,5)} PHT`:null});
   });
   renderSheetWarnings();
-  $('sheetTable').innerHTML=sheetRows.length?sheetRows.map(r=>`<tr><td><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td>
+  $('sheetTable').innerHTML=sheetRows.length?sheetRows.map(r=>`<tr data-fin-row="${r.staffId}"><td><b>${escapeHtml(r.name)}</b></td>
     <td class="mono">${r.days}</td><td class="mono" style="color:var(--teal)">${hm(r.bill)}</td>
     <td class="mono" style="color:var(--gold)">${hm(r.non)}</td><td class="mono">${hm(r.total)}</td>
-    <td class="mono">${r.total?Math.round(r.bill/r.total*100)+'%':'—'}</td></tr>`).join('')
-    :`<tr><td colspan="7" class="muted">No data for that range.</td></tr>`;
+    <td class="mono">${r.total?Math.round(r.bill/r.total*100)+'%':'—'}</td>
+    <td class="fin-col hide num mono" data-fin="usd">—</td><td class="fin-col hide num mono" data-fin="fx">—</td>
+    <td class="fin-col hide num mono" data-fin="payable">—</td><td class="fin-col hide num mono" data-fin="vsph">—</td>
+    <td class="fin-col hide num mono" data-fin="roi">—</td><td class="fin-col hide num mono" data-fin="margin">—</td></tr>`).join('')
+    :`<tr><td colspan="6" class="muted">No data for that range.</td></tr>`;
+  renderSheetFinance();
 }
 /* "Hours logged but nothing billable" is almost always a client setup problem, not a
    missing shift: no client assigned, or the client's shift window is typed in the CLIENT's
@@ -2062,9 +2619,19 @@ function renderSheetWarnings(){
 function csvEscape(v){return '"'+String(v).replace(/"/g,'""')+'"';}
 function summaryCsv(){
   const {start,end}=currentRange();
-  const head=['Staff','Client','Days worked','Billable hours','Non-billable hours','Total hours','Billable %'];
+  const finance=EarningsLoader.isFinanceApplicable(start,end);
+  const head=['Staff','Days worked','Billable hours','Non-billable hours','Total hours','Billable %'];
+  if(finance) head.push('USD Rate','FX (₱/$1)','Net Amount Payable','VSPH (Net Amount)','ROI','Margin %');
   const lines=[[`Pay period ${start} to ${end} (Philippine time)`],[],head];
-  sheetRows.forEach(r=>lines.push([r.name,r.client,r.days,(r.bill/60).toFixed(2),(r.non/60).toFixed(2),(r.total/60).toFixed(2),r.total?Math.round(r.bill/r.total*100)+'%':'']));
+  sheetRows.forEach(r=>{
+    const row=[r.name,r.days,(r.bill/60).toFixed(2),(r.non/60).toFixed(2),(r.total/60).toFixed(2),r.total?Math.round(r.bill/r.total*100)+'%':''];
+    if(finance){
+      const fin=sheetFinanceByStaff[r.staffId];
+      if(fin&&!fin.missing) row.push(fin.usdRate.toFixed(2),fin.fx.toFixed(4),fin.payable.toFixed(2),fin.vsph.toFixed(2),fin.roi.toFixed(2),fin.margin===null?'—':fin.margin.toFixed(2));
+      else row.push('','','','','','— missing '+(fin?fin.reason:'data'));
+    }
+    lines.push(row);
+  });
   return lines.map(l=>l.map(csvEscape).join(',')).join('\n');
 }
 function detailBillingRule(activity){
@@ -2331,13 +2898,13 @@ async function renderSheetGrid(){
 
   const fmtCol=iso=>{const d=new Date(iso+'T00:00:00Z');
     return `${d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'})}<br>${d.toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short'}).toUpperCase()}`;};
-  head.innerHTML='<th>Hire date</th><th>Tenure</th><th>Staff name</th><th>Client</th><th>Total hours worked</th>'
+  head.innerHTML='<th>Hire date</th><th>Tenure</th><th>Staff name</th><th>Total hours<br>worked</th>'
     +days.map(d=>`<th>${fmtCol(d)}</th>`).join('');
 
   let rowsHtml='';let lastClient=null;
   people.forEach((s,idx)=>{
     const cName=(clients.find(c=>c.id===s.client_id)||{}).name||'\u2014 unassigned \u2014';
-    if(lastClient!==null&&cName!==lastClient) rowsHtml+='<tr class="g-sep"><td colspan="'+(5+days.length)+'"></td></tr>';
+    if(lastClient!==null&&cName!==lastClient) rowsHtml+='<tr class="g-sep"><td colspan="'+(4+days.length)+'"></td></tr>';
     lastClient=cName;
     const mine=ents.filter(e=>e.staff_id===s.id);
     const byDay={};mine.forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
@@ -2362,10 +2929,10 @@ async function renderSheetGrid(){
       return `<td class="num"><input type="number" class="dayval${hasAdj?' is-adj':''}" min="0" step="0.25" data-staff="${s.id}" data-date="${d}" value="${shown}"></td>`;
     }).join('');
     rowsHtml+=`<tr><td class="mono">${mmddyy(s.hire_date)}</td><td class="mono">${escapeHtml(tenureStr(s.hire_date))}</td>`
-      +`<td><b>${escapeHtml(s.full_name)}</b></td><td class="muted">${escapeHtml(cName)}</td>`
+      +`<td><b>${escapeHtml(s.full_name)}</b></td>`
       +`<td class="totalcell">${totalHrs.toFixed(2)}</td>${cells}</tr>`;
   });
-  body.innerHTML=rowsHtml||`<tr><td colspan="${5+days.length}" class="muted">No staff match this filter.</td></tr>`;
+  body.innerHTML=rowsHtml||`<tr><td colspan="${4+days.length}" class="muted">No staff match this filter.</td></tr>`;
 
   body.querySelectorAll('input.dayval').forEach(inp=>{
     const baseline=inp.value;
@@ -2545,9 +3112,13 @@ function reqDetails(r){
   const amt='₱'+Number(r.amount||0).toLocaleString();
   return isAdvanceType(r.type)&&r.cutoffs ? `${amt} over ${r.cutoffs} cutoff${r.cutoffs>1?'s':''}` : amt;
 }
-/* remaining balance = sum of deductions not yet taken out of pay */
+/* remaining balance = sum of deductions not yet taken out of pay. Includes both
+   'approved' AND 'paid' requests — "Mark advance issued" only records that the cash
+   changed hands, it does not forgive the balance, so a request that has moved to
+   'paid' must keep counting here or a fully-issued advance would wrongly disappear
+   from the staff member's own balance the moment an admin clicks that button. */
 function outstanding(type){
-  const reqIds=new Set(myReqs.filter(r=>r.type===type&&r.status==='approved').map(r=>r.id));
+  const reqIds=new Set(myReqs.filter(r=>r.type===type&&(r.status==='approved'||r.status==='paid')).map(r=>r.id));
   return myDeductions.filter(d=>reqIds.has(d.request_id)&&d.status==='scheduled').reduce((a,d)=>a+Number(d.amount||0),0);
 }
 async function loadMyRequests(){
@@ -2609,7 +3180,7 @@ async function loadReqAdmin(){
   const ids=[...new Set(reqAdminList.map(r=>r.staff_id))];
   const {data:staffRows}=ids.length? await sb.from('staff').select('id,full_name').in('id',ids) : {data:[]};
   const nameOf=id=>{const s=(staffRows||[]).find(x=>x.id===id); return s?s.full_name:'—';};
-  $('reqAdminTable').innerHTML = reqAdminList.length? reqAdminList.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}</td><td>${escapeHtml(r.reason||'')}</td><td>${r.status==='rejected'?escapeHtml(r.rejection_reason||'—'):'—'}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'?`<button class="btn btn-ghost" data-paid="${r.id}">Mark paid</button>`:''}</td></tr>`).join('') : `<tr><td colspan="8" class="muted">No requests.</td></tr>`;
+  $('reqAdminTable').innerHTML = reqAdminList.length? reqAdminList.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}</td><td>${escapeHtml(r.reason||'')}</td><td>${r.status==='rejected'?escapeHtml(r.rejection_reason||'—'):'—'}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'?`<button class="btn btn-ghost" data-paid="${r.id}">${isAdvanceType(r.type)?'Mark advance issued':'Mark paid'}</button>`:''}</td></tr>`).join('') : `<tr><td colspan="8" class="muted">No requests.</td></tr>`;
   $('reqAdminTable').querySelectorAll('[data-appr]').forEach(b=>b.onclick=()=>decideReq(b.dataset.appr,'approved'));
   $('reqAdminTable').querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>openRejectRequest(b.dataset.rej));
   $('reqAdminTable').querySelectorAll('[data-paid]').forEach(b=>b.onclick=()=>decideReq(b.dataset.paid,'paid'));
@@ -2626,13 +3197,11 @@ async function loadDedAdmin(knownStaff){
   const allStaff=[...knownStaff,...(extra||[])];
   const nameOf=id=>{const s=allStaff.find(x=>x.id===id); return s?s.full_name:'—';};
   const reqById={}; reqAdminList.forEach(r=>reqById[r.id]=r);
-  $('dedAdminTable').innerHTML = dedAdminList.length? dedAdminList.map(d=>{const r=reqById[d.request_id]; return `<tr><td>${fmtNice(d.cutoff_date)}</td><td>${escapeHtml(nameOf(d.staff_id))}</td><td>${escapeHtml(r?(r.reason||''):'')}</td><td>₱${Number(d.amount||0).toLocaleString()}</td><td><span class="pill ${STATUS_PILL[d.status]}"><span class="dot"></span>${d.status}</span></td><td style="text-align:right">${d.status==='scheduled'?`<button class="btn btn-ghost" data-ded="${d.id}">Mark deducted</button>`:''}</td></tr>`;}).join('') : `<tr><td colspan="6" class="muted">No deductions.</td></tr>`;
-  $('dedAdminTable').querySelectorAll('[data-ded]').forEach(b=>b.onclick=()=>markDeducted(b.dataset.ded));
-}
-async function markDeducted(id){
-  const {error}=await sb.from('advance_deductions').update({status:'deducted'}).eq('id',id);
-  if(error)return alert(error.message);
-  await loadDedAdmin([]);
+  // Read-only: a deduction becomes 'deducted' automatically, and only, when that staff
+  // member's cutoff is marked PAID on the Contractor Ledger (confirm_cutoff_paid RPC).
+  // There is no independent "mark deducted" action anymore — see the Adjustments tab
+  // for the fuller Fee Advance history/balance/filters view of the same data.
+  $('dedAdminTable').innerHTML = dedAdminList.length? dedAdminList.map(d=>{const r=reqById[d.request_id]; return `<tr><td>${fmtNice(d.cutoff_date)}</td><td>${escapeHtml(nameOf(d.staff_id))}</td><td>${escapeHtml(r?(r.reason||''):'')}</td><td>₱${Number(d.amount||0).toLocaleString()}</td><td><span class="pill ${STATUS_PILL[d.status]}"><span class="dot"></span>${d.status}</span></td></tr>`;}).join('') : `<tr><td colspan="5" class="muted">No deductions.</td></tr>`;
 }
 /* Approved PTO / Paid Client Holiday: mark each weekday in the request's date range as a
    leave day. This does NOT create a shift or entries row and does NOT add any hours to
@@ -2662,12 +3231,14 @@ async function createLeaveDays(r){
   }
 }
 /* build and insert the repayment schedule for an approved salary/cash advance */
+/* The actual INSERT now happens server-side in schedule_advance_deductions (SECURITY
+   DEFINER) — advance_deductions no longer grants authenticated a direct INSERT/UPDATE/
+   DELETE, closing the "admin can bypass everything" hole a raw REST/SQL call used to
+   have. The RPC is idempotent (a second call for the same request is a no-op), which is
+   the actual guard against a double-click/retry building two schedules. */
 async function scheduleAdvanceDeductions(r){
   if(!isAdvanceType(r.type)||!r.cutoffs||!r.amount) return;
-  const dates=cutoffSchedule(phDate(new Date()),r.cutoffs);
-  const amounts=splitAmount(Number(r.amount),r.cutoffs);
-  const rows=dates.map((cutoff_date,i)=>({request_id:r.id,staff_id:r.staff_id,cutoff_date,amount:amounts[i],status:'scheduled'}));
-  const {error}=await sb.from('advance_deductions').insert(rows);
+  const {error}=await sb.rpc('schedule_advance_deductions',{p_request_id:r.id});
   if(error) alert('Request approved, but the deduction schedule could not be created: '+error.message);
 }
 let rejectReqId=null;
@@ -2877,5 +3448,798 @@ $('portalUpBtn').onclick = async () => {
   }
 };
 </script>
-</body>
-</html>
+<script>
+/* ===== earnings-loader.js (pure) ===== */
+/* ============================================================
+   earnings-loader.js — pure data loader for the "SMB PH Earning" tab and the
+   Timesheets finance columns.
+
+   Every function here is pure: no DOM reads ($(...).value), no Supabase
+   calls, no mutation of shared globals (staffList/ledgerRows/sheetRows/
+   filter <select> values). This is the "no approximate/reconstructed
+   formula, no side-effect runLedger changing filters" requirement — the
+   integration script (apply_integration.py) inlines this exact source into
+   index.html as a single <script> block, and BOTH runLedger() and the new
+   Earnings-tab loader call INTO these same functions rather than each
+   re-deriving their own copy of the arithmetic.
+
+   Two different kinds of "reuse" happen here, and they are NOT the same:
+     1. VSPH / ROI / margin math (computeEarningsRow / weightedMargin below)
+        — this genuinely IS fully reimplemented here, in one place, tested
+        directly with plain Node (see tests/test_loader.js).
+     2. Net Amount Payable ("payable") for a staff+cutoff — this is NEVER
+        recomputed here. It is required to come from the caller having
+        already run the real Contractor Ledger computation (runLedger's own
+        per-staff row, or paid_cutoffs.snapshot.net_amount_payable if that
+        cutoff is already PAID) for the exact same period, and is passed in
+        as-is. There is no regularPay/nightPremium/otPay/addonSubtotal logic
+        duplicated in this file — see BUILD_REPORT.md "What this file does
+        NOT do" for why, and how that's verified instead.
+   ============================================================ */
+(function (root) {
+  'use strict';
+
+  // ---------- semi-monthly period identity (mirrors index.html's own
+  // semiPeriod()/payoutCutoffFor()/payoutPhase() byte-for-byte — duplicated
+  // here, not imported, because this file must stay a plain, dependency-free
+  // <script> the integration script can inline verbatim; apply_integration.py
+  // asserts index.html's own semiPeriod source matches this copy so the two
+  // can never silently drift apart — see ASSERT_SEMI_PERIOD_SOURCE). ----------
+  function lastDayOfMonth(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
+  function addDaysIso(iso, n) {
+    const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+  function computeSemiPeriod(dateIso) {
+    const [y, m, d] = dateIso.split('-').map(Number);
+    if (d >= 5 && d <= 20) return { start: `${y}-${String(m).padStart(2, '0')}-05`, end: `${y}-${String(m).padStart(2, '0')}-20` };
+    if (d >= 21) {
+      const s = `${y}-${String(m).padStart(2, '0')}-21`;
+      const nm = m === 12 ? 1 : m + 1, ny = m === 12 ? y + 1 : y;
+      return { start: s, end: `${ny}-${String(nm).padStart(2, '0')}-04` };
+    }
+    const pm = m === 1 ? 12 : m - 1, py = m === 1 ? y - 1 : y;
+    return { start: `${py}-${String(pm).padStart(2, '0')}-21`, end: `${y}-${String(m).padStart(2, '0')}-04` };
+  }
+  function nextCutoffOnOrAfter(dateIso) {
+    const [y, m, d] = dateIso.split('-').map(Number);
+    const ld = lastDayOfMonth(y, m);
+    if (d <= 15) return `${y}-${String(m).padStart(2, '0')}-15`;
+    return `${y}-${String(m).padStart(2, '0')}-${String(ld).padStart(2, '0')}`;
+  }
+  function payoutCutoffFor(periodEnd) { return nextCutoffOnOrAfter(periodEnd); }
+  function payoutPhase(cutoffIso) { return Number(cutoffIso.split('-')[2]) === 15 ? 'mid' : 'eom'; }
+
+  /* Financial columns/LOCK IN are only ever valid for a Timesheets range that
+     is EXACTLY a semi-monthly period boundary (5–20 or 21–4) — not just
+     "pType===semi" (a custom range could accidentally type in the same
+     dates, or a future UI change could rename the dropdown value), so this
+     checks the actual start/end against the canonical period, not the
+     dropdown's selected mode. */
+  function isFinanceApplicable(start, end) {
+    if (!start || !end) return false;
+    const p = computeSemiPeriod(start);
+    return p.start === start && p.end === end;
+  }
+
+  // ---------- VSPH / ROI / margin ----------
+  /* `fx` is a REQUIRED positive number always (it's a period-level constant
+     that must already be saved before any row is computed) — 0/null/
+     undefined is "missing", never a legitimate zero.
+
+     `usdRate` is required to be positive ONLY when hours > 0 ("never
+     positive hours without rate" — that combination is always blocking,
+     `missing:true`). When hours === 0, a missing/zero USD rate does NOT
+     block the row — zero hours means zero VSPH/revenue regardless of what
+     the rate is, so it is safe to report that zero, but the row still
+     carries `rateMissing:true` so the caller can disclose it (e.g. an admin
+     account with no USD rate configured and no hours that period must not
+     silently look identical to a fully-configured staff member who simply
+     didn't work). This mirrors the general "missing USD/FX/data cannot
+     silently be zero" rule with the one documented, deliberate exception. */
+  function computeEarningsRow({ hours, usdRate, fx, payable }) {
+    if (hours == null || !Number.isFinite(hours) || hours < 0) {
+      return { missing: true, reason: 'hours' };
+    }
+    if (fx == null || !Number.isFinite(fx) || fx <= 0) {
+      return { missing: true, reason: 'fx' };
+    }
+    if (payable == null || !Number.isFinite(payable)) {
+      return { missing: true, reason: 'payable' };
+    }
+    const rateMissing = !(usdRate != null && Number.isFinite(usdRate) && usdRate > 0);
+    if (hours > 0 && rateMissing) {
+      return { missing: true, reason: 'usd_rate' };
+    }
+    const usd = rateMissing ? 0 : usdRate;
+    const vsph = hours * usd * fx;
+    const roi = vsph - payable;
+    const margin = vsph === 0 ? null : (roi / vsph) * 100;
+    return { missing: false, hours, usdRate: usd, fx, payable, vsph, roi, margin, rateMissing };
+  }
+
+  /* Aggregate margin is weighted via sumROI/sumVSPH*100 — NOT an average of
+     each row's own margin% — per the approved "aggregate total margin
+     weighted via sumROI/sumRevenue" requirement. Rows with missing===true
+     are excluded from both sums (they cannot be locked anyway). */
+  function weightedMargin(rows) {
+    let sumRoi = 0, sumVsph = 0;
+    rows.forEach(r => { if (!r.missing) { sumRoi += r.roi; sumVsph += r.vsph; } });
+    return { sumRoi, sumVsph, weighted: sumVsph === 0 ? null : (sumRoi / sumVsph) * 100 };
+  }
+
+  /* "Every relevant staff member for this period, independent of any UI
+     filter" — every currently-active staff member already hired on or
+     before that period's END date. Mirrors active_staff_for_period(cutoff)
+     in earnings.sql EXACTLY (same wording, same boundary) — the two must
+     never disagree, since the server re-derives and compares against this
+     same set at LOCK IN time. */
+  function filterActiveStaffForPeriod(staffList, periodEnd) {
+    return staffList.filter(s => s.active && (!s.hire_date || s.hire_date <= periodEnd));
+  }
+
+  /* Builds the exact jsonb row shape lock_earnings_period() in earnings.sql
+     validates against. Throws (does not silently drop a row) if any input
+     row is `missing` — a LOCK IN attempt must not proceed with an incomplete
+     row; the caller is expected to disable the LOCK IN button instead of
+     ever calling this with incomplete data, but this is the last line of
+     defense against a stale click. */
+  function buildLockPayload(entries) {
+    return entries.map(e => {
+      if (e.row.missing) {
+        throw new Error(`Cannot lock: staff ${e.staffId} is missing ${e.row.reason}.`);
+      }
+      return {
+        staff_id: e.staffId, name: e.name, client: e.client,
+        hours: e.row.hours, usd_rate: e.row.usdRate, fx: e.row.fx,
+        payable: e.row.payable, vsph: e.row.vsph, roi: e.row.roi,
+        margin: e.row.margin, rate_missing: !!e.row.rateMissing,
+      };
+    });
+  }
+
+  const api = {
+    lastDayOfMonth, addDaysIso, computeSemiPeriod, nextCutoffOnOrAfter,
+    payoutCutoffFor, payoutPhase, isFinanceApplicable,
+    computeEarningsRow, weightedMargin, filterActiveStaffForPeriod, buildLockPayload,
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.EarningsLoader = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/* ===== earnings-data.js (fail-closed Supabase loaders) ===== */
+/* ============================================================
+   earnings-data.js — fail-closed Supabase data loaders for the "SMB PH
+   Earning" tab and the Timesheets finance columns.
+
+   Not pure (they call `sb`, the Supabase client, a global from index.html),
+   which is why this lives in a separate file from earnings-loader.js. What
+   they ARE is deliberately stricter than the base app's own
+   fetchLedgerExtras/fetchAdjustmentsForCutoff/fetchPaidCutoffs/
+   fetchBenefitRules/fetchScheduledAdvances (in temp/adjustments-release/
+   index.html), which all swallow a Supabase error into `return []` — fine
+   for a live, editable, re-run-able Ledger view, but not acceptable for data
+   that is about to be frozen into an immutable LOCK IN snapshot: a transient
+   network blip or a permissions problem must never silently look identical
+   to "this staff member genuinely has 0 of everything".
+
+   Two hardening changes vs. the base helpers, everywhere in this file:
+     1. THROW on any Supabase error (never `return []`/swallow-and-log). The
+        caller is required to catch it and show a visible, blocking error —
+        never present partial/zero-substituted data as a normal result.
+     2. FULLY PAGE every query with a real loop (mirrors the base app's own
+        `pagedSelect`), never a single fixed `.range(0, N)` call — a `.range`
+        call that happens to return exactly N rows because a table quietly
+        grew past N is a silent truncation, not an error, so the base
+        helpers' fixed .range(0,4999) can never surface it. There is still a
+        hard page-count guard (200 pages) to fail closed rather than loop
+        forever against a corrupted server response.
+   ============================================================ */
+(function (root) {
+  'use strict';
+
+  const PAGE_SIZE = 1000;
+  const MAX_PAGES = 200;
+
+  async function strictPagedSelect(buildQuery, label) {
+    const out = [];
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const from = page * PAGE_SIZE;
+      const { data, error } = await buildQuery().range(from, from + PAGE_SIZE - 1);
+      if (error) throw new Error(`${label}: ${error.message}`);
+      const rows = data || [];
+      out.push(...rows);
+      if (rows.length < PAGE_SIZE) return out;
+    }
+    throw new Error(`${label}: exceeded ${MAX_PAGES} pages of ${PAGE_SIZE} rows without finishing — refusing to proceed with what may be truncated data.`);
+  }
+
+  function applyStaffFilterStrict(q, staffIds) {
+    if (!staffIds) return q;
+    if (staffIds.length === 0) return q.eq('staff_id', '00000000-0000-0000-0000-000000000000'); // no-op, matches nothing
+    if (staffIds.length === 1) return q.eq('staff_id', staffIds[0]);
+    return q.in('staff_id', staffIds);
+  }
+
+  const ID_CHUNK_SIZE = 500;
+  function chunkArray(arr, size) {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  }
+
+  /* Same fail-closed/fully-paged guarantee as strictPagedSelect, PLUS
+     chunks a large staffIds array into batches of ID_CHUNK_SIZE before
+     ever building an `.in('staff_id', [...])` filter — an unchunked `.in()`
+     over a roster of hundreds/thousands of staff can hit a PostgREST/URL
+     length limit, which would otherwise look like just another "0 rows"
+     result instead of the truncation it actually is. `buildQueryForIds(ids)`
+     receives either `null` (no staff filter at all) or one chunk (never the
+     full, unchunked list) each call. */
+  async function strictPagedSelectChunkedByIds(buildQueryForIds, staffIds, label) {
+    if (!staffIds) return strictPagedSelect(() => buildQueryForIds(null), label);
+    if (staffIds.length === 0) return [];
+    const out = [];
+    for (const chunk of chunkArray(staffIds, ID_CHUNK_SIZE)) {
+      const rows = await strictPagedSelect(() => buildQueryForIds(chunk), `${label} (chunk of ${chunk.length})`);
+      out.push(...rows);
+    }
+    return out;
+  }
+
+  async function fetchLedgerExtrasStrict(sb, cutoffIso, staffIds) {
+    return strictPagedSelectChunkedByIds(
+      (ids) => applyStaffFilterStrict(sb.from('ledger_extras').select('*').eq('cutoff_date', cutoffIso), ids),
+      staffIds && staffIds.length ? staffIds : null,
+      'ledger_extras',
+    );
+  }
+  async function fetchScheduledAdvancesStrict(sb, cutoffIso, staffIds) {
+    return strictPagedSelectChunkedByIds(
+      (ids) => applyStaffFilterStrict(sb.from('advance_deductions').select('*').eq('cutoff_date', cutoffIso).neq('status', 'waived'), ids),
+      staffIds && staffIds.length ? staffIds : null,
+      'advance_deductions',
+    );
+  }
+  async function fetchPaidCutoffsStrict(sb, cutoffIso, staffIds) {
+    return strictPagedSelectChunkedByIds(
+      (ids) => applyStaffFilterStrict(sb.from('paid_cutoffs').select('*').eq('cutoff_date', cutoffIso), ids),
+      staffIds && staffIds.length ? staffIds : null,
+      'paid_cutoffs',
+    );
+  }
+  async function fetchBenefitRulesStrict(sb) {
+    return strictPagedSelect(() => sb.from('benefit_rules').select('*'), 'benefit_rules');
+  }
+  async function fetchAdjustmentsForCutoffStrict(sb, cutoffIso, staffIds) {
+    const { data, error } = await sb.rpc('adjustments_for_cutoff', {
+      p_cutoff_date: cutoffIso,
+      p_staff_ids: staffIds && staffIds.length ? staffIds : null,
+    });
+    if (error) throw new Error(`adjustments_for_cutoff: ${error.message}`);
+    return data || [];
+  }
+  async function fetchFxRateStrict(sb, cutoffIso) {
+    const { data, error } = await sb.from('fx_rates').select('*').eq('cutoff_date', cutoffIso).maybeSingle();
+    if (error) throw new Error(`fx_rates: ${error.message}`);
+    return data || null; // null is a legitimate "not set yet" — caller must treat that as missing, not 0
+  }
+  async function fetchEarningsSnapshotStrict(sb, cutoffIso) {
+    const { data, error } = await sb.from('earnings_snapshots').select('*').eq('cutoff_date', cutoffIso).maybeSingle();
+    if (error) throw new Error(`earnings_snapshots: ${error.message}`);
+    return data || null;
+  }
+
+  /* The historically-accurate roster for a period: every staff member the
+     server-side relevant_staff_for_period() RPC returns — NOT a client-side
+     `staffList.filter(active)` — so a staff member who genuinely worked/was
+     paid this period but has since been deactivated is still included (a
+     LOCK IN is a cost report; omitting a real cost is the failure mode this
+     guards against). This is the SAME definition lock_earnings_period()
+     validates completeness against — there is exactly one implementation of
+     "who's relevant", on the server, not two that could silently disagree. */
+  async function fetchRelevantStaffForPeriodStrict(sb, cutoffIso) {
+    const { data, error } = await sb.rpc('relevant_staff_for_period', { p_cutoff_date: cutoffIso });
+    if (error) throw new Error(`relevant_staff_for_period: ${error.message}`);
+    return data || [];
+  }
+
+  const api = {
+    strictPagedSelect, applyStaffFilterStrict, strictPagedSelectChunkedByIds, chunkArray,
+    fetchLedgerExtrasStrict, fetchScheduledAdvancesStrict, fetchPaidCutoffsStrict,
+    fetchBenefitRulesStrict, fetchAdjustmentsForCutoffStrict,
+    fetchFxRateStrict, fetchEarningsSnapshotStrict, fetchRelevantStaffForPeriodStrict,
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.EarningsData = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/* ===== earnings-runtime.js (wires the above into the UI) ===== */
+/* ============================================================
+   earnings-runtime.js — wires earnings-loader.js (pure) and earnings-data.js
+   (fail-closed Supabase loaders) into the Timesheets finance columns and the
+   new "SMB PH Earning" admin tab. Inlined by apply_integration.py into the
+   same document as index.html's own globals (sb, staffList, clients, me, $,
+   fill, escapeHtml, fmtNice, csvEscape, phDate, semiMonthlyPeriod,
+   periodList, buildShiftDateMap, buildShiftSpanMap, shiftDateOf, spanFor,
+   shiftWindowFor, summarize, nightWindowsForRange, ledgerShiftRow,
+   computeLedgerRowPure, applyStaffFilter — all defined earlier in the same
+   file, before this <script> block runs).
+
+   Fail-closed by design: every function below that touches money either
+   THROWS (via the EarningsData.*Strict helpers) or explicitly renders a
+   blocking "could not load — showing nothing" banner. Nothing here ever
+   falls back to a lenient `return []`/0-substitution the way the base
+   fetchLedgerExtras/fetchAdjustmentsForCutoff/fetchPaidCutoffs/
+   fetchBenefitRules/fetchScheduledAdvances/pagedSelect helpers in
+   temp/adjustments-release/index.html do.
+   ============================================================ */
+
+// ---------- strict, fully-paged entries/shifts/leaves (the base
+// fetchEntriesRange/fetchShiftsRange/fetchLeaveDays/pagedSelect all swallow
+// a Supabase error into an empty/partial result — not acceptable feeding a
+// LOCK IN or a displayed Net Amount Payable). ----------
+async function fetchShiftsRangeStrict(startIso, endIso, staffIds) {
+  const from = new Date(startIso + 'T00:00:00+08:00'); from.setDate(from.getDate() - 1);
+  const to = new Date(endIso + 'T23:59:59+08:00'); to.setDate(to.getDate() + 1);
+  if (staffIds && !staffIds.length) return [];
+  // chunked (a large "every relevant staff" roster must not build one giant
+  // unchunked `.in('staff_id', [...])` filter) and fully paged (fail-closed).
+  const data = await EarningsData.strictPagedSelectChunkedByIds(
+    (ids) => EarningsData.applyStaffFilterStrict(
+      sb.from('shifts').select('*').gte('login_at', from.toISOString()).lte('login_at', to.toISOString()).order('login_at'),
+      ids),
+    staffIds, 'shifts');
+  return data.filter(sh => { const d = phDate(new Date(sh.login_at)); return d >= startIso && d <= endIso && (!staffIds || staffIds.includes(sh.staff_id)); });
+}
+async function fetchEntriesRangeStrict(startIso, endIso, staffIds) {
+  const from = new Date(startIso + 'T00:00:00+08:00'); from.setDate(from.getDate() - 1);
+  const to = new Date(endIso + 'T23:59:59+08:00'); to.setDate(to.getDate() + 1);
+  if (staffIds && !staffIds.length) return [];
+  const [data, shifts] = await Promise.all([
+    EarningsData.strictPagedSelectChunkedByIds(
+      (ids) => EarningsData.applyStaffFilterStrict(
+        sb.from('entries').select('*').eq('active', true).gte('started_at', from.toISOString()).lte('started_at', to.toISOString()).order('started_at'),
+        ids),
+      staffIds, 'entries'),
+    fetchShiftsRangeStrict(startIso, endIso, staffIds),
+  ]);
+  const sdm = buildShiftDateMap(shifts);
+  return data.filter(e => { const d = shiftDateOf(e, sdm); return d >= startIso && d <= endIso && (!staffIds || staffIds.includes(e.staff_id)); });
+}
+async function fetchLeaveDaysStrict(startIso, endIso, staffIds) {
+  return EarningsData.strictPagedSelectChunkedByIds(
+    (ids) => EarningsData.applyStaffFilterStrict(sb.from('leave_days').select('*').gte('date', startIso).lte('date', endIso), ids),
+    staffIds && staffIds.length ? staffIds : null, 'leave_days');
+}
+
+/* Net Amount Payable ("payable"), for the given staff subset and EXACT same
+   period the Contractor Ledger itself would show — calls computeLedgerRowPure
+   (the function extracted verbatim out of runLedger() by apply_integration.py)
+   with independently-fetched (strict) data. Never touches the real
+   ledgerRows/lgClient/lgStaff globals or re-renders the Ledger tab — this is
+   the "no side-effect runLedger changing filters" requirement: the admin can
+   have any Contractor Ledger filter set while this runs and it will neither
+   see nor change it. */
+async function computeLedgerRowsForPeriod(peopleSubset, start, end) {
+  if (!peopleSubset.length) return [];
+  const ids = peopleSubset.map(s => s.id);
+  const [ents, shifts] = await Promise.all([
+    fetchEntriesRangeStrict(start, end, ids),
+    fetchShiftsRangeStrict(start, end, ids),
+  ]);
+  const sdm = buildShiftDateMap(shifts), nightWins = nightWindowsForRange(start, end);
+  const ledgerDetailRows = [];
+  peopleSubset.forEach(staff => {
+    const client = clients.find(c => c.id === staff.client_id);
+    shifts.filter(sh => sh.staff_id === staff.id).forEach(shift => {
+      const date = phDate(new Date(shift.login_at)); if (date < start || date > end) return;
+      const shiftEntries = ents.filter(e => e.staff_id === staff.id && e.shift_id === shift.id);
+      ledgerDetailRows.push(ledgerShiftRow(staff, client, shift, shiftEntries, nightWins));
+    });
+  });
+  const leaves = await fetchLeaveDaysStrict(start, end, ids);
+  const leavesByStaff = {}; leaves.forEach(l => { (leavesByStaff[l.staff_id] = leavesByStaff[l.staff_id] || []).push(l); });
+  const cutoffIso = EarningsLoader.payoutCutoffFor(end), phase = EarningsLoader.payoutPhase(cutoffIso);
+  const [extrasRaw, advancesRaw, rulesRaw, adjustmentsRaw, paidRaw] = await Promise.all([
+    EarningsData.fetchLedgerExtrasStrict(sb, cutoffIso, ids),
+    EarningsData.fetchScheduledAdvancesStrict(sb, cutoffIso, ids),
+    EarningsData.fetchBenefitRulesStrict(sb),
+    EarningsData.fetchAdjustmentsForCutoffStrict(sb, cutoffIso, ids),
+    EarningsData.fetchPaidCutoffsStrict(sb, cutoffIso, ids),
+  ]);
+  const extrasByStaff = {}; extrasRaw.forEach(e => { (extrasByStaff[e.staff_id] = extrasByStaff[e.staff_id] || {})[e.field_key] = Number(e.amount); });
+  const advanceByStaff = {}; advancesRaw.forEach(d => { advanceByStaff[d.staff_id] = (advanceByStaff[d.staff_id] || 0) + Number(d.amount || 0); });
+  const rulesByField = {}; rulesRaw.forEach(r => { (rulesByField[r.field_key] = rulesByField[r.field_key] || []).push(r); });
+  const adjustmentsByStaff = {}; adjustmentsRaw.forEach(a => { adjustmentsByStaff[a.staff_id] = Number(a.amount); });
+  const paidByStaff = {}; paidRaw.forEach(p => { paidByStaff[p.staff_id] = p; });
+  return peopleSubset.map(staff => computeLedgerRowPure(staff, {
+    clients, ledgerDetailRows, leavesByStaff, extrasByStaff, rulesByField, advanceByStaff, adjustmentsByStaff, paidByStaff, cutoffIso, phase,
+  }));
+}
+
+/* Total hours worked for the given staff subset and EXACT same period the
+   Timesheets summary table itself shows — calls the SAME global
+   summarize()/shiftWindowFor()/spanFor()/buildShiftSpanMap() functions
+   runSheet() uses, on independently (strictly) fetched data, so this is a
+   genuine reuse of the Timesheets hours computation, not a re-derivation. */
+async function computeTotalHoursForPeriod(peopleSubset, start, end) {
+  if (!peopleSubset.length) return {};
+  const ids = peopleSubset.map(s => s.id);
+  const [ents, shifts] = await Promise.all([
+    fetchEntriesRangeStrict(start, end, ids),
+    fetchShiftsRangeStrict(start, end, ids),
+  ]);
+  const sdm = buildShiftDateMap(shifts), ssm = buildShiftSpanMap(shifts);
+  const out = {};
+  peopleSubset.forEach(s => {
+    const mine = ents.filter(e => e.staff_id === s.id);
+    const sc = clients.find(c => c.id === s.client_id);
+    const byDay = {}; mine.forEach(e => { const d = shiftDateOf(e, sdm); (byDay[d] = byDay[d] || []).push(e); });
+    let bill = 0, non = 0;
+    Object.keys(byDay).forEach(d => {
+      const sum = summarize(byDay[d], null, shiftWindowFor(sc, d), spanFor(byDay[d], ssm));
+      bill += sum.billable; non += sum.nonbillable;
+    });
+    out[s.id] = (bill + non) / 60;
+  });
+  return out;
+}
+
+// ============================================================
+// Timesheets finance columns
+// ============================================================
+let sheetFinanceByStaff = {};
+let sheetFinGen = 0;   // generation token: guards against a fast period/filter
+                        // change binding a slow, in-flight fetch's results to
+                        // the WRONG (now-current) range/cutoff.
+
+async function renderSheetFinance() {
+  const myGen = ++sheetFinGen;
+  const { start, end } = currentRange();
+  // Financial columns are hidden unless the admin has EXPLICITLY selected
+  // "Semi-monthly (5–20 / 21–4)" in the pType dropdown AND the resulting
+  // range is an exact semi-monthly boundary.
+  const applicable = $('pType').value === 'semi' && EarningsLoader.isFinanceApplicable(start, end);
+  document.querySelectorAll('#v-sheets .fin-col').forEach(el => el.classList.toggle('hide', !applicable));
+  if ($('pFx')) $('pFx').classList.toggle('hide', !applicable);
+  if ($('saveFx')) $('saveFx').classList.toggle('hide', !applicable);
+  if ($('goToEarningBtn')) $('goToEarningBtn').classList.toggle('hide', !applicable);
+  const banner = $('sheetFinBanner');
+  if (!applicable) { if (banner) { banner.classList.add('hide'); banner.innerHTML = ''; } sheetFinanceByStaff = {}; return; }
+
+  const cutoffIso = EarningsLoader.payoutCutoffFor(end);
+  if ($('goToEarningBtn')) $('goToEarningBtn').dataset.period = `${start}|${end}`;
+  banner.classList.add('hide'); banner.innerHTML = '';
+  // disable Save while (re-)loading so a click mid-fetch can't race a stale read
+  if ($('saveFx')) $('saveFx').disabled = true;
+  try {
+    const [fxRow, lockedRow] = await Promise.all([
+      EarningsData.fetchFxRateStrict(sb, cutoffIso),
+      EarningsData.fetchEarningsSnapshotStrict(sb, cutoffIso),
+    ]);
+    if (myGen !== sheetFinGen) return; // a newer call has already superseded this one
+    $('pFx').value = fxRow ? fxRow.rate : '';
+    $('pFx').disabled = !!lockedRow;
+    $('saveFx').disabled = !!lockedRow;
+    if (lockedRow) {
+      banner.classList.remove('hide');
+      banner.innerHTML = `<b>This period (cutoff ${escapeHtml(cutoffIso)}) is LOCKED on the SMB PH Earning tab.</b> The FX rate cannot be changed here anymore; figures below are still the live Ledger/Timesheets numbers (this table is not the historical record — see SMB PH Earning for the frozen snapshot).`;
+    }
+    if (!fxRow) {
+      banner.classList.remove('hide');
+      banner.innerHTML = `<b>No FX rate set for this period yet (cutoff ${escapeHtml(cutoffIso)}).</b> Enter one above and press "Save FX" — Net Amount Payable/VSPH/ROI/Margin cannot be shown until it is set (missing FX is never silently treated as zero).`;
+      sheetFinanceByStaff = {};
+      document.querySelectorAll('#sheetTable [data-fin]').forEach(td => { td.textContent = '\u2014'; });
+      return;
+    }
+    const fx = Number(fxRow.rate);
+    const relevant = await EarningsData.fetchRelevantStaffForPeriodStrict(sb, cutoffIso);
+    if (myGen !== sheetFinGen) return;
+    const relevantById = {}; relevant.forEach(s => { relevantById[s.id] = s; });
+    const displayedIds = new Set(sheetRows.map(r => r.staffId));
+    const peopleSubset = relevant.filter(s => displayedIds.has(s.id));
+    const ledgerRowsForPeriod = await computeLedgerRowsForPeriod(peopleSubset, start, end);
+    if (myGen !== sheetFinGen) return;
+    const payableByStaff = {}; ledgerRowsForPeriod.forEach(r => { payableByStaff[r.staffId] = r.total; });
+
+    sheetFinanceByStaff = {};
+    sheetRows.forEach(r => {
+      const staff = relevantById[r.staffId] || staffList.find(s => s.id === r.staffId);
+      const usdRate = staff ? Number(staff.usd_hourly_rate || 0) : 0;
+      const payable = payableByStaff[r.staffId];
+      const fin = EarningsLoader.computeEarningsRow({ hours: r.total / 60, usdRate, fx, payable });
+      sheetFinanceByStaff[r.staffId] = fin;
+      const tr = document.querySelector(`#sheetTable tr[data-fin-row="${r.staffId}"]`);
+      if (!tr) return;
+      const set = (key, val, title) => { const el = tr.querySelector(`[data-fin="${key}"]`); if (el) { el.textContent = val; if (title) el.title = title; } };
+      if (fin.missing) {
+        const why = `Missing ${fin.reason} — cannot compute (never shown as 0)`;
+        ['usd', 'fx', 'payable', 'vsph', 'roi', 'margin'].forEach(k => set(k, '\u2014', why));
+      } else {
+        set('usd', fin.rateMissing ? '\u2014 (rate not set)' : fin.usdRate.toFixed(2));
+        set('fx', fin.fx.toFixed(4));
+        set('payable', fin.payable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        set('vsph', fin.vsph.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        set('roi', fin.roi.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        set('margin', fin.margin === null ? '\u2014' : fin.margin.toFixed(2) + '%');
+      }
+    });
+  } catch (e) {
+    if (myGen !== sheetFinGen) return;
+    banner.classList.remove('hide');
+    banner.innerHTML = `<b>Could not load finance data \u2014 showing no financial figures rather than a wrong or partial one.</b><br>${escapeHtml(e.message)}`;
+    document.querySelectorAll('#sheetTable [data-fin]').forEach(td => { td.textContent = '\u2014'; });
+    sheetFinanceByStaff = {};
+    // Allow retrying the Save even though the fetch failed elsewhere — FX
+    // saving doesn't depend on the Ledger/leave/extras data that just failed
+    // to load. (No `finally` block here on purpose: every other branch above
+    // — locked / no-FX-yet / success — already sets the CORRECT disabled
+    // state explicitly; a blanket `finally` previously re-enabled Save FX
+    // unconditionally even for an already-LOCKED period, which is the bug
+    // this comment replaces.)
+    if ($('saveFx')) $('saveFx').disabled = false;
+  }
+}
+
+if ($('saveFx')) {
+  $('saveFx').onclick = async () => {
+    // Capture the selected period/cutoff and typed rate AT CLICK TIME —
+    // if the admin changes the period/pType before this RPC resolves, the
+    // result must be validated against what was ACTUALLY selected when the
+    // click happened, not whatever is on screen when the await returns.
+    const capturedRange = currentRange();
+    const capturedCutoff = EarningsLoader.payoutCutoffFor(capturedRange.end);
+    const v = Number($('pFx').value);
+    if (!v || v <= 0) return alert('Enter a positive FX rate (PHP per USD 1).');
+    $('saveFx').disabled = true;
+    try {
+      const { error } = await sb.rpc('set_fx_rate', { p_cutoff_date: capturedCutoff, p_rate: v });
+      if (error) throw new Error(error.message);
+      const nowRange = currentRange();
+      if (nowRange.start !== capturedRange.start || nowRange.end !== capturedRange.end) {
+        // the admin navigated away before the save resolved — the FX WAS
+        // saved for the period that was selected at click time (correct),
+        // but re-rendering the (now different) on-screen range from here
+        // would be rendering someone else's period's data as if it were
+        // this save's result. Do nothing further; whichever render last
+        // ran for the CURRENT range (via renderSheetFinance's own
+        // generation guard) already owns the screen.
+        return;
+      }
+      await renderSheetFinance();
+    } catch (e) { alert(e.message); }
+    finally { $('saveFx').disabled = false; }
+  };
+}
+
+// ============================================================
+// SMB PH Earning tab
+// ============================================================
+let egRows = [], egCutoffIso = null, egPeriodBounds = null, egLocked = null;
+let egGen = 0;          // generation token, same purpose as sheetFinGen above
+let egPendingLock = null; // the IMMUTABLE snapshot captured when the confirm
+                           // dialog opened — confirmEarningLock() reads ONLY
+                           // this, never the live egRows/egCutoffIso/$('egFx')
+                           // globals, which could have changed if the admin
+                           // switched periods while the dialog was open.
+
+function initEarningFilters() {
+  const list = periodList('semi', 24);
+  $('egPeriod').innerHTML = list.map(p => `<option value="${p.start}|${p.end}">${fmtNice(p.start)} \u2013 ${fmtNice(p.end)} (cutoff ${EarningsLoader.payoutCutoffFor(p.end)})</option>`).join('');
+  $('egPeriod').onchange = runEarningPreview;
+  $('egRun').onclick = runEarningPreview;
+  $('egSaveFx').onclick = saveEarningFx;
+  $('egLockBtn').onclick = openEarningLockConfirm;
+  $('egConfirmCancel').onclick = closeEarningLockConfirm;
+  $('egConfirmYes').onclick = confirmEarningLock;
+  runEarningPreview();
+}
+
+function periodTotalsHtml(rows) {
+  let hours = 0, payable = 0, vsph = 0, roi = 0, anyMissing = false;
+  rows.forEach(r => {
+    if (r.row.missing) { anyMissing = true; return; }
+    hours += r.row.hours; payable += r.row.payable; vsph += r.row.vsph; roi += r.row.roi;
+  });
+  const agg = EarningsLoader.weightedMargin(rows.map(r => r.row));
+  const fmt = n => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `Total hours: <b class="mono">${hours.toFixed(2)}</b> &middot; `
+    + `Total Net Amount Payable: <b class="mono">\u20b1${fmt(payable)}</b> &middot; `
+    + `Total VSPH: <b class="mono">\u20b1${fmt(vsph)}</b> &middot; `
+    + `Total ROI: <b class="mono" style="color:${roi < 0 ? 'var(--rose)' : 'var(--teal)'}">\u20b1${fmt(roi)}</b> &middot; `
+    + `Weighted margin (\u03a3ROI/\u03a3VSPH): <b class="mono">${agg.weighted === null ? '\u2014' : agg.weighted.toFixed(4) + '%'}</b>`
+    + (anyMissing ? ' <span style="color:var(--rose)">(totals exclude staff with missing data)</span>' : '');
+}
+
+function renderEarningRows(rows) {
+  $('egTable').innerHTML = rows.length ? rows.map(r => {
+    if (r.row.missing) {
+      return `<tr><td class="sticky-col"><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td>
+        <td class="num mono" colspan="6" title="Missing ${escapeHtml(r.row.reason)} — cannot compute, never shown as 0">\u2014 missing ${escapeHtml(r.row.reason)}</td></tr>`;
+    }
+    const f = r.row;
+    const usdCell = f.rateMissing ? '<span title="No USD rate configured — safe because hours are 0">\u2014</span>' : f.usdRate.toFixed(2);
+    return `<tr><td class="sticky-col"><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td>
+      <td class="num mono">${f.hours.toFixed(2)}</td><td class="num mono">${usdCell}</td><td class="num mono">${f.fx.toFixed(4)}</td>
+      <td class="num mono">${f.payable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      <td class="num mono">${f.vsph.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      <td class="num mono" style="color:${f.roi < 0 ? 'var(--rose)' : 'var(--teal)'}">${f.roi.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      <td class="num mono">${f.margin === null ? '\u2014' : f.margin.toFixed(2) + '%'}</td></tr>`;
+  }).join('') : `<tr><td colspan="9" class="muted">No relevant staff for this period.</td></tr>`;
+  $('egAggMargin').innerHTML = periodTotalsHtml(rows);
+}
+
+function renderEarningLocked(snap) {
+  // Historical display from the STORED snapshot only — never current
+  // staffList/clients names or the live-recomputed rate.
+  const rows = (snap.rows || []).map(r => ({
+    name: r.name, client: r.client,
+    row: { missing: false, hours: r.hours, usdRate: r.usd_rate, fx: r.fx, payable: r.payable, vsph: r.vsph, roi: r.roi, margin: r.margin },
+  }));
+  renderEarningRows(rows);
+  $('egLockBtn').disabled = true;
+  $('egLockBtn').title = 'Already locked \u2014 immutable, no unlock/delete in this release.';
+}
+
+async function runEarningPreview() {
+  const myGen = ++egGen;
+  egRows = []; // clear immediately so a slow-to-render previous view never lingers
+  $('egLockBtn').disabled = true;
+  $('egLockBtn').title = '';
+  $('egSaveFx').disabled = true;
+
+  const [start, end] = $('egPeriod').value.split('|');
+  if (!start || !end) return;
+  egPeriodBounds = { start, end };
+  const cutoffIso = EarningsLoader.payoutCutoffFor(end);
+  egCutoffIso = cutoffIso;
+  $('egStatus').textContent = 'Loading\u2026';
+
+  try {
+    const lockedRow = await EarningsData.fetchEarningsSnapshotStrict(sb, cutoffIso);
+    if (myGen !== egGen) return;
+    egLocked = lockedRow;
+    if (lockedRow) {
+      $('egFx').value = lockedRow.fx_rate; $('egFx').disabled = true; $('egSaveFx').disabled = true;
+      $('egStatus').innerHTML = `<b>LOCKED</b> \u2014 locked ${escapeHtml(String(lockedRow.locked_at).slice(0, 10))} by admin. This is the frozen historical snapshot (names/rates as stored at lock time), not a live recomputation. No unlock/delete exists in this release.`;
+      renderEarningLocked(lockedRow);
+      return;
+    }
+    $('egFx').disabled = false; $('egSaveFx').disabled = false;
+    const fxRow = await EarningsData.fetchFxRateStrict(sb, cutoffIso);
+    if (myGen !== egGen) return;
+    $('egFx').value = fxRow ? fxRow.rate : '';
+    if (!fxRow) {
+      $('egStatus').innerHTML = 'No FX rate saved for this period yet \u2014 set it above, then press "Run preview".';
+      $('egTable').innerHTML = ''; $('egAggMargin').textContent = '\u2014';
+      egRows = [];
+      return;
+    }
+    const fx = Number(fxRow.rate);
+    // The HISTORICALLY ACCURATE roster, from the server RPC — every staff
+    // member with real activity (shifts/entries/leave/paid record) this
+    // period, even if since deactivated, PLUS every currently-active staff
+    // member hired by the period's end. There is no filter on this tab at
+    // all, by design: a LOCK IN can never be scoped by whatever the admin
+    // last had selected on the Contractor Ledger or Timesheets.
+    const relevant = await EarningsData.fetchRelevantStaffForPeriodStrict(sb, cutoffIso);
+    if (myGen !== egGen) return;
+    const [payableRows, hoursByStaff] = await Promise.all([
+      computeLedgerRowsForPeriod(relevant, start, end),
+      computeTotalHoursForPeriod(relevant, start, end),
+    ]);
+    if (myGen !== egGen) return;
+    const payableByStaff = {}; payableRows.forEach(r => { payableByStaff[r.staffId] = r.total; });
+    egRows = relevant.map(staff => {
+      const hours = hoursByStaff[staff.id];
+      const usdRate = Number(staff.usd_hourly_rate || 0);
+      const payable = payableByStaff[staff.id];
+      const fin = EarningsLoader.computeEarningsRow({ hours, usdRate, fx, payable });
+      return { staffId: staff.id, name: staff.full_name, client: (clients.find(c => c.id === staff.client_id) || {}).name || '\u2014', row: fin };
+    });
+    renderEarningRows(egRows);
+    const anyMissing = egRows.some(r => r.row.missing);
+    $('egLockBtn').disabled = anyMissing || !egRows.length;
+    $('egLockBtn').title = anyMissing ? 'Cannot LOCK IN \u2014 at least one relevant staff member is missing USD rate/FX/hours/payable data.' : '';
+    $('egStatus').innerHTML = anyMissing
+      ? `<b style="color:var(--rose)">Preview only \u2014 NOT locked.</b> ${egRows.filter(r => r.row.missing).length} staff member(s) are missing data; LOCK IN is disabled until every relevant staff member is complete.`
+      : `<b>Preview only \u2014 NOT locked.</b> ${egRows.length} relevant staff member(s) for cutoff ${escapeHtml(cutoffIso)} (includes anyone with real activity this period, even if since deactivated). Review before pressing LOCK IN \u2014 it is immutable.`;
+  } catch (e) {
+    if (myGen !== egGen) return;
+    $('egStatus').innerHTML = `<b>Could not load \u2014 showing nothing.</b> ${escapeHtml(e.message)}`;
+    $('egTable').innerHTML = ''; $('egAggMargin').textContent = '\u2014';
+    egRows = [];
+  }
+}
+
+async function saveEarningFx() {
+  // capture at click time — see the identical reasoning in Timesheets' saveFx above
+  const capturedCutoff = egCutoffIso;
+  const capturedPeriodValue = $('egPeriod').value;
+  const v = Number($('egFx').value);
+  if (!capturedCutoff) return;
+  if (!v || v <= 0) return alert('Enter a positive FX rate (PHP per USD 1).');
+  $('egSaveFx').disabled = true;
+  try {
+    const { error } = await sb.rpc('set_fx_rate', { p_cutoff_date: capturedCutoff, p_rate: v });
+    if (error) throw new Error(error.message);
+    if ($('egPeriod').value !== capturedPeriodValue) return; // navigated away meanwhile; the save itself is still correct for the period it targeted
+    await runEarningPreview();
+  } catch (e) { alert(e.message); }
+  finally { $('egSaveFx').disabled = false; }
+}
+
+function openEarningLockConfirm() {
+  if (!egRows.length || egRows.some(r => r.row.missing) || egLocked) return;
+  const agg = EarningsLoader.weightedMargin(egRows.map(r => r.row));
+  // IMMUTABLE capture: confirmEarningLock() below reads ONLY this object,
+  // never the live egRows/egCutoffIso/$('egFx').value globals — if the admin
+  // somehow changes the period/FX while this dialog is open (e.g. via
+  // keyboard navigation or a stray script), confirmEarningLock() detects the
+  // generation mismatch and refuses rather than locking a different period's
+  // rows under the period the dialog displayed.
+  egPendingLock = {
+    gen: egGen,
+    cutoffIso: egCutoffIso,
+    fx: Number($('egFx').value),
+    periodBounds: { ...egPeriodBounds },
+    rows: egRows.map(r => ({ staffId: r.staffId, name: r.name, client: r.client, row: { ...r.row } })),
+  };
+  $('egConfirmDetail').innerHTML = `<b>${escapeHtml(fmtNice(egPendingLock.periodBounds.start))} \u2013 ${escapeHtml(fmtNice(egPendingLock.periodBounds.end))}</b> (cutoff ${escapeHtml(egPendingLock.cutoffIso)})<br>
+    ${egPendingLock.rows.length} relevant staff member(s), whole period, independent of any filter.<br>
+    Weighted margin: <b>${agg.weighted === null ? '\u2014' : agg.weighted.toFixed(4) + '%'}</b>`;
+  $('egConfirmMsg').textContent = '';
+  $('egConfirmOverlay').classList.remove('hide');
+}
+function closeEarningLockConfirm() { egPendingLock = null; $('egConfirmOverlay').classList.add('hide'); }
+
+async function confirmEarningLock() {
+  if (!egPendingLock) return closeEarningLockConfirm();
+  const pending = egPendingLock; // freeze the reference for this call
+  if (pending.gen !== egGen) {
+    $('egConfirmMsg').textContent = '';
+    alert('The selected period changed after this dialog opened — reopen LOCK IN and try again.');
+    closeEarningLockConfirm();
+    return;
+  }
+  $('egConfirmYes').disabled = true; $('egConfirmMsg').textContent = 'Locking\u2026';
+  try {
+    const payload = EarningsLoader.buildLockPayload(pending.rows);
+    const { error } = await sb.rpc('lock_earnings_period', {
+      p_cutoff_date: pending.cutoffIso, p_fx_rate: pending.fx, p_rows: payload,
+    });
+    if (error) throw new Error(error.message);
+    closeEarningLockConfirm();
+    if ($('egPeriod').value === `${pending.periodBounds.start}|${pending.periodBounds.end}`) {
+      await runEarningPreview();
+    }
+  } catch (e) {
+    $('egConfirmMsg').textContent = '';
+    alert(e.message);
+  }
+  $('egConfirmYes').disabled = false;
+}
+
+// ============================================================
+// Timesheets -> SMB PH Earning LOCK IN shortcut (navigation only, no write
+// from the Timesheets page itself — the button routes to the matching
+// period on the SMB PH Earning tab, where the actual LOCK IN happens).
+// ============================================================
+if ($('goToEarningBtn')) {
+  $('goToEarningBtn').onclick = () => {
+    const period = $('goToEarningBtn').dataset.period;
+    if (!period) return;
+    go('v-earning');
+    const opt = Array.from($('egPeriod').options).find(o => o.value === period);
+    if (opt) {
+      $('egPeriod').value = period;
+      runEarningPreview();
+    }
+  };
+}
+
+</script>
+</body></html>
