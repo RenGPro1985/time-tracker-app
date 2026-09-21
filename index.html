@@ -200,6 +200,30 @@ button.btn{padding:7px 12px;font-size:12px}
   </div>
 </div>
 
+<div id="editReqOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:70;align-items:center;justify-content:center;padding:20px">
+  <div class="card" style="width:100%;max-width:460px">
+    <h3 style="font-size:15px;margin-bottom:8px">Edit request</h3>
+    <div class="muted" id="editReqContext" style="font-size:12px;margin-bottom:10px"></div>
+    <div id="editReqAmtFields" class="hide">
+      <label>Amount (₱)</label>
+      <input type="number" id="editReqAmount" min="0" step="0.01" style="width:100%;margin-bottom:8px">
+      <label>Repay over (cutoffs)</label>
+      <input type="number" id="editReqCutoffs" min="1" step="1" style="width:100%">
+    </div>
+    <div id="editReqDateFields" class="hide row" style="gap:10px">
+      <div style="flex:1"><label>From</label><input type="date" id="editReqStart" style="width:100%"></div>
+      <div style="flex:1"><label>To</label><input type="date" id="editReqEnd" style="width:100%"></div>
+    </div>
+    <label style="margin-top:8px">Reason / note</label>
+    <textarea id="editReqReason" rows="3" maxlength="1000"></textarea>
+    <div class="row" style="margin-top:12px">
+      <button class="btn btn-gold" id="editReqConfirm">Save changes</button>
+      <button class="btn btn-ghost" id="editReqCancel">Cancel</button>
+    </div>
+    <div class="muted" id="editReqMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div>
+  </div>
+</div>
+
 <div id="payConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:71;align-items:center;justify-content:center;padding:20px">
   <div class="card" style="width:100%;max-width:480px">
     <h3 style="font-size:15px;margin-bottom:8px">Confirm PAID</h3>
@@ -3263,10 +3287,12 @@ async function loadReqAdmin(){
   const ids=[...new Set(reqAdminList.map(r=>r.staff_id))];
   const {data:staffRows}=ids.length? await sb.from('staff').select('id,full_name').in('id',ids) : {data:[]};
   const nameOf=id=>{const s=(staffRows||[]).find(x=>x.id===id); return s?s.full_name:'—';};
-  $('reqAdminTable').innerHTML = reqAdminList.length? reqAdminList.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}</td><td>${escapeHtml(r.reason||'')}</td><td>${r.status==='rejected'?escapeHtml(r.rejection_reason||'—'):'—'}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'?`<button class="btn btn-ghost" data-paid="${r.id}">${isAdvanceType(r.type)?'Mark advance issued':'Mark paid'}</button>`:''}</td></tr>`).join('') : `<tr><td colspan="8" class="muted">No requests.</td></tr>`;
+  $('reqAdminTable').innerHTML = reqAdminList.length? reqAdminList.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}</td><td>${escapeHtml(r.reason||'')}</td><td>${r.status==='rejected'?escapeHtml(r.rejection_reason||'—'):'—'}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'?`<button class="btn btn-ghost" data-paid="${r.id}">${isAdvanceType(r.type)?'Mark advance issued':'Mark paid'}</button>`:''}<button class="btn btn-ghost" data-edit="${r.id}">Edit</button><button class="btn btn-rose" data-del="${r.id}">Delete</button></td></tr>`).join('') : `<tr><td colspan="8" class="muted">No requests.</td></tr>`;
   $('reqAdminTable').querySelectorAll('[data-appr]').forEach(b=>b.onclick=()=>decideReq(b.dataset.appr,'approved'));
   $('reqAdminTable').querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>openRejectRequest(b.dataset.rej));
   $('reqAdminTable').querySelectorAll('[data-paid]').forEach(b=>b.onclick=()=>decideReq(b.dataset.paid,'paid'));
+  $('reqAdminTable').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEditRequest(b.dataset.edit));
+  $('reqAdminTable').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteRequestAdmin(b.dataset.del));
   await loadDedAdmin(staffRows||[]);
 }
 async function loadDedAdmin(knownStaff){
@@ -3364,6 +3390,63 @@ async function submitRejection(){
 $('rejectReqCancel').onclick=closeRejectRequest;
 $('rejectReqConfirm').onclick=submitRejection;
 $('rejectReqOverlay').onclick=e=>{if(e.target===$('rejectReqOverlay'))closeRejectRequest();};
+let editReqId=null;
+function closeEditRequest(){
+  editReqId=null;
+  $('editReqMsg').textContent='';
+  $('editReqOverlay').style.display='none';
+}
+function openEditRequest(id){
+  const r=reqAdminList.find(x=>x.id===id);
+  if(!r) return;
+  editReqId=id;
+  $('editReqContext').textContent=`${TYPE_LABEL[r.type]} — ${reqDetails(r)}`;
+  const leave=isLeaveType(r.type);
+  $('editReqAmtFields').classList.toggle('hide',leave);
+  $('editReqDateFields').classList.toggle('hide',!leave);
+  $('editReqAmount').value=r.amount||'';
+  $('editReqCutoffs').value=r.cutoffs||1;
+  $('editReqStart').value=r.start_date||'';
+  $('editReqEnd').value=r.end_date||'';
+  $('editReqReason').value=r.reason||'';
+  $('editReqMsg').textContent='';
+  $('editReqConfirm').disabled=false;
+  $('editReqOverlay').style.display='flex';
+}
+async function submitEditRequest(){
+  if(!editReqId) return closeEditRequest();
+  const r=reqAdminList.find(x=>x.id===editReqId);
+  if(!r) return closeEditRequest();
+  const leave=isLeaveType(r.type);
+  const payload={p_request_id:editReqId,p_reason:$('editReqReason').value.trim()||null};
+  if(leave){
+    payload.p_start_date=$('editReqStart').value||null;
+    payload.p_end_date=$('editReqEnd').value||null;
+  } else {
+    const amt=Number($('editReqAmount').value);
+    if(!Number.isFinite(amt)||amt<0){$('editReqMsg').textContent='Enter a valid amount.';return;}
+    payload.p_amount=amt;
+    payload.p_cutoffs=Number($('editReqCutoffs').value)||1;
+  }
+  $('editReqConfirm').disabled=true;
+  $('editReqMsg').textContent='Saving…';
+  const {error}=await sb.rpc('admin_edit_request',payload);
+  $('editReqConfirm').disabled=false;
+  if(error){$('editReqMsg').textContent=error.message;return;}
+  closeEditRequest();
+  await loadReqAdmin();
+}
+$('editReqCancel').onclick=closeEditRequest;
+$('editReqConfirm').onclick=submitEditRequest;
+$('editReqOverlay').onclick=e=>{if(e.target===$('editReqOverlay'))closeEditRequest();};
+async function deleteRequestAdmin(id){
+  const r=reqAdminList.find(x=>x.id===id);
+  if(!r) return;
+  if(!confirm(`Delete this ${TYPE_LABEL[r.type]} request (${reqDetails(r)})? This also removes any scheduled deductions tied to it and cannot be undone.`)) return;
+  const {error}=await sb.rpc('admin_delete_request',{p_request_id:id});
+  if(error){alert(error.message);return;}
+  await loadReqAdmin();
+}
 async function decideReq(id,status,rejectionReason=''){
   // Guard the update on the expected FROM status (same shift-id-not-curEntry idea as the
   // activity-switch fix): a double-click / slow-network re-click on Approve fires this twice,
