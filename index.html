@@ -541,14 +541,11 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
             <input type="date" id="pFrom" class="hide" style="width:auto"><input type="date" id="pTo" class="hide" style="width:auto">
             <select id="pClient" style="width:auto"></select><select id="pStaff" style="width:auto"></select>
             <button class="btn btn-ghost" id="runSheet">Run</button>
-            <input type="number" id="pFx" class="hide" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px">
-            <button class="btn btn-ghost hide" id="saveFx">Save FX</button>
-            <button class="btn btn-ghost hide" id="goToEarningBtn" title="Opens the matching period on the SMB PH Earning tab — does not lock or write anything from here">Go to SMB PH Earning to LOCK IN…</button>
             <button class="btn btn-gold" id="dlSummary">Download summary CSV</button>
             <button class="btn btn-ghost" id="dlDetail">Download detail CSV</button>
           </div>
         </div>
-        <table><thead><tr><th>Staff</th><th>Days</th><th>Billable</th><th>Non-billable</th><th>Total</th><th>Billable %</th><th class="fin-col hide">USD Rate</th><th class="fin-col hide">FX (₱/$1)</th><th class="fin-col hide">Net Amount Payable</th><th class="fin-col hide">VSPH (Net Amount)</th><th class="fin-col hide">ROI</th><th class="fin-col hide">Margin %</th></tr></thead><tbody id="sheetTable"></tbody></table><div id="sheetFinBanner" class="note hide" style="margin-top:8px"></div>
+        <table><thead><tr><th>Staff</th><th>Days</th><th>Billable</th><th>Non-billable</th><th>Total</th><th>Billable %</th></tr></thead><tbody id="sheetTable"></tbody></table>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Daily hours grid</h3>
@@ -2699,11 +2696,8 @@ async function runSheet(){
     <td class="mono">${r.days}</td><td class="mono" style="color:var(--teal)">${hm(r.bill)}</td>
     <td class="mono" style="color:var(--gold)">${hm(r.non)}</td><td class="mono">${hm(r.total)}</td>
     <td class="mono">${r.total?Math.round(r.bill/r.total*100)+'%':'—'}</td>
-    <td class="fin-col hide num mono" data-fin="usd">—</td><td class="fin-col hide num mono" data-fin="fx">—</td>
-    <td class="fin-col hide num mono" data-fin="payable">—</td><td class="fin-col hide num mono" data-fin="vsph">—</td>
-    <td class="fin-col hide num mono" data-fin="roi">—</td><td class="fin-col hide num mono" data-fin="margin">—</td></tr>`).join('')
+    </tr>`).join('')
     :`<tr><td colspan="6" class="muted">No data for that range.</td></tr>`;
-  renderSheetFinance();
 }
 /* "Hours logged but nothing billable" is almost always a client setup problem, not a
    missing shift: no client assigned, or the client's shift window is typed in the CLIENT's
@@ -2726,17 +2720,10 @@ function renderSheetWarnings(){
 function csvEscape(v){return '"'+String(v).replace(/"/g,'""')+'"';}
 function summaryCsv(){
   const {start,end}=currentRange();
-  const finance=EarningsLoader.isFinanceApplicable(start,end);
   const head=['Staff','Days worked','Billable hours','Non-billable hours','Total hours','Billable %'];
-  if(finance) head.push('USD Rate','FX (₱/$1)','Net Amount Payable','VSPH (Net Amount)','ROI','Margin %');
   const lines=[[`Pay period ${start} to ${end} (Philippine time)`],[],head];
   sheetRows.forEach(r=>{
     const row=[r.name,r.days,(r.bill/60).toFixed(2),(r.non/60).toFixed(2),(r.total/60).toFixed(2),r.total?Math.round(r.bill/r.total*100)+'%':''];
-    if(finance){
-      const fin=sheetFinanceByStaff[r.staffId];
-      if(fin&&!fin.missing) row.push(fin.usdRate.toFixed(2),fin.fx.toFixed(4),fin.payable.toFixed(2),fin.vsph.toFixed(2),fin.roi.toFixed(2),fin.margin===null?'—':fin.margin.toFixed(2));
-      else row.push('','','','','','— missing '+(fin?fin.reason:'data'));
-    }
     lines.push(row);
   });
   return lines.map(l=>l.map(csvEscape).join(',')).join('\n');
@@ -4046,133 +4033,6 @@ async function computeLedgerRowsForPeriod(peopleSubset, start, end) {
    [Rendy DM, 2026-09-20] */
 
 // ============================================================
-// Timesheets finance columns
-// ============================================================
-let sheetFinanceByStaff = {};
-let sheetFinGen = 0;   // generation token: guards against a fast period/filter
-                        // change binding a slow, in-flight fetch's results to
-                        // the WRONG (now-current) range/cutoff.
-
-async function renderSheetFinance() {
-  const myGen = ++sheetFinGen;
-  const { start, end } = currentRange();
-  // Financial columns are hidden unless the admin has EXPLICITLY selected
-  // "Semi-monthly (5–20 / 21–4)" in the pType dropdown AND the resulting
-  // range is an exact semi-monthly boundary.
-  const applicable = $('pType').value === 'semi' && EarningsLoader.isFinanceApplicable(start, end);
-  document.querySelectorAll('#v-sheets .fin-col').forEach(el => el.classList.toggle('hide', !applicable));
-  if ($('pFx')) $('pFx').classList.toggle('hide', !applicable);
-  if ($('saveFx')) $('saveFx').classList.toggle('hide', !applicable);
-  if ($('goToEarningBtn')) $('goToEarningBtn').classList.toggle('hide', !applicable);
-  const banner = $('sheetFinBanner');
-  if (!applicable) { if (banner) { banner.classList.add('hide'); banner.innerHTML = ''; } sheetFinanceByStaff = {}; return; }
-
-  const cutoffIso = EarningsLoader.payoutCutoffFor(end);
-  if ($('goToEarningBtn')) $('goToEarningBtn').dataset.period = `${start}|${end}`;
-  banner.classList.add('hide'); banner.innerHTML = '';
-  // disable Save while (re-)loading so a click mid-fetch can't race a stale read
-  if ($('saveFx')) $('saveFx').disabled = true;
-  try {
-    const [fxRow, lockedRow] = await Promise.all([
-      EarningsData.fetchFxRateStrict(sb, cutoffIso),
-      EarningsData.fetchEarningsSnapshotStrict(sb, cutoffIso),
-    ]);
-    if (myGen !== sheetFinGen) return; // a newer call has already superseded this one
-    $('pFx').value = fxRow ? fxRow.rate : '';
-    $('pFx').disabled = !!lockedRow;
-    $('saveFx').disabled = !!lockedRow;
-    if (lockedRow) {
-      banner.classList.remove('hide');
-      banner.innerHTML = `<b>This period (cutoff ${escapeHtml(cutoffIso)}) is LOCKED on the SMB PH Earning tab.</b> The FX rate cannot be changed here anymore; figures below are still the live Ledger/Timesheets numbers (this table is not the historical record — see SMB PH Earning for the frozen snapshot).`;
-    }
-    if (!fxRow) {
-      banner.classList.remove('hide');
-      banner.innerHTML = `<b>No FX rate set for this period yet (cutoff ${escapeHtml(cutoffIso)}).</b> Enter one above and press "Save FX" — Net Amount Payable/VSPH/ROI/Margin cannot be shown until it is set (missing FX is never silently treated as zero).`;
-      sheetFinanceByStaff = {};
-      document.querySelectorAll('#sheetTable [data-fin]').forEach(td => { td.textContent = '\u2014'; });
-      return;
-    }
-    const fx = Number(fxRow.rate);
-    const relevant = await EarningsData.fetchRelevantStaffForPeriodStrict(sb, cutoffIso);
-    if (myGen !== sheetFinGen) return;
-    const relevantById = {}; relevant.forEach(s => { relevantById[s.id] = s; });
-    const displayedIds = new Set(sheetRows.map(r => r.staffId));
-    const peopleSubset = relevant.filter(s => displayedIds.has(s.id));
-    const ledgerRowsForPeriod = await computeLedgerRowsForPeriod(peopleSubset, start, end);
-    if (myGen !== sheetFinGen) return;
-    const payableByStaff = {}; ledgerRowsForPeriod.forEach(r => { payableByStaff[r.staffId] = r.total; });
-
-    sheetFinanceByStaff = {};
-    sheetRows.forEach(r => {
-      const staff = relevantById[r.staffId] || staffList.find(s => s.id === r.staffId);
-      const usdRate = staff ? Number(staff.usd_hourly_rate || 0) : 0;
-      const payable = payableByStaff[r.staffId];
-      const fin = EarningsLoader.computeEarningsRow({ hours: r.total / 60, usdRate, fx, payable });
-      sheetFinanceByStaff[r.staffId] = fin;
-      const tr = document.querySelector(`#sheetTable tr[data-fin-row="${r.staffId}"]`);
-      if (!tr) return;
-      const set = (key, val, title) => { const el = tr.querySelector(`[data-fin="${key}"]`); if (el) { el.textContent = val; if (key === 'margin') el.style.color = marginColor(fin.missing ? null : fin.margin); if (title) el.title = title; } };
-      if (fin.missing) {
-        const why = `Missing ${fin.reason} — cannot compute (never shown as 0)`;
-        ['usd', 'fx', 'payable', 'vsph', 'roi', 'margin'].forEach(k => set(k, '\u2014', why));
-      } else {
-        set('usd', fin.rateMissing ? '\u2014 (rate not set)' : fin.usdRate.toFixed(2));
-        set('fx', fin.fx.toFixed(4));
-        set('payable', fin.payable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-        set('vsph', fin.vsph.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-        set('roi', fin.roi.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-        set('margin', fin.margin === null ? '\u2014' : fin.margin.toFixed(2) + '%');
-      }
-    });
-  } catch (e) {
-    if (myGen !== sheetFinGen) return;
-    banner.classList.remove('hide');
-    banner.innerHTML = `<b>Could not load finance data \u2014 showing no financial figures rather than a wrong or partial one.</b><br>${escapeHtml(e.message)}`;
-    document.querySelectorAll('#sheetTable [data-fin]').forEach(td => { td.textContent = '\u2014'; });
-    sheetFinanceByStaff = {};
-    // Allow retrying the Save even though the fetch failed elsewhere — FX
-    // saving doesn't depend on the Ledger/leave/extras data that just failed
-    // to load. (No `finally` block here on purpose: every other branch above
-    // — locked / no-FX-yet / success — already sets the CORRECT disabled
-    // state explicitly; a blanket `finally` previously re-enabled Save FX
-    // unconditionally even for an already-LOCKED period, which is the bug
-    // this comment replaces.)
-    if ($('saveFx')) $('saveFx').disabled = false;
-  }
-}
-
-if ($('saveFx')) {
-  $('saveFx').onclick = async () => {
-    // Capture the selected period/cutoff and typed rate AT CLICK TIME —
-    // if the admin changes the period/pType before this RPC resolves, the
-    // result must be validated against what was ACTUALLY selected when the
-    // click happened, not whatever is on screen when the await returns.
-    const capturedRange = currentRange();
-    const capturedCutoff = EarningsLoader.payoutCutoffFor(capturedRange.end);
-    const v = Number($('pFx').value);
-    if (!v || v <= 0) return alert('Enter a positive FX rate (PHP per USD 1).');
-    $('saveFx').disabled = true;
-    try {
-      const { error } = await sb.rpc('set_fx_rate', { p_cutoff_date: capturedCutoff, p_rate: v });
-      if (error) throw new Error(error.message);
-      const nowRange = currentRange();
-      if (nowRange.start !== capturedRange.start || nowRange.end !== capturedRange.end) {
-        // the admin navigated away before the save resolved — the FX WAS
-        // saved for the period that was selected at click time (correct),
-        // but re-rendering the (now different) on-screen range from here
-        // would be rendering someone else's period's data as if it were
-        // this save's result. Do nothing further; whichever render last
-        // ran for the CURRENT range (via renderSheetFinance's own
-        // generation guard) already owns the screen.
-        return;
-      }
-      await renderSheetFinance();
-    } catch (e) { alert(e.message); }
-    finally { $('saveFx').disabled = false; }
-  };
-}
-
-// ============================================================
 // SMB PH Earning tab
 // ============================================================
 let egRows = [], egCutoffIso = null, egPeriodBounds = null, egLocked = null;
@@ -4412,23 +4272,6 @@ async function confirmEarningLock() {
   $('egConfirmYes').disabled = false;
 }
 
-// ============================================================
-// Timesheets -> SMB PH Earning LOCK IN shortcut (navigation only, no write
-// from the Timesheets page itself — the button routes to the matching
-// period on the SMB PH Earning tab, where the actual LOCK IN happens).
-// ============================================================
-if ($('goToEarningBtn')) {
-  $('goToEarningBtn').onclick = () => {
-    const period = $('goToEarningBtn').dataset.period;
-    if (!period) return;
-    go('v-earning');
-    const opt = Array.from($('egPeriod').options).find(o => o.value === period);
-    if (opt) {
-      $('egPeriod').value = period;
-      runEarningPreview();
-    }
-  };
-}
 
 </script>
 </body></html>
