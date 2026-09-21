@@ -1141,9 +1141,10 @@ $('saveBenefits').onclick=async()=>{
    ============================================================ */
 const ADJUSTMENT_SLOTS=[1,2,3,4,5];
 let adjustmentRules=[];
+let adjustmentLoading=false, adjustmentSaving=false;
 async function fetchAdjustmentRules(){
   const {data,error}=await sb.from('adjustment_rules').select('*');
-  if(error){ if(!isMissingTableError(error)) console.warn('adjustment_rules:',error.message); return []; }
+  if(error) throw new Error('Could not load adjustments: '+error.message);
   return data||[];
 }
 function findAdjustmentRule(slot){return adjustmentRules.find(r=>r.slot===slot);}
@@ -1174,7 +1175,23 @@ function wireAdjTimingRow(tr){
   sync();
 }
 async function renderAdjustments(){
-  adjustmentRules=await fetchAdjustmentRules();
+  if(adjustmentLoading || adjustmentSaving) return;
+  adjustmentLoading=true;
+  $('saveAdjustments').disabled=true;
+  $('adjustmentsTable').style.pointerEvents='none';
+  $('adjustmentsSaveMsg').textContent='Loading saved adjustments…';
+  try {
+    adjustmentRules=await fetchAdjustmentRules();
+  } catch(e) {
+    $('adjustmentsSaveMsg').textContent=e.message+' Save is disabled. Leave and reopen this tab to retry.';
+    adjustmentLoading=false;
+    return;
+  }
+  adjustmentLoading=false;
+  $('adjustmentsTable').style.pointerEvents='';
+  $('saveAdjustments').disabled=false;
+  $('adjustmentsSaveMsg').textContent='';
+
   const activeStaff=staffList.filter(s=>s.active);
   $('adjustmentsTable').innerHTML=ADJUSTMENT_SLOTS.map(slot=>{
     const r=findAdjustmentRule(slot)||{slot};
@@ -1199,6 +1216,7 @@ async function renderAdjustments(){
   });
 }
 $('saveAdjustments').onclick=async()=>{
+  if(adjustmentLoading || adjustmentSaving || $('saveAdjustments').disabled) return;
   $('saveAdjustments').disabled=true;$('adjustmentsSaveMsg').textContent='Saving…';
   const trs=[...$('adjustmentsTable').querySelectorAll('tr[data-slot]')];
   const payload=[];
@@ -1207,28 +1225,62 @@ $('saveAdjustments').onclick=async()=>{
     const label=tr.querySelector('.adj-label').value.trim();
     const amount=Number(tr.querySelector('.adj-amt').value||0);
     const timing=tr.querySelector('.adj-timing[value="one_time"]').checked?'one_time':'recurring';
-    const oneTimeDate=tr.querySelector('.adj-onetime-date').value||null;
+    let oneTimeDate=tr.querySelector('.adj-onetime-date').value||null;
     const phase=tr.querySelector('.adj-phase').value;
-    const effectiveStart=tr.querySelector('.adj-effective').value||null;
+    let effectiveStart=tr.querySelector('.adj-effective').value||null;
     const dd=tr.querySelector('.ben-staff-dd');
     const allChecked=dd.querySelector('.ben-all-cb').checked;
     const staffIds=allChecked?[]:[...dd.querySelectorAll('.ben-one-cb')].filter(cb=>cb.checked).map(cb=>cb.value);
     const scope=allChecked?'all':'custom';
+    const existing=findAdjustmentRule(slot);
+    // Untouched empty slots must not prevent another slot being saved.
+    if(!label && amount===0 && !existing) continue;
+    if(!label && amount===0 && existing){
+      oneTimeDate=oneTimeDate||existing.one_time_date||existing.effective_start;
+      effectiveStart=effectiveStart||existing.effective_start||existing.one_time_date;
+    } else if(!label || !Number.isFinite(amount) || amount<=0 || (scope==='custom'&&!staffIds.length)){
+      $('saveAdjustments').disabled=false;
+      $('adjustmentsSaveMsg').textContent=`Adjustment ${slot}: enter a label, positive amount and at least one staff member. Nothing saved.`;
+      return;
+    }
     if(timing==='one_time'&&!oneTimeDate){$('saveAdjustments').disabled=false;$('adjustmentsSaveMsg').textContent='';return alert(`Adjustment ${slot}: pick a one-time date, or switch it to Recurring.`);}
     if(timing==='recurring'&&!effectiveStart){$('saveAdjustments').disabled=false;$('adjustmentsSaveMsg').textContent='';return alert(`Adjustment ${slot}: set an effective start date for the recurring schedule.`);}
     const active=amount>0&&label.length>0&&(scope==='all'||staffIds.length>0);
-    tr.querySelector('.adj-status').textContent=active?'Active':'Inactive';
+
     payload.push({slot,label,amount,timing,one_time_date:timing==='one_time'?oneTimeDate:null,
       recurring_phase:timing==='recurring'?phase:null,effective_start:timing==='recurring'?effectiveStart:null,
       staff_scope:scope,staff_ids:staffIds,active,updated_by:me.id,updated_at:new Date().toISOString()});
   }
+  if(!payload.length){
+    $('saveAdjustments').disabled=false;
+    $('adjustmentsSaveMsg').textContent='Nothing to save — enter an adjustment first.';
+    return;
+  }
+  adjustmentSaving=true;
+  $('adjustmentsTable').style.pointerEvents='none';
   try{
     const {error}=await sb.from('adjustment_rules').upsert(payload,{onConflict:'slot'});
     if(error) throw new Error(isMissingTableError(error)?'Adjustments aren\'t set up on this database yet — run the migration in the Supabase SQL Editor first.':error.message);
-    $('adjustmentsSaveMsg').textContent='Saved — applies to every matching payout cutoff until changed here.';
-  }catch(e){$('adjustmentsSaveMsg').textContent='';alert(e.message);}
+    const stored=await fetchAdjustmentRules();
+    const normalized=r=>JSON.stringify([
+      Number(r.slot),r.label,Number(r.amount),r.timing,r.one_time_date||null,
+      r.recurring_phase||null,r.effective_start||null,r.staff_scope,
+      [...(r.staff_ids||[])].sort(),!!r.active
+    ]);
+    if(payload.some(r=>{
+      const found=stored.find(x=>Number(x.slot)===r.slot);
+      return !found||normalized(found)!==normalized(r);
+    })) throw new Error('Save could not be verified: the database did not return the same adjustment. Do not assume it was saved. Reopen this tab to check before retrying.');
+    adjustmentRules=stored;
+    $('adjustmentsSaveMsg').textContent='Saved and verified in database — applies to matching payout cutoffs.';
+    trs.forEach(tr=>{
+      const rule=stored.find(r=>Number(r.slot)===Number(tr.dataset.slot));
+      tr.querySelector('.adj-status').textContent=rule&&rule.active?'Active':'Inactive';
+    });
+  }catch(e){$('adjustmentsSaveMsg').textContent='Save not confirmed: '+e.message;alert(e.message);}
+  adjustmentSaving=false;
+  $('adjustmentsTable').style.pointerEvents='';
   $('saveAdjustments').disabled=false;
-  setTimeout(()=>{$('adjustmentsSaveMsg').textContent='';},5000);
 };
 
 /* ---------- Fee Advance panel: integrates the existing request+advance_deductions flow.
