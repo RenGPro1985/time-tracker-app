@@ -3912,33 +3912,22 @@ async function computeLedgerRowsForPeriod(peopleSubset, start, end) {
   }));
 }
 
-/* Total hours worked for the given staff subset and EXACT same period the
-   Timesheets summary table itself shows — calls the SAME global
-   summarize()/shiftWindowFor()/spanFor()/buildShiftSpanMap() functions
-   runSheet() uses, on independently (strictly) fetched data, so this is a
-   genuine reuse of the Timesheets hours computation, not a re-derivation. */
-async function computeTotalHoursForPeriod(peopleSubset, start, end) {
-  if (!peopleSubset.length) return {};
-  const ids = peopleSubset.map(s => s.id);
-  const [ents, shifts] = await Promise.all([
-    fetchEntriesRangeStrict(start, end, ids),
-    fetchShiftsRangeStrict(start, end, ids),
-  ]);
-  const sdm = buildShiftDateMap(shifts), ssm = buildShiftSpanMap(shifts);
-  const out = {};
-  peopleSubset.forEach(s => {
-    const mine = ents.filter(e => e.staff_id === s.id);
-    const sc = clients.find(c => c.id === s.client_id);
-    const byDay = {}; mine.forEach(e => { const d = shiftDateOf(e, sdm); (byDay[d] = byDay[d] || []).push(e); });
-    let bill = 0, non = 0;
-    Object.keys(byDay).forEach(d => {
-      const sum = summarize(byDay[d], null, shiftWindowFor(sc, d), spanFor(byDay[d], ssm));
-      bill += sum.billable; non += sum.nonbillable;
-    });
-    out[s.id] = (bill + non) / 60;
-  });
-  return out;
-}
+/* Total hours for the SMB PH Earning tab now comes straight from the
+   Contractor Ledger's own per-shift computation (ledgerShiftRow /
+   payableIntervalsForShift via computeLedgerRowsForPeriod), NOT from an
+   independent re-derivation off raw entries.
+   Why: the old computeTotalHoursForPeriod called the shared summarize()
+   used by Timesheets, which sums raw logged time with no daily cap and
+   falls back to LIVE wall-clock "now" for any entry/shift that's still
+   open (ended_at/logout_at IS NULL). One never-closed record from a past
+   day would balloon into (now - started_at) minutes — a stuck Sept-4 entry
+   read as 456+ hours on the Sept5-20 Earning cutoff for Charlotte Timbang,
+   while the Ledger stayed correct because it separately hard-caps regular
+   time to 8h/day. Deriving Hours from the Ledger's own regularHrs+otHrs
+   means every Ledger rule (8h/day cap, Night Diff, unpaid-lunch handling,
+   OT) automatically applies to Earning's Hours too, and the two tabs can
+   never diverge again by construction. See hoursByStaff below.
+   [Rendy DM, 2026-09-20] */
 
 // ============================================================
 // Timesheets finance columns
@@ -4213,12 +4202,10 @@ async function runEarningPreview() {
     // last had selected on the Contractor Ledger or Timesheets.
     const relevant = await EarningsData.fetchRelevantStaffForPeriodStrict(sb, cutoffIso);
     if (myGen !== egGen) return;
-    const [payableRows, hoursByStaff] = await Promise.all([
-      computeLedgerRowsForPeriod(relevant, start, end),
-      computeTotalHoursForPeriod(relevant, start, end),
-    ]);
+    const payableRows = await computeLedgerRowsForPeriod(relevant, start, end);
     if (myGen !== egGen) return;
-    const payableByStaff = {}; payableRows.forEach(r => { payableByStaff[r.staffId] = r.total; });
+    const payableByStaff = {}; const hoursByStaff = {};
+    payableRows.forEach(r => { payableByStaff[r.staffId] = r.total; hoursByStaff[r.staffId] = (r.regularHrs || 0) + (r.otHrs || 0); });
     egRows = relevant.map(staff => {
       const hours = hoursByStaff[staff.id];
       const usdRate = Number(staff.usd_hourly_rate || 0);
