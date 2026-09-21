@@ -1572,10 +1572,40 @@ function computeLedgerRowPure(staff,ctx){
       paid:paidRec,frozen:!!(paidRec&&paidRec.status==='paid')};
   
 }
+/* Same staff ordering as the SMB PH Earning tab: Beltline -> G Squared -> H2H ->
+   BugBusters -> SC -> other clients (A-Z), longest tenure first within each client,
+   missing hire dates last. Applies whether the Ledger is run for all staff or filtered
+   down to one client (per Rendy, 2026-09-20). */
+function sortStaffByClientTenure(list){
+  const key=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const priority=value=>{
+    const k=key(value);
+    if(k.startsWith('beltline'))return 0;
+    if(k.startsWith('gsquared'))return 1;
+    if(k==='h2h'||k.startsWith('h2h'))return 2;
+    if(k.startsWith('bugbuster'))return 3;
+    if(k==='sc')return 4;
+    return 5;
+  };
+  const hire=s=>(s.hire_date&&/^\d{4}-\d{2}-\d{2}$/.test(s.hire_date))?s.hire_date:'9999-12-31';
+  const clientName=s=>(clients.find(c=>c.id===s.client_id)||{}).name||'';
+  return list.slice().sort((a,b)=>{
+    const ca=clientName(a),cb=clientName(b);
+    const rank=priority(ca)-priority(cb);
+    if(rank)return rank;
+    if(priority(ca)===5){
+      const group=key(ca).localeCompare(key(cb));
+      if(group)return group;
+    }
+    return hire(a).localeCompare(hire(b))
+      ||String(a.full_name||'').localeCompare(String(b.full_name||''))
+      ||String(a.id||'').localeCompare(String(b.id||''));
+  });
+}
 async function runLedger(){
   const [start,end]=$('lgPeriod').value.split('|');if(!start||!end)return alert('Pick a pay period.');
   const fc=$('lgClient').value,fs=$('lgStaff').value;
-  const people=staffList.filter(s=>s.active&&(!fc||s.client_id===fc)&&(!fs||s.id===fs));
+  const people=sortStaffByClientTenure(staffList.filter(s=>s.active&&(!fc||s.client_id===fc)&&(!fs||s.id===fs)));
   const ids=people.map(s=>s.id);
   const [ents,shifts]=await Promise.all([fetchEntriesRange(start,end,ids),fetchShiftsRange(start,end,ids)]);
   const sdm=buildShiftDateMap(shifts),nightWins=nightWindowsForRange(start,end);ledgerDetailRows=[];
