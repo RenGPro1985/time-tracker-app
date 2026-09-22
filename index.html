@@ -667,8 +667,8 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     <!-- ---------- ADMIN: POLICY ---------- -->
     <section id="v-policy" class="hide grid" style="gap:16px">
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Activity &amp; billing rules</h3><button class="btn btn-gold" id="savePolicy">Save allowances</button></div>
-        <table><thead><tr><th>Status</th><th>Billable</th><th>Allowance per shift (minutes)</th><th>Notes</th></tr></thead><tbody id="policyTable"></tbody></table>
-        <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>, but only for time inside your shift window — time logged before your shift starts or after it ends is automatically non-billable. Select <b>Overtime</b> to bill time outside the shift window; Overtime has no cap and is always fully billable. On top of that, minutes spent on a normal activity beyond its allowance in a shift are also deducted from billable time (Overtime is never capped). Set an allowance to 0 to never deduct.</div>
+        <table><thead><tr><th>Status</th><th>Billable</th><th>Allowance per instance (minutes)</th><th>Notes</th></tr></thead><tbody id="policyTable"></tbody></table>
+        <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>, but only for time inside your shift window — time logged before your shift starts or after it ends is automatically non-billable. Select <b>Overtime</b> to bill time outside the shift window; Overtime has no cap and is always fully billable. On top of that, minutes spent on a normal activity beyond its allowance are deducted from billable time (Overtime is never capped) — <b>this is checked per instance (each time you use that activity), not summed across the shift.</b> 15min Break allows up to 2 instances per shift (two uses less than 1hr apart count as one instance), 30min and 60min Break allow 1 instance per shift; any use beyond that limit is entirely non-billable. Personal and Bio Break have no instance limit. Set an allowance to 0 to never deduct.</div>
       </div>
     </section>
   </main>
@@ -685,6 +685,57 @@ const SERVER_URL        = "https://time-tracker-app-95fe.onrender.com";        /
 
 const ACTIVITIES = ['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','Meeting/Coaching','Overtime'];const OVERTIME = 'Overtime';
 const NON_BILLABLE = ['60min Break'];
+/* Per-instance break policy (2026-09-22, applies from Sep 16, 2026 onward — everything here
+   is calculated live from raw entries, so this takes effect automatically for any shift
+   viewed/exported from that date forward, no backfill needed): the allowance caps each USE
+   of a break type on its own, not the sum of every use in a shift. 15min/30min/60min Break
+   additionally have a hard cap on how many separate instances are allowed per shift; any
+   instance beyond that gets ZERO allowance (100% of it is non-billable), not just the minutes
+   past the cap. mergeGapMin: two same-activity entries closer together than this count as ONE
+   instance (time added together, then capped once) — closes the loophole of splitting one
+   break into several short back-to-back punches. Personal/Bio Break: per-instance cap only,
+   no merge rule, no instance-count limit (tracked, not capped on count). */
+const BREAK_INSTANCE_RULES = {
+  '15min Break': { mergeGapMin: 60, maxInstances: 2 },
+  '30min Break': { mergeGapMin: 60, maxInstances: 1 },
+  '60min Break': { mergeGapMin: 0,  maxInstances: 1 }, // already always 100% non-billable regardless of cap; this only drives alerting/flagging, not pay.
+};
+/* Groups an activity's raw [start,end] ms intervals into "instances" per BREAK_INSTANCE_RULES,
+   merging entries less than mergeGapMin apart. Chronological order preserved. */
+function groupActivityInstances(intervals,activity){
+  const rule=BREAK_INSTANCE_RULES[activity]||{};
+  const mergeGapMs=(rule.mergeGapMin||0)*60000;
+  const sorted=intervals.slice().sort((a,b)=>a[0]-b[0]);
+  const groups=[];
+  sorted.forEach(iv=>{
+    const g=groups[groups.length-1];
+    if(g && iv[0]-g[g.length-1][1]<=mergeGapMs) g.push(iv); else groups.push([iv]);
+  });
+  return groups;
+}
+/* Applies the per-instance cap + instance-count limit to one activity's intervals.
+   Returns billable/over minutes and the actual billable sub-intervals (needed for Night
+   Diff / Ledger, which work on real time ranges, not just totals). Instances beyond
+   maxInstances contribute 0 billable minutes and their full duration counts as "over". */
+function activityCapResult(intervals,activity,cap){
+  const rule=BREAK_INSTANCE_RULES[activity]||{};
+  const groups=groupActivityInstances(intervals,activity);
+  let billableMinutes=0,overMinutes=0;const billableIntervals=[];
+  groups.forEach((g,idx)=>{
+    const dur=unionMinutes(g);
+    const withinLimit=!rule.maxInstances||(idx+1)<=rule.maxInstances;
+    if(!withinLimit){ overMinutes+=dur; return; }
+    if(cap>0){
+      billableMinutes+=Math.min(dur,cap);
+      overMinutes+=Math.max(0,dur-cap);
+      billableIntervals.push(...takeFirstMinutes(g,cap));
+    }else{
+      billableMinutes+=dur;
+      billableIntervals.push(...mergeIntervals(g));
+    }
+  });
+  return {billableMinutes,overMinutes,billableIntervals,instanceCount:groups.length};
+}
 const REGULAR_DAILY_CAP_MIN = 8*60; // hard cap: regular (non-Overtime) billable can never exceed 8h/day
 const BIWEEKLY_ANCHOR = '2026-08-19';       // a Wednesday; bi-weekly periods run Wed -> Tue
 const PH = 'Asia/Manila';
@@ -881,24 +932,30 @@ function summarize(entries,now,window,shiftSpanMinutes){
   });
   const per={};let total=0;
   Object.entries(byAct).forEach(([act,ivs])=>{const m=unionMinutes(ivs);per[act]=m;total+=m;});
+  /* overByAct: per-activity overbreak minutes using the per-instance rule (each use of a
+     capped activity checked/capped on its own, not summed across the shift/day). Computed
+     on the RAW (unclipped) intervals, matching what "per" already represents — this is what
+     drives the Timesheets "Over Break" column, Adherence tab, and correction-review text. */
+  const overByAct={};
+  Object.entries(byAct).forEach(([act,ivs])=>{
+    if(act===OVERTIME)return;
+    const cap=Number(allowance[act]||0);
+    overByAct[act]=activityCapResult(ivs,act,cap).overMinutes;
+  });
 
-  const perBillableRaw={};
+  const perBillableIntervals={};
   Object.entries(byAct).forEach(([act,ivs])=>{
     if(NON_BILLABLE.includes(act))return;
-    let m;
-    if(act===OVERTIME){ m=unionMinutes(ivs); }
-    else if(!window){ m=0; }
-    else{
-      const clipped=ivs.map(([s,e])=>[Math.max(s,window.start.getTime()),Math.min(e,window.end.getTime())]).filter(([s,e])=>e>s);
-      m=clipped.length?unionMinutes(clipped):0;
-    }
-    perBillableRaw[act]=m;
+    if(act===OVERTIME){ perBillableIntervals[act]=mergeIntervals(ivs); return; }
+    if(!window){ perBillableIntervals[act]=[]; return; }
+    const clipped=ivs.map(([s,e])=>[Math.max(s,window.start.getTime()),Math.min(e,window.end.getTime())]).filter(([s,e])=>e>s);
+    perBillableIntervals[act]=clipped;
   });
   let regularBillable=0,overtimeBillable=0;
-  Object.entries(perBillableRaw).forEach(([act,m])=>{
-    if(act===OVERTIME){overtimeBillable+=m;return;}
+  Object.entries(perBillableIntervals).forEach(([act,ivs])=>{
+    if(act===OVERTIME){overtimeBillable+=unionMinutes(ivs);return;}
     const cap=Number(allowance[act]||0);
-    regularBillable+= cap>0 ? Math.min(m,cap) : m;
+    regularBillable+=activityCapResult(ivs,act,cap).billableMinutes;
   });
   /* Hard daily cap: no client's shift window/span, and no gap at a window edge (e.g. a
      break that starts a few minutes before/after the official window), can push regular
@@ -908,7 +965,7 @@ function summarize(entries,now,window,shiftSpanMinutes){
   if(shiftSpanMinutes>0){ total=Math.min(total,shiftSpanMinutes); billable=Math.min(billable,shiftSpanMinutes); }
   /* regularBillable/overtimeBillable below are exposed pre-span-cap (Contractor Ledger use);
      the combined 'billable' figure above stays the source of truth for Timesheets/Adherence. */
-  return {per,total,billable,nonbillable:Math.max(0,total-billable),regularBillable,overtimeBillable};
+  return {per,total,billable,nonbillable:Math.max(0,total-billable),regularBillable,overtimeBillable,overByAct};
 }
 
 /* ============================================================
@@ -974,7 +1031,7 @@ function payableIntervalsForShift(entries,window,extraBlackouts){
     if(!window)return;
     ivs=ivs.map(([s,e])=>[Math.max(s,window.start.getTime()),Math.min(e,window.end.getTime())]).filter(([s,e])=>e>s);
     const cap=Number(allowance[act]||0);
-    regular=regular.concat(cap>0?takeFirstMinutes(ivs,cap):ivs);
+    regular=regular.concat(activityCapResult(ivs,act,cap).billableIntervals);
   });
   /* Different activities can overlap only when a stale/double entry exists. Merging means
      one wall-clock minute is never paid twice; taking the first 480 regular minutes makes
@@ -2187,10 +2244,10 @@ async function renderToday(){
   const pct=s.total?Math.round(s.billable/s.total*100):0;
   $('sPct').textContent=s.total?pct+'%':'—';$('sBar').style.width=pct+'%';
   $('breaks').innerHTML=['15min Break','30min Break','60min Break','Personal Break'].map(b=>{
-    const used=Math.round(s.per[b]||0),cap=Number(allowance[b]||0),w=cap?Math.min(100,used/cap*100):0;
+    const used=Math.round(s.per[b]||0),cap=Number(allowance[b]||0),w=cap?Math.min(100,used/cap*100):0,isOver=(s.overByAct[b]||0)>0;
     return `<div style="margin-bottom:10px"><div class="row" style="justify-content:space-between;font-size:12.5px"><span>${b}</span>
     <span class="mono muted">${used} / ${cap||'∞'} min</span></div>
-    <div class="bar" style="margin-top:5px"><i style="width:${w}%;background:${used>cap&&cap?'var(--rose)':'var(--gold)'}"></i></div></div>`;}).join('');
+    <div class="bar" style="margin-top:5px"><i style="width:${w}%;background:${isOver?'var(--rose)':'var(--gold)'}"></i></div></div>`;}).join('');
 }
 
 async function renderPayPeriod(){
@@ -2695,10 +2752,7 @@ async function runSheet(){
       const sum=summarize(byDay[d],null,shiftWindowFor(sc,d),spanFor(byDay[d],ssm));bill+=sum.billable;non+=sum.nonbillable;
       // Over Break is measured the same way as the Adherence tab: per-day minutes for
       // each break activity beyond that activity's allowance cap, summed across the period.
-      OVERBREAK_ACTS.forEach(act=>{
-        const cap=Number(allowance[act]||0); const m=sum.per[act]||0;
-        if(cap>0&&m>cap) overBreak+=(m-cap);
-      });
+      OVERBREAK_ACTS.forEach(act=>{ overBreak+=sum.overByAct[act]||0; });
       personalMinutes+=sum.per['Personal Break']||0;
       bioMinutes+=sum.per['Bio Break']||0;
       byDay[d].forEach(e=>sheetDetail.push({
@@ -2845,10 +2899,7 @@ async function runAdherence(){
       const sum=summarize(byDay[d],null,win,spanFor(byDay[d],shiftSpanMap));
       total+=sum.total; bill+=sum.billable;
       Object.entries(sum.per).forEach(([act,m])=>{ per[act]=(per[act]||0)+m; grandPer[act]=(grandPer[act]||0)+m; });
-      BREAK_ACTS.filter(a=>a!=='60min Break').forEach(act=>{
-        const cap=Number(allowance[act]||0); const m=sum.per[act]||0;
-        if(cap>0&&m>cap) over[act]+=(m-cap);
-      });
+      BREAK_ACTS.filter(a=>a!=='60min Break').forEach(act=>{ over[act]+=sum.overByAct[act]||0; });
     });
     grandTotal+=total; grandBill+=bill;
     const mySh=shs.filter(sh=>sh.staff_id===s.id);
@@ -3090,7 +3141,7 @@ function roundedCorrectionDateTimeToIso(value){
   return isNaN(new Date(iso))?null:iso;
 }
 function correctionOverbreakText(sum){
-  const over=BREAK_ACTIVITIES.map(act=>{const cap=Number(allowance[act]||0),used=sum.per[act]||0;return cap>0&&used>cap?`${act} +${Math.ceil(used-cap)}m`:null;}).filter(Boolean);
+  const over=BREAK_ACTIVITIES.map(act=>{const o=sum.overByAct[act]||0;return o>0?`${act} +${Math.ceil(o)}m`:null;}).filter(Boolean);
   return over.length?over.join(', '):'none';
 }
 function correctionImpactHtml(beforeEntries,afterEntries,shift,staffId){
@@ -3208,7 +3259,7 @@ function renderPolicy(){
     return `<tr><td><b>${a}</b></td>
     <td><span class="pill ${bill?'p-work':'p-bad'}"><span class="dot"></span>${bill?'Billable':'Non-billable'}</span></td>
     <td><input type="number" min="0" step="5" data-alw="${a}" value="${a===OVERTIME?'':Number(allowance[a]||0)}" placeholder="${a===OVERTIME?'No cap':''}" ${a===OVERTIME?'disabled':''} style="width:110px"></td>
-    <td class="muted">${a===OVERTIME?'Always fully billable, even outside the shift window':a==='60min Break'?'Never billable':(Number(allowance[a]||0)?'Minutes beyond this become non-billable':'No deduction')}</td></tr>`;}).join('');
+    <td class="muted">${a===OVERTIME?'Always fully billable, even outside the shift window':a==='60min Break'?'Never billable':(Number(allowance[a]||0)?(BREAK_INSTANCE_RULES[a]&&BREAK_INSTANCE_RULES[a].maxInstances?`Minutes beyond this become non-billable, per use — max ${BREAK_INSTANCE_RULES[a].maxInstances} use(s)/shift`:'Minutes beyond this become non-billable, per use'):'No deduction')}</td></tr>`;}).join('');
   $('savePolicy').onclick=async()=>{
     const v={};$('policyTable').querySelectorAll('[data-alw]').forEach(i=>v[i.dataset.alw]=Number(i.value||0));
     const {error}=await sb.from('settings').upsert({key:'break_allowance_minutes',value:v});
