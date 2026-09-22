@@ -148,6 +148,41 @@ async function requireActiveUser(req, res) {
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const BREAK_ACTIVITIES = ['15min Break','30min Break','60min Break','Personal Break','Bio Break'];
+/* Per-instance break policy (2026-09-22): the allowance caps each USE of a break type on
+   its own, not the sum of every use in the shift. 15min/30min/60min Break additionally have
+   a hard cap on how many separate instances are allowed per shift; any instance beyond that
+   gets ZERO allowance (100% of it counts as overbreak), not just the minutes past the cap.
+   mergeGapMin: two same-activity entries closer together than this are treated as ONE
+   instance (their time is added together, then capped once) — this closes the loophole of
+   splitting one break into several short back-to-back punches. Personal/Bio Break have no
+   merge rule and no instance-count limit (per-instance cap only, tracked but not capped on
+   count). See skills/users/u0bcs577h9q/SKILL.md for the Slack thread that specified this. */
+const BREAK_INSTANCE_RULES = {
+  '15min Break': { mergeGapMin: 60, maxInstances: 2 },
+  '30min Break': { mergeGapMin: 60, maxInstances: 1 },
+  '60min Break': { mergeGapMin: 0,  maxInstances: 1 }, // 60min Break is already always 100% non-billable regardless of cap; this only drives alerting/flagging, not pay.
+};
+/* Groups an activity's raw intervals for one shift into "instances" per BREAK_INSTANCE_RULES,
+   merging entries that are less than mergeGapMin apart. Returns instances in chronological
+   order, each as {minutes} (union of any sub-intervals in that instance). */
+function groupBreakInstances(entries, activity, nowMs=Date.now()){
+  const rule=BREAK_INSTANCE_RULES[activity]||{};
+  const mergeGapMs=(rule.mergeGapMin||0)*60000;
+  const ivs=(entries||[]).filter(e=>e.activity===activity)
+    .map(e=>[new Date(e.started_at).getTime(), e.ended_at?new Date(e.ended_at).getTime():nowMs])
+    .filter(([s,t])=>Number.isFinite(s)&&Number.isFinite(t)&&t>s).sort((a,b)=>a[0]-b[0]);
+  const groups=[];
+  ivs.forEach(iv=>{
+    const g=groups[groups.length-1];
+    if(g && iv[0]-g[g.length-1][1]<=mergeGapMs) g.push(iv); else groups.push([iv]);
+  });
+  return groups.map(g=>({ minutes: unionMinutesMs(g) }));
+}
+function unionMinutesMs(ivsMs){
+  const merged=[];
+  ivsMs.slice().sort((a,b)=>a[0]-b[0]).forEach(iv=>{const last=merged[merged.length-1];if(last&&iv[0]<=last[1])last[1]=Math.max(last[1],iv[1]);else merged.push(iv.slice());});
+  return merged.reduce((sum,[s,t])=>sum+(t-s),0)/60000;
+}
 function safeSlack(value, max=500){
   /* Values are inserted inside mrkdwn fields. Escape link/mention syntax and neutralize
      formatting characters so a staff-entered reason cannot create mentions or formatting. */
@@ -417,16 +452,23 @@ app.post('/api/slack/overbreaks', async (req, res) => {
     for(const activity of BREAK_ACTIVITIES){
       const cap=Number(allowances[activity]||0);
       if(cap<=0) continue; // current app semantics: zero means unlimited/no deduction
-      const used=unionMinutes((entries||[]).filter(e=>e.activity===activity));
-      const over=used-cap;
-      if(over<=OVERBREAK_FLAG_MIN) continue; // 1 min grace; flag only when over by MORE than 2 min
-      const usedRounded=Math.ceil(used),overRounded=Math.max(1,Math.ceil(over));
-      const payload=slackPayload('⚠️ SMB Time Overbreak Alert',[
-        ['Staff',caller.row.full_name],['Client',client],['Activity',activity],['Allowance',`${cap} min (+${OVERBREAK_GRACE_MIN} min grace)`],['Used',`${usedRounded} min`],['Over by',`${overRounded} min`]
-      ],`Shift: ${phtDate(shift.login_at)} PHT · First alert for this activity in this shift · Flagged only past ${OVERBREAK_FLAG_MIN} min over`);
-      const result=await sendSlackOnce({eventKey:`overbreak:${shift.id}:${activity}`,destination:'SMB general',eventType:'overbreak',entityId:shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
-      crossed.push({activity,...result});
-      if(result.sent) await sleep(1200); // Slack incoming webhooks may drop bursts faster than ~1/sec
+      const rule=BREAK_INSTANCE_RULES[activity]||{};
+      const instances=groupBreakInstances(entries||[],activity);
+      for(let idx=0;idx<instances.length;idx++){
+        const used=instances[idx].minutes;
+        const withinLimit=!rule.maxInstances||(idx+1)<=rule.maxInstances;
+        const instanceCap=withinLimit?cap:0; // beyond the max allowed instances this shift: zero allowance
+        const over=used-instanceCap;
+        if(over<=OVERBREAK_FLAG_MIN) continue; // 1 min grace; flag only when over by MORE than 2 min
+        const usedRounded=Math.ceil(used),overRounded=Math.max(1,Math.ceil(over));
+        const label=withinLimit?`Instance ${idx+1} of ${rule.maxInstances||'∞'} allowed this shift`:`Instance ${idx+1} exceeds the ${rule.maxInstances} allowed this shift — zero allowance, fully non-billable`;
+        const payload=slackPayload('⚠️ SMB Time Overbreak Alert',[
+          ['Staff',caller.row.full_name],['Client',client],['Activity',activity],['Allowance',`${instanceCap} min${OVERBREAK_GRACE_MIN?` (+${OVERBREAK_GRACE_MIN} min grace)`:''}`],['Used',`${usedRounded} min`],['Over by',`${overRounded} min`]
+        ],`Shift: ${phtDate(shift.login_at)} PHT · ${label} · Checked per-instance, not summed across the shift · Flagged only past ${OVERBREAK_FLAG_MIN} min over`);
+        const result=await sendSlackOnce({eventKey:`overbreak:${shift.id}:${activity}:${idx}`,destination:'SMB general',eventType:'overbreak',entityId:shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
+        crossed.push({activity,instance:idx+1,...result});
+        if(result.sent) await sleep(1200); // Slack incoming webhooks may drop bursts faster than ~1/sec
+      }
     }
     res.json({ok:true,crossed});
   }catch(e){console.error('Slack overbreak notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
