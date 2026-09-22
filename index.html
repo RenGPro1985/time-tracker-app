@@ -608,7 +608,13 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
         <select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-earning" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Net Amount Payable, VSPH, ROI and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th>Net Amount Payable</th><th>VSPH (Net Amount)</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div><div class="row" style="justify-content:flex-end;margin-top:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px" id="egAggMargin">—</span></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/payable/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances on the Adjustments tab.</div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">New-hire proration is manual — no auto-calc. Use the Allowance / 13th Month override boxes above to adjust a new hire's first cutoff by hand.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
+<div class="hide" id="civSettingsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60"><div class="card" style="max-width:720px;width:92vw;max-height:88vh;overflow-y:auto"><div class="hdr"><h3 style="font-size:15px" id="civSettingsTitle">Client Invoice Settings</h3><button class="btn btn-ghost" id="civSettingsClose">✕ Close</button></div><div class="muted" style="font-size:12px;margin-bottom:12px">Controls exactly what appears on this client's bi-weekly invoice. Nothing here changes payroll (Contractor Ledger) math.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Task Rate Table</div><div id="civTaskRows"></div><button class="btn btn-ghost" id="civAddTaskRow" style="margin:6px 0 14px">+ Add Task Rate Row</button><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Recurring Pay Items</div><table><tbody>
+<tr><td style="width:26px"><input type="checkbox" id="civInternetOn"></td><td><b>Internet / Fiber Share</b><div class="muted" style="font-size:11px">Flat cost line on every invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civInternetAmt" style="width:110px" placeholder="$/period"></td></tr>
+<tr><td><input type="checkbox" id="civThirteenthOn"></td><td><b>13th Month Pay Portion</b><div class="muted" style="font-size:11px">Flat $ amount, admin-set per client (per-invoice override available on the invoice itself)</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civThirteenthAmt" style="width:110px" placeholder="$/invoice"></td></tr>
+<tr><td><input type="checkbox" id="civAllowanceOn"></td><td><b>Allowance</b><div class="muted" style="font-size:11px">Per staff, per month, prorated to cutoff — auto-calculated, editable per invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civAllowanceRate" style="width:110px" placeholder="$/mo"></td></tr>
+<tr><td><input type="checkbox" id="civHolidayOn"></td><td><b>Holiday Pay</b><div class="muted" style="font-size:11px">Rate per staff — admin types the staff count on the invoice itself, total = count × rate</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civHolidayRate" style="width:110px" placeholder="$/staff"></td></tr>
+</tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px">Invoice Numbering</div><div class="row" style="gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Starting Invoice #</label><input type="number" min="1" step="1" id="civStartingNum" style="width:100%"></div><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Last invoice issued for this client</label><input type="text" id="civNextNum" disabled style="width:100%"></div></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn btn-ghost" id="civSettingsCancel">Cancel</button><button class="btn btn-gold" id="civSettingsSave">Save Settings</button></div><div class="muted" id="civSettingsMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div></div></div><section id="v-earning" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Net Amount Payable, VSPH, ROI and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th>Net Amount Payable</th><th>VSPH (Net Amount)</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div><div class="row" style="justify-content:flex-end;margin-top:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px" id="egAggMargin">—</span></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/payable/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances on the Adjustments tab.</div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
   <!-- STAFF VIEW -->
   <div id="portalStaffView" class="grid" style="gap:16px">
     <div class="card">
@@ -1974,12 +1980,13 @@ const PAGES={
   'v-adherence':['📊 Adherence & Breaks','Adherence & Breaks','Break usage, overages, and late log-ins — filter by staff, client, and date'],
   'v-corr'  :['✏️ Corrections','Corrections','Approve or reject staff correction requests'],
   'v-ledger':['🧾 Contractor Ledger','Contractor Ledger','Semi-monthly hours & pay pulled from the time tracker'],
+  'v-invoice':['📄 Client Invoice','Client Invoice','Bi-weekly invoice built from the Timesheets Daily Hours Grid, per client'],
   'v-earning':['💰 SMB PH Earning','SMB PH Earning','Admin-only immutable per-semi-monthly-period FX + VSPH/ROI/margin LOCK IN'],
   'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests'], 'v-portal':['🗂️ Freelancer Hole','Freelancer Hole','Documents, contracts, and signatures']
 };
 let view='v-punch';
 function buildNav(){
-  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-earning','v-reqadmin','v-policy','v-portal'] : ['v-punch','v-ledger','v-req','v-portal'];
+  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-invoice','v-earning','v-reqadmin','v-policy','v-portal'] : ['v-punch','v-ledger','v-req','v-portal'];
   $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   go(view);
@@ -1997,7 +2004,7 @@ function go(v){
   if(v==='v-sheets'){initSheetFilters();}
   if(v==='v-adherence'){initAdherenceFilters();}
   if(v==='v-corr'){loadCorrections();}
-  if(v==='v-ledger'){initLedgerFilters();}
+  if(v==='v-ledger'){initLedgerFilters();} if(v==='v-invoice'){initInvoiceFilters();}
   if(v==='v-earning'){initEarningFilters();}
   if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();}
 }
@@ -4286,6 +4293,290 @@ async function confirmEarningLock() {
   $('egConfirmYes').disabled = false;
 }
 
+
+</script>
+<script>
+
+/* ============================================================
+   CLIENT INVOICE (admin-only, bi-weekly, per client)
+   Hours come from computeLedgerRowsForPeriod — the SAME capped,
+   Ledger-consistent hours used by SMB PH Earning — never raw/uncapped
+   clock time. Settings decide what pay items appear; nothing here
+   changes payroll (Contractor Ledger) math.
+   ============================================================ */
+let civSettingsCache = {};   // client_id -> client_invoice_settings row
+let civInvoiceRow = null;    // current client_invoices row for the selected client+period
+let civGen = 0;
+
+function civMoney(n){ return '$'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function civDefaultSettings(clientId){
+  return {client_id:clientId, task_rows:[{description:'Back Office CRM tasks',rate:0}],
+    internet_share_on:false, internet_share_amount:0,
+    thirteenth_month_on:false, thirteenth_month_amount:0,
+    allowance_on:false, allowance_rate:0,
+    holiday_pay_on:false, holiday_pay_rate:10,
+    starting_invoice_number:1, current_invoice_number:null};
+}
+async function fetchClientInvoiceSettings(clientId, force){
+  if(!force && civSettingsCache[clientId]) return civSettingsCache[clientId];
+  const {data,error}=await sb.from('client_invoice_settings').select('*').eq('client_id',clientId).maybeSingle();
+  if(error && !isMissingTableError(error)) console.warn('client_invoice_settings:',error.message);
+  const row = data || civDefaultSettings(clientId);
+  civSettingsCache[clientId]=row;
+  return row;
+}
+async function fetchClientInvoiceRow(clientId,start,end){
+  const {data,error}=await sb.from('client_invoices').select('*')
+    .eq('client_id',clientId).eq('period_start',start).eq('period_end',end).maybeSingle();
+  if(error && !isMissingTableError(error)) console.warn('client_invoices:',error.message);
+  return data||null;
+}
+async function saveClientInvoiceField(patch){
+  if(!civInvoiceRow) return;
+  const {client_id,period_start,period_end}=civInvoiceRow;
+  const {data,error}=await sb.from('client_invoices').update({...patch,updated_at:new Date().toISOString()})
+    .eq('client_id',client_id).eq('period_start',period_start).eq('period_end',period_end).select().maybeSingle();
+  if(error){ alert(error.message); return; }
+  if(data) civInvoiceRow=data;
+}
+
+function initInvoiceFilters(){
+  const list = periodList('biweekly',26);
+  $('civPeriod').innerHTML = list.map(p=>`<option value="${p.start}|${p.end}">${fmtNice(p.start)} \u2013 ${fmtNice(p.end)}</option>`).join('');
+  $('civClient').innerHTML = clients.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)))
+    .map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  $('civPeriod').onchange = runClientInvoice;
+  $('civClient').onchange = runClientInvoice;
+  $('civRun').onclick = runClientInvoice;
+  $('civSettingsBtn').onclick = openInvoiceSettings;
+  $('civSettingsClose').onclick = closeInvoiceSettings;
+  $('civSettingsCancel').onclick = closeInvoiceSettings;
+  $('civSettingsSave').onclick = saveInvoiceSettingsForm;
+  $('civAddTaskRow').onclick = ()=>{ addTaskRowEditorRow({description:'',rate:0}); };
+  runClientInvoice();
+}
+
+function civSelected(){
+  const clientId = $('civClient').value;
+  const [start,end] = ($('civPeriod').value||'').split('|');
+  return {clientId,start,end};
+}
+
+async function runClientInvoice(){
+  const myGen = ++civGen;
+  const {clientId,start,end} = civSelected();
+  $('civBody').classList.add('hide');
+  $('civGridCard').classList.add('hide');
+  if(!clientId||!start||!end){ $('civStatus').textContent='Pick a client and period.'; return; }
+  const client = clients.find(c=>c.id===clientId);
+  $('civStatus').textContent='Loading\u2026';
+  try{
+    const settings = await fetchClientInvoiceSettings(clientId);
+    if(myGen!==civGen) return;
+    // Assign/fetch the persisted invoice number for this client+period (idempotent).
+    const {data:invNum, error:rpcErr} = await sb.rpc('next_client_invoice_number',
+      {p_client_id:clientId, p_period_start:start, p_period_end:end});
+    if(myGen!==civGen) return;
+    if(rpcErr){
+      $('civStatus').innerHTML = isMissingTableError(rpcErr)
+        ? '<b style="color:var(--rose)">Client Invoice tables aren\'t set up on this database yet</b> \u2014 ask an admin to run the client-invoice migration in the Supabase SQL Editor.'
+        : `<b style="color:var(--rose)">Could not assign invoice number.</b> ${escapeHtml(rpcErr.message)}`;
+      return;
+    }
+    civInvoiceRow = await fetchClientInvoiceRow(clientId,start,end);
+    if(myGen!==civGen) return;
+
+    const people = (staffList||[]).filter(s=>s.active && s.client_id===clientId);
+    const ledgerRows = people.length ? await computeLedgerRowsForPeriod(people,start,end) : [];
+    if(myGen!==civGen) return;
+    const hoursByStaff={}; ledgerRows.forEach(r=>{ hoursByStaff[r.staffId] = (r.regularHrs||0)+(r.otHrs||0); });
+
+    // Group staff onto the settings' Task Rate rows by matching usd_hourly_rate;
+    // anyone whose rate matches no row falls into an auto "Uncategorized" row so
+    // nothing is silently left off the bill.
+    const rows = (settings.task_rows&&settings.task_rows.length?settings.task_rows:[{description:'Back Office CRM tasks',rate:0}]);
+    const buckets = rows.map(r=>({description:r.description,rate:Number(r.rate)||0,hours:0,staff:0}));
+    const extra = {description:'Uncategorized (rate not in Settings)',rate:null,hours:0,staff:0};
+    people.forEach(s=>{
+      const hrs = hoursByStaff[s.id]||0;
+      const rate = Number(s.usd_hourly_rate||0);
+      const b = buckets.find(x=>Math.abs(x.rate-rate)<0.005);
+      if(b){ b.hours+=hrs; b.staff+=1; } else { extra.hours+=hrs; extra.staff+=1; }
+    });
+    const taskRowsOut = buckets.concat(extra.staff>0?[extra]:[]);
+    const internetTotal = settings.internet_share_on ? Number(settings.internet_share_amount||0) : 0;
+
+    $('civTaskTable').innerHTML = taskRowsOut.map(r=>{
+      const total = (r.rate!==null?r.rate:0)*r.hours;
+      return `<tr><td>${escapeHtml(r.description||'\u2014')}</td><td class="mono">${r.rate!==null?'$'+r.rate.toFixed(2):'mixed'}</td>`
+        +`<td class="mono">${r.hours.toFixed(2)}</td><td class="mono">${r.staff}</td><td class="mono" style="text-align:right">${civMoney(total)}</td></tr>`;
+    }).join('') + (settings.internet_share_on
+      ? `<tr><td>Fiber Internet</td><td class="mono">\u2014</td><td class="mono">\u2014</td><td class="mono">\u2014</td><td class="mono" style="text-align:right">${civMoney(internetTotal)}</td></tr>`
+      : '');
+    const taskTotal = taskRowsOut.reduce((a,r)=>a+(r.rate!==null?r.rate:0)*r.hours,0) + internetTotal;
+
+    // Pay items
+    const activeCount = people.length;
+    const allowanceAuto = settings.allowance_on ? activeCount*Number(settings.allowance_rate||0) : 0;
+    const allowanceVal = civInvoiceRow && civInvoiceRow.allowance_override!==null && civInvoiceRow.allowance_override!==undefined
+      ? Number(civInvoiceRow.allowance_override) : allowanceAuto;
+    const thirteenthAuto = settings.thirteenth_month_on ? Number(settings.thirteenth_month_amount||0) : 0;
+    const thirteenthVal = civInvoiceRow && civInvoiceRow.thirteenth_month_override!==null && civInvoiceRow.thirteenth_month_override!==undefined
+      ? Number(civInvoiceRow.thirteenth_month_override) : thirteenthAuto;
+    const holidayCount = civInvoiceRow && civInvoiceRow.holiday_staff_count!==null && civInvoiceRow.holiday_staff_count!==undefined
+      ? Number(civInvoiceRow.holiday_staff_count) : null;
+    const holidayRate = Number(settings.holiday_pay_rate||0);
+    const holidayTotal = settings.holiday_pay_on && holidayCount ? holidayCount*holidayRate : 0;
+    const paidLeaves = civInvoiceRow ? Number(civInvoiceRow.paid_leaves_amount||0) : 0;
+
+    let payHtml='';
+    if(settings.holiday_pay_on){
+      payHtml += `<tr><td>Holiday Pay \u2014 staff affected: <input type="number" min="0" step="1" id="civHolidayCount" style="width:70px" value="${holidayCount===null?'':holidayCount}" placeholder="0"> \u00d7 ${civMoney(holidayRate)}/staff</td><td class="mono" style="text-align:right">${civMoney(holidayTotal)}</td></tr>`;
+    }
+    payHtml += `<tr><td>Allowance ${settings.allowance_on?`(auto: ${activeCount} staff \u00d7 ${civMoney(settings.allowance_rate)}/mo) \u2014 override:`:''} ${settings.allowance_on?`<input type="number" min="0" step="0.01" id="civAllowanceOverride" style="width:90px" value="${allowanceVal.toFixed(2)}">`:'<span class="muted">off</span>'}</td><td class="mono" style="text-align:right">${civMoney(allowanceVal)}</td></tr>`;
+    if(settings.thirteenth_month_on){
+      payHtml += `<tr><td>13th Month Pay Portion \u2014 flat, override: <input type="number" min="0" step="0.01" id="civThirteenthOverride" style="width:90px" value="${thirteenthVal.toFixed(2)}"></td><td class="mono" style="text-align:right">${civMoney(thirteenthVal)}</td></tr>`;
+    }
+    payHtml += `<tr><td>Paid Leaves <input type="number" min="0" step="0.01" id="civPaidLeaves" style="width:90px" value="${paidLeaves.toFixed(2)}"></td><td class="mono" style="text-align:right">${civMoney(paidLeaves)}</td></tr>`;
+    $('civPayTable').innerHTML = payHtml;
+
+    const total = taskTotal + allowanceVal + thirteenthVal + holidayTotal + paidLeaves;
+    $('civTotal').textContent = civMoney(total);
+    $('civTitle').textContent = `${client?client.name:'\u2014'} \u2014 Invoice #${invNum}`;
+    $('civSub').textContent = `Pay period: ${fmtNice(start)} \u2013 ${fmtNice(end)}`;
+    $('civStatus').textContent = '';
+    $('civBody').classList.remove('hide');
+
+    // wire the editable/persisted inputs
+    if($('civHolidayCount')) $('civHolidayCount').onchange = e=>{
+      const v=e.target.value.trim();
+      saveClientInvoiceField({holiday_staff_count: v===''?null:Number(v)}).then(runClientInvoice);
+    };
+    if($('civAllowanceOverride')) $('civAllowanceOverride').onchange = e=>{
+      saveClientInvoiceField({allowance_override:Number(e.target.value||0)}).then(runClientInvoice);
+    };
+    if($('civThirteenthOverride')) $('civThirteenthOverride').onchange = e=>{
+      saveClientInvoiceField({thirteenth_month_override:Number(e.target.value||0)}).then(runClientInvoice);
+    };
+    if($('civPaidLeaves')) $('civPaidLeaves').onchange = e=>{
+      saveClientInvoiceField({paid_leaves_amount:Number(e.target.value||0)}).then(runClientInvoice);
+    };
+
+    await renderInvoiceDailyGrid(clientId,start,end,people);
+    if(myGen!==civGen) return;
+    $('civGridCard').classList.remove('hide');
+  }catch(e){
+    if(myGen!==civGen) return;
+    $('civStatus').innerHTML = `<b style="color:var(--rose)">Could not load.</b> ${escapeHtml(e.message||String(e))}`;
+  }
+}
+
+async function renderInvoiceDailyGrid(clientId,start,end,people){
+  const head=$('civGridHead'), body=$('civGridBody');
+  if(!head||!body) return;
+  people = sortStaffByClientTenure(people);
+  const [ents,shifts] = await Promise.all([fetchEntriesRange(start,end,people.map(s=>s.id)),fetchShiftsRange(start,end,people.map(s=>s.id))]);
+  const sdm = buildShiftDateMap(shifts), ssm = buildShiftSpanMap(shifts);
+  const adj = await fetchAdjustments(start,end,people.map(s=>s.id));
+  const adjMap={}; adj.forEach(a=>adjMap[a.staff_id+'|'+a.work_date]=Number(a.hours));
+  const leaves = await fetchLeaveDays(start,end,people.map(s=>s.id));
+  const leaveMap={}; leaves.forEach(l=>leaveMap[l.staff_id+'|'+l.date]=l.type);
+  const activeDays=new Set();
+  ents.forEach(e=>activeDays.add(shiftDateOf(e,sdm)));
+  adj.forEach(a=>activeDays.add(a.work_date));
+  leaves.forEach(l=>activeDays.add(l.date));
+  const days = weekdayList(start,end,activeDays);
+  const fmtCol = iso=>{const d=new Date(iso+'T00:00:00Z');
+    return `${d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'})}<br>${d.toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short'}).toUpperCase()}`;};
+  head.innerHTML = '<th class="sticky-col">Staff</th><th>Hire date</th><th>Tenure</th><th>Total hrs</th>'+days.map(d=>`<th>${fmtCol(d)}</th>`).join('');
+  const client = clients.find(c=>c.id===clientId);
+  let rowsHtml='';
+  people.forEach(s=>{
+    const mine = ents.filter(e=>e.staff_id===s.id);
+    const byDay={}; mine.forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
+    let totalHrs=0;
+    const cells = days.map(d=>{
+      const key=s.id+'|'+d, leaveType=leaveMap[key];
+      if(leaveType) return `<td class="num"><span class="pill p-off" style="font-size:9.5px;padding:2px 6px">${leaveType.toUpperCase()}</span></td>`;
+      const hasAdj = Object.prototype.hasOwnProperty.call(adjMap,key);
+      let hrs;
+      if(hasAdj) hrs=adjMap[key];
+      else{ const w=shiftWindowFor(client,d); const sum=summarize(byDay[d]||[],null,w,spanFor(byDay[d]||[],ssm)); hrs=sum.billable/60; }
+      totalHrs+=hrs;
+      return `<td class="num mono">${hrs?hrs.toFixed(2):'\u2014'}</td>`;
+    }).join('');
+    rowsHtml += `<tr><td class="sticky-col"><b>${escapeHtml(s.full_name)}</b></td><td class="mono">${mmddyy(s.hire_date)}</td><td class="mono">${escapeHtml(tenureStr(s.hire_date))}</td><td class="mono">${totalHrs.toFixed(2)}</td>${cells}</tr>`;
+  });
+  body.innerHTML = rowsHtml || `<tr><td colspan="${4+days.length}" class="muted">No staff assigned to this client.</td></tr>`;
+}
+
+/* ---------- Settings modal ---------- */
+function addTaskRowEditorRow(row){
+  const wrap=$('civTaskRows');
+  const div=document.createElement('div');
+  div.className='row'; div.style.gap='8px'; div.style.marginBottom='6px';
+  div.innerHTML = `<input class="civ-task-desc" placeholder="Task description" style="flex:2" value="${escapeHtml(row.description||'')}">`
+    +`<input class="civ-task-rate" type="number" min="0" step="0.01" placeholder="Rate (USD/hr)" style="flex:1" value="${row.rate||0}">`
+    +`<button class="btn btn-ghost civ-task-del" type="button">\uD83D\uDDD1</button>`;
+  div.querySelector('.civ-task-del').onclick=()=>div.remove();
+  wrap.appendChild(div);
+}
+function readTaskRowsEditor(){
+  return Array.from($('civTaskRows').querySelectorAll('.row')).map(div=>({
+    description: div.querySelector('.civ-task-desc').value.trim(),
+    rate: Number(div.querySelector('.civ-task-rate').value||0)
+  })).filter(r=>r.description);
+}
+async function openInvoiceSettings(){
+  const {clientId} = civSelected();
+  if(!clientId) return alert('Pick a client first.');
+  const client = clients.find(c=>c.id===clientId);
+  const s = await fetchClientInvoiceSettings(clientId, true);
+  $('civSettingsTitle').textContent = `Client Invoice Settings \u2014 ${client?client.name:''}`;
+  $('civTaskRows').innerHTML='';
+  (s.task_rows&&s.task_rows.length?s.task_rows:[{description:'Back Office CRM tasks',rate:0}]).forEach(addTaskRowEditorRow);
+  $('civInternetOn').checked = !!s.internet_share_on;
+  $('civInternetAmt').value = s.internet_share_amount||0;
+  $('civThirteenthOn').checked = !!s.thirteenth_month_on;
+  $('civThirteenthAmt').value = s.thirteenth_month_amount||0;
+  $('civAllowanceOn').checked = !!s.allowance_on;
+  $('civAllowanceRate').value = s.allowance_rate||0;
+  $('civHolidayOn').checked = !!s.holiday_pay_on;
+  $('civHolidayRate').value = s.holiday_pay_rate||10;
+  $('civStartingNum').value = s.starting_invoice_number||1;
+  $('civNextNum').value = s.current_invoice_number ? ('#'+s.current_invoice_number) : 'none issued yet';
+  $('civSettingsMsg').textContent='';
+  $('civSettingsOverlay').classList.remove('hide');
+}
+function closeInvoiceSettings(){ $('civSettingsOverlay').classList.add('hide'); }
+async function saveInvoiceSettingsForm(){
+  const {clientId} = civSelected();
+  if(!clientId) return;
+  const taskRows = readTaskRowsEditor();
+  if(!taskRows.length) return alert('Add at least one task rate row.');
+  const startingNum = Number($('civStartingNum').value||1);
+  const patch = {
+    task_rows: taskRows,
+    internet_share_on: $('civInternetOn').checked, internet_share_amount: Number($('civInternetAmt').value||0),
+    thirteenth_month_on: $('civThirteenthOn').checked, thirteenth_month_amount: Number($('civThirteenthAmt').value||0),
+    allowance_on: $('civAllowanceOn').checked, allowance_rate: Number($('civAllowanceRate').value||0),
+    holiday_pay_on: $('civHolidayOn').checked, holiday_pay_rate: Number($('civHolidayRate').value||0),
+    starting_invoice_number: startingNum
+  };
+  $('civSettingsSave').disabled=true;
+  const {data,error} = await sb.from('client_invoice_settings').upsert({client_id:clientId,...patch,updated_at:new Date().toISOString()},{onConflict:'client_id'}).select().maybeSingle();
+  $('civSettingsSave').disabled=false;
+  if(error){
+    $('civSettingsMsg').innerHTML = isMissingTableError(error)
+      ? '<b style="color:var(--rose)">Client Invoice tables aren\'t set up on this database yet</b> \u2014 ask an admin to run the client-invoice migration in the Supabase SQL Editor.'
+      : `<b style="color:var(--rose)">${escapeHtml(error.message)}</b>`;
+    return;
+  }
+  civSettingsCache[clientId]=data;
+  $('civSettingsMsg').textContent='Saved.';
+  closeInvoiceSettings();
+  runClientInvoice();
+}
 
 </script>
 </body></html>
