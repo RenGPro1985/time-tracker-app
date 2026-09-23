@@ -195,6 +195,12 @@ button.btn{padding:7px 12px;font-size:12px}
 .ad-productivity-table thead tr:first-child th:nth-child(1){z-index:3}
 .ad-productivity-table thead tr:first-child th:nth-child(2),.ad-productivity-table tbody td:nth-child(2){width:52px!important;min-width:52px;max-width:52px;white-space:normal;text-align:center;line-height:1.25}
 .ad-productivity-table thead tr:first-child th:nth-child(3),.ad-productivity-table tbody td:nth-child(3){width:58px!important;min-width:58px;max-width:58px;white-space:normal;text-align:center;line-height:1.25}
+/* Break group color coding (2026-09-23). */
+.ad-productivity-table .b15{background:rgba(63,191,174,.10)}.ad-productivity-table th.b15{color:rgb(63,191,174)}.ad-productivity-table th.b15.grp{background:rgba(63,191,174,.22);border-top:3px solid rgb(63,191,174)}.ad-productivity-table .b15.first{border-left:2px solid rgba(63,191,174,.7)}
+.ad-productivity-table .b30{background:rgba(227,166,62,.10)}.ad-productivity-table th.b30{color:rgb(227,166,62)}.ad-productivity-table th.b30.grp{background:rgba(227,166,62,.22);border-top:3px solid rgb(227,166,62)}.ad-productivity-table .b30.first{border-left:2px solid rgba(227,166,62,.7)}
+.ad-productivity-table .b60{background:rgba(155,126,222,.10)}.ad-productivity-table th.b60{color:rgb(155,126,222)}.ad-productivity-table th.b60.grp{background:rgba(155,126,222,.22);border-top:3px solid rgb(155,126,222)}.ad-productivity-table .b60.first{border-left:2px solid rgba(155,126,222,.7)}
+.ad-productivity-table .bp{background:rgba(91,155,230,.10)}.ad-productivity-table th.bp{color:rgb(91,155,230)}.ad-productivity-table th.bp.grp{background:rgba(91,155,230,.22);border-top:3px solid rgb(91,155,230)}.ad-productivity-table .bp.first{border-left:2px solid rgba(91,155,230,.7)}
+.ad-productivity-table .bb{background:rgba(226,104,95,.10)}.ad-productivity-table th.bb{color:rgb(226,104,95)}.ad-productivity-table th.bb.grp{background:rgba(226,104,95,.22);border-top:3px solid rgb(226,104,95)}.ad-productivity-table .bb.first{border-left:2px solid rgba(226,104,95,.7)}
 </style>
 </head>
 <body>
@@ -636,15 +642,15 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div class="ad-table-wrap"><table class="ad-productivity-table"><thead>
           <tr>
             <th rowspan="2">Staff</th><th rowspan="2">Late<br>log-in</th><th rowspan="2">Logged-in<br>hours</th>
-            <th colspan="2">15min Break</th><th colspan="2">30min Break</th><th colspan="2">60min Break</th>
-            <th colspan="2">Personal Break</th><th colspan="2">Bio Break</th>
+            <th colspan="2" class="b15 grp first">15min Break</th><th colspan="2" class="b30 grp first">30min Break</th><th colspan="2" class="b60 grp first">60min Break</th>
+            <th colspan="2" class="bp grp first">Personal Break</th><th colspan="2" class="bb grp first">Bio Break</th>
             <th rowspan="2">Total break<br>time</th><th rowspan="2">Actual working<br>time</th>
           </tr>
           <tr>
-            <th>Sessions /<br>max instances</th><th>Total<br>time</th>
-            <th>Sessions /<br>max instances</th><th>Total<br>time</th>
-            <th>Sessions /<br>max instances</th><th>Total<br>time</th>
-            <th>Sessions</th><th>Total<br>time</th><th>Sessions</th><th>Total<br>time</th>
+            <th class="b15 first">Sessions /<br>max instances</th><th class="b15">Total<br>time</th>
+            <th class="b30 first">Sessions /<br>max instances</th><th class="b30">Total<br>time</th>
+            <th class="b60 first">Sessions /<br>max instances</th><th class="b60">Total<br>time</th>
+            <th class="bp first">Sessions</th><th class="bp">Total<br>time</th><th class="bb first">Sessions</th><th class="bb">Total<br>time</th>
           </tr>
         </thead><tbody id="adherenceTable"></tbody></table></div>
         <div class="muted" style="font-size:10.5px;margin-top:8px">Actual working time = logged-in hours − total break time. For 15/30/60-minute breaks, sessions are raw records and instances are grouped per shift under the allowance rules. A status is <b>Over limit</b> only when a shift exceeds its allowed instance count.</div>
@@ -3013,14 +3019,15 @@ async function runAdherence(){
     const lateColor=r.lateCount?'var(--rose)':'var(--teal)';
     const limited=['15min Break','30min Break','60min Break'];
     const stats=limited.map(act=>{
-      const b=r.breakStats[act];
-      return `<td class="mono" title="${b.instances} total policy instances across the selected range">${b.sessions} / ${b.highest}</td><td class="mono">${adHm(b.minutes)}</td>`;
+      const b=r.breakStats[act], k=AD_BREAK_CLS[act];
+      return `<td class="mono ${k} first" title="${b.instances} total policy instances across the selected range">${b.sessions} / ${b.highest}</td><td class="mono ${k}">${adHm(b.minutes)}</td>`;
     }).join('')+
-      ['Personal Break','Bio Break'].map(act=>`<td class="mono">${r.breakStats[act].sessions}</td><td class="mono">${adHm(r.breakStats[act].minutes)}</td>`).join('');
+      ['Personal Break','Bio Break'].map(act=>`<td class="mono ${AD_BREAK_CLS[act]} first">${r.breakStats[act].sessions}</td><td class="mono ${AD_BREAK_CLS[act]}">${adHm(r.breakStats[act].minutes)}</td>`).join('');
     return `<tr><td><b>${escapeHtml(r.name)}</b></td><td class="mono" style="color:${lateColor}">${lateText}</td><td class="mono">${adHm(r.loggedIn)}</td>${stats}<td class="mono" style="color:var(--gold)">${adHm(r.totalBreak)}</td><td class="mono" style="color:var(--teal)">${adHm(r.working)}</td></tr>`;
   }).join(''):`<tr><td colspan="15" class="muted">No data for that range.</td></tr>`;
 }
 
+const AD_BREAK_CLS={'15min Break':'b15','30min Break':'b30','60min Break':'b60','Personal Break':'bp','Bio Break':'bb'};
 function downloadAdherenceCsv(){
   if(!adRows.length) return alert('Press Run first.');
   const dailyView=$('aGrain').value==='daily';
