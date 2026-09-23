@@ -57,6 +57,18 @@ select,input,textarea{background:var(--card2);border:1px solid var(--line);color
 .act{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px 13px;cursor:pointer}
 .act:hover{border-color:rgba(255,255,255,.18)}
 .act.on{border-color:var(--gold);background:rgba(227,166,62,.10)}
+/* Adherence productivity table: keep the wide staff report scrollable inside its card. */
+.ad-table-wrap{overflow-x:auto;max-width:100%}
+.ad-productivity-table{min-width:1480px;table-layout:fixed}
+.ad-productivity-table th,.ad-productivity-table td{padding:9px 7px;white-space:nowrap}
+.ad-productivity-table th{font-size:10px;letter-spacing:.04em}
+.ad-productivity-table td{font-size:12px}
+.ad-productivity-table th:nth-child(1){width:190px}
+.ad-productivity-table th:nth-child(2){width:118px}
+.ad-productivity-table th:nth-child(3){width:108px}
+.ad-productivity-table th:nth-child(n+4):nth-child(-n+13){width:88px}
+.ad-productivity-table th:nth-child(14),.ad-productivity-table th:nth-child(15){width:120px}
+@media(max-width:820px){.ad-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important}.ad-productivity-table{min-width:1480px}}
 /* SMB Benefits tab: compact rows + a checklist dropdown for the staff picker (native
    multi-select <select multiple> reads as unfamiliar/hidden to non-technical admins). */
 #v-benefits td,#v-benefits th{padding:7px 10px;font-size:12.5px}
@@ -148,6 +160,16 @@ button.btn{padding:7px 12px;font-size:12px}
   .sheet-grid input.dayval{width:42px;padding:3px 1px;font-size:10.5px}
 }
 .ledger-grid .ledger-day{min-width:58px;border:1px solid var(--line);border-radius:6px;padding:4px 5px;background:var(--card2);color:var(--ink);font:11px 'IBM Plex Mono',monospace;cursor:pointer}.ledger-grid .ledger-day:hover{border-color:var(--teal);color:var(--teal)}.ledger-grid .ledger-day small{display:block;font-size:9px;color:#9B7EDE;margin-top:2px}.ledger-grid .ledger-day.no-lunch{border-color:var(--gold);color:var(--gold)}
+
+/* Final overrides for the productivity report: fit the approved columns at desktop widths
+   while preserving an internal horizontal scroll on narrower screens. */
+.ad-productivity-table{min-width:1320px}
+.ad-productivity-table th:nth-child(1){width:170px}
+.ad-productivity-table th:nth-child(2){width:105px}
+.ad-productivity-table th:nth-child(3){width:100px}
+.ad-productivity-table th:nth-child(n+4):nth-child(-n+13){width:72px}
+.ad-productivity-table th:nth-child(14),.ad-productivity-table th:nth-child(15){width:112px}
+@media(max-width:820px){#v-adherence .ad-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 </style>
 </head>
 <body>
@@ -578,28 +600,21 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         </div>
         <div class="muted" id="adRangeLabel" style="font-size:11.5px;margin-top:8px"></div>
       </div>
-      <div class="grid" style="grid-template-columns:repeat(5,1fr)">
-        <div class="stat"><div class="k">Total hours logged</div><div class="v" id="adTotalHrs">—</div></div>
-        <div class="stat"><div class="k">Billable</div><div class="v" style="color:var(--teal)" id="adBillHrs">—</div></div>
+      <div class="grid ad-summary" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+        <div class="stat"><div class="k">Total logged-in hours</div><div class="v" id="adLoggedInHrs">—</div></div>
         <div class="stat"><div class="k">Total break time</div><div class="v" style="color:var(--gold)" id="adBreakHrs">—</div></div>
-        <div class="stat"><div class="k">Over-allowance break time</div><div class="v" style="color:var(--rose)" id="adOverHrs">—</div></div>
+        <div class="stat"><div class="k">Actual working time</div><div class="v" style="color:var(--teal)" id="adWorkingHrs">—</div></div>
         <div class="stat"><div class="k">Late log-ins</div><div class="v" style="color:var(--rose)" id="adLateCount">—</div></div>
       </div>
-      <div class="grid" style="grid-template-columns:1fr 1.6fr;gap:16px">
-        <div class="card">
-          <div class="hdr"><h3 style="font-size:15px">Time breakdown</h3></div>
-          <div class="muted" id="adChartWho" style="font-size:11.5px;margin-bottom:8px">Total hours working vs. all other activities</div>
-          <div style="position:relative;height:260px"><canvas id="adherenceChart"></canvas></div>
-          <div id="adChartLegend" style="margin-top:12px;font-size:11.5px"></div>
-        </div>
-        <div class="card">
-          <div class="hdr"><h3 style="font-size:15px">Adherence by staff</h3></div>
-          <div style="overflow-x:auto"><table><thead><tr>
-            <th>Staff</th><th>Client</th><th>Days</th><th>Total</th><th>Billable</th>
-            <th>15min over</th><th>30min over</th><th>60min used</th><th>Personal over</th>
-            <th>Late log-ins</th><th>Avg late (min)</th>
-          </tr></thead><tbody id="adherenceTable"></tbody></table></div>
-        </div>
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">Productivity by staff</h3><span class="muted" style="font-size:11px">Break counts = recorded sessions · accumulated duration = HH:MM</span></div>
+        <div class="ad-table-wrap"><table class="ad-productivity-table"><thead><tr>
+          <th>Staff</th><th>Late<br>log-in</th><th>Logged-in<br>hours</th>
+          <th>15min<br>count</th><th>15min<br>time</th><th>30min<br>count</th><th>30min<br>time</th>
+          <th>60min<br>count</th><th>60min<br>time</th><th>Personal<br>count</th><th>Personal<br>time</th>
+          <th>Bio<br>count</th><th>Bio<br>time</th><th>Total break<br>time</th><th>Actual working<br>time</th>
+        </tr></thead><tbody id="adherenceTable"></tbody></table></div>
+        <div class="muted" style="font-size:10.5px;margin-top:8px">Actual working time = logged-in hours − total break time. Break time is the accumulated duration of each logged break type.</div>
       </div>
     </section>
 
@@ -2836,13 +2851,9 @@ function downloadCsv(text,name){
    and a pie/doughnut breakdown of total hours by activity \u2014 handy
    for 1:1 coaching (billable Working time vs. everything else).
    ============================================================ */
-const BREAK_ACTS = ['15min Break','30min Break','60min Break','Personal Break'];
-const ACT_COLORS = {
-  'Working':'#3FBFAE','Overtime':'#5B8DEF','Meeting/Coaching':'#9B7EDE',
-  '15min Break':'#E3A63E','30min Break':'#E2685F','60min Break':'#6B7183',
-  'Personal Break':'#4FA0D9','Bio Break':'#D98CC4'
-};
-let adChart=null, adRows=[], adRangeStr='';
+const BREAK_ACTS = ['15min Break','30min Break','60min Break','Personal Break','Bio Break'];
+let adRows=[], adRangeStr='';
+function adHm(mins){const raw=Math.round(Number(mins)||0),m=Math.abs(raw);return (raw<0?'-':'')+String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
 
 function initAdherenceFilters(){
   fill('aClient','All clients',clients.map(c=>[c.id,c.name]));
@@ -2878,100 +2889,70 @@ async function fetchShiftsRange(startIso,endIso,staffIds){
 }
 async function runAdherence(){
   const {start,end}=adherenceRange();
-  if(!start||!end) return alert('Pick a date.');
+  if(!start||!end||start>end) return alert('Pick a valid date range.');
   adRangeStr=`${start}_${end}`;
-  $('adRangeLabel').textContent=`${fmtNice(start)} \u2013 ${fmtNice(end)} (Philippine time)`;
+  $('adRangeLabel').textContent=`${fmtNice(start)} – ${fmtNice(end)} (Philippine time)`;
   const fc=$('aClient').value, fs=$('aStaff').value, grace=Number($('aGrace').value||0);
   const people=staffList.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs));
   const ids=people.map(s=>s.id);
   const [ents,shs]=await Promise.all([fetchEntriesRange(start,end,ids),fetchShiftsRange(start,end,ids)]);
-  const shiftDateMap=buildShiftDateMap(shs);
-  const shiftSpanMap=buildShiftSpanMap(shs);
-
-  const grandPer={}; let grandTotal=0,grandBill=0;
+  const shiftDateMap=buildShiftDateMap(shs), shiftSpanMap=buildShiftSpanMap(shs);
+  const dailyView=$('aGrain').value==='daily';
   adRows=[];
   people.forEach(s=>{
-    const c=clients.find(x=>x.id===s.client_id);
-    const mine=ents.filter(e=>e.staff_id===s.id);
-    const byDay={}; mine.forEach(e=>{ const d=shiftDateOf(e,shiftDateMap); (byDay[d]=byDay[d]||[]).push(e); });
-    let total=0,bill=0; const per={}; const over={'15min Break':0,'30min Break':0,'Personal Break':0};
-    Object.keys(byDay).forEach(d=>{
-      const win=shiftWindowFor(c,d);
-      const sum=summarize(byDay[d],null,win,spanFor(byDay[d],shiftSpanMap));
-      total+=sum.total; bill+=sum.billable;
-      Object.entries(sum.per).forEach(([act,m])=>{ per[act]=(per[act]||0)+m; grandPer[act]=(grandPer[act]||0)+m; });
-      BREAK_ACTS.filter(a=>a!=='60min Break').forEach(act=>{ over[act]+=sum.overByAct[act]||0; });
-    });
-    grandTotal+=total; grandBill+=bill;
-    const mySh=shs.filter(sh=>sh.staff_id===s.id);
-    let lateCount=0,lateMinTotal=0;
-    /* For an overnight shift (e.g. 21:00–06:00) somebody who logs in at 00:30 belongs to the
-       window that OPENED the previous PH date. Measuring against the same-date window made
-       them look ~20 hours early instead of 3.5 hours late, so post-midnight late log-ins were
-       never counted. Compare against whichever window start is closest to the log-in. */
+    const client=clients.find(x=>x.id===s.client_id);
+    const mine=ents.filter(e=>e.staff_id===s.id), mySh=shs.filter(sh=>sh.staff_id===s.id);
+    const byDay={}; mine.forEach(e=>{const d=shiftDateOf(e,shiftDateMap);(byDay[d]=byDay[d]||[]).push(e);});
+    const breakStats={}; BREAK_ACTS.forEach(act=>breakStats[act]={count:0,minutes:0});
+    mine.forEach(e=>{if(breakStats[e.activity])breakStats[e.activity].count++;});
+    let loggedIn=0,lateCount=0,lateMinTotal=0;
     mySh.forEach(sh=>{
-      const at=new Date(sh.login_at); const d=phDate(at);
-      const cands=[shiftWindowFor(c,addDays(d,-1)),shiftWindowFor(c,d)].filter(Boolean);
-      if(!cands.length) return;
-      const win=cands.reduce((a,b)=>Math.abs(at-a.start)<=Math.abs(at-b.start)?a:b);
-      const lateMin=(at-win.start)/60000;
-      if(lateMin>grace){ lateCount++; lateMinTotal+=lateMin; }
+      const login=new Date(sh.login_at), logout=sh.logout_at?new Date(sh.logout_at):new Date();
+      loggedIn+=Math.max(0,(logout-login)/60000);
+      // For overnight shifts, compare the login to the closest of the prior/current PH-day window starts.
+      const d=phDate(login), cands=[shiftWindowFor(client,addDays(d,-1)),shiftWindowFor(client,d)].filter(Boolean);
+      if(!cands.length)return;
+      const win=cands.reduce((a,b)=>Math.abs(login-a.start)<=Math.abs(login-b.start)?a:b);
+      const lateMin=(login-win.start)/60000;
+      if(lateMin>grace){lateCount++;lateMinTotal+=lateMin;}
     });
-    adRows.push({
-      name:s.full_name, client:c?c.name:'\u2014', days:Object.keys(byDay).length,
-      total, bill, non:total-bill,
-      over15:over['15min Break']||0, over30:over['30min Break']||0,
-      used60:per['60min Break']||0, overPersonal:over['Personal Break']||0,
-      lateCount, avgLate: lateCount? lateMinTotal/lateCount : 0, shifts:mySh.length
+    Object.keys(byDay).forEach(d=>{
+      const sum=summarize(byDay[d],null,shiftWindowFor(client,d),spanFor(byDay[d],shiftSpanMap));
+      BREAK_ACTS.forEach(act=>{breakStats[act].minutes+=sum.per[act]||0;});
     });
+    const totalBreak=BREAK_ACTS.reduce((n,act)=>n+breakStats[act].minutes,0);
+    adRows.push({name:s.full_name,loggedIn,totalBreak,working:loggedIn-totalBreak,breakStats,lateCount,lateMinTotal,shifts:mySh.length});
   });
-
-  $('adTotalHrs').textContent=hm(grandTotal);
-  $('adBillHrs').textContent=hm(grandBill);
-  const breakMins=BREAK_ACTS.reduce((a,act)=>a+(grandPer[act]||0),0);
-  $('adBreakHrs').textContent=hm(breakMins);
-  const overMins=adRows.reduce((a,r)=>a+r.over15+r.over30+r.overPersonal,0);
-  $('adOverHrs').textContent=hm(overMins);
-  $('adLateCount').textContent=adRows.reduce((a,r)=>a+r.lateCount,0);
-
-  $('adChartWho').textContent = fs ? `Breakdown for ${escapeHtml((staffList.find(s=>s.id===fs)||{}).full_name||'')}` : 'Total hours working vs. all other activities (all filtered staff)';
-  renderAdherenceChart(grandPer);
-
-  $('adherenceTable').innerHTML = adRows.length ? adRows.map(r=>`<tr>
-    <td><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td>
-    <td class="mono">${r.days}</td><td class="mono">${hm(r.total)}</td><td class="mono" style="color:var(--teal)">${hm(r.bill)}</td>
-    <td class="mono" style="color:${r.over15?'var(--rose)':'inherit'}">${r.over15?hm(r.over15):'\u2014'}</td>
-    <td class="mono" style="color:${r.over30?'var(--rose)':'inherit'}">${r.over30?hm(r.over30):'\u2014'}</td>
-    <td class="mono">${r.used60?hm(r.used60):'\u2014'}</td>
-    <td class="mono" style="color:${r.overPersonal?'var(--rose)':'inherit'}">${r.overPersonal?hm(r.overPersonal):'\u2014'}</td>
-    <td class="mono" style="color:${r.lateCount?'var(--rose)':'inherit'}">${r.lateCount}/${r.shifts}</td>
-    <td class="mono">${r.lateCount?Math.round(r.avgLate):'\u2014'}</td>
-  </tr>`).join('') : `<tr><td colspan="11" class="muted">No data for that range.</td></tr>`;
+  const grandLogged=adRows.reduce((a,r)=>a+r.loggedIn,0), grandBreak=adRows.reduce((a,r)=>a+r.totalBreak,0);
+  $('adLoggedInHrs').textContent=adHm(grandLogged);
+  $('adBreakHrs').textContent=adHm(grandBreak);
+  $('adWorkingHrs').textContent=adHm(grandLogged-grandBreak);
+  const totalLate=adRows.reduce((a,r)=>a+r.lateCount,0), totalShifts=adRows.reduce((a,r)=>a+r.shifts,0);
+  $('adLateCount').textContent=dailyView?String(totalLate):`${totalLate}/${totalShifts}`;
+  $('adherenceTable').innerHTML=adRows.length?adRows.map(r=>{
+    const lateText=dailyView?(r.lateCount?`Yes · ${Math.round(r.lateMinTotal)}m`:'No'):(r.shifts?`${r.lateCount}/${r.shifts}`:'—');
+    const lateColor=r.lateCount?'var(--rose)':'var(--teal)';
+    const stats=BREAK_ACTS.map(act=>`<td class="mono">${r.breakStats[act].count}</td><td class="mono">${adHm(r.breakStats[act].minutes)}</td>`).join('');
+    return `<tr><td><b>${escapeHtml(r.name)}</b></td><td class="mono" style="color:${lateColor}">${lateText}</td><td class="mono">${adHm(r.loggedIn)}</td>${stats}<td class="mono" style="color:var(--gold)">${adHm(r.totalBreak)}</td><td class="mono" style="color:var(--teal)">${adHm(r.working)}</td></tr>`;
+  }).join(''):`<tr><td colspan="15" class="muted">No data for that range.</td></tr>`;
 }
-function renderAdherenceChart(per){
-  const labels=Object.keys(per).filter(k=>per[k]>0);
-  const data=labels.map(k=>Math.round(per[k]));
-  const colors=labels.map(k=>ACT_COLORS[k]||'#8B90A0');
-  if(!$('adherenceChart')||typeof Chart==='undefined') return;
-  const ctx=$('adherenceChart').getContext('2d');
-  if(adChart) adChart.destroy();
-  if(!labels.length){ $('adChartLegend').innerHTML='<span class="muted">No data for that range.</span>'; return; }
-  adChart=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'#151824',borderWidth:2}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.label}: ${hm(c.parsed)}`}}}}});
-  const total=data.reduce((a,b)=>a+b,0)||1;
-  $('adChartLegend').innerHTML=labels.map((l,i)=>`<div class="row" style="justify-content:space-between;margin-top:4px">
-    <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${colors[i]};margin-right:7px"></i>${escapeHtml(l)}</span>
-    <span class="mono muted">${hm(data[i])} \u00b7 ${Math.round(data[i]/total*100)}%</span></div>`).join('');
-}
+
 function downloadAdherenceCsv(){
   if(!adRows.length) return alert('Press Run first.');
-  const head=['Staff','Client','Days','Total hrs','Billable hrs','Non-billable hrs','15min Break over (min)','30min Break over (min)','60min Break used (min)','Personal Break over (min)','Late log-ins','Shifts','Avg late (min)'];
-  const lines=[[`Adherence & breaks ${adRangeStr.replace('_',' to ')} (Philippine time)`],[],head];
-  adRows.forEach(r=>lines.push([r.name,r.client,r.days,(r.total/60).toFixed(2),(r.bill/60).toFixed(2),(r.non/60).toFixed(2),
-    Math.round(r.over15),Math.round(r.over30),Math.round(r.used60),Math.round(r.overPersonal),r.lateCount,r.shifts,r.lateCount?Math.round(r.avgLate):0]));
+  const dailyView=$('aGrain').value==='daily';
+  const head=['Staff','Late log-in','Total logged-in hours'];
+  BREAK_ACTS.forEach(act=>{head.push(`${act} count`,`${act} time (HH:MM)`);});
+  head.push('Total break time (HH:MM)','Actual working time (HH:MM)');
+  const lines=[[`Adherence & productivity ${adRangeStr.replace('_',' to ')} (Philippine time)`],[],head];
+  adRows.forEach(r=>{
+    const lateText=dailyView?(r.lateCount?`Yes - ${Math.round(r.lateMinTotal)} min`:'No'):(r.shifts?`${r.lateCount}/${r.shifts}`:'—');
+    const row=[r.name,lateText,adHm(r.loggedIn)];
+    BREAK_ACTS.forEach(act=>row.push(r.breakStats[act].count,adHm(r.breakStats[act].minutes)));
+    row.push(adHm(r.totalBreak),adHm(r.working)); lines.push(row);
+  });
   const text=lines.map(l=>l.map(csvEscape).join(',')).join('\n');
   const blob=new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`adherence-breaks-${adRangeStr}.csv`;a.click();URL.revokeObjectURL(a.href);
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`adherence-productivity-${adRangeStr}.csv`;a.click();URL.revokeObjectURL(a.href);
 }
 
 /* ============================================================
