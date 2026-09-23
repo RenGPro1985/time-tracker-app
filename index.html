@@ -709,7 +709,8 @@ function groupActivityInstances(intervals,activity){
   const groups=[];
   sorted.forEach(iv=>{
     const g=groups[groups.length-1];
-    if(g && iv[0]-g[g.length-1][1]<=mergeGapMs) g.push(iv); else groups.push([iv]);
+    const gap=g?iv[0]-g[g.length-1][1]:Infinity;
+    if(g && (gap<=0||gap<mergeGapMs)) g.push(iv); else groups.push([iv]);
   });
   return groups;
 }
