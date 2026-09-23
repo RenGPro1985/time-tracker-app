@@ -148,53 +148,6 @@ async function requireActiveUser(req, res) {
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const BREAK_ACTIVITIES = ['15min Break','30min Break','60min Break','Personal Break','Bio Break'];
-/* Per-instance break policy (2026-09-22): the allowance caps each USE of a break type on
-   its own, not the sum of every use in the shift. 15min/30min/60min Break additionally have
-   a hard cap on how many separate instances are allowed per shift; any instance beyond that
-   gets ZERO allowance (100% of it counts as overbreak), not just the minutes past the cap.
-   mergeGapMin: two same-activity entries closer together than this are treated as ONE
-   instance (their time is added together, then capped once) — this closes the loophole of
-   splitting one break into several short back-to-back punches. Personal/Bio Break have no
-   merge rule and no instance-count limit (per-instance cap only, tracked but not capped on
-   count). See skills/users/u0bcs577h9q/SKILL.md for the Slack thread that specified this. */
-const BREAK_INSTANCE_RULES = {
-  '15min Break': { mergeGapMin: 60, maxInstances: 2 },
-  '30min Break': { mergeGapMin: 60, maxInstances: 1 },
-  '60min Break': { mergeGapMin: 0,  maxInstances: 1 }, // 60min Break is already always 100% non-billable regardless of cap; this only drives alerting/flagging, not pay.
-};
-/* Groups an activity's raw intervals for one shift into "instances" per BREAK_INSTANCE_RULES,
-   merging entries that are less than mergeGapMin apart. Returns instances in chronological
-   order, each as {minutes} (union of any sub-intervals in that instance). */
-function groupBreakInstances(entries, activity, nowMs=Date.now()){
-  const rule=BREAK_INSTANCE_RULES[activity]||{};
-  const mergeGapMs=(rule.mergeGapMin||0)*60000;
-  const ivs=(entries||[]).filter(e=>e.activity===activity)
-    .map(e=>[new Date(e.started_at).getTime(), e.ended_at?new Date(e.ended_at).getTime():nowMs])
-    .filter(([s,t])=>Number.isFinite(s)&&Number.isFinite(t)&&t>s).sort((a,b)=>a[0]-b[0]);
-  const groups=[];
-  ivs.forEach(iv=>{
-    const g=groups[groups.length-1];
-    const gap=g?iv[0]-g[g.length-1][1]:Infinity;
-    if(g && (gap<=0||gap<mergeGapMs)) g.push(iv); else groups.push([iv]);
-  });
-  return groups.map(g=>({ minutes: unionMinutesMs(g) }));
-}
-function overbreakCandidates(entries, activity, cap){
-  const rule=BREAK_INSTANCE_RULES[activity]||{};
-  return groupBreakInstances(entries,activity).flatMap((instance,idx)=>{
-    const withinLimit=!rule.maxInstances||(idx+1)<=rule.maxInstances;
-    if(cap<=0&&withinLimit) return []; // zero means unlimited for allowed instances
-    const allowance=withinLimit?cap:0; // excess instances have zero allowance, even if cap is zero
-    const over=instance.minutes-allowance;
-    if(over<=OVERBREAK_FLAG_MIN) return [];
-    return [{instance:idx+1,used:instance.minutes,allowance,over,withinLimit}];
-  });
-}
-function unionMinutesMs(ivsMs){
-  const merged=[];
-  ivsMs.slice().sort((a,b)=>a[0]-b[0]).forEach(iv=>{const last=merged[merged.length-1];if(last&&iv[0]<=last[1])last[1]=Math.max(last[1],iv[1]);else merged.push(iv.slice());});
-  return merged.reduce((sum,[s,t])=>sum+(t-s),0)/60000;
-}
 function safeSlack(value, max=500){
   /* Values are inserted inside mrkdwn fields. Escape link/mention syntax and neutralize
      formatting characters so a staff-entered reason cannot create mentions or formatting. */
@@ -398,11 +351,11 @@ app.post('/api/slack/request', async (req, res) => {
     const {data:r,error}=await admin.from('requests').select('*').eq('id',requestId).single();
     if(error||!r) return res.status(404).json({error:'Request not found.'});
     if(r.staff_id!==caller.user.id) return res.status(403).json({error:'You can only notify your own request.'});
-    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}[r.type];
+    const typeLabel={pto:'Paid Time Off',pch:'Paid Client Holiday',planned_absence:'Planned Absence',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}[r.type];
     if(!typeLabel) return res.status(400).json({error:'Unsupported request type.'});
     const client=await clientName(caller.row.client_id);
     const fields=[['Staff',caller.row.full_name],['Client',client],['Request',typeLabel]];
-    if(r.type==='pto'){
+    if(r.type==='pto'||r.type==='pch'||r.type==='planned_absence'){
       fields.push(['Dates',`${phtDate(r.start_date+'T00:00:00+08:00')} – ${phtDate(r.end_date+'T00:00:00+08:00')}`],['Requested',`${inclusiveDays(r.start_date,r.end_date)} calendar day(s)`]);
     }else{
       fields.push(['Amount',peso(r.amount)],['Repayment',`${Number(r.cutoffs||0)} cutoff(s)`]);
@@ -425,14 +378,14 @@ app.post('/api/slack/request-rejected', async (req, res) => {
     if(r.status!=='rejected'||!String(r.rejection_reason||'').trim()){
       return res.status(409).json({error:'The request must be rejected with a reason before notifying payroll.'});
     }
-    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}[r.type];
+    const typeLabel={pto:'Paid Time Off',pch:'Paid Client Holiday',planned_absence:'Planned Absence',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}[r.type];
     if(!typeLabel) return res.status(400).json({error:'Unsupported request type.'});
     const {data:staff,error:staffErr}=await admin.from('staff')
       .select('id, full_name, client_id').eq('id',r.staff_id).single();
     if(staffErr||!staff) return res.status(404).json({error:'Request staff account not found.'});
     const client=await clientName(staff.client_id);
     const fields=[['Staff',staff.full_name],['Client',client],['Request',typeLabel]];
-    if(r.type==='pto'){
+    if(r.type==='pto'||r.type==='pch'||r.type==='planned_absence'){
       fields.push(['Dates',`${phtDate(r.start_date+'T00:00:00+08:00')} – ${phtDate(r.end_date+'T00:00:00+08:00')}`],['Requested',`${inclusiveDays(r.start_date,r.end_date)} calendar day(s)`]);
     }else{
       fields.push(['Amount',peso(r.amount)],['Repayment',`${Number(r.cutoffs||0)} cutoff(s)`]);
@@ -444,7 +397,7 @@ app.post('/api/slack/request-rejected', async (req, res) => {
   }catch(e){console.error('Slack rejection notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
 });
 
-// --- 8. Slack: per-instance overbreak alerts -> SMB general --------------
+// --- 8. Slack: first overbreak per shift/activity -> SMB general ---------
 app.post('/api/slack/overbreaks', async (req, res) => {
   try{
     const caller=await requireActiveUser(req,res); if(!caller) return;
@@ -463,18 +416,17 @@ app.post('/api/slack/overbreaks', async (req, res) => {
     const crossed=[];
     for(const activity of BREAK_ACTIVITIES){
       const cap=Number(allowances[activity]||0);
-      const rule=BREAK_INSTANCE_RULES[activity]||{};
-      for(const candidate of overbreakCandidates(entries||[],activity,cap)){
-        const {instance,used,allowance:instanceCap,over,withinLimit}=candidate;
-        const usedRounded=Math.ceil(used),overRounded=Math.max(1,Math.ceil(over));
-        const label=withinLimit?`Instance ${instance} of ${rule.maxInstances||'∞'} allowed this shift`:`Instance ${instance} exceeds the ${rule.maxInstances} allowed this shift — zero allowance, fully non-billable`;
-        const payload=slackPayload('⚠️ SMB Time Overbreak Alert',[
-          ['Staff',caller.row.full_name],['Client',client],['Activity',activity],['Allowance',`${instanceCap} min${OVERBREAK_GRACE_MIN?` (+${OVERBREAK_GRACE_MIN} min grace)`:''}`],['Used',`${usedRounded} min`],['Over by',`${overRounded} min`]
-        ],`Shift: ${phtDate(shift.login_at)} PHT · ${label} · Checked per-instance, not summed across the shift · Flagged only past ${OVERBREAK_FLAG_MIN} min over`);
-        const result=await sendSlackOnce({eventKey:`overbreak:${shift.id}:${activity}:${instance-1}`,destination:'SMB general',eventType:'overbreak',entityId:shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
-        crossed.push({activity,instance,...result});
-        if(result.sent) await sleep(1200); // Slack incoming webhooks may drop bursts faster than ~1/sec
-      }
+      if(cap<=0) continue; // current app semantics: zero means unlimited/no deduction
+      const used=unionMinutes((entries||[]).filter(e=>e.activity===activity));
+      const over=used-cap;
+      if(over<=OVERBREAK_FLAG_MIN) continue; // 1 min grace; flag only when over by MORE than 2 min
+      const usedRounded=Math.ceil(used),overRounded=Math.max(1,Math.ceil(over));
+      const payload=slackPayload('⚠️ SMB Time Overbreak Alert',[
+        ['Staff',caller.row.full_name],['Client',client],['Activity',activity],['Allowance',`${cap} min (+${OVERBREAK_GRACE_MIN} min grace)`],['Used',`${usedRounded} min`],['Over by',`${overRounded} min`]
+      ],`Shift: ${phtDate(shift.login_at)} PHT · First alert for this activity in this shift · Flagged only past ${OVERBREAK_FLAG_MIN} min over`);
+      const result=await sendSlackOnce({eventKey:`overbreak:${shift.id}:${activity}`,destination:'SMB general',eventType:'overbreak',entityId:shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
+      crossed.push({activity,...result});
+      if(result.sent) await sleep(1200); // Slack incoming webhooks may drop bursts faster than ~1/sec
     }
     res.json({ok:true,crossed});
   }catch(e){console.error('Slack overbreak notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
