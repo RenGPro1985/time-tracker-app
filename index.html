@@ -662,8 +662,8 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
         <select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · task names span all rate rows</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month is calculated per staff member and prorated by inclusive employed calendar days in this bi-weekly period. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
-<div class="hide" id="civSettingsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60"><div class="card" style="max-width:720px;width:92vw;max-height:88vh;overflow-y:auto"><div class="hdr"><h3 style="font-size:15px" id="civSettingsTitle">Client Invoice Settings</h3><button class="btn btn-ghost" id="civSettingsClose">✕ Close</button></div><div class="muted" style="font-size:12px;margin-bottom:12px">Controls exactly what appears on this client's bi-weekly invoice. Nothing here changes payroll (Contractor Ledger) math.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Task Rate Table</div><div id="civTaskRows"></div><button class="btn btn-ghost" id="civAddTaskRow" style="margin:6px 0 14px">+ Add Task Rate Row</button><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Recurring Pay Items</div><table><tbody>
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month is calculated per staff member and prorated by inclusive employed calendar days in this bi-weekly period. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
+<div class="hide" id="civSettingsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60"><div class="card" style="max-width:720px;width:92vw;max-height:88vh;overflow-y:auto"><div class="hdr"><h3 style="font-size:15px" id="civSettingsTitle">Client Invoice Settings</h3><button class="btn btn-ghost" id="civSettingsClose">✕ Close</button></div><div class="muted" style="font-size:12px;margin-bottom:12px">Controls exactly what appears on this client's bi-weekly invoice. Nothing here changes payroll (Contractor Ledger) math.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Task Description</div><input type="text" id="civTaskDescription" placeholder="e.g. Back Office CRM tasks" style="margin-bottom:6px"><div class="muted" style="font-size:11px;margin-bottom:14px">One label for everyone on this client. Rate rows on the invoice come straight from each staff member's live hourly rate \u2014 nothing to configure here for that.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Recurring Pay Items</div><table><tbody>
 <tr><td style="width:26px"><input type="checkbox" id="civInternetOn"></td><td><b>Internet / Fiber Share</b><div class="muted" style="font-size:11px">Flat cost line on every invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civInternetAmt" style="width:110px" placeholder="$/period"></td></tr>
 <tr><td><input type="checkbox" id="civThirteenthOn"></td><td><b>13th Month Pay Portion</b><div class="muted" style="font-size:11px">Per-staff amount for each bi-weekly invoice; prorated by employed calendar days from hire through term/resignation (inclusive).</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civThirteenthAmt" style="width:110px" placeholder="$/staff / cutoff"></td></tr>
 <tr><td><input type="checkbox" id="civAllowanceOn"></td><td><b>Allowance</b><div class="muted" style="font-size:11px">Per staff, per month, prorated to cutoff — auto-calculated, editable per invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civAllowanceRate" style="width:110px" placeholder="$/mo"></td></tr>
@@ -4454,45 +4454,32 @@ function civMoney(n){ return '$'+Number(n||0).toLocaleString(undefined,{minimumF
 function civUtcDate(s){ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(s||''))) return null; const [y,m,d]=s.split('-').map(Number); const x=new Date(Date.UTC(y,m-1,d)); return x.getUTCFullYear()===y&&x.getUTCMonth()===m-1&&x.getUTCDate()===d?x:null; }
 function civCalendarDays(start,end){ const a=civUtcDate(start),b=civUtcDate(end); return !a||!b||b<a?0:Math.round((b-a)/86400000)+1; }
 function civEmploymentDays(staff,start,end){ const periodDays=civCalendarDays(start,end); if(!periodDays)return 0; if(!staff.active&&!staff.termination_date)return 0; const a=civUtcDate(start),b=civUtcDate(end); const hire=civUtcDate(staff.hire_date)||a; const term=civUtcDate(staff.termination_date)||b; const lo=Math.max(a.getTime(),hire.getTime()),hi=Math.min(b.getTime(),term.getTime()); return hi<lo?0:Math.floor((hi-lo)/86400000)+1; }
-function civBuildTaskRows(taskRows,people,hoursByStaff){
-  const sorted=(taskRows&&taskRows.length?taskRows:[{description:'Back Office CRM tasks',rate:0}])
-    .slice().sort((a,b)=>String(a.description||'').localeCompare(String(b.description||''))||(Number(a.rate)||0)-(Number(b.rate)||0));
+/* Rate rows are derived directly from each staff member's live usd_hourly_rate —
+   no manual Settings row has to match a rate for it to appear. Everyone on this
+   client does the same task; only pay differs by tenure/role, so the whole group
+   shares ONE task description (from Settings) and gets one row PER DISTINCT RATE
+   actually present among the client's staff for this period. Rates round to the
+   cent so staff intended to share a rate always group together even with float
+   noise, and sort ascending for a stable, predictable invoice layout. */
+function civBuildTaskRows(taskDescription,people,hoursByStaff){
+  const description=String(taskDescription||'').trim()||'Back Office CRM tasks';
   const buckets=[];
-  sorted.forEach(r=>{
-    const description=String(r.description||'').trim()||'—', rate=Number(r.rate)||0;
-    let b=buckets.find(x=>x.description===description&&Math.abs(x.rate-rate)<0.005);
-    if(!b){b={description,rate,hours:0,staff:0};buckets.push(b);}
-  });
-  const extra={description:'Uncategorized (rate not in Settings)',rate:null,hours:0,staff:0};
   people.forEach(s=>{
-    const rate=Number(s.usd_hourly_rate||0), b=buckets.find(x=>Math.abs(x.rate-rate)<0.005);
+    const rate=Math.round(Number(s.usd_hourly_rate||0)*100)/100;
     const hrs=Number(hoursByStaff[s.id]||0);
-    if(b){b.hours+=hrs;b.staff+=1;}else{extra.hours+=hrs;extra.staff+=1;}
+    let b=buckets.find(x=>x.rate===rate);
+    if(!b){b={description,rate,hours:0,staff:0};buckets.push(b);}
+    b.hours+=hrs; b.staff+=1;
   });
-  return buckets.concat(extra.staff?[extra]:[]);
-}
-function civValidateTaskRows(taskRows){
-  const rates=new Map();
-  for(const row of taskRows){
-    const rate=Number(row.rate);
-    if(!Number.isFinite(rate)||rate<0)return 'Each task rate must be a valid non-negative USD amount.';
-    if(!String(row.description||'').trim())return 'Every rate row needs a task description.';
-    const key=rate.toFixed(2),description=String(row.description||'').trim();
-    if(rates.has(key)&&rates.get(key)!==description){
-      return `Rate $${rate.toFixed(2)} is assigned to more than one task. Staff are mapped by hourly rate, so each rate can identify only one task description.`;
-    }
-    rates.set(key,description);
-  }
-  return '';
+  buckets.sort((a,b)=>a.rate-b.rate);
+  return buckets;
 }
 function civTaskRowsHtml(taskRowsOut){
+  if(!taskRowsOut.length) return '<tr><td colspan="5" class="muted">No staff with an hourly rate are assigned to this client for this period.</td></tr>';
   return taskRowsOut.map((r,i)=>{
-    const nextDiff=taskRowsOut.slice(i).findIndex(x=>x.description!==r.description);
-    const rowSpan=nextDiff<0?taskRowsOut.length-i:nextDiff;
-    const taskCell=i>0&&taskRowsOut[i-1].description===r.description?''
-      :`<td rowspan="${rowSpan}">${escapeHtml(r.description||'—')}</td>`;
-    const total=(r.rate===null?0:r.rate)*r.hours;
-    return `<tr>${taskCell}<td class="mono">${r.rate!==null?'$'+r.rate.toFixed(2):'mixed'}</td>`
+    const taskCell=i===0?`<td rowspan="${taskRowsOut.length}">${escapeHtml(r.description||'—')}</td>`:'';
+    const total=r.rate*r.hours;
+    return `<tr>${taskCell}<td class="mono">$${r.rate.toFixed(2)}</td>`
       +`<td class="mono">${r.hours.toFixed(2)}</td><td class="mono">${r.staff}</td><td class="mono" style="text-align:right">${civMoney(total)}</td></tr>`;
   }).join('');
 }
@@ -4510,7 +4497,7 @@ function civThirteenthCalculation(settings,invoice,people,start,end){
   return {perStaff,periodDays,staffEquivalent,total,legacyInUse,legacyTotal};
 }
 function civDefaultSettings(clientId){
-  return {client_id:clientId, task_rows:[{description:'Back Office CRM tasks',rate:0}],
+  return {client_id:clientId, task_description:'Back Office CRM tasks',
     internet_share_on:false, internet_share_amount:0,
     thirteenth_month_on:false, thirteenth_month_amount:0,
     allowance_on:false, allowance_rate:0,
@@ -4552,7 +4539,6 @@ function initInvoiceFilters(){
   $('civSettingsClose').onclick = closeInvoiceSettings;
   $('civSettingsCancel').onclick = closeInvoiceSettings;
   $('civSettingsSave').onclick = saveInvoiceSettingsForm;
-  $('civAddTaskRow').onclick = ()=>{ addTaskRowEditorRow({description:'',rate:0}); };
   runClientInvoice();
 }
 
@@ -4591,18 +4577,16 @@ async function runClientInvoice(){
     if(myGen!==civGen) return;
     const hoursByStaff={}; ledgerRows.forEach(r=>{ hoursByStaff[r.staffId] = (r.regularHrs||0)+(r.otHrs||0); });
 
-    // Group staff onto the settings' Task Rate rows by matching usd_hourly_rate;
-    // anyone whose rate matches no row falls into an auto "Uncategorized" row so
-    // nothing is silently left off the bill.
-    const rateConfigError=civValidateTaskRows(settings.task_rows||[]);
-    if(rateConfigError){$('civStatus').innerHTML=`<b style="color:var(--rose)">Fix the Task Rate Settings first.</b> ${escapeHtml(rateConfigError)}`;return;}
-    const taskRowsOut = civBuildTaskRows(settings.task_rows,people,hoursByStaff);
+    // Everyone on this client does the same task; rate rows come straight from
+    // each staff member's live usd_hourly_rate — nothing to configure in Settings
+    // for this to work, and nobody can silently drop off the bill.
+    const taskRowsOut = civBuildTaskRows(settings.task_description,people,hoursByStaff);
     const internetTotal = settings.internet_share_on ? Number(settings.internet_share_amount||0) : 0;
 
     $('civTaskTable').innerHTML = civTaskRowsHtml(taskRowsOut) + (settings.internet_share_on
       ? `<tr><td>Fiber Internet</td><td class="mono">\u2014</td><td class="mono">\u2014</td><td class="mono">\u2014</td><td class="mono" style="text-align:right">${civMoney(internetTotal)}</td></tr>`
       : '');
-    const taskTotal = taskRowsOut.reduce((a,r)=>a+(r.rate!==null?r.rate:0)*r.hours,0);
+    const taskTotal = taskRowsOut.reduce((a,r)=>a+r.rate*r.hours,0);
 
     // Pay items
     const activeCount = people.filter(s=>s.active).length;
@@ -4703,30 +4687,15 @@ async function renderInvoiceDailyGrid(clientId,start,end,people){
 }
 
 /* ---------- Settings modal ---------- */
-function addTaskRowEditorRow(row){
-  const wrap=$('civTaskRows');
-  const div=document.createElement('div');
-  div.className='row'; div.style.gap='8px'; div.style.marginBottom='6px';
-  div.innerHTML = `<input class="civ-task-desc" placeholder="Task description" style="flex:2" value="${escapeHtml(row.description||'')}">`
-    +`<input class="civ-task-rate" type="number" min="0" step="0.01" placeholder="Rate (USD/hr)" style="flex:1" value="${row.rate||0}">`
-    +`<button class="btn btn-ghost civ-task-del" type="button">\uD83D\uDDD1</button>`;
-  div.querySelector('.civ-task-del').onclick=()=>div.remove();
-  wrap.appendChild(div);
-}
-function readTaskRowsEditor(){
-  return Array.from($('civTaskRows').querySelectorAll('.row')).map(div=>({
-    description: div.querySelector('.civ-task-desc').value.trim(),
-    rate: Number(div.querySelector('.civ-task-rate').value||0)
-  })).filter(r=>r.description);
-}
 async function openInvoiceSettings(){
   const {clientId} = civSelected();
   if(!clientId) return alert('Pick a client first.');
   const client = clients.find(c=>c.id===clientId);
   const s = await fetchClientInvoiceSettings(clientId, true);
   $('civSettingsTitle').textContent = `Client Invoice Settings \u2014 ${client?client.name:''}`;
-  $('civTaskRows').innerHTML='';
-  (s.task_rows&&s.task_rows.length?s.task_rows:[{description:'Back Office CRM tasks',rate:0}]).forEach(addTaskRowEditorRow);
+  $('civTaskDescription').value = s.task_description
+    || (s.task_rows&&s.task_rows.length?s.task_rows[0].description:'') // pre-redesign settings row
+    || 'Back Office CRM tasks';
   $('civInternetOn').checked = !!s.internet_share_on;
   $('civInternetAmt').value = s.internet_share_amount||0;
   $('civThirteenthOn').checked = !!s.thirteenth_month_on;
@@ -4744,13 +4713,11 @@ function closeInvoiceSettings(){ $('civSettingsOverlay').classList.add('hide'); 
 async function saveInvoiceSettingsForm(){
   const {clientId} = civSelected();
   if(!clientId) return;
-  const taskRows = readTaskRowsEditor();
-  if(!taskRows.length) return alert('Add at least one task rate row.');
-  const taskRateError=civValidateTaskRows(taskRows);
-  if(taskRateError){$('civSettingsMsg').textContent=taskRateError;return;}
+  const taskDescription = $('civTaskDescription').value.trim();
+  if(!taskDescription) return alert('Add a task description.');
   const startingNum = Number($('civStartingNum').value||1);
   const patch = {
-    task_rows: taskRows,
+    task_description: taskDescription,
     internet_share_on: $('civInternetOn').checked, internet_share_amount: Number($('civInternetAmt').value||0),
     thirteenth_month_on: $('civThirteenthOn').checked, thirteenth_month_amount: Number($('civThirteenthAmt').value||0),
     allowance_on: $('civAllowanceOn').checked, allowance_rate: Number($('civAllowanceRate').value||0),
