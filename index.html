@@ -625,10 +625,13 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       </div>
     </section>
 
-    <!-- ---------- ADMIN: ADHERENCE & BREAKS ---------- -->
+    <!-- ---------- ADHERENCE & BREAKS (admin, plus staff granted view access) ---------- -->
     <section id="v-adherence" class="hide grid" style="gap:16px">
       <div class="card">
-        <div class="hdr"><h3 style="font-size:15px">Filters</h3></div>
+        <div class="hdr"><h3 style="font-size:15px">Filters</h3>
+          <div class="row"><span class="badge hide" id="adherenceAccessCountBadge"></span>
+          <button class="gear-btn hide" id="manageAdherenceAccessBtn" title="Manage who can view this tab" style="background:transparent;border:1px solid var(--line);color:var(--muted);width:32px;height:32px;border-radius:9px;cursor:pointer;font-size:14px">⚙</button></div>
+        </div>
         <div class="row" style="flex-wrap:wrap;gap:10px;align-items:flex-end">
           <div><label>View</label><select id="aGrain" style="width:auto">
             <option value="daily">Daily</option><option value="weekly">Weekly</option>
@@ -647,6 +650,17 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
           <button class="btn btn-gold" id="dlAdherence">Download CSV</button>
         </div>
         <div class="muted" id="adRangeLabel" style="font-size:11.5px;margin-top:8px"></div>
+      </div>
+      <div class="card hide" id="adherenceAccessPanel">
+        <div class="hdr" style="margin-bottom:0">
+          <div>
+            <h3 style="font-size:14px;margin-bottom:2px">Manage Adherence & Breaks access</h3>
+            <div class="muted" style="font-size:11.5px">Give specific staff view-only access to this tab. They only ever see staff under their own client and cannot open this panel themselves.</div>
+          </div>
+          <button class="btn btn-teal" id="saveAdherenceAccessBtn">Save</button>
+        </div>
+        <div class="muted" id="adherenceAccessSaveMsg" style="font-size:12px;margin:8px 0;min-height:14px"></div>
+        <div class="grid" id="adherenceAccessGrid" style="grid-template-columns:repeat(3,1fr);gap:8px"></div>
       </div>
       <div class="grid ad-summary" style="grid-template-columns:repeat(4,minmax(0,1fr))">
         <div class="stat"><div class="k">Total logged-in hours</div><div class="v" id="adLoggedInHrs">—</div></div>
@@ -2116,7 +2130,7 @@ const PAGES={
 };
 let view='v-punch';
 function buildNav(){
-  const staffIds = me.can_view_live_status ? ['v-punch','v-status','v-ledger','v-req','v-portal'] : ['v-punch','v-ledger','v-req','v-portal'];
+  const staffIds = ['v-punch',...(me.can_view_live_status?['v-status']:[]),...(me.can_view_adherence?['v-adherence']:[]),'v-ledger','v-req','v-portal'];
   const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-invoice','v-earning','v-reqadmin','v-policy','v-portal'] : staffIds;
   $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
@@ -2133,7 +2147,7 @@ function go(v){
   if(v==='v-benefits'){renderBenefits();}
   if(v==='v-adjustments'){renderAdjustments();loadFeeAdvancePanel();}
   if(v==='v-sheets'){initSheetFilters();}
-  if(v==='v-adherence'){initAdherenceFilters();}
+  if(v==='v-adherence'){initAdherenceFilters();} 
   if(v==='v-corr'){loadCorrections();}
   if(v==='v-ledger'){initLedgerFilters();} if(v==='v-invoice'){initInvoiceFilters();}
   if(v==='v-earning'){initEarningFilters();}
@@ -2994,16 +3008,66 @@ const BREAK_ACTS = ['15min Break','30min Break','60min Break','Personal Break','
 let adRows=[], adRangeStr='';
 function adHm(mins){const raw=Math.round(Number(mins)||0),m=Math.abs(raw);return (raw<0?'-':'')+String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
 
-function initAdherenceFilters(){
-  fill('aClient','All clients',clients.map(c=>[c.id,c.name]));
-  fill('aStaff','All staff',staffList.map(s=>[s.id,s.full_name]));
+// Non-admin roster is intentionally kept separate from the global `staffList`
+// (which for non-admin stays [me] everywhere else in the app) so granting
+// Adherence & Breaks access can never leak other staff's rows into Ledger/Requests/etc.
+let adherenceRosterStaff=[], adherenceIsInit=false;
+function iAmAdherenceAdmin(){ return me.role==='admin'; }
+async function ensureAdherenceRosterStaff(){
+  if(iAmAdherenceAdmin()){ adherenceRosterStaff=staffList; return; }
+  if(!me.can_view_adherence){ adherenceRosterStaff=[]; return; }
+  // RLS (p_staff_adherence_read) only allows this select to return staff who
+  // share this viewer's client_id — enforced server-side, not just hidden in the UI.
+  const {data}=await sb.from('staff').select('*').eq('client_id',me.client_id).order('full_name');
+  adherenceRosterStaff=data||[];
+}
+async function initAdherenceFilters(){
+  await ensureAdherenceRosterStaff();
+  const admin=iAmAdherenceAdmin();
+  const rosterStaff=adherenceRosterStaff.filter(s=>s.active);
+  // Granted viewers keep full use of the View/Client/Staff filters — just scoped
+  // to their own client's data. Only the access-management gear+badge is admin-only.
+  if(admin){ fill('aClient','All clients',clients.map(c=>[c.id,c.name])); }
+  else{ const myClient=clients.find(c=>c.id===me.client_id); fill('aClient','All clients',myClient?[[myClient.id,myClient.name]]:[]); }
+  fill('aStaff','All staff',rosterStaff.map(s=>[s.id,s.full_name]));
+  $('manageAdherenceAccessBtn').classList.toggle('hide',!admin);
+  $('adherenceAccessCountBadge').classList.toggle('hide',!admin);
+  if(admin){
+    renderAdherenceAccessBadge();
+    $('manageAdherenceAccessBtn').onclick=()=>{ $('adherenceAccessPanel').classList.toggle('hide'); if(!$('adherenceAccessPanel').classList.contains('hide')) renderAdherenceAccessPanel(); };
+    $('saveAdherenceAccessBtn').onclick=saveAdherenceAccess;
+  }
   if(!$('aDate').value) $('aDate').value=phDate(new Date());
   if(!$('aMonth').value) $('aMonth').value=phDate(new Date()).slice(0,7);
   if(!$('aFrom').value){ const p=biweeklyPeriod(phDate(new Date())); $('aFrom').value=p.start; $('aTo').value=p.end; }
   $('aGrain').onchange=toggleAdherenceInputs; toggleAdherenceInputs();
-  $('runAdherence').onclick=runAdherence;
-  $('dlAdherence').onclick=downloadAdherenceCsv;
+  if(!adherenceIsInit){ $('runAdherence').onclick=runAdherence; $('dlAdherence').onclick=downloadAdherenceCsv; adherenceIsInit=true; }
   runAdherence();
+}
+function renderAdherenceAccessBadge(){
+  const n=staffList.filter(s=>s.can_view_adherence).length;
+  $('adherenceAccessCountBadge').textContent=`${n} staff ${n===1?'has':'have'} tab access`;
+}
+function renderAdherenceAccessPanel(){
+  $('adherenceAccessSaveMsg').textContent='';
+  $('adherenceAccessGrid').innerHTML=staffList.filter(s=>s.active&&s.role!=='admin').map(s=>
+    `<label class="staff-chip"><input type="checkbox" data-adherence-access-staff="${s.id}" ${s.can_view_adherence?'checked':''}> ${escapeHtml(s.full_name)}</label>`
+  ).join('')||'<div class="muted">No non-admin staff yet.</div>';
+}
+async function saveAdherenceAccess(){
+  const boxes=[...document.querySelectorAll('[data-adherence-access-staff]')];
+  const toGrant=boxes.filter(b=>b.checked&&!staffList.find(s=>s.id===b.dataset.adherenceAccessStaff)?.can_view_adherence).map(b=>b.dataset.adherenceAccessStaff);
+  const toRevoke=boxes.filter(b=>!b.checked&&staffList.find(s=>s.id===b.dataset.adherenceAccessStaff)?.can_view_adherence).map(b=>b.dataset.adherenceAccessStaff);
+  if(!toGrant.length&&!toRevoke.length){ $('adherenceAccessSaveMsg').textContent='No changes.'; return; }
+  $('saveAdherenceAccessBtn').disabled=true;
+  try{
+    if(toGrant.length){ const {error}=await sb.from('staff').update({can_view_adherence:true}).in('id',toGrant); if(error) throw error; }
+    if(toRevoke.length){ const {error}=await sb.from('staff').update({can_view_adherence:false}).in('id',toRevoke); if(error) throw error; }
+    staffList.forEach(s=>{ if(toGrant.includes(s.id))s.can_view_adherence=true; if(toRevoke.includes(s.id))s.can_view_adherence=false; });
+    renderAdherenceAccessBadge();
+    $('adherenceAccessSaveMsg').textContent='Saved.';
+  }catch(err){ $('adherenceAccessSaveMsg').textContent='Save failed: '+err.message; }
+  $('saveAdherenceAccessBtn').disabled=false;
 }
 function toggleAdherenceInputs(){
   const g=$('aGrain').value;
@@ -3066,8 +3130,9 @@ async function runAdherence(){
   if(!start||!end||start>end) return alert('Pick a valid date range.');
   adRangeStr=`${start}_${end}`;
   $('adRangeLabel').textContent=`${fmtNice(start)} – ${fmtNice(end)} (Philippine time)`;
+  await ensureAdherenceRosterStaff();
   const fc=$('aClient').value, fs=$('aStaff').value, grace=Number($('aGrace').value||0);
-  const people=staffList.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs));
+  const people=adherenceRosterStaff.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs));
   const ids=people.map(s=>s.id);
   const [ents,shs]=await Promise.all([fetchEntriesRange(start,end,ids),fetchShiftsRange(start,end,ids)]);
   const shiftDateMap=buildShiftDateMap(shs), shiftSpanMap=buildShiftSpanMap(shs);
