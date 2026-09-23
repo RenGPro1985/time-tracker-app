@@ -668,7 +668,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 <tr><td><input type="checkbox" id="civThirteenthOn"></td><td><b>13th Month Pay Portion</b><div class="muted" style="font-size:11px">Per-staff amount for each bi-weekly invoice; prorated by employed calendar days from hire through term/resignation (inclusive).</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civThirteenthAmt" style="width:110px" placeholder="$/staff / cutoff"></td></tr>
 <tr><td><input type="checkbox" id="civAllowanceOn"></td><td><b>Allowance</b><div class="muted" style="font-size:11px">Per staff, per month, prorated to cutoff — auto-calculated, editable per invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civAllowanceRate" style="width:110px" placeholder="$/mo"></td></tr>
 <tr><td><input type="checkbox" id="civHolidayOn"></td><td><b>Holiday Pay</b><div class="muted" style="font-size:11px">Rate per staff — admin types the staff count on the invoice itself, total = count × rate</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civHolidayRate" style="width:110px" placeholder="$/staff"></td></tr>
-</tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px">Invoice Numbering</div><div class="row" style="gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Starting Invoice #</label><input type="number" min="1" step="1" id="civStartingNum" style="width:100%"></div><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Last invoice issued for this client</label><input type="text" id="civNextNum" disabled style="width:100%"></div></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn btn-ghost" id="civSettingsCancel">Cancel</button><button class="btn btn-gold" id="civSettingsSave">Save Settings</button></div><div class="muted" id="civSettingsMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div></div></div><section id="v-earning" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Net Amount Payable, VSPH, ROI and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th>Net Amount Payable</th><th>VSPH (Net Amount)</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div><div class="row" style="justify-content:flex-end;margin-top:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px" id="egAggMargin">—</span></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/payable/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances on the Adjustments tab.</div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+</tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px">Invoice Numbering</div><div class="row" style="gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Starting Invoice #</label><input type="number" min="1" step="1" id="civStartingNum" style="width:100%"></div><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Last invoice issued for this client</label><input type="text" id="civNextNum" disabled style="width:100%"></div></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn btn-ghost" id="civSettingsCancel">Cancel</button><button class="btn btn-gold" id="civSettingsSave">Save Settings</button></div><div class="muted" id="civSettingsMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div></div></div><section id="v-earning" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Net Amount Payable, VSPH, ROI and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th>Net Amount Payable</th><th>VSPH (Net Amount)</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div><div class="row" style="justify-content:flex-end;margin-top:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px" id="egAggMargin">—</span></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/payable/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances on the Adjustments tab.</div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
   <!-- STAFF VIEW -->
   <div id="portalStaffView" class="grid" style="gap:16px">
     <div class="card">
@@ -1760,7 +1760,8 @@ async function runLedger(){
   /* PCH/PTO: paid as a flat day rate (monthly rate / 22), never from clocked hours, and
      never contributes Night Diff — leave_days rows carry no shift/entries at all. */
   const leaves=await fetchLeaveDays(start,end,ids);
-  const leavesByStaff={};leaves.forEach(l=>{(leavesByStaff[l.staff_id]=leavesByStaff[l.staff_id]||[]).push(l);});
+  /* planned_absence rows are grid markers only — unpaid, so they never count toward PCH/PTO Days/Pay */
+  const leavesByStaff={};leaves.filter(l=>l.type!=='planned_absence').forEach(l=>{(leavesByStaff[l.staff_id]=leavesByStaff[l.staff_id]||[]).push(l);});
   /* Which real payroll cutoff (15th or end-of-month) this Ledger period pays out on, and
      which add-on fields are in play for that cutoff — see LEDGER_EXTRA_FIELDS notes above. */
   const cutoffIso=payoutCutoffFor(end),phase=payoutPhase(cutoffIso);
@@ -3126,6 +3127,8 @@ async function saveAdjustment(staffId,dateIso,hoursOrNull,cellEl){
    only. They intentionally do NOT add hours to "Total hours worked" or any billable/OT
    total — staff on PTO/PCH are paid a flat day rate separately (see Ledger PCH/PTO
    column), not by clocked hours, so no fabricated hours enter the hours totals here. */
+/* Grid marker text per leave_days.type: PTO / PCH (paid) and PA = Planned Absence (unpaid). */
+function leaveTag(t){return t==='planned_absence'?'PA':String(t||'').toUpperCase();}
 async function fetchLeaveDays(startIso,endIso,staffIds){
   let q=sb.from('leave_days').select('*').gte('date',startIso).lte('date',endIso);
   q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
@@ -3170,8 +3173,8 @@ async function renderSheetGrid(){
       const key=s.id+'|'+d;
       const leaveType=leaveMap[key];
       if(leaveType){
-        const title=leaveType==='pch'?'Paid Client Holiday':'Paid Time Off';
-        return `<td class="num"><span class="pill p-off" style="font-size:9.5px;padding:2px 6px" title="${title} — not counted in hours">${leaveType.toUpperCase()}</span></td>`;
+        const title=leaveType==='pch'?'Paid Client Holiday':leaveType==='planned_absence'?'Planned Absence (unpaid)':'Paid Time Off';
+        return `<td class="num"><span class="pill ${leaveType==='planned_absence'?'p-bad':'p-off'}" style="font-size:9.5px;padding:2px 6px" title="${title} — not counted in hours">${leaveTag(leaveType)}</span></td>`;
       }
       const hasAdj=Object.prototype.hasOwnProperty.call(adjMap,key);
       let hrs;
@@ -3359,13 +3362,18 @@ function renderPolicy(){
   };
 }
 
-const TYPE_LABEL={pto:'Paid Time Off',pch:'Paid Client Holiday',salary_advance:'Salary Advance',cash_advance:'Cash Advance'};
+const TYPE_LABEL={pto:'Paid Time Off',pch:'Paid Client Holiday',planned_absence:'Planned Absence',salary_advance:'Salary Advance',cash_advance:'Cash Advance'};
 const STATUS_PILL={pending:'p-off',approved:'p-work',rejected:'p-bad',paid:'p-work',scheduled:'p-off',deducted:'p-work',waived:'p-off'};
 const isAdvanceType=t=>t==='salary_advance'||t==='cash_advance';
 const isLeaveType=t=>t==='pto'||t==='pch';
+/* Planned Absence is an unpaid, date-range request: it uses the From/To fields like PTO/PCH
+   and approval marks the weekdays in leave_days (type 'planned_absence') so the Timesheets
+   grid shows a "PA" marker — but it is NOT a paid leave type: the Contractor Ledger filters
+   planned_absence out of PCH/PTO Days/Pay, so nothing is paid for those days. */
+const hasDateRange=t=>isLeaveType(t)||t==='planned_absence';
 let myReqs=[], myDeductions=[];
 function reqDetails(r){
-  if(isLeaveType(r.type)) return fmtNice(r.start_date)+' – '+fmtNice(r.end_date);
+  if(hasDateRange(r.type)) return fmtNice(r.start_date)+' – '+fmtNice(r.end_date);
   const amt='₱'+Number(r.amount||0).toLocaleString();
   return isAdvanceType(r.type)&&r.cutoffs ? `${amt} over ${r.cutoffs} cutoff${r.cutoffs>1?'s':''}` : amt;
 }
@@ -3397,16 +3405,16 @@ function renderRequests(){
 if($('reqType')){
   $('reqType').onchange=()=>{
     const t=$('reqType').value;
-    $('reqPtoFields').classList.toggle('hide', !isLeaveType(t));
-    $('reqAmtFields').classList.toggle('hide', isLeaveType(t));
-    $('reqCutoffFields').classList.toggle('hide', isLeaveType(t));
+    $('reqPtoFields').classList.toggle('hide', !hasDateRange(t));
+    $('reqAmtFields').classList.toggle('hide', hasDateRange(t));
+    $('reqCutoffFields').classList.toggle('hide', hasDateRange(t));
   };
   $('reqSubmit').onclick=async()=>{
     const t=$('reqType').value;
     const reason=$('reqReason').value.trim();
     if(!reason) return alert('Please enter a reason.');
     const payload={staff_id:me.id,type:t,reason};
-    if(isLeaveType(t)){
+    if(hasDateRange(t)){
       payload.start_date=$('reqStart').value; payload.end_date=$('reqEnd').value;
       if(!payload.start_date||!payload.end_date) return alert('Pick a start and end date.');
     }else{
@@ -3437,7 +3445,7 @@ async function loadReqAdmin(){
   const ids=[...new Set(reqAdminList.map(r=>r.staff_id))];
   const {data:staffRows}=ids.length? await sb.from('staff').select('id,full_name').in('id',ids) : {data:[]};
   const nameOf=id=>{const s=(staffRows||[]).find(x=>x.id===id); return s?s.full_name:'—';};
-  $('reqAdminTable').innerHTML = reqAdminList.length? reqAdminList.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}</td><td>${escapeHtml(r.reason||'')}</td><td>${r.status==='rejected'?escapeHtml(r.rejection_reason||'—'):'—'}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'?`<button class="btn btn-ghost" data-paid="${r.id}">${isAdvanceType(r.type)?'Mark advance issued':'Mark paid'}</button>`:''}<button class="btn btn-ghost" data-edit="${r.id}">Edit</button><button class="btn btn-rose" data-del="${r.id}">Delete</button></td></tr>`).join('') : `<tr><td colspan="8" class="muted">No requests.</td></tr>`;
+  $('reqAdminTable').innerHTML = reqAdminList.length? reqAdminList.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}</td><td>${escapeHtml(r.reason||'')}</td><td>${r.status==='rejected'?escapeHtml(r.rejection_reason||'—'):'—'}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'&&r.type!=='planned_absence'?`<button class="btn btn-ghost" data-paid="${r.id}">${isAdvanceType(r.type)?'Mark advance issued':'Mark paid'}</button>`:''}<button class="btn btn-ghost" data-edit="${r.id}">Edit</button><button class="btn btn-rose" data-del="${r.id}">Delete</button></td></tr>`).join('') : `<tr><td colspan="8" class="muted">No requests.</td></tr>`;
   $('reqAdminTable').querySelectorAll('[data-appr]').forEach(b=>b.onclick=()=>decideReq(b.dataset.appr,'approved'));
   $('reqAdminTable').querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>openRejectRequest(b.dataset.rej));
   $('reqAdminTable').querySelectorAll('[data-paid]').forEach(b=>b.onclick=()=>decideReq(b.dataset.paid,'paid'));
@@ -3479,7 +3487,7 @@ function weekdaysInRange(startIso,endIso){
   return days;
 }
 async function createLeaveDays(r){
-  if(!isLeaveType(r.type)||!r.start_date||!r.end_date) return;
+  if(!hasDateRange(r.type)||!r.start_date||!r.end_date) return;
   const days=weekdaysInRange(r.start_date,r.end_date);
   if(!days.length) return;
   const rows=days.map(date=>({request_id:r.id,staff_id:r.staff_id,date,type:r.type}));
@@ -3551,7 +3559,7 @@ function openEditRequest(id){
   if(!r) return;
   editReqId=id;
   $('editReqContext').textContent=`${TYPE_LABEL[r.type]} — ${reqDetails(r)}`;
-  const leave=isLeaveType(r.type);
+  const leave=hasDateRange(r.type);
   $('editReqAmtFields').classList.toggle('hide',leave);
   $('editReqDateFields').classList.toggle('hide',!leave);
   $('editReqAmount').value=r.amount||'';
@@ -3567,7 +3575,7 @@ async function submitEditRequest(){
   if(!editReqId) return closeEditRequest();
   const r=reqAdminList.find(x=>x.id===editReqId);
   if(!r) return closeEditRequest();
-  const leave=isLeaveType(r.type);
+  const leave=hasDateRange(r.type);
   const payload={p_request_id:editReqId,p_reason:$('editReqReason').value.trim()||null};
   if(leave){
     payload.p_start_date=$('editReqStart').value||null;
@@ -4159,7 +4167,7 @@ async function computeLedgerRowsForPeriod(peopleSubset, start, end) {
     });
   });
   const leaves = await fetchLeaveDaysStrict(start, end, ids);
-  const leavesByStaff = {}; leaves.forEach(l => { (leavesByStaff[l.staff_id] = leavesByStaff[l.staff_id] || []).push(l); });
+  const leavesByStaff = {}; leaves.filter(l => l.type !== 'planned_absence').forEach(l => { (leavesByStaff[l.staff_id] = leavesByStaff[l.staff_id] || []).push(l); });
   const cutoffIso = EarningsLoader.payoutCutoffFor(end), phase = EarningsLoader.payoutPhase(cutoffIso);
   const [extrasRaw, advancesRaw, rulesRaw, adjustmentsRaw, paidRaw] = await Promise.all([
     EarningsData.fetchLedgerExtrasStrict(sb, cutoffIso, ids),
@@ -4673,7 +4681,7 @@ async function renderInvoiceDailyGrid(clientId,start,end,people){
     let totalHrs=0;
     const cells = days.map(d=>{
       const key=s.id+'|'+d, leaveType=leaveMap[key];
-      if(leaveType) return `<td class="num"><span class="pill p-off" style="font-size:9.5px;padding:2px 6px">${leaveType.toUpperCase()}</span></td>`;
+      if(leaveType) return `<td class="num"><span class="pill ${leaveType==='planned_absence'?'p-bad':'p-off'}" style="font-size:9.5px;padding:2px 6px">${leaveTag(leaveType)}</span></td>`;
       const hasAdj = Object.prototype.hasOwnProperty.call(adjMap,key);
       let hrs;
       if(hasAdj) hrs=adjMap[key];
