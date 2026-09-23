@@ -174,9 +174,21 @@ function groupBreakInstances(entries, activity, nowMs=Date.now()){
   const groups=[];
   ivs.forEach(iv=>{
     const g=groups[groups.length-1];
-    if(g && iv[0]-g[g.length-1][1]<=mergeGapMs) g.push(iv); else groups.push([iv]);
+    const gap=g?iv[0]-g[g.length-1][1]:Infinity;
+    if(g && (gap<=0||gap<mergeGapMs)) g.push(iv); else groups.push([iv]);
   });
   return groups.map(g=>({ minutes: unionMinutesMs(g) }));
+}
+function overbreakCandidates(entries, activity, cap){
+  const rule=BREAK_INSTANCE_RULES[activity]||{};
+  return groupBreakInstances(entries,activity).flatMap((instance,idx)=>{
+    const withinLimit=!rule.maxInstances||(idx+1)<=rule.maxInstances;
+    if(cap<=0&&withinLimit) return []; // zero means unlimited for allowed instances
+    const allowance=withinLimit?cap:0; // excess instances have zero allowance, even if cap is zero
+    const over=instance.minutes-allowance;
+    if(over<=OVERBREAK_FLAG_MIN) return [];
+    return [{instance:idx+1,used:instance.minutes,allowance,over,withinLimit}];
+  });
 }
 function unionMinutesMs(ivsMs){
   const merged=[];
@@ -432,7 +444,7 @@ app.post('/api/slack/request-rejected', async (req, res) => {
   }catch(e){console.error('Slack rejection notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
 });
 
-// --- 8. Slack: first overbreak per shift/activity -> SMB general ---------
+// --- 8. Slack: per-instance overbreak alerts -> SMB general --------------
 app.post('/api/slack/overbreaks', async (req, res) => {
   try{
     const caller=await requireActiveUser(req,res); if(!caller) return;
@@ -451,22 +463,16 @@ app.post('/api/slack/overbreaks', async (req, res) => {
     const crossed=[];
     for(const activity of BREAK_ACTIVITIES){
       const cap=Number(allowances[activity]||0);
-      if(cap<=0) continue; // current app semantics: zero means unlimited/no deduction
       const rule=BREAK_INSTANCE_RULES[activity]||{};
-      const instances=groupBreakInstances(entries||[],activity);
-      for(let idx=0;idx<instances.length;idx++){
-        const used=instances[idx].minutes;
-        const withinLimit=!rule.maxInstances||(idx+1)<=rule.maxInstances;
-        const instanceCap=withinLimit?cap:0; // beyond the max allowed instances this shift: zero allowance
-        const over=used-instanceCap;
-        if(over<=OVERBREAK_FLAG_MIN) continue; // 1 min grace; flag only when over by MORE than 2 min
+      for(const candidate of overbreakCandidates(entries||[],activity,cap)){
+        const {instance,used,allowance:instanceCap,over,withinLimit}=candidate;
         const usedRounded=Math.ceil(used),overRounded=Math.max(1,Math.ceil(over));
-        const label=withinLimit?`Instance ${idx+1} of ${rule.maxInstances||'∞'} allowed this shift`:`Instance ${idx+1} exceeds the ${rule.maxInstances} allowed this shift — zero allowance, fully non-billable`;
+        const label=withinLimit?`Instance ${instance} of ${rule.maxInstances||'∞'} allowed this shift`:`Instance ${instance} exceeds the ${rule.maxInstances} allowed this shift — zero allowance, fully non-billable`;
         const payload=slackPayload('⚠️ SMB Time Overbreak Alert',[
           ['Staff',caller.row.full_name],['Client',client],['Activity',activity],['Allowance',`${instanceCap} min${OVERBREAK_GRACE_MIN?` (+${OVERBREAK_GRACE_MIN} min grace)`:''}`],['Used',`${usedRounded} min`],['Over by',`${overRounded} min`]
         ],`Shift: ${phtDate(shift.login_at)} PHT · ${label} · Checked per-instance, not summed across the shift · Flagged only past ${OVERBREAK_FLAG_MIN} min over`);
-        const result=await sendSlackOnce({eventKey:`overbreak:${shift.id}:${activity}:${idx}`,destination:'SMB general',eventType:'overbreak',entityId:shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
-        crossed.push({activity,instance:idx+1,...result});
+        const result=await sendSlackOnce({eventKey:`overbreak:${shift.id}:${activity}:${instance-1}`,destination:'SMB general',eventType:'overbreak',entityId:shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
+        crossed.push({activity,instance,...result});
         if(result.sent) await sleep(1200); // Slack incoming webhooks may drop bursts faster than ~1/sec
       }
     }
