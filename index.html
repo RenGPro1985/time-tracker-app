@@ -161,14 +161,31 @@ button.btn{padding:7px 12px;font-size:12px}
 }
 .ledger-grid .ledger-day{min-width:58px;border:1px solid var(--line);border-radius:6px;padding:4px 5px;background:var(--card2);color:var(--ink);font:11px 'IBM Plex Mono',monospace;cursor:pointer}.ledger-grid .ledger-day:hover{border-color:var(--teal);color:var(--teal)}.ledger-grid .ledger-day small{display:block;font-size:9px;color:#9B7EDE;margin-top:2px}.ledger-grid .ledger-day.no-lunch{border-color:var(--gold);color:var(--gold)}
 
-/* Final overrides for the productivity report: fit the approved columns at desktop widths
-   while preserving an internal horizontal scroll on narrower screens. */
-.ad-productivity-table{min-width:1320px}
+/* Final overrides for the productivity report: keep the dense policy detail legible
+   inside the card's own horizontal scroller. */
+.ad-productivity-table{min-width:1840px}
 .ad-productivity-table th:nth-child(1){width:170px}
 .ad-productivity-table th:nth-child(2){width:105px}
 .ad-productivity-table th:nth-child(3){width:100px}
-.ad-productivity-table th:nth-child(n+4):nth-child(-n+13){width:72px}
-.ad-productivity-table th:nth-child(14),.ad-productivity-table th:nth-child(15){width:112px}
+.ad-productivity-table th:nth-child(4),
+.ad-productivity-table th:nth-child(7),
+.ad-productivity-table th:nth-child(10){width:110px}
+.ad-productivity-table th:nth-child(5),
+.ad-productivity-table th:nth-child(8),
+.ad-productivity-table th:nth-child(11),
+.ad-productivity-table th:nth-child(13),
+.ad-productivity-table th:nth-child(15){width:78px}
+.ad-productivity-table th:nth-child(6),
+.ad-productivity-table th:nth-child(9),
+.ad-productivity-table th:nth-child(12){width:106px}
+.ad-productivity-table th:nth-child(14),
+.ad-productivity-table th:nth-child(16){width:76px}
+.ad-productivity-table th:nth-child(17),.ad-productivity-table th:nth-child(18){width:112px}
+.ad-productivity-table thead tr:first-child th{background:rgba(255,255,255,.025);text-align:center}
+.ad-productivity-table thead tr:nth-child(2) th{text-align:center;white-space:normal;line-height:1.2}
+.ad-status{font-size:10px;white-space:normal;line-height:1.2}
+.ad-status-ok{color:var(--teal)}
+.ad-status-bad{color:var(--rose);font-weight:600}
 @media(max-width:820px){#v-adherence .ad-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 </style>
 </head>
@@ -607,14 +624,22 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div class="stat"><div class="k">Late log-ins</div><div class="v" style="color:var(--rose)" id="adLateCount">—</div></div>
       </div>
       <div class="card">
-        <div class="hdr"><h3 style="font-size:15px">Productivity by staff</h3><span class="muted" style="font-size:11px">Break counts = recorded sessions · accumulated duration = HH:MM</span></div>
-        <div class="ad-table-wrap"><table class="ad-productivity-table"><thead><tr>
-          <th>Staff</th><th>Late<br>log-in</th><th>Logged-in<br>hours</th>
-          <th>15min<br>count</th><th>15min<br>time</th><th>30min<br>count</th><th>30min<br>time</th>
-          <th>60min<br>count</th><th>60min<br>time</th><th>Personal<br>count</th><th>Personal<br>time</th>
-          <th>Bio<br>count</th><th>Bio<br>time</th><th>Total break<br>time</th><th>Actual working<br>time</th>
-        </tr></thead><tbody id="adherenceTable"></tbody></table></div>
-        <div class="muted" style="font-size:10.5px;margin-top:8px">Actual working time = logged-in hours − total break time. Break time is the accumulated duration of each logged break type.</div>
+        <div class="hdr"><h3 style="font-size:15px">Productivity by staff</h3><span class="muted" style="font-size:11px">Break cell = recorded sessions / policy instances · duration = HH:MM</span></div>
+        <div class="ad-table-wrap"><table class="ad-productivity-table"><thead>
+          <tr>
+            <th rowspan="2">Staff</th><th rowspan="2">Late<br>log-in</th><th rowspan="2">Logged-in<br>hours</th>
+            <th colspan="3">15min Break</th><th colspan="3">30min Break</th><th colspan="3">60min Break</th>
+            <th colspan="2">Personal Break</th><th colspan="2">Bio Break</th>
+            <th rowspan="2">Total break<br>time</th><th rowspan="2">Actual working<br>time</th>
+          </tr>
+          <tr>
+            <th>Sessions /<br>max instances</th><th>Total<br>time</th><th>Status</th>
+            <th>Sessions /<br>max instances</th><th>Total<br>time</th><th>Status</th>
+            <th>Sessions /<br>max instances</th><th>Total<br>time</th><th>Status</th>
+            <th>Sessions</th><th>Total<br>time</th><th>Sessions</th><th>Total<br>time</th>
+          </tr>
+        </thead><tbody id="adherenceTable"></tbody></table></div>
+        <div class="muted" style="font-size:10.5px;margin-top:8px">Actual working time = logged-in hours − total break time. For 15/30/60-minute breaks, sessions are raw records and instances are grouped per shift under the allowance rules. A status is <b>Over limit</b> only when a shift exceeds its allowed instance count.</div>
       </div>
     </section>
 
@@ -2735,18 +2760,27 @@ function applyStaffFilter(q,staffIds){
   return q.in('staff_id',staffIds);
 }
 async function fetchEntriesRange(startIso,endIso,staffIds){
-  // pull a day of padding on each side, then filter by the entry's SHIFT date (not its own
-  // raw timestamp date) so the tail of an overnight shift that crosses 12MN PHT — e.g. an
-  // entry logged at 2am belonging to a shift that started 8pm the day before — stays counted
-  // on the shift's day instead of being dropped for landing just outside the range.
+  // Pull padding on both sides, then resolve every entry against its parent shift's
+  // Philippine login date. The old code built this map from selected-date shifts only;
+  // an overnight entry after midnight then fell back to its own timestamp and was
+  // incorrectly attributed to the next calendar day.
   const from=new Date(startIso+'T00:00:00+08:00'); from.setDate(from.getDate()-1);
   const to=new Date(endIso+'T23:59:59+08:00'); to.setDate(to.getDate()+1);
   if(staffIds&&!staffIds.length) return [];
   const [data,shifts]=await Promise.all([
     pagedSelect(()=>applyStaffFilter(sb.from('entries').select('*').eq('active',true).gte('started_at',from.toISOString()).lte('started_at',to.toISOString()).order('started_at'),staffIds)),
-    fetchShiftsRange(startIso,endIso,staffIds)]);
+    // This is deliberately a padded raw shift fetch, not fetchShiftsRange(), because
+    // the latter filters out the prior-day parent shift needed for overnight mapping.
+    pagedSelect(()=>applyStaffFilter(sb.from('shifts').select('*').gte('login_at',from.toISOString()).lte('login_at',to.toISOString()).order('login_at'),staffIds))
+  ]);
   const sdm=buildShiftDateMap(shifts);
-  return (data||[]).filter(e=>{const d=shiftDateOf(e,sdm);return d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(e.staff_id));});
+  return (data||[]).filter(e=>{
+    // A row with a shift_id must be attributed by that parent shift. Falling back to
+    // the entry timestamp here is what previously pulled overnight rows into the
+    // wrong report day. Only legacy rows with no shift_id use their own timestamp.
+    const d=e.shift_id?(sdm[e.shift_id]||null):phDate(new Date(e.started_at));
+    return !!d&&d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(e.staff_id));
+  });
 }
 async function runSheet(){
   const {start,end}=currentRange();
@@ -2887,6 +2921,41 @@ async function fetchShiftsRange(startIso,endIso,staffIds){
   const data=await pagedSelect(()=>applyStaffFilter(sb.from('shifts').select('*').gte('login_at',from.toISOString()).lte('login_at',to.toISOString()).order('login_at'),staffIds));
   return (data||[]).filter(sh=>{ const d=phDate(new Date(sh.login_at)); return d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(sh.staff_id)); });
 }
+function reportEntryInterval(e,shifts,now){
+  const start=new Date(e.started_at).getTime();
+  let end;
+  if(e.ended_at) end=new Date(e.ended_at).getTime();
+  else{
+    const sh=(shifts||[]).find(x=>x.id===e.shift_id);
+    end=sh&&sh.logout_at?new Date(sh.logout_at).getTime():(now||Date.now());
+  }
+  return [start,Math.max(start,end)];
+}
+function policyBreakStats(entries,activity,shifts){
+  const byShift={};
+  (entries||[]).filter(e=>e.activity===activity).forEach(e=>{
+    const key=e.shift_id||('entry:'+e.id);
+    (byShift[key]=byShift[key]||[]).push(reportEntryInterval(e,shifts));
+  });
+  const rule=BREAK_INSTANCE_RULES[activity]||{};
+  let sessions=0,instances=0,highest=0,violationShifts=0;
+  Object.values(byShift).forEach(ivs=>{
+    const count=groupActivityInstances(ivs,activity).length;
+    sessions+=ivs.length; instances+=count; highest=Math.max(highest,count);
+    if(rule.maxInstances&&count>rule.maxInstances) violationShifts++;
+  });
+  return {sessions,instances,highest,violationShifts};
+}
+function adherenceBreakStatus(activity,stats){
+  const rule=BREAK_INSTANCE_RULES[activity];
+  if(!rule||!rule.maxInstances) return '—';
+  if(!stats.violationShifts) return 'Within limit';
+  return `Over limit · ${stats.violationShifts} shift${stats.violationShifts===1?'':'s'}`;
+}
+function adherenceStatusHtml(activity,stats){
+  const bad=stats.violationShifts>0;
+  return `<span class="ad-status ${bad?'ad-status-bad':'ad-status-ok'}">${escapeHtml(adherenceBreakStatus(activity,stats))}</span>`;
+}
 async function runAdherence(){
   const {start,end}=adherenceRange();
   if(!start||!end||start>end) return alert('Pick a valid date range.');
@@ -2903,8 +2972,10 @@ async function runAdherence(){
     const client=clients.find(x=>x.id===s.client_id);
     const mine=ents.filter(e=>e.staff_id===s.id), mySh=shs.filter(sh=>sh.staff_id===s.id);
     const byDay={}; mine.forEach(e=>{const d=shiftDateOf(e,shiftDateMap);(byDay[d]=byDay[d]||[]).push(e);});
-    const breakStats={}; BREAK_ACTS.forEach(act=>breakStats[act]={count:0,minutes:0});
-    mine.forEach(e=>{if(breakStats[e.activity])breakStats[e.activity].count++;});
+    const breakStats={}; BREAK_ACTS.forEach(act=>{
+      const policy=policyBreakStats(mine,act,shs);
+      breakStats[act]={...policy,count:policy.sessions,minutes:0};
+    });
     let loggedIn=0,lateCount=0,lateMinTotal=0;
     mySh.forEach(sh=>{
       const login=new Date(sh.login_at), logout=sh.logout_at?new Date(sh.logout_at):new Date();
@@ -2932,22 +3003,33 @@ async function runAdherence(){
   $('adherenceTable').innerHTML=adRows.length?adRows.map(r=>{
     const lateText=dailyView?(r.lateCount?`Yes · ${Math.round(r.lateMinTotal)}m`:'No'):(r.shifts?`${r.lateCount}/${r.shifts}`:'—');
     const lateColor=r.lateCount?'var(--rose)':'var(--teal)';
-    const stats=BREAK_ACTS.map(act=>`<td class="mono">${r.breakStats[act].count}</td><td class="mono">${adHm(r.breakStats[act].minutes)}</td>`).join('');
+    const limited=['15min Break','30min Break','60min Break'];
+    const stats=limited.map(act=>{
+      const b=r.breakStats[act];
+      return `<td class="mono" title="${b.instances} total policy instances across the selected range">${b.sessions} / ${b.highest}</td><td class="mono">${adHm(b.minutes)}</td><td>${adherenceStatusHtml(act,b)}</td>`;
+    }).join('')+
+      ['Personal Break','Bio Break'].map(act=>`<td class="mono">${r.breakStats[act].sessions}</td><td class="mono">${adHm(r.breakStats[act].minutes)}</td>`).join('');
     return `<tr><td><b>${escapeHtml(r.name)}</b></td><td class="mono" style="color:${lateColor}">${lateText}</td><td class="mono">${adHm(r.loggedIn)}</td>${stats}<td class="mono" style="color:var(--gold)">${adHm(r.totalBreak)}</td><td class="mono" style="color:var(--teal)">${adHm(r.working)}</td></tr>`;
-  }).join(''):`<tr><td colspan="15" class="muted">No data for that range.</td></tr>`;
+  }).join(''):`<tr><td colspan="18" class="muted">No data for that range.</td></tr>`;
 }
 
 function downloadAdherenceCsv(){
   if(!adRows.length) return alert('Press Run first.');
   const dailyView=$('aGrain').value==='daily';
   const head=['Staff','Late log-in','Total logged-in hours'];
-  BREAK_ACTS.forEach(act=>{head.push(`${act} count`,`${act} time (HH:MM)`);});
+  ['15min Break','30min Break','60min Break'].forEach(act=>{
+    head.push(`${act} recorded sessions`,`${act} total policy instances`,`${act} highest instances in one shift`,`${act} time (HH:MM)`,`${act} status`);
+  });
+  ['Personal Break','Bio Break'].forEach(act=>head.push(`${act} sessions`,`${act} time (HH:MM)`));
   head.push('Total break time (HH:MM)','Actual working time (HH:MM)');
   const lines=[[`Adherence & productivity ${adRangeStr.replace('_',' to ')} (Philippine time)`],[],head];
   adRows.forEach(r=>{
     const lateText=dailyView?(r.lateCount?`Yes - ${Math.round(r.lateMinTotal)} min`:'No'):(r.shifts?`${r.lateCount}/${r.shifts}`:'—');
     const row=[r.name,lateText,adHm(r.loggedIn)];
-    BREAK_ACTS.forEach(act=>row.push(r.breakStats[act].count,adHm(r.breakStats[act].minutes)));
+    ['15min Break','30min Break','60min Break'].forEach(act=>{
+      const b=r.breakStats[act]; row.push(b.sessions,b.instances,b.highest,adHm(b.minutes),adherenceBreakStatus(act,b));
+    });
+    ['Personal Break','Bio Break'].forEach(act=>{const b=r.breakStats[act];row.push(b.sessions,adHm(b.minutes));});
     row.push(adHm(r.totalBreak),adHm(r.working)); lines.push(row);
   });
   const text=lines.map(l=>l.map(csvEscape).join(',')).join('\n');
