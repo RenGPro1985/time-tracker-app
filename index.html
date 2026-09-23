@@ -36,6 +36,9 @@ a{color:var(--gold)}
 .p-work{background:rgba(63,191,174,.13);color:var(--teal)}.p-work .dot{background:var(--teal)}
 .p-break{background:rgba(227,166,62,.14);color:var(--gold)}.p-break .dot{background:var(--gold)}
 .p-off{background:rgba(107,113,131,.18);color:#9aa0b1}.p-off .dot{background:var(--slate)}
+.p-leave{background:rgba(226,104,95,.15);color:var(--rose)}.p-leave .dot{background:var(--rose)}
+.staff-chip{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12.5px}
+.staff-chip input{width:15px;height:15px;accent-color:var(--teal)}
 .p-bad{background:rgba(226,104,95,.14);color:var(--rose)}.p-bad .dot{background:var(--rose)}
 table{width:100%;border-collapse:collapse}
 th{text-align:left;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line)}
@@ -415,22 +418,36 @@ button.btn{padding:7px 12px;font-size:12px}
       </div>
     </section>
 
-    <!-- ---------- ADMIN: LIVE STATUS ---------- -->
+    <!-- ---------- LIVE STATUS (admin, plus staff granted view access) ---------- -->
     <section id="v-status" class="hide grid" style="gap:16px">
-      <div class="grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="grid" style="grid-template-columns:repeat(5,1fr)">
         <div class="stat"><div class="k">On shift now</div><div class="v" id="stOn">—</div></div>
         <div class="stat"><div class="k">On break</div><div class="v" style="color:var(--gold)" id="stBreak">—</div></div>
+        <div class="stat"><div class="k">On leave</div><div class="v" style="color:var(--rose)" id="stLeave">—</div></div>
         <div class="stat"><div class="k">Off shift</div><div class="v" style="color:var(--slate)" id="stOff">—</div></div>
         <div class="stat"><div class="k">Avg billable % today</div><div class="v" style="color:var(--teal)" id="stPct">—</div></div>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Live roster</h3>
           <div class="row"><select id="fClient" style="width:auto"></select><select id="fStaff" style="width:auto"></select>
-          <select id="fStatus" style="width:auto"><option value="">All statuses</option><option>Working</option><option>On break</option><option>Off shift</option></select>
+          <select id="fStatus" style="width:auto"><option value="">All statuses</option><option>Working</option><option>On break</option><option>On Leave</option><option>Off shift</option></select>
+          <span class="badge hide" id="accessCountBadge"></span>
+          <button class="gear-btn hide" id="manageAccessBtn" title="Manage who can view this tab" style="background:transparent;border:1px solid var(--line);color:var(--muted);width:32px;height:32px;border-radius:9px;cursor:pointer;font-size:14px">⚙</button>
           <button class="btn btn-ghost" id="refreshBtn">Refresh</button></div>
         </div>
-        <table><thead><tr><th>Staff</th><th>Client</th><th>Shift (PHT)</th><th>Status</th><th>Activity</th><th>Time in status</th><th></th></tr></thead>
+        <table><thead><tr><th>Staff</th><th>Client</th><th>Shift (PHT)</th><th>Status</th><th>Activity</th><th>Time in status</th><th id="rosterActionsHead"></th></tr></thead>
         <tbody id="roster"></tbody></table>
+      </div>
+      <div class="card hide" id="accessPanel">
+        <div class="hdr" style="margin-bottom:0">
+          <div>
+            <h3 style="font-size:14px;margin-bottom:2px">Manage Live Status access</h3>
+            <div class="muted" style="font-size:11.5px">Give specific staff view-only access to this tab. They will NOT get Force Logout or any other admin control, and they only ever see staff under their own client.</div>
+          </div>
+          <button class="btn btn-teal" id="saveAccessBtn">Save</button>
+        </div>
+        <div class="muted" id="accessSaveMsg" style="font-size:12px;margin:8px 0;min-height:14px"></div>
+        <div class="grid" id="accessGrid" style="grid-template-columns:repeat(3,1fr);gap:8px"></div>
       </div>
     </section>
 
@@ -2099,7 +2116,8 @@ const PAGES={
 };
 let view='v-punch';
 function buildNav(){
-  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-invoice','v-earning','v-reqadmin','v-policy','v-portal'] : ['v-punch','v-ledger','v-req','v-portal'];
+  const staffIds = me.can_view_live_status ? ['v-punch','v-status','v-ledger','v-req','v-portal'] : ['v-punch','v-ledger','v-req','v-portal'];
+  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-invoice','v-earning','v-reqadmin','v-policy','v-portal'] : staffIds;
   $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   go(view);
@@ -2427,29 +2445,89 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':
 function capFirst(s){s=String(s||'');return s.charAt(0).toUpperCase()+s.slice(1);}
 
 /* ============================================================
-   5. ADMIN — LIVE STATUS
+   5. LIVE STATUS (admin, plus staff granted view access)
    ============================================================ */
-function initFilters(){
-  fill('fClient','All clients',clients.map(c=>[c.id,c.name]));
-  fill('fStaff','All staff',staffList.filter(s=>s.active).map(s=>[s.id,s.full_name]));
-  ['fClient','fStaff','fStatus'].forEach(id=>$(id).onchange=loadRoster);
-  $('refreshBtn').onclick=loadRoster;
+// Non-admin roster is intentionally kept separate from the global `staffList`
+// (which for non-admin stays [me] everywhere else in the app) so granting
+// Live Status access can never leak other staff's rows into Ledger/Requests/etc.
+let statusRosterStaff=[], statusIsInit=false;
+const LEAVE_LABEL={pto:'PTO',pch:'PCH',planned_absence:'PA'};
+function iAmLiveStatusAdmin(){ return me.role==='admin'; }
+async function ensureStatusRosterStaff(){
+  if(iAmLiveStatusAdmin()){ statusRosterStaff=staffList; return; }
+  if(!me.can_view_live_status){ statusRosterStaff=[]; return; }
+  // RLS (p_staff_livestatus_read) only allows this select to return staff who
+  // share this viewer's client_id — enforced server-side, not just hidden in the UI.
+  const {data}=await sb.from('staff').select('*').eq('client_id',me.client_id).order('full_name');
+  statusRosterStaff=data||[];
+}
+async function initFilters(){
+  await ensureStatusRosterStaff();
+  const admin=iAmLiveStatusAdmin();
+  $('fClient').classList.toggle('hide',!admin);
+  $('manageAccessBtn').classList.toggle('hide',!admin);
+  $('accessCountBadge').classList.toggle('hide',!admin);
+  $('rosterActionsHead').textContent='';
+  if(admin){
+    fill('fClient','All clients',clients.map(c=>[c.id,c.name]));
+    fill('fStaff','All staff',statusRosterStaff.filter(s=>s.active).map(s=>[s.id,s.full_name]));
+    renderAccessBadge();
+    $('manageAccessBtn').onclick=()=>{ $('accessPanel').classList.toggle('hide'); if(!$('accessPanel').classList.contains('hide')) renderAccessPanel(); };
+    $('saveAccessBtn').onclick=saveLiveStatusAccess;
+  }else{
+    fill('fStaff','All staff',statusRosterStaff.filter(s=>s.active).map(s=>[s.id,s.full_name]));
+  }
+  if(!statusIsInit){ ['fClient','fStaff','fStatus'].forEach(id=>$(id).onchange=loadRoster); $('refreshBtn').onclick=loadRoster; statusIsInit=true; }
+}
+function renderAccessBadge(){
+  const n=staffList.filter(s=>s.can_view_live_status).length;
+  $('accessCountBadge').textContent=`${n} staff ${n===1?'has':'have'} tab access`;
+}
+function renderAccessPanel(){
+  $('accessSaveMsg').textContent='';
+  $('accessGrid').innerHTML=staffList.filter(s=>s.active&&s.role!=='admin').map(s=>
+    `<label class="staff-chip"><input type="checkbox" data-access-staff="${s.id}" ${s.can_view_live_status?'checked':''}> ${escapeHtml(s.full_name)}</label>`
+  ).join('')||'<div class="muted">No non-admin staff yet.</div>';
+}
+async function saveLiveStatusAccess(){
+  const boxes=[...document.querySelectorAll('[data-access-staff]')];
+  const toGrant=boxes.filter(b=>b.checked&&!staffList.find(s=>s.id===b.dataset.accessStaff)?.can_view_live_status).map(b=>b.dataset.accessStaff);
+  const toRevoke=boxes.filter(b=>!b.checked&&staffList.find(s=>s.id===b.dataset.accessStaff)?.can_view_live_status).map(b=>b.dataset.accessStaff);
+  if(!toGrant.length&&!toRevoke.length){ $('accessSaveMsg').textContent='No changes.'; return; }
+  $('saveAccessBtn').disabled=true;
+  try{
+    if(toGrant.length){ const {error}=await sb.from('staff').update({can_view_live_status:true}).in('id',toGrant); if(error) throw error; }
+    if(toRevoke.length){ const {error}=await sb.from('staff').update({can_view_live_status:false}).in('id',toRevoke); if(error) throw error; }
+    staffList.forEach(s=>{ if(toGrant.includes(s.id))s.can_view_live_status=true; if(toRevoke.includes(s.id))s.can_view_live_status=false; });
+    renderAccessBadge();
+    $('accessSaveMsg').textContent='Saved.';
+  }catch(err){ $('accessSaveMsg').textContent='Save failed: '+err.message; }
+  $('saveAccessBtn').disabled=false;
 }
 function fill(id,blank,pairs){$(id).innerHTML=`<option value="">${blank}</option>`+pairs.map(p=>`<option value="${p[0]}">${escapeHtml(p[1])}</option>`).join('');}
 
 async function loadRoster(){
+  await ensureStatusRosterStaff();
+  const admin=iAmLiveStatusAdmin();
+  const rosterStaff=statusRosterStaff.filter(s=>s.active);
+  const staffIds=rosterStaff.map(s=>s.id);
   const from=new Date(Date.now()-36*3600*1000).toISOString();
-  const [ents,shs]=await Promise.all([
-    pagedSelect(()=>sb.from('entries').select('*').eq('active',true).gte('started_at',from).order('started_at')),
-    pagedSelect(()=>sb.from('shifts').select('*').gte('login_at',from).order('login_at',{ascending:false}))]);
-  const openShift={}; const latestShift={};
-  (shs||[]).forEach(s=>{ if(!s.logout_at) openShift[s.staff_id]=s; if(!latestShift[s.staff_id]) latestShift[s.staff_id]=s; });
-  const ssm=buildShiftSpanMap(shs);
   const today=phDate(new Date());
-  const fc=$('fClient').value, fs=$('fStaff').value, fst=$('fStatus').value;
-  let on=0,br=0,off=0,pctSum=0,pctN=0;
-  const rows=staffList.filter(s=>s.active).map(s=>{
+  const [ents,shs,leave]=await Promise.all([
+    pagedSelect(()=>sb.from('entries').select('*').eq('active',true).gte('started_at',from).order('started_at')),
+    pagedSelect(()=>sb.from('shifts').select('*').gte('login_at',from).order('login_at',{ascending:false})),
+    staffIds.length?sb.from('leave_days').select('staff_id,type').eq('date',today).in('staff_id',staffIds):Promise.resolve({data:[]})]);
+  const openShift={}; const latestShift={};
+  (shs||[]).forEach(s=>{ if(staffIds.includes(s.staff_id)){ if(!s.logout_at) openShift[s.staff_id]=s; if(!latestShift[s.staff_id]) latestShift[s.staff_id]=s; } });
+  const ssm=buildShiftSpanMap(shs);
+  // Approved-leave lookup (PTO/PCH/Planned Absence) for today — same leave_days table
+  // the Timesheets PA/PTO/PCH pills already read from, so no separate data entry.
+  const leaveByStaff={}; (leave?.data||[]).forEach(l=>{ leaveByStaff[l.staff_id]=l.type; });
+  const fc=admin?$('fClient').value:'', fs=$('fStaff').value, fst=$('fStatus').value;
+  let on=0,br=0,leaveN=0,off=0,pctSum=0,pctN=0;
+  const rows=rosterStaff.map(s=>{
     const sh=openShift[s.id];
+    const onLeave=leaveByStaff[s.id];
     // Match entries to the staff member's current (or most recently ended) shift by
     // shift_id, never by comparing calendar dates — an overnight shift's entries can
     // span two PH dates once midnight passes, so a date match would wrongly go empty.
@@ -2461,15 +2539,15 @@ async function loadRoster(){
     const openOnes=sh?mine.filter(e=>!e.ended_at):[];
     const running=openOnes.length?openOnes.reduce((a,b)=>new Date(a.started_at)>new Date(b.started_at)?a:b):null;
     const anchorDate=relevant?phDate(new Date(relevant.login_at)):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate),relevant?ssm[relevant.id]:0);
-    const status= !sh ? 'Off shift' : (running&&running.activity.includes('Break')?'On break':'Working');
-    if(status==='Off shift')off++;else if(status==='On break')br++;else on++;
-    if(sum.total>0){pctSum+=sum.billable/sum.total*100;pctN++;}
+    const status= onLeave ? `On Leave (${LEAVE_LABEL[onLeave]||onLeave})` : (!sh ? 'Off shift' : (running&&running.activity.includes('Break')?'On break':'Working'));
+    if(onLeave)leaveN++;else if(status==='Off shift')off++;else if(status==='On break')br++;else on++;
+    if(!onLeave&&sum.total>0){pctSum+=sum.billable/sum.total*100;pctN++;}
     
-    return {s,c,status,act:running?running.activity:'—',sum,startedAt:running?running.started_at:null,shiftId:sh?sh.id:null};
-  }).filter(r=>(!fc||r.s.client_id===fc)&&(!fs||r.s.id===fs)&&(!fst||r.status===fst));
-  $('stOn').textContent=on;$('stBreak').textContent=br;$('stOff').textContent=off;
+    return {s,c,status,act:onLeave?'—':(running?running.activity:'—'),sum,startedAt:(!onLeave&&running)?running.started_at:null,shiftId:(!onLeave&&sh)?sh.id:null};
+  }).filter(r=>(!fc||r.s.client_id===fc)&&(!fs||r.s.id===fs)&&(!fst||r.status===fst||(fst==='On Leave'&&r.status.startsWith('On Leave'))));
+  $('stOn').textContent=on;$('stBreak').textContent=br;$('stLeave').textContent=leaveN;$('stOff').textContent=off;
   $('stPct').textContent=pctN?Math.round(pctSum/pctN)+'%':'—';
-  const pill=st=>`<span class="pill ${st==='Working'?'p-work':st==='On break'?'p-break':'p-off'}"><span class="dot"></span>${st}</span>`;
+  const pill=st=>`<span class="pill ${st==='Working'?'p-work':st==='On break'?'p-break':st.startsWith('On Leave')?'p-leave':'p-off'}"><span class="dot"></span>${st}</span>`;
   // "Time in status" carries data-started so tick() can recompute it with live seconds every
   // second between the 60s data refreshes — proves to the admin the clock is really running,
   // not just a snapshot from the last poll.
@@ -2477,8 +2555,8 @@ async function loadRoster(){
    <td class="muted">${r.c?escapeHtml(r.c.name):'—'}</td>
    <td class="mono">${r.c?r.c.shift_start.slice(0,5)+' – '+r.c.shift_end.slice(0,5):'—'}</td>
    <td>${pill(r.status)}</td><td>${r.act}</td>
-   <td class="mono"${r.startedAt?` data-started="${r.startedAt}"`:''}>${r.startedAt?hms((new Date()-new Date(r.startedAt))/1000):'—'}</td>
-   <td>${r.shiftId?`<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" data-force-logout="${r.shiftId}" data-staff-name="${escapeHtml(r.s.full_name)}">Force Logout</button>`:''}</td></tr>`).join('')
+   <td class="mono"${r.startedAt?` data-started="${r.startedAt}"`:''}>${r.startedAt?hms((new Date()-new Date(r.startedAt))/1000):(r.status.startsWith('On Leave')?'All day':'—')}</td>
+   <td>${admin&&r.shiftId?`<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" data-force-logout="${r.shiftId}" data-staff-name="${escapeHtml(r.s.full_name)}">Force Logout</button>`:''}</td></tr>`).join('')
    :`<tr><td colspan="7" class="muted">No staff match those filters.</td></tr>`;
 }
 // Manual force-logout — for exactly this case: staff stuck "on shift" whose browser
