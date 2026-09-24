@@ -848,10 +848,24 @@ function showSlackWarning(key,message){
   clearTimeout(el._hideTimer);
   el._hideTimer=setTimeout(()=>{el.style.display='none';},8000);
 }
+async function getValidAccessToken(){
+  let {data:{session}}=await sb.auth.getSession();
+  if(session?.expires_at && (session.expires_at*1000 - Date.now() < 60000)){
+    const {data:refreshed}=await sb.auth.refreshSession();
+    if(refreshed?.session) session=refreshed.session;
+  }
+  return session?.access_token||null;
+}
 async function sendSlackNotice(path,body){
-  const {data:{session}}=await sb.auth.getSession();
-  if(!session?.access_token) throw new Error('Your session expired.');
-  const r=await fetch(SERVER_URL+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify(body)});
+  let token=await getValidAccessToken();
+  if(!token) throw new Error('Your session expired.');
+  let r=await fetch(SERVER_URL+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+  if(r.status===401){
+    const {data:refreshed}=await sb.auth.refreshSession();
+    if(refreshed?.session?.access_token){
+      r=await fetch(SERVER_URL+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+refreshed.session.access_token},body:JSON.stringify(body)});
+    }
+  }
   let j={}; try{j=await r.json();}catch(_e){}
   if(!r.ok) throw new Error(j.error||'Slack notification failed.');
   return j;
@@ -2602,8 +2616,14 @@ function tickRosterTimes(){
    6. ADMIN — STAFF & CLIENTS
    ============================================================ */
 async function api(path,opts={}){
-  const {data:{session}}=await sb.auth.getSession();
-  const r=await fetch(SERVER_URL+path,{...opts,headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token,...(opts.headers||{})}});
+  let token=await getValidAccessToken();
+  let r=await fetch(SERVER_URL+path,{...opts,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,...(opts.headers||{})}});
+  if(r.status===401){
+    const {data:refreshed}=await sb.auth.refreshSession();
+    if(refreshed?.session?.access_token){
+      r=await fetch(SERVER_URL+path,{...opts,headers:{'Content-Type':'application/json','Authorization':'Bearer '+refreshed.session.access_token,...(opts.headers||{})}});
+    }
+  }
   const j=await r.json().catch(()=>({}));
   if(!r.ok) throw new Error(j.error||('Server error '+r.status));
   return j;
@@ -3786,8 +3806,14 @@ const PORTAL_CAT_LABEL = { Contract:'Contract', 'House Rules':'House Rules', Onb
 let portalDocsCache = [];
 
 async function apiUpload(path, formData) {
-  const { data: { session } } = await sb.auth.getSession();
-  const r = await fetch(SERVER_URL + path, { method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token }, body: formData });
+  let token = await getValidAccessToken();
+  let r = await fetch(SERVER_URL + path, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: formData });
+  if (r.status === 401) {
+    const { data: refreshed } = await sb.auth.refreshSession();
+    if (refreshed?.session?.access_token) {
+      r = await fetch(SERVER_URL + path, { method: 'POST', headers: { 'Authorization': 'Bearer ' + refreshed.session.access_token }, body: formData });
+    }
+  }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || ('Server error ' + r.status));
   return j;
