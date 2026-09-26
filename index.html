@@ -1023,6 +1023,32 @@ function unionMinutes(intervals){return mergeIntervals(intervals).reduce((a,[s,e
 function buildShiftSpanMap(shifts){const m={};(shifts||[]).forEach(sh=>{const end=sh.logout_at?new Date(sh.logout_at):new Date();m[sh.id]=Math.max(0,(end-new Date(sh.login_at))/60000);});return m;}
 function spanFor(entries,spanMap){if(!spanMap)return 0;const ids=[...new Set(entries.map(e=>e.shift_id).filter(Boolean))];return ids.reduce((a,id)=>a+(spanMap[id]||0),0);}
 
+/* 2nd+ 60min Break penalty (per Rendy, 2026-09-25, company-wide): only the FIRST 60min Break
+   in a shift is paid/unpaid at its real duration. Every 60min Break AFTER the first is charged
+   a minimum of a full 60 minutes even if the staff returned sooner -- the "extra" minutes are
+   billed by extending that break's window forward in time, so whatever real activity follows
+   (almost always Working) falls inside the extension and becomes non-billable, with no Night
+   Diff, exactly like real 60min Break time already is. If the 2nd+ break already ran 60+
+   minutes on its own, nothing is added. */
+function secondBreakPenaltyBlackouts(entries){
+  const raw=entries.filter(e=>e.activity==='60min Break').map(e=>{
+    const s=new Date(e.started_at).getTime();
+    const t=(e.ended_at?new Date(e.ended_at):new Date()).getTime();
+    return [s,Math.max(s,t)];
+  });
+  const groups=groupActivityInstances(raw,'60min Break');
+  const extra=[];
+  groups.forEach((g,idx)=>{
+    if(idx===0) return;
+    const merged=mergeIntervals(g);
+    const start=merged[0][0], end=merged[merged.length-1][1];
+    const dur=end-start;
+    const minCharged=60*60000;
+    if(dur<minCharged) extra.push([end, start+minCharged]);
+  });
+  return extra;
+}
+
 function summarize(entries,now,window,shiftSpanMinutes){
   const byAct={};
   entries.forEach(e=>{
@@ -1043,13 +1069,14 @@ function summarize(entries,now,window,shiftSpanMinutes){
     overByAct[act]=activityCapResult(ivs,act,cap).overMinutes;
   });
 
+  const secondBreakExtra=secondBreakPenaltyBlackouts(entries);
   const perBillableIntervals={};
   Object.entries(byAct).forEach(([act,ivs])=>{
     if(NON_BILLABLE.includes(act))return;
-    if(act===OVERTIME){ perBillableIntervals[act]=mergeIntervals(ivs); return; }
+    if(act===OVERTIME){ perBillableIntervals[act]=subtractIntervals(mergeIntervals(ivs),secondBreakExtra); return; }
     if(!window){ perBillableIntervals[act]=[]; return; }
     const clipped=ivs.map(([s,e])=>[Math.max(s,window.start.getTime()),Math.min(e,window.end.getTime())]).filter(([s,e])=>e>s);
-    perBillableIntervals[act]=clipped;
+    perBillableIntervals[act]=subtractIntervals(clipped,secondBreakExtra);
   });
   let regularBillable=0,overtimeBillable=0;
   Object.entries(perBillableIntervals).forEach(([act,ivs])=>{
@@ -1121,7 +1148,7 @@ function takeLastMinutes(intervals,minutes){
   return out;
 }
 function payableIntervalsForShift(entries,window,extraBlackouts){
-  const break60=mergeIntervals(rawActivityIntervals(entries,'60min Break').concat(extraBlackouts||[]));
+  const break60=mergeIntervals(rawActivityIntervals(entries,'60min Break').concat(extraBlackouts||[]).concat(secondBreakPenaltyBlackouts(entries)));
   const activityNames=[...new Set(entries.map(e=>e.activity))];
   let regular=[],overtime=[];
   activityNames.forEach(act=>{
