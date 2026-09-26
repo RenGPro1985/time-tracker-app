@@ -794,7 +794,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div id="ytdStatus" class="note" role="status" aria-live="polite" style="margin-bottom:9px">Choose a calendar year and run the report.</div>
         <div class="ytd-summary" id="ytdSummary"></div>
       </div>
-      <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus still uses eligible payable hours plus approved PTO/PCH.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Payable hours</th><th>Days present</th><th>PTO</th><th>PCH</th><th>PA</th><th>OUT</th><th>Eligible basic earnings</th><th>Year End Bonus</th></tr></thead><tbody id="ytdTable"><tr><td colspan="9" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Total Working Days = Mon–Fri calendar dates in the selected year (to date for the current year), within each person's employment window. Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus still uses eligible payable hours plus approved PTO/PCH.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Total working days</th><th>Days present</th><th>PTO</th><th>PCH</th><th>PA</th><th>OUT</th><th>Eligible basic earnings</th><th>Year End Bonus</th></tr></thead><tbody id="ytdTable"><tr><td colspan="9" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
     </section>
 
     <!-- ---------- ADMIN: POLICY ---------- -->
@@ -5222,10 +5222,12 @@ async function saveInvoiceSettingsForm(){
       });
       adjustments.filter(a=>a.staff_id===staff.id&&ytdIsIso(a.work_date)).forEach(a=>{hoursByDay[a.work_date]=Math.max(0,Number(a.hours)||0);});
       const dayTypes={};Object.entries(leaveByDay).forEach(([key,type])=>{const [sid,date]=key.split('|');if(sid===staff.id)dayTypes[date]=type;});
-      let eligibleWorkHours=0,worked=0,eligibleEarnings=0,missingRateDays=0,workdaysUninferable=false;
+      let eligibleWorkHours=0,worked=0,eligibleEarnings=0,missingRateDays=0,workdaysUninferable=false,totalWorkingDays=0;
       const autoCounts={days_present:0,pto:0,pch:0,pa:0,out:0},perDateRate=iso=>ytdRatesForDate(ratePeriods,iso);
       ytdListDates(start,end).forEach(date=>{
         if(!employed.valid||date<employed.start||date>employed.end)return;
+        const dow=ytdDayOfWeek(date);
+        if(dow>=1&&dow<=5)totalWorkingDays++; // current shift schedule: Mon-Fri, counted for the calendar year
         const status=dayTypes[date],hours=Math.max(0,Number(hoursByDay[date]||0));
         const countAutomatically=reportYear>=2026&&date>=YTD_AUTO_START;
         if(countAutomatically){
@@ -5251,7 +5253,7 @@ async function saveInvoiceSettingsForm(){
       const manualRecord=manualByStaff[staff.id]||null,manualAttendanceCounts=manualRecord?Object.fromEntries(YTD_COUNT_FIELDS.map(k=>[k,Number(manualRecord[`manual_${k}`]||0)])):null;
       const attendanceCountsComplete=reportYear>=2027||!!manualRecord;
       const totalCounts=Object.fromEntries(YTD_COUNT_FIELDS.map(k=>[k,(manualRecord?Number(manualRecord[`manual_${k}`]||0):0)+autoCounts[k]]));
-      return{staff,client,hours:eligibleWorkHours,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,pa:totalCounts.pa,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus:missingRateDays?null:ytdBonus(eligibleEarnings),missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate};
+      return{staff,client,workingDays:totalWorkingDays,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,pa:totalCounts.pa,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus:missingRateDays?null:ytdBonus(eligibleEarnings),missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate};
     }).sort((a,b)=>{
       const ad=ytdIsIso(a.staff.hire_date)?a.staff.hire_date:'9999-12-31',bd=ytdIsIso(b.staff.hire_date)?b.staff.hire_date:'9999-12-31';
       return ad.localeCompare(bd)||String(a.staff.full_name||'').localeCompare(String(b.staff.full_name||''));
@@ -5284,7 +5286,7 @@ async function saveInvoiceSettingsForm(){
   function ytdRenderTable(rows,rates,year){
     $('ytdTable').innerHTML=rows.length?rows.map(r=>`<tr>
       <td class="sticky-col ytd-staff-cell"><b>${ytdEscape(r.staff.full_name)}</b>${r.missingHireDate?'<div class="pill p-bad" style="margin-top:4px">Hire date needed for OUT</div>':''}${Number(year)<=2026&&!r.attendanceCountsComplete?'<div class="pill p-bad" style="margin-top:4px">Historical counts needed</div>':''}${ytdRenderRates(r.staff,rates,year)}${ytdAttendanceEditorHtml(r.staff,r,year)}</td>
-      <td class="mono">${r.hours.toFixed(2)}</td>${YTD_COUNT_FIELDS.map(k=>`<td class="mono" title="${!r.attendanceCountsComplete?`Automatic portion only: ${r.autoCounts[k]}; enter historical counts to complete`:''}">${r.attendanceCountsComplete?r[k]:(r.autoCounts[k]>0?r.autoCounts[k]:'—')}</td>`).join('')}
+      <td class="mono">${r.workingDays}</td>${YTD_COUNT_FIELDS.map(k=>`<td class="mono" title="${!r.attendanceCountsComplete?`Automatic portion only: ${r.autoCounts[k]}; enter historical counts to complete`:''}">${r.attendanceCountsComplete?r[k]:(r.autoCounts[k]>0?r.autoCounts[k]:'—')}</td>`).join('')}
       <td class="mono">${r.missingRateDays?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.eligibleEarnings)}</td><td class="mono" title="${r.missingRateDays?`${r.missingRateDays} day(s) have no applicable rate period`:''}">${r.bonus===null?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.bonus)}</td>
     </tr>`).join(''):`<tr><td colspan="9" class="muted">No active employees found for this client.</td></tr>`;
     $('ytdTable').setAttribute('aria-live','polite');
