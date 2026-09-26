@@ -226,10 +226,19 @@ button.btn{padding:7px 12px;font-size:12px}
 .ytd-rate-row label{font-size:9px;margin:0 0 4px}
 .ytd-rate-row input{width:100%;min-width:0}
 .ytd-rate-msg{min-height:16px;margin-top:6px;font-size:11px}
+.ytd-count-details{margin-top:7px;width:100%;max-width:340px;min-width:0}
+.ytd-count-details summary{cursor:pointer;color:var(--teal);font-size:11px;font-weight:600}
+.ytd-count-editor{margin-top:8px;padding:9px;background:var(--card2);border:1px solid var(--line);border-radius:10px;min-width:0;width:100%;max-width:100%;overflow:hidden;white-space:normal}
+.ytd-count-editor *{white-space:normal}
+.ytd-count-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.ytd-count-grid label{font-size:9px;margin:0 0 4px}
+.ytd-count-grid input{width:100%;min-width:0}
+.ytd-count-msg{min-height:16px;margin-top:6px;font-size:11px}
 .ytd-total-row td{font-weight:700;border-top:1px solid var(--line);color:var(--gold)}
-@media(max-width:820px){.ytd-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.ytd-rate-editor{min-width:280px}}
+@media(max-width:820px){.ytd-summary{grid-template-columns:repeat(2,minmax(140px,1fr))}.ytd-rate-editor{min-width:280px}}
 @media(max-width:820px){.ytd-table{min-width:1075px}.ytd-rate-editor{min-width:0}}
 @media(max-width:560px){.ytd-rate-row{grid-template-columns:1fr 1fr}.ytd-rate-row>div:first-child{grid-column:1/-1}.ytd-table th:nth-child(1),.ytd-table td:nth-child(1){width:310px}}
+@media(max-width:560px){#v-ytd .hdr{align-items:flex-start}#v-ytd .hdr>.row{width:100%;justify-content:flex-start}#v-ytd .hdr h3{margin-bottom:8px}#v-ytd .ytd-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.ytd-table td.ytd-staff-cell{padding-right:10px}.ytd-count-details{max-width:100%}.ytd-count-editor{max-width:100%;overflow:hidden}.ytd-count-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ytd-count-grid>div{min-width:0}.ytd-count-grid input{width:100%;min-width:0}#v-ytd .ytd-attendance-help{margin:5px 0 9px!important;line-height:1.4}}
 
 </style>
 </head>
@@ -785,7 +794,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div id="ytdStatus" class="note" role="status" aria-live="polite" style="margin-bottom:9px">Choose a calendar year and run the report.</div>
         <div class="ytd-summary" id="ytdSummary"></div>
       </div>
-      <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted" style="font-size:11px;margin:-5px 0 8px">Days present = calendar dates with more than zero payable timesheet hours; PTO/PCH are shown separately. OUT = scheduled workday with zero payable hours and no PTO/PCH/PA marker.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Payable hours</th><th>Days present</th><th>PTO</th><th>PCH</th><th>PA</th><th>OUT</th><th>Eligible basic earnings</th><th>Year End Bonus</th></tr></thead><tbody id="ytdTable"><tr><td colspan="9" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus still uses eligible payable hours plus approved PTO/PCH.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Payable hours</th><th>Days present</th><th>PTO</th><th>PCH</th><th>PA</th><th>OUT</th><th>Eligible basic earnings</th><th>Year End Bonus</th></tr></thead><tbody id="ytdTable"><tr><td colspan="9" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
     </section>
 
     <!-- ---------- ADMIN: POLICY ---------- -->
@@ -4989,9 +4998,12 @@ async function saveInvoiceSettingsForm(){
 (function(){
   'use strict';
   const YTD_RATE_TABLE='ytd_attendance_rates';
+  const YTD_COUNT_TABLE='ytd_attendance_manual_counts';
+  const YTD_AUTO_START='2026-09-28';
+  const YTD_COUNT_FIELDS=['days_present','pto','pch','pa','out'];
   const YTD_WEEKDAYS={sun:0,sunday:0,mon:1,monday:1,tue:2,tues:2,tuesday:2,wed:3,wednesday:3,thu:4,thur:4,thurs:4,thursday:4,fri:5,friday:5,sat:6,saturday:6};
   let ytdBusy=false,ytdInitDone=false,ytdRows=[],ytdComputedRows=[],ytdCurrentYear=null;
-  const ytdSaving=new Set();
+  const ytdSaving=new Set(),ytdAttendanceSaving=new Set();
 
   function ytdIsIso(value){return /^\d{4}-\d{2}-\d{2}$/.test(String(value||''));}
   function ytdDateParts(iso){if(!ytdIsIso(iso))return null;const [y,m,d]=iso.split('-').map(Number);return{y,m,d};}
@@ -5062,6 +5074,11 @@ async function saveInvoiceSettingsForm(){
     // do not write rows merely by opening the report. Saving a rate is explicit.
     return existing||[];
   }
+  async function ytdFetchManualCounts(people,year){
+    const ids=people.map(s=>s.id);if(!ids.length)return[];
+    return EarningsData.strictPagedSelectChunkedByIds(
+      chunk=>EarningsData.applyStaffFilterStrict(sb.from(YTD_COUNT_TABLE).select('*').eq('calendar_year',Number(year)).order('staff_id'),chunk),ids,YTD_COUNT_TABLE);
+  }
   function ytdRatesForStaff(staff,rates,year){
     const saved=(rates||[]).find(r=>r.staff_id===staff.id);
     if(!saved)return ytdDefaultPeriods(staff,year);
@@ -5112,6 +5129,38 @@ async function saveInvoiceSettingsForm(){
     finally{ytdSaving.delete(staffId);if(btn)btn.disabled=false;}
   }
   function ytdRenderRates(staff,rates,year){return ytdRateEditorHtml(staff,ytdRatesForStaff(staff,rates,year));}
+  function ytdAttendanceEditorHtml(staff,row,year){
+    if(Number(year)>2026)return'';
+    const labels={days_present:'Days Present',pto:'PTO',pch:'PCH',pa:'PA',out:'OUT'},saved=!!row.manualAttendanceCounts;
+    const values=Object.fromEntries(YTD_COUNT_FIELDS.map(field=>[field,saved?Number(row.manualAttendanceCounts[field]||0):'']));
+    const inputs=YTD_COUNT_FIELDS.map(field=>`<div><label for="ytd-count-${ytdEscape(staff.id)}-${field}">${labels[field]}</label><input id="ytd-count-${ytdEscape(staff.id)}-${field}" type="number" min="0" max="366" step="1" inputmode="numeric" data-ytd-count="${ytdEscape(staff.id)}" data-count-field="${field}" value="${values[field]}"></div>`).join('');
+    const period=Number(year)===2026?'Jan 1–Sep 27, 2026':'the full '+Number(year)+' calendar year';
+    const autoNote=Number(year)===2026?'Counts from Sep 28, 2026 onward are added automatically.':Number(year)<2026?'This earlier year is entered manually as full-year totals.':'All attendance dates in this year are counted automatically.';
+    return `<details class="ytd-count-details"><summary>${saved?'Edit historical counts':'Enter historical counts'}${saved?'':' · needed'}</summary><div class="ytd-count-editor"><div class="muted" style="font-size:10px;margin-bottom:7px">Enter ${period}. ${autoNote} Enter 0 where none.</div><div class="ytd-count-grid">${inputs}</div><div class="row" style="justify-content:flex-end;margin-top:7px"><button type="button" class="btn btn-teal" data-ytd-count-save="${ytdEscape(staff.id)}">Save attendance counts</button></div><div class="ytd-count-msg" role="status" aria-live="polite" data-ytd-count-msg="${ytdEscape(staff.id)}"></div></div></details>`;
+  }
+  async function ytdSaveManualCounts(staffId){
+    const year=ytdSelectedYear();
+    if(me?.role!=='admin'||ytdAttendanceSaving.has(staffId)||year>Number(phDate(new Date()).slice(0,4)))return;
+    const staff=staffList.find(s=>s.id===staffId&&s.active);if(!staff)return;
+    const inputs=[...document.querySelectorAll(`[data-ytd-count="${CSS.escape(staffId)}"]`)];
+    const payload={staff_id:staffId,calendar_year:year,updated_by:me.id,updated_at:new Date().toISOString()};
+    for(const field of YTD_COUNT_FIELDS){
+      const input=inputs.find(el=>el.dataset.countField===field),raw=input?.value,value=raw===''||raw===undefined?NaN:Number(raw);
+      if(!Number.isInteger(value)||value<0||value>366){const msg=document.querySelector(`[data-ytd-count-msg="${CSS.escape(staffId)}"]`);if(msg)msg.textContent='Enter a whole number from 0 to 366 for every field.';return;}
+      payload[`manual_${field}`]=value;
+    }
+    const msg=document.querySelector(`[data-ytd-count-msg="${CSS.escape(staffId)}"]`);if(!msg)return;
+    ytdAttendanceSaving.add(staffId);const btn=document.querySelector(`[data-ytd-count-save="${CSS.escape(staffId)}"]`);if(btn)btn.disabled=true;msg.textContent='Saving…';
+    try{
+      const result=await sb.from(YTD_COUNT_TABLE).upsert(payload,{onConflict:'staff_id,calendar_year'}).select('*').single();
+      if(result.error||!result.data){msg.textContent=`Save failed: ${result.error?.message||'No row returned; check the attendance-count migration and admin permission.'}`;return;}
+      const rows=await ytdFetchManualCounts(staffList.filter(s=>s.active),year),saved=rows.find(r=>r.staff_id===staffId);
+      const ok=saved&&Number(saved.calendar_year)===year&&YTD_COUNT_FIELDS.every(field=>Number(saved[`manual_${field}`])===payload[`manual_${field}`]);
+      if(!ok){msg.textContent='Save verification did not match the entered counts; please refresh and check them.';return;}
+      await ytdRun();const status=$('ytdStatus');status.textContent=`${status.textContent} Attendance counts saved and verified for ${staff.full_name}.`;
+    }catch(e){msg.textContent=`Save or verification failed: ${e.message}`;}
+    finally{ytdAttendanceSaving.delete(staffId);if(btn)btn.disabled=false;}
+  }
   async function ytdLoadAttendance(start,end,people){
     const ids=people.map(s=>s.id);if(!ids.length)return{shifts:[],entries:[],leaves:[],adjustments:[],requests:[]};
     const [shifts,entries,leaves,adjustments,requests]=await Promise.all([
@@ -5121,110 +5170,97 @@ async function saveInvoiceSettingsForm(){
     ]);
     return{shifts,entries,leaves,adjustments,requests};
   }
-  function ytdComputeRows(people,clientsById,range,attendance,rates){
+  function ytdComputeRows(people,clientsById,range,attendance,rates,manualCounts=[]){
     const {start,end}=range,{shifts,entries,leaves,adjustments=[],requests=[]}=attendance;
-    const shiftsByStaff={};shifts.forEach(sh=>(shiftsByStaff[sh.staff_id]=shiftsByStaff[sh.staff_id]||[]).push(sh));
+    const reportYear=Number(start.slice(0,4)),shiftsByStaff={},shiftDateById={},recordedDatesByStaff={},manualByStaff={};
+    shifts.forEach(sh=>{
+      (shiftsByStaff[sh.staff_id]=shiftsByStaff[sh.staff_id]||[]).push(sh);
+      const date=phDate(new Date(sh.login_at));
+      if(ytdIsIso(date)){shiftDateById[sh.id]=date;(recordedDatesByStaff[sh.staff_id]=recordedDatesByStaff[sh.staff_id]||new Set()).add(date);}
+    });
+    entries.forEach(e=>{
+      const date=(e.shift_id&&shiftDateById[e.shift_id])||phDate(new Date(e.started_at));
+      if(ytdIsIso(date))(recordedDatesByStaff[e.staff_id]=recordedDatesByStaff[e.staff_id]||new Set()).add(date);
+    });
+    (manualCounts||[]).forEach(r=>{if(reportYear<=2026&&Number(r.calendar_year)===reportYear)manualByStaff[r.staff_id]=r;});
     const entriesByShift={};entries.forEach(e=>(entriesByShift[e.shift_id||`legacy:${e.staff_id}:${phDate(new Date(e.started_at))}`]=entriesByShift[e.shift_id||`legacy:${e.staff_id}:${phDate(new Date(e.started_at))}`]||[]).push(e));
     const markerRequestIds=new Set((requests||[]).filter(r=>{
       const allowed=r.type==='planned_absence'?['pending','approved','paid'].includes(r.status):['approved','paid'].includes(r.status);
       return allowed&&['pto','pch','planned_absence'].includes(r.type);
     }).map(r=>r.id));
     const leaveByDay={};leaves.filter(l=>['pto','pch','planned_absence'].includes(l.type)&&(!l.request_id||markerRequestIds.has(l.request_id))).forEach(l=>leaveByDay[`${l.staff_id}|${l.date}`]=l.type);
-    // Approved requests are authoritative; union legacy markers in case an
-    // approved request exists but its leave_days rows were not created.
     (requests||[]).forEach(r=>{
-      const eligibleRequestStatus=r.type==='planned_absence'
-        ? ['pending','approved','paid'].includes(r.status)
-        : ['approved','paid'].includes(r.status);
-      if(!eligibleRequestStatus||!['pto','pch','planned_absence'].includes(r.type)||!ytdIsIso(r.start_date)||!ytdIsIso(r.end_date))return;
+      const allowed=r.type==='planned_absence'?['pending','approved','paid'].includes(r.status):['approved','paid'].includes(r.status);
+      if(!allowed||!['pto','pch','planned_absence'].includes(r.type)||!ytdIsIso(r.start_date)||!ytdIsIso(r.end_date))return;
       const lo=r.start_date>start?r.start_date:start,hi=r.end_date<end?r.end_date:end;
       for(let date=lo;date<=hi;date=ytdAddDays(date,1)){
         if([0,6].includes(ytdDayOfWeek(date)))continue;
         const key=`${r.staff_id}|${date}`,old=leaveByDay[key];
-        // If records overlap, prefer the paid type to PA; do not count/pay twice.
         if(!old||(old==='planned_absence'&&r.type!=='planned_absence'))leaveByDay[key]=r.type;
       }
     });
     const allRatesByStaff={};(rates||[]).forEach(r=>(allRatesByStaff[r.staff_id]=allRatesByStaff[r.staff_id]||[]).push(r));
-      const currentDate=phDate(new Date()),nowMs=Date.now(),nightWins=nightWindowsForRange(start,end);
+    const currentDate=phDate(new Date()),nowMs=Date.now(),nightWins=nightWindowsForRange(start,end);
     return people.map(staff=>{
-      const client=clientsById[staff.client_id],saved=(allRatesByStaff[staff.id]||[])[0],ratePeriods=saved?[{effective_from:saved.previous_effective_from,monthly_rate:saved.previous_monthly_rate},{effective_from:saved.current_effective_from,monthly_rate:saved.current_monthly_rate}]:ytdDefaultPeriods(staff,Number(start.slice(0,4)));
-      const hoursByDay={},openPunchByDay={};
-      const employed=ytdEmploymentWindow(staff,start,end);
+      const client=clientsById[staff.client_id],savedRate=(allRatesByStaff[staff.id]||[])[0];
+      const ratePeriods=savedRate?[{effective_from:savedRate.previous_effective_from,monthly_rate:savedRate.previous_monthly_rate},{effective_from:savedRate.current_effective_from,monthly_rate:savedRate.current_monthly_rate}]:ytdDefaultPeriods(staff,reportYear);
+      const hoursByDay={},openPunchByDay={},employed=ytdEmploymentWindow(staff,start,end);
       (shiftsByStaff[staff.id]||[]).forEach(sh=>{
         const date=phDate(new Date(sh.login_at));if(date<start||date>end)return;
-        const sourceEntries=entriesByShift[sh.id]||[];
-        const window=shiftWindowFor(client,date),nowMs=Date.now();
-        // A still-open live punch has no settled daily total yet; don't mark it OUT.
-        const hasOpenEntry=sourceEntries.some(e=>!e.ended_at);
-        const hasOpenShift=!sh.logout_at&&date===currentDate&&window&&window.end.getTime()>nowMs;
+        const sourceEntries=entriesByShift[sh.id]||[],window=shiftWindowFor(client,date);
+        const hasOpenEntry=sourceEntries.some(e=>!e.ended_at),hasOpenShift=!sh.logout_at&&date===currentDate&&window&&window.end.getTime()>nowMs;
         if(hasOpenEntry||hasOpenShift)openPunchByDay[date]=true;
-        // Open entries from an abandoned historical shift must not accrue hours to “now”.
-        // Open shifts use their saved logout timestamp when present; an open entry is
-        // capped at its parent shift's logout/scheduled end (or now if currently open).
         const shiftEntries=sourceEntries.map(e=>{
           if(e.ended_at)return e;
-          const began=new Date(e.started_at).getTime();
-          const savedShiftEnd=sh.logout_at?new Date(sh.logout_at).getTime():null;
-          const dayEnd=new Date(date+'T23:59:59.999+08:00').getTime();
-          const scheduledEnd=window?.end.getTime()??dayEnd;
+          const began=new Date(e.started_at).getTime(),savedShiftEnd=sh.logout_at?new Date(sh.logout_at).getTime():null;
+          const dayEnd=new Date(date+'T23:59:59.999+08:00').getTime(),scheduledEnd=window?.end.getTime()??dayEnd;
           const cap=savedShiftEnd??Math.min(nowMs,scheduledEnd);
           return {...e,ended_at:new Date(Math.max(began,cap)).toISOString()};
         });
         const row=ledgerShiftRow(staff,client,sh,shiftEntries,nightWins);
-        // Timesheet-payable hours (including overtime hours) are valued at the standard base hourly rate.
-        // The separate night-differential premium is excluded as a non-basic pay item.
         hoursByDay[date]=(hoursByDay[date]||0)+(row.regularMin+row.otMin)/60;
       });
-      // Match the Timesheets grid: an administrator's daily-hours override is authoritative.
-      adjustments.filter(a=>a.staff_id===staff.id&&ytdIsIso(a.work_date)).forEach(a=>{
-        hoursByDay[a.work_date]=Math.max(0,Number(a.hours)||0);
-      });
-      const perDayHours=hoursByDay;
-      const dayTypes={};Object.entries(leaveByDay).forEach(([key,type])=>{const [staffId,date]=key.split('|');if(staffId===staff.id)dayTypes[date]=type;});
-      let eligibleWorkHours=0,paidPto=0,paidPch=0,pa=0,out=0,worked=0,eligibleEarnings=0,missingRateDays=0,workdaysUninferable=false;
-      const hasHireDate=employed.hasHireDate;
-      const perDateRate=iso=>ytdRatesForDate(ratePeriods,iso);
-      const dates=ytdListDates(start,end);
-      dates.forEach(date=>{
-        const status=dayTypes[date];
-        if(employed.valid&&date>=employed.start&&date<=employed.end){
-          if(status==='pto'){paidPto++;}
-          else if(status==='pch'){paidPch++;}
-          else if(status==='planned_absence'){pa++;}
-          const hours=Math.max(0,Number(perDayHours[date]||0));
-          if(hours>0){
-            eligibleWorkHours+=hours;worked++;
-            const rate=perDateRate(date);
-            if(rate)eligibleEarnings+=hours*Number(rate.monthly_rate)/22/8;else missingRateDays++;
+      adjustments.filter(a=>a.staff_id===staff.id&&ytdIsIso(a.work_date)).forEach(a=>{hoursByDay[a.work_date]=Math.max(0,Number(a.hours)||0);});
+      const dayTypes={};Object.entries(leaveByDay).forEach(([key,type])=>{const [sid,date]=key.split('|');if(sid===staff.id)dayTypes[date]=type;});
+      let eligibleWorkHours=0,worked=0,eligibleEarnings=0,missingRateDays=0,workdaysUninferable=false;
+      const autoCounts={days_present:0,pto:0,pch:0,pa:0,out:0},perDateRate=iso=>ytdRatesForDate(ratePeriods,iso);
+      ytdListDates(start,end).forEach(date=>{
+        if(!employed.valid||date<employed.start||date>employed.end)return;
+        const status=dayTypes[date],hours=Math.max(0,Number(hoursByDay[date]||0));
+        const countAutomatically=reportYear>=2026&&date>=YTD_AUTO_START;
+        if(countAutomatically){
+          const hasRecordedTime=(recordedDatesByStaff[staff.id]||new Set()).has(date);
+          if(hasRecordedTime)autoCounts.days_present++;
+          if(status==='pto')autoCounts.pto++;else if(status==='pch')autoCounts.pch++;else if(status==='planned_absence')autoCounts.pa++;
+          const schedule=ytdParseWorkdays(client?.workdays);
+          if(!schedule)workdaysUninferable=true;
+          else{
+            const window=shiftWindowFor(client,date),shiftHasEnded=date<currentDate||(date===currentDate&&window&&window.end.getTime()<=nowMs);
+            // OUT follows the approved rule: expected scheduled day with no payable hours.
+            if(employed.hasHireDate&&schedule.has(ytdDayOfWeek(date))&&!status&&hours<=0&&shiftHasEnded&&!openPunchByDay[date])autoCounts.out++;
           }
-          if(status==='pto'||status==='pch'){
-            const rate=perDateRate(date);
-            if(rate)eligibleEarnings+=Number(rate.monthly_rate)/22;else missingRateDays++;
-          }
-        const schedule=ytdParseWorkdays(client?.workdays);
-        if(!schedule){workdaysUninferable=true;}
-        else{
-          // Do not mark today's scheduled shift OUT until its scheduled end has passed.
-          // Historical expected workdays are eligible for inference immediately.
-          const window=shiftWindowFor(client,date);
-          const shiftHasEnded=date<currentDate||(date===currentDate&&window&&window.end.getTime()<=nowMs);
-          // OUT means zero payable timesheet hours on an expected workday.
-          // Without a hire date, do not infer absences across an unknown employment window.
-          if(hasHireDate&&schedule.has(ytdDayOfWeek(date))&&!status&&hours<=0&&shiftHasEnded&&!openPunchByDay[date])out++;
         }
+        if(hours>0){
+          eligibleWorkHours+=hours;worked++;
+          const rate=perDateRate(date);if(rate)eligibleEarnings+=hours*Number(rate.monthly_rate)/22/8;else missingRateDays++;
+        }
+        if(status==='pto'||status==='pch'){
+          const rate=perDateRate(date);if(rate)eligibleEarnings+=Number(rate.monthly_rate)/22;else missingRateDays++;
         }
       });
-      return{staff,client,hours:eligibleWorkHours,worked,present:worked,pto:paidPto,pch:paidPch,pa,out,eligibleEarnings,bonus:missingRateDays?null:ytdBonus(eligibleEarnings),missingRateDays,workdaysUninferable,missingHireDate:!hasHireDate};
+      const manualRecord=manualByStaff[staff.id]||null,manualAttendanceCounts=manualRecord?Object.fromEntries(YTD_COUNT_FIELDS.map(k=>[k,Number(manualRecord[`manual_${k}`]||0)])):null;
+      const attendanceCountsComplete=reportYear>=2027||!!manualRecord;
+      const totalCounts=Object.fromEntries(YTD_COUNT_FIELDS.map(k=>[k,(manualRecord?Number(manualRecord[`manual_${k}`]||0):0)+autoCounts[k]]));
+      return{staff,client,hours:eligibleWorkHours,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,pa:totalCounts.pa,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus:missingRateDays?null:ytdBonus(eligibleEarnings),missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate};
     }).sort((a,b)=>{
       const ad=ytdIsIso(a.staff.hire_date)?a.staff.hire_date:'9999-12-31',bd=ytdIsIso(b.staff.hire_date)?b.staff.hire_date:'9999-12-31';
       return ad.localeCompare(bd)||String(a.staff.full_name||'').localeCompare(String(b.staff.full_name||''));
     });
   }
   function ytdSummaryHtml(rows){
-    const totalOut=rows.reduce((n,r)=>n+r.out,0),totalPa=rows.reduce((n,r)=>n+r.pa,0),paid=rows.reduce((n,r)=>n+r.pto+r.pch,0),incomplete=rows.some(r=>r.bonus===null);
-    const bonus=incomplete?null:rows.reduce((n,r)=>n+r.bonus,0);
-    const stats=[['Staff shown',String(rows.length)],['Paid leave days',String(paid)],['Unpaid absences (PA + OUT)',String(totalPa+totalOut)],['Year End Bonus estimate',bonus===null?'Incomplete':ytdMoney(bonus)]];
+    const totalOut=rows.reduce((n,r)=>n+r.out,0),totalPa=rows.reduce((n,r)=>n+r.pa,0),paid=rows.reduce((n,r)=>n+r.pto+r.pch,0),incomplete=rows.some(r=>r.bonus===null),historyMissing=rows.some(r=>!r.attendanceCountsComplete);
+    const bonus=incomplete?null:rows.reduce((n,r)=>n+r.bonus,0),paidValue=historyMissing?`Partial · ${paid}`:String(paid),absenceValue=historyMissing?`Partial · ${totalPa+totalOut}`:String(totalPa+totalOut);
+    const stats=[['Staff shown',String(rows.length)],['Paid leave days',paidValue],['Unpaid absences (PA + OUT)',absenceValue],['Year End Bonus estimate',bonus===null?'Incomplete':ytdMoney(bonus)]];
     $('ytdSummary').innerHTML=stats.map(([label,value])=>`<div class="stat"><div class="k">${ytdEscape(label)}</div><div class="v" style="font-size:${label.includes('Bonus')?'17px':'20px'}">${ytdEscape(value)}</div></div>`).join('');
   }
   function ytdPopulateClientFilter(rows){
@@ -5247,12 +5283,13 @@ async function saveInvoiceSettingsForm(){
   }
   function ytdRenderTable(rows,rates,year){
     $('ytdTable').innerHTML=rows.length?rows.map(r=>`<tr>
-      <td class="sticky-col ytd-staff-cell"><b>${ytdEscape(r.staff.full_name)}</b>${r.missingHireDate?'<div class="pill p-bad" style="margin-top:4px">Hire date needed for OUT</div>':''}${ytdRenderRates(r.staff,rates,year)}</td>
-      <td class="mono">${r.hours.toFixed(2)}</td><td class="mono">${r.present}</td><td class="mono">${r.pto}</td><td class="mono">${r.pch}</td><td class="mono">${r.pa}</td><td class="mono">${r.out}</td>
+      <td class="sticky-col ytd-staff-cell"><b>${ytdEscape(r.staff.full_name)}</b>${r.missingHireDate?'<div class="pill p-bad" style="margin-top:4px">Hire date needed for OUT</div>':''}${Number(year)<=2026&&!r.attendanceCountsComplete?'<div class="pill p-bad" style="margin-top:4px">Historical counts needed</div>':''}${ytdRenderRates(r.staff,rates,year)}${ytdAttendanceEditorHtml(r.staff,r,year)}</td>
+      <td class="mono">${r.hours.toFixed(2)}</td>${YTD_COUNT_FIELDS.map(k=>`<td class="mono" title="${!r.attendanceCountsComplete?`Automatic portion only: ${r.autoCounts[k]}; enter historical counts to complete`:''}">${r.attendanceCountsComplete?r[k]:(r.autoCounts[k]>0?r.autoCounts[k]:'—')}</td>`).join('')}
       <td class="mono">${r.missingRateDays?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.eligibleEarnings)}</td><td class="mono" title="${r.missingRateDays?`${r.missingRateDays} day(s) have no applicable rate period`:''}">${r.bonus===null?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.bonus)}</td>
     </tr>`).join(''):`<tr><td colspan="9" class="muted">No active employees found for this client.</td></tr>`;
     $('ytdTable').setAttribute('aria-live','polite');
     document.querySelectorAll('[data-ytd-save]').forEach(btn=>btn.onclick=()=>ytdSaveRates(btn.dataset.ytdSave));
+    document.querySelectorAll('[data-ytd-count-save]').forEach(btn=>btn.onclick=()=>ytdSaveManualCounts(btn.dataset.ytdCountSave));
   }
   async function ytdRun(){
     if(me?.role!=='admin'){ytdStatus('This report is available to admins only.',true);return;}
@@ -5265,20 +5302,21 @@ async function saveInvoiceSettingsForm(){
       $('ytdRange').textContent=`${fmtNice(range.start)} – ${fmtNice(range.end)} (${year===Number(phDate(new Date()).slice(0,4))?'year to date':'full calendar year'})`;
       if(!people.length){ytdRows=[];ytdComputedRows=[];ytdCurrentYear=year;ytdPopulateClientFilter([]);ytdApplyClientFilter();ytdStatus('No active employees are available in the current portal roster.',false);return;}
       let rates=await ytdFetchRates(people);rates=await ytdSeedRates(people,year,rates);ytdRows=rates;
-      const attendance=await ytdLoadAttendance(range.start,range.end,people);
+      const [attendance,manualCounts]=await Promise.all([ytdLoadAttendance(range.start,range.end,people),ytdFetchManualCounts(people,year)]);
       const clientsById=Object.fromEntries(clients.map(c=>[c.id,c]));
-      const rows=ytdComputeRows(people,clientsById,range,attendance,rates);
+      const rows=ytdComputeRows(people,clientsById,range,attendance,rates,manualCounts);
       ytdCurrentYear=year;ytdComputedRows=rows;ytdPopulateClientFilter(rows);ytdApplyClientFilter();
-      const unknown=rows.filter(r=>r.workdaysUninferable).length,missing=rows.filter(r=>r.missingRateDays).length,noHire=rows.filter(r=>r.missingHireDate).length;
-      let msg=`Loaded ${rows.length} active employees. PA includes pending or approved Planned Absence requests; PTO/PCH earnings include approved or marked-paid requests. OUT is inferred only from parseable assigned-client work schedules, zero payable hours, and a known hire date; PTO/PCH/PA markers are excluded from OUT.`;
+      const unknown=rows.filter(r=>r.workdaysUninferable).length,missing=rows.filter(r=>r.missingRateDays).length,noHire=rows.filter(r=>r.missingHireDate).length,historyMissing=rows.filter(r=>!r.attendanceCountsComplete).length;
+      let msg=`Loaded ${rows.length} active employees. Days Present counts a shift login or timesheet entry, even with zero payable hours. For 2026, enter historical counts through Sep 27; automatic counts start Sep 28. Earlier years use saved full-year totals. Year End Bonus formula is unchanged.`;
       if(unknown)msg+=` Workdays are not configured/readable for ${unknown} staff member(s), so OUT may be undercounted.`;
       if(noHire)msg+=` Hire dates are missing for ${noHire} staff member(s); OUT is withheld for them because their employment window cannot be verified.`;
+      if(historyMissing)msg+=` Historical attendance totals are missing for ${historyMissing} staff member(s); enter them in each row to complete the counts.`;
       if(missing)msg+=` ${missing} staff member(s) have dates with earnings but no effective rate; their bonus and the overall bonus total are withheld until rate history is completed.`;
-      ytdStatus(msg,!!missing);
+      ytdStatus(msg,!!missing||!!historyMissing);
     }catch(e){
       ytdComputedRows=[];ytdCurrentYear=null;ytdRows=[];ytdPopulateClientFilter([]);
       $('ytdTable').innerHTML='<tr><td colspan="9" class="muted">Report could not be calculated; no partial totals shown.</td></tr>';
-      $('ytdSummary').innerHTML='';ytdStatus(`Could not load a complete report: ${e.message}. Check the YTD rate migration and data permissions, then rerun.`,true);
+      $('ytdSummary').innerHTML='';ytdStatus(`Could not load a complete report: ${e.message}. Check the YTD rate and attendance-count migrations and data permissions, then rerun.`,true);
     }finally{ytdBusy=false;$('ytdRun').disabled=false;$('ytdRun').textContent='Run report';}
   }
   function initYtdAttendance(){
@@ -5290,7 +5328,7 @@ async function saveInvoiceSettingsForm(){
     }
     ytdRun();
   }
-  window.YTDAttendanceMath={addMonths:ytdAddMonths,parseWorkdays:ytdParseWorkdays,ratesForDate:ytdRatesForDate,defaultPeriods:ytdDefaultPeriods,effectivePay:ytdGetEffectivePay,bonus:ytdBonus,rangeForYear:ytdRangeForYear,computeRows:ytdComputeRows,filterByClient:ytdFilterRowsByClient};
+  window.YTDAttendanceMath={addMonths:ytdAddMonths,parseWorkdays:ytdParseWorkdays,ratesForDate:ytdRatesForDate,defaultPeriods:ytdDefaultPeriods,effectivePay:ytdGetEffectivePay,bonus:ytdBonus,rangeForYear:ytdRangeForYear,computeRows:ytdComputeRows,filterByClient:ytdFilterRowsByClient,autoStart:YTD_AUTO_START};
   window.initYtdAttendance=initYtdAttendance;
 })();
 </script>
