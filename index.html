@@ -790,11 +790,11 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">YTD Attendance &amp; Year End Bonus</h3><div class="row" style="gap:7px"><label for="ytdYear" style="margin:0">Calendar year</label><select id="ytdYear" style="width:auto;min-width:92px"></select><button class="btn btn-gold" id="ytdRun">Run report</button></div></div>
         <div class="muted" id="ytdRange" style="font-size:12px;margin-bottom:9px"></div>
-        <div class="note" style="margin-bottom:9px">Year End Bonus estimate = (eligible basic earnings ÷ 12) ÷ 22 (working days per month) × (Days Present + PCH + PTO). Eligible basic earnings = eligible payable timesheet hours × applicable monthly rate ÷ 22 ÷ 8, plus approved PTO/PCH days × applicable monthly rate ÷ 22. PA and OUT are unpaid and excluded from the day count. Overtime hours are valued at the same base hourly rate, without a premium; separate night-differential and non-basic items are excluded. Undertime reduces the estimate. Rendy identified Unhappy Day leave in the legacy tracker as OUT; the attached workbook is preserved for later reconciliation and is not imported in this build.</div>
+        <div class="note" style="margin-bottom:9px">Year End Bonus estimate follows the standard 13th-month-pay rule: total basic salary earned during the year ÷ 12. Basic salary earned per employed calendar day = that day's applicable monthly rate ÷ the number of days in that calendar month; days outside the employment window (before hire / after termination) earn nothing. A rate change mid-month splits automatically at its effective date. Attendance (Days Present/PTO/PCH/PA/OUT) is tracked separately in this table and no longer affects the bonus calculation. Rendy identified Unhappy Day leave in the legacy tracker as OUT; the attached workbook is preserved for later reconciliation and is not imported in this build.</div>
         <div id="ytdStatus" class="note" role="status" aria-live="polite" style="margin-bottom:9px">Choose a calendar year and run the report.</div>
         <div class="ytd-summary" id="ytdSummary"></div>
       </div>
-      <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Total Working Days = Mon–Fri calendar dates in the selected year (to date for the current year), within each person's employment window. Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus = (eligible basic earnings ÷ 12 ÷ 22) × (Days Present + PCH + PTO).</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Total working days</th><th>Days present</th><th>PTO</th><th>PCH</th><th>PA</th><th>OUT</th><th>Eligible basic earnings</th><th>Year End Bonus</th></tr></thead><tbody id="ytdTable"><tr><td colspan="9" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Total Working Days = Mon–Fri calendar dates in the selected year (to date for the current year), within each person's employment window. Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus = total basic salary earned this year (by employment days × applicable rate) ÷ 12, per DOLE 13th-month rules.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Total working days</th><th>Days present</th><th>PTO</th><th>PCH</th><th>PA</th><th>OUT</th><th>Eligible basic earnings</th><th>Year End Bonus</th></tr></thead><tbody id="ytdTable"><tr><td colspan="9" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
     </section>
 
     <!-- ---------- ADMIN: POLICY ---------- -->
@@ -5007,6 +5007,7 @@ async function saveInvoiceSettingsForm(){
 
   function ytdIsIso(value){return /^\d{4}-\d{2}-\d{2}$/.test(String(value||''));}
   function ytdDateParts(iso){if(!ytdIsIso(iso))return null;const [y,m,d]=iso.split('-').map(Number);return{y,m,d};}
+  function ytdDaysInMonth(iso){const p=ytdDateParts(iso);if(!p)return 30;return new Date(Date.UTC(p.y,p.m,0)).getUTCDate();}
   function ytdAddMonths(iso,months){
     const p=ytdDateParts(iso);if(!p)return '';
     const first=new Date(Date.UTC(p.y,p.m-1+months,1));
@@ -5048,7 +5049,7 @@ async function saveInvoiceSettingsForm(){
     const rate=Number(monthlyRate);if(!Number.isFinite(rate)||rate<0)return null;
     return Math.max(0,Number(hours)||0)*rate/22/8 + Math.max(0,Number(paidDays)||0)*rate/22;
   }
-  function ytdBonus(eligibleEarnings,daysPresent,pch,pto){const eligibleDays=Math.max(0,Number(daysPresent)||0)+Math.max(0,Number(pch)||0)+Math.max(0,Number(pto)||0);return Math.max(0,Number(eligibleEarnings)||0)/12/22*eligibleDays;}
+  function ytdBonus(eligibleEarnings){return Math.max(0,Number(eligibleEarnings)||0)/12;}
   function ytdEscape(value){return escapeHtml(String(value??''));}
   function ytdMoney(value){return '₱'+Number(value||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});}
   function ytdStatus(message,isError){const el=$('ytdStatus');el.className=isError?'err':'note';el.textContent=message;el.setAttribute('role',isError?'alert':'status');el.setAttribute('aria-live','polite');}
@@ -5222,7 +5223,7 @@ async function saveInvoiceSettingsForm(){
       });
       adjustments.filter(a=>a.staff_id===staff.id&&ytdIsIso(a.work_date)).forEach(a=>{hoursByDay[a.work_date]=Math.max(0,Number(a.hours)||0);});
       const dayTypes={};Object.entries(leaveByDay).forEach(([key,type])=>{const [sid,date]=key.split('|');if(sid===staff.id)dayTypes[date]=type;});
-      let eligibleWorkHours=0,worked=0,eligibleEarnings=0,missingRateDays=0,workdaysUninferable=false,totalWorkingDays=0;
+      let worked=0,eligibleEarnings=0,missingRateDays=0,workdaysUninferable=false,totalWorkingDays=0;
       const autoCounts={days_present:0,pto:0,pch:0,pa:0,out:0},perDateRate=iso=>ytdRatesForDate(ratePeriods,iso);
       ytdListDates(start,end).forEach(date=>{
         if(!employed.valid||date<employed.start||date>employed.end)return;
@@ -5242,18 +5243,14 @@ async function saveInvoiceSettingsForm(){
             if(employed.hasHireDate&&schedule.has(ytdDayOfWeek(date))&&!status&&hours<=0&&shiftHasEnded&&!openPunchByDay[date])autoCounts.out++;
           }
         }
-        if(hours>0){
-          eligibleWorkHours+=hours;worked++;
-          const rate=perDateRate(date);if(rate)eligibleEarnings+=hours*Number(rate.monthly_rate)/22/8;else missingRateDays++;
-        }
-        if(status==='pto'||status==='pch'){
-          const rate=perDateRate(date);if(rate)eligibleEarnings+=Number(rate.monthly_rate)/22;else missingRateDays++;
-        }
+        if(hours>0)worked++;
+        // 13th-month-style basic salary: every employed calendar day earns rate/daysInMonth, independent of attendance.
+        const rate=perDateRate(date);if(rate)eligibleEarnings+=Number(rate.monthly_rate)/ytdDaysInMonth(date);else missingRateDays++;
       });
       const manualRecord=manualByStaff[staff.id]||null,manualAttendanceCounts=manualRecord?Object.fromEntries(YTD_COUNT_FIELDS.map(k=>[k,Number(manualRecord[`manual_${k}`]||0)])):null;
       const attendanceCountsComplete=reportYear>=2027||!!manualRecord;
       const totalCounts=Object.fromEntries(YTD_COUNT_FIELDS.map(k=>[k,(manualRecord?Number(manualRecord[`manual_${k}`]||0):0)+autoCounts[k]]));
-      return{staff,client,workingDays:totalWorkingDays,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,pa:totalCounts.pa,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus:missingRateDays?null:ytdBonus(eligibleEarnings,totalCounts.days_present,totalCounts.pch,totalCounts.pto),missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate};
+      return{staff,client,workingDays:totalWorkingDays,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,pa:totalCounts.pa,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus:missingRateDays?null:ytdBonus(eligibleEarnings),missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate};
     }).sort((a,b)=>{
       const ad=ytdIsIso(a.staff.hire_date)?a.staff.hire_date:'9999-12-31',bd=ytdIsIso(b.staff.hire_date)?b.staff.hire_date:'9999-12-31';
       return ad.localeCompare(bd)||String(a.staff.full_name||'').localeCompare(String(b.staff.full_name||''));
