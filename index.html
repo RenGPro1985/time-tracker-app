@@ -329,13 +329,21 @@ button.btn{padding:7px 12px;font-size:12px}
   </div>
 </div>
 
+<div id="portalSigsOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:72;align-items:center;justify-content:center;padding:20px;overflow:auto" onclick="if(event.target===this)this.style.display='none'">
+  <div class="card" style="width:100%;max-width:760px;margin:auto;max-height:calc(100vh - 40px);overflow:auto">
+    <div class="hdr"><h3 style="font-size:15px" id="portalSigsTitle">Signatures</h3><button class="btn btn-ghost" onclick="document.getElementById('portalSigsOverlay').style.display='none'">Close</button></div>
+    <div id="portalSigsBody"></div>
+  </div>
+</div>
+
 <div id="corrReviewOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:72;align-items:center;justify-content:center;padding:20px;overflow:auto">
   <div class="card" style="width:100%;max-width:760px;margin:auto;max-height:calc(100vh - 40px);overflow:auto">
     <div class="hdr"><h3 style="font-size:15px">Review time correction</h3><button class="btn btn-ghost" id="corrReviewClose">Close</button></div>
     <div class="muted" id="corrReviewContext" style="font-size:12px;margin-bottom:12px"></div>
     <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px">
       <div><label>Recorded activity</label><select id="corrReviewEntry"></select></div>
-      <div><label>Resolution</label><select id="corrReviewAction"><option value="" selected disabled>Choose a resolution</option><option value="delete_duplicate">Delete confirmed duplicate record</option><option value="change_end">Change end time</option><option value="change_activity">Change activity</option><option value="split_entry">Split into a second activity</option></select></div>
+      <div><label>Resolution</label><select id="corrReviewAction"><option value="" selected disabled>Choose a resolution</option><option value="delete_duplicate">Delete confirmed duplicate record</option><option value="change_start">Change start time</option><option value="change_end">Change end time</option><option value="change_activity">Change activity</option><option value="split_entry">Split into a second activity</option></select></div>
+      <div id="corrReviewStartWrap" class="hide"><label>Correct start time (PHT)</label><input type="datetime-local" id="corrReviewStart"></div>
       <div id="corrReviewEndWrap" class="hide"><label>Correct end time (PHT)</label><input type="datetime-local" id="corrReviewEnd"></div>
       <div id="corrReviewActWrap" class="hide"><label>Correct activity</label><select id="corrReviewActivity"></select></div>
       <div id="corrReviewSplitWrap" class="hide" style="grid-column:1 / -1"><label>Split at / second activity (PHT)</label><div class="row"><input type="datetime-local" id="corrReviewSplitAt" style="flex:1"><select id="corrReviewSplitActivity" style="flex:1"></select></div></div>
@@ -777,6 +785,11 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div style="flex:0 0 auto"><button class="btn btn-teal" id="portalUpBtn" style="margin-top:22px">Upload to Drive</button></div>
       </div>
       <div class="muted" id="portalUpMsg" style="font-size:12px;margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <div class="hdr"><h3 style="font-size:15px">Not signed — company-wide documents</h3></div>
+      <div class="muted" style="font-size:12px;margin-bottom:8px">Active staff missing at least one required company-wide signature, earliest hire first.</div>
+      <div id="portalMissing" style="overflow:auto"></div>
     </div>
     <div class="card">
       <div class="hdr"><h3 style="font-size:15px">All Documents</h3></div>
@@ -3509,16 +3522,18 @@ async function openCorrectionReview(id){
   $('corrReviewEntry').innerHTML=options.map(e=>`<option value="${e.id}"${e.id===corr.entry_id?' selected':''}>${escapeHtml(entryLabel(e))}</option>`).join('');
   $('corrReviewActivity').innerHTML=CORRECTION_ACTIVITIES.map(a=>`<option value="${a}">${a}</option>`).join('');
   $('corrReviewSplitActivity').innerHTML=CORRECTION_ACTIVITIES.map(a=>`<option value="${a}">${a}</option>`).join('');
-  $('corrReviewAction').value=''; $('corrReviewEntry').disabled=!!corr.entry_id; $('corrReviewReason').value=''; $('corrReviewMsg').textContent='';
+  $('corrReviewAction').value=''; $('corrReviewStart').value=''; $('corrReviewEnd').value=''; $('corrReviewSplitAt').value=''; $('corrReviewEntry').disabled=!!corr.entry_id; $('corrReviewReason').value=''; $('corrReviewMsg').textContent='';
   await refreshCorrectionReview();
 }
 async function refreshCorrectionReview(){
   if(!correctionReview)return;
   const entry=correctionReview.options.find(e=>e.id===$('corrReviewEntry').value);if(!entry)return;
   const action=$('corrReviewAction').value;
+  $('corrReviewStartWrap').classList.toggle('hide',action!=='change_start');
   $('corrReviewEndWrap').classList.toggle('hide',action!=='change_end');
   $('corrReviewActWrap').classList.toggle('hide',action!=='change_activity');
   $('corrReviewSplitWrap').classList.toggle('hide',action!=='split_entry');
+  if(!$('corrReviewStart').value)$('corrReviewStart').value=phtDateTimeLocal(entry.started_at);
   if(!$('corrReviewEnd').value)$('corrReviewEnd').value=phtDateTimeLocal(entry.ended_at);
   if(!$('corrReviewSplitAt').value){
     const midpoint=new Date((new Date(entry.started_at).getTime()+new Date(entry.ended_at).getTime())/2);
@@ -3531,6 +3546,7 @@ async function refreshCorrectionReview(){
   const before=correctionReview.allEntries.filter(e=>e.shift_id===entry.shift_id&&e.active!==false);
   const after=before.map(e=>({...e})); const target=after.find(e=>e.id===entry.id);
   if(action==='delete_duplicate')after.splice(after.indexOf(target),1);
+  if(action==='change_start'&&roundedCorrectionDateTimeToIso($('corrReviewStart').value)){target.started_at=roundedCorrectionDateTimeToIso($('corrReviewStart').value);}
   if(action==='change_end'&&roundedCorrectionDateTimeToIso($('corrReviewEnd').value)){target.ended_at=roundedCorrectionDateTimeToIso($('corrReviewEnd').value);}
   if(action==='change_activity')target.activity=$('corrReviewActivity').value;
   if(action==='split_entry'){
@@ -3555,6 +3571,13 @@ async function applyCorrectionResolution(status){
     const action=$('corrReviewAction').value;
     if(!action)return alert('Choose a correction resolution.');
     const args={p_correction_id:corr.id,p_entry_id:entry,p_action:action,p_reason:reason,p_new_ended_at:null,p_new_activity:null,p_split_at:null,p_split_activity:null};
+    if(action==='change_start'){
+      if(!$('corrReviewStart').value)return alert('Enter the correct start time.');
+      args.p_new_started_at=roundedCorrectionDateTimeToIso($('corrReviewStart').value);
+      if(!args.p_new_started_at)return alert('Enter a valid start time.');
+      const original=correctionReview.options.find(e=>e.id===entry);
+      if(original&&new Date(args.p_new_started_at)>=new Date(original.ended_at))return alert('Correct start time must be before the recorded end time.');
+    }
     if(action==='change_end'){
       if(!$('corrReviewEnd').value)return alert('Enter the correct end time.');
       args.p_new_ended_at=roundedCorrectionDateTimeToIso($('corrReviewEnd').value);
@@ -3574,9 +3597,10 @@ async function applyCorrectionResolution(status){
 }
 $('corrReviewClose').onclick=closeCorrectionReview;
 $('corrReviewOverlay').onclick=e=>{if(e.target===$('corrReviewOverlay'))closeCorrectionReview();};
-$('corrReviewEntry').onchange=refreshCorrectionReview;
+$('corrReviewEntry').onchange=()=>{$('corrReviewStart').value='';$('corrReviewEnd').value='';$('corrReviewSplitAt').value='';refreshCorrectionReview();};
 $('corrReviewAction').onchange=refreshCorrectionReview;
 $('corrReviewEnd').oninput=refreshCorrectionReview;
+$('corrReviewStart').oninput=refreshCorrectionReview;
 $('corrReviewActivity').onchange=refreshCorrectionReview;
 $('corrReviewSplitAt').oninput=refreshCorrectionReview;
 $('corrReviewSplitActivity').onchange=refreshCorrectionReview;
@@ -3972,15 +3996,39 @@ $('portalSignSubmit').onclick = async () => {
   }
 };
 
+function portalHireKey(s){return (s&&/^\d{4}-\d{2}-\d{2}$/.test(s.hire_date||''))?s.hire_date:'9999-12-31';}
+function portalSortStaff(list){return (list||[]).slice().sort((a,b)=>portalHireKey(a).localeCompare(portalHireKey(b))||String(a.full_name||'').localeCompare(String(b.full_name||'')));}
+function showPortalSigs(docId){
+  const d=portalDocsCache.find(x=>String(x.id)===String(docId)); if(!d)return;
+  const signed=(d.signed||[]).slice().sort((a,b)=>String(a.signed_at||'').localeCompare(String(b.signed_at||'')));
+  const unsigned=portalSortStaff(d.unsigned||[]);
+  $('portalSigsTitle').textContent=d.title+' — signatures';
+  $('portalSigsBody').innerHTML=`<div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
+    <div><div style="font-weight:700;margin-bottom:6px;color:var(--rose)">Not signed (${unsigned.length})</div>${unsigned.length?`<table><thead><tr><th>Name</th><th>Hire date</th></tr></thead><tbody>${unsigned.map(s=>`<tr><td>${escapeHtml(s.full_name||'—')}</td><td class="muted">${escapeHtml(s.hire_date||'—')}</td></tr>`).join('')}</tbody></table>`:'<div class="muted">Everyone has signed.</div>'}</div>
+    <div><div style="font-weight:700;margin-bottom:6px">Signed (${signed.length})</div>${signed.length?`<table><thead><tr><th>Name</th><th>Signed</th></tr></thead><tbody>${signed.map(s=>`<tr><td>${escapeHtml(s.full_name||'—')}</td><td class="muted">${escapeHtml(s.signed_at?fmtNice(s.signed_at.slice(0,10)):'—')}</td></tr>`).join('')}</tbody></table>`:'<div class="muted">No signatures yet.</div>'}</div></div>`;
+  $('portalSigsOverlay').style.display='flex';
+}
+function renderPortalMissing(){
+  const box=$('portalMissing'); if(!box)return;
+  const docs=portalDocsCache.filter(d=>d.requires_signature&&d.visibility==='all');
+  const byStaff=new Map();
+  docs.forEach(d=>(d.unsigned||[]).forEach(s=>{if(!byStaff.has(s.id))byStaff.set(s.id,{...s,docs:[]});byStaff.get(s.id).docs.push(d.title);}));
+  const rows=portalSortStaff([...byStaff.values()]);
+  if(!docs.length){box.innerHTML='<div class="muted">No company-wide documents require a signature.</div>';return;}
+  if(docs.some(d=>!Array.isArray(d.unsigned))){box.innerHTML='<div class="muted">Signer names are not available yet. The server update still needs to be deployed on Render.</div>';return;}
+  box.innerHTML=rows.length?`<table><thead><tr><th>Name</th><th>Hire date</th><th>Missing</th><th>Documents not signed</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${escapeHtml(r.full_name||'—')}</b></td><td class="muted">${escapeHtml(r.hire_date||'—')}</td><td style="color:var(--rose)">${r.docs.length}/${docs.length}</td><td>${r.docs.map(t=>escapeHtml(t)).join(', ')}</td></tr>`).join('')}</tbody></table>`:'<div class="muted">All active staff have signed every company-wide document.</div>';
+}
 async function loadPortalAdminDocs() {
   let j;
   try { j = await api('/api/portal/docs'); } catch (e) { alert(e.message); return; }
   portalDocsCache = j.docs || [];
   $('portalAdminDocs').innerHTML = portalDocsCache.length ? portalDocsCache.map(d => {
     const assignee = d.visibility === 'all' ? 'Everyone' : escapeHtml((staffList.find(s => s.id === d.visibility) || {}).full_name || '—');
-    const sigCol = d.requires_signature ? `${d.signed_count}/${d.eligible_count}` : '—';
+    const sigCol = d.requires_signature ? `<button class="btn btn-ghost" data-sigs="${d.id}" title="See who signed" style="padding:3px 10px">${d.signed_count}/${d.eligible_count}${d.eligible_count>d.signed_count?' <span style="color:var(--rose)">• '+(d.eligible_count-d.signed_count)+' missing</span>':''}</button>` : '—';
     return `<tr><td><a href="${d.drive_link}" target="_blank" rel="noopener"><b>${escapeHtml(d.title)}</b></a></td><td class="muted">${escapeHtml(d.category)}</td><td>${assignee}</td><td>${sigCol}</td><td style="text-align:right"><button class="btn btn-rose" data-del="${d.id}">Delete</button></td></tr>`;
   }).join('') : `<tr><td colspan="5" class="muted">No documents yet.</td></tr>`;
+  document.querySelectorAll('[data-sigs]').forEach(btn => { btn.onclick = () => showPortalSigs(btn.dataset.sigs); });
+  renderPortalMissing();
   document.querySelectorAll('[data-del]').forEach(btn => {
     btn.onclick = async () => {
       if (!confirm('Delete this document? This also trashes it in Drive.')) return;
