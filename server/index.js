@@ -591,15 +591,22 @@ app.get('/api/portal/docs', async (req, res) => {
       const docIds = docs.filter(d => d.requires_signature).map(d => d.id);
       let sigCounts = {};
       if (docIds.length) {
-        const { data: allSigs } = await admin.from('portal_signatures').select('doc_id').in('doc_id', docIds);
-        for (const s of allSigs || []) sigCounts[s.doc_id] = (sigCounts[s.doc_id] || 0) + 1;
+        const { data: allSigs, error: sigErr } = await admin.from('portal_signatures').select('doc_id, staff_id, signed_at').in('doc_id', docIds);
+        if (sigErr) throw sigErr;
+        for (const s of allSigs || []) (sigCounts[s.doc_id] = sigCounts[s.doc_id] || []).push(s);
       }
-      const { count: staffCount } = await admin.from('staff').select('id', { count: 'exact', head: true }).eq('active', true);
-      const withCounts = docs.map(d => ({
-        ...d,
-        signed_count: sigCounts[d.id] || 0,
-        eligible_count: d.visibility === 'all' ? (staffCount || 0) : 1
-      }));
+      // Active staff only: inactive staff are neither counted as eligible nor as signed.
+      const { data: activeStaff, error: staffErr } = await admin.from('staff').select('id, full_name, hire_date').eq('active', true);
+      if (staffErr) throw staffErr;
+      const staffById = Object.fromEntries((activeStaff || []).map(s => [s.id, s]));
+      const withCounts = docs.map(d => {
+        if (!d.requires_signature) return { ...d, signed_count: 0, eligible_count: 0, signed: [], unsigned: [] };
+        const eligible = d.visibility === 'all' ? (activeStaff || []) : (staffById[d.visibility] ? [staffById[d.visibility]] : []);
+        const sigByStaff = Object.fromEntries((sigCounts[d.id] || []).map(s => [s.staff_id, s.signed_at]));
+        const signed = eligible.filter(s => sigByStaff[s.id]).map(s => ({ id: s.id, full_name: s.full_name, hire_date: s.hire_date, signed_at: sigByStaff[s.id] }));
+        const unsigned = eligible.filter(s => !sigByStaff[s.id]).map(s => ({ id: s.id, full_name: s.full_name, hire_date: s.hire_date }));
+        return { ...d, signed_count: signed.length, eligible_count: eligible.length, signed, unsigned };
+      });
       return res.json({ ok: true, docs: withCounts });
     }
 
