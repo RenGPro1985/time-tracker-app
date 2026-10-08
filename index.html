@@ -5558,7 +5558,7 @@ async function saveInvoiceSettingsForm(){
       const year=Number($('ptoYear').value);
       const data=await fetchOverview(year);
       const byId=Object.fromEntries(staffList.map(s=>[s.id,s]));
-      ptoRows=sortRows(data.map(c=>({calc:c,staff:byId[c.staff_id]})).filter(r=>r.staff&&r.staff.active));
+      ptoRows=sortRows(data.map(c=>({calc:c,staff:byId[c.staff_id]})).filter(r=>r.staff&&r.staff.active&&r.staff.role!=='admin'&&r.staff.client_id));
       populateClients(ptoRows);renderTable();
       const noHire=ptoRows.filter(r=>!r.staff.hire_date).length,neg=ptoRows.filter(r=>num(r.calc.available)<0);
       let msg=`As of ${nice(todayIso())} · ${ptoRows.length} active staff.`;
