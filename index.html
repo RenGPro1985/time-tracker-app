@@ -205,6 +205,25 @@ button.btn{padding:7px 12px;font-size:12px}
 .ad-productivity-table .bp{background:rgba(91,155,230,.10)}.ad-productivity-table th.bp{color:rgb(91,155,230)}.ad-productivity-table th.bp.grp{background:rgba(91,155,230,.22);border-top:3px solid rgb(91,155,230)}.ad-productivity-table .bp.first{border-left:2px solid rgba(91,155,230,.7)}
 .ad-productivity-table .bb{background:rgba(226,104,95,.10)}.ad-productivity-table th.bb{color:rgb(226,104,95)}.ad-productivity-table th.bb.grp{background:rgba(226,104,95,.22);border-top:3px solid rgb(226,104,95)}.ad-productivity-table .bb.first{border-left:2px solid rgba(226,104,95,.7)}
 
+/* PTO Credits + Contractor Profile */
+.pto-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.pto-table td,.pto-table th{white-space:nowrap}.pto-table th.c,.pto-table td.c{text-align:center}.mono{font-family:'IBM Plex Mono'}
+.pto-tag{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono'}
+.pto-chip{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600;background:rgba(139,144,160,.14);color:var(--muted)}
+.pto-chip.warn{background:rgba(227,166,62,.14);color:var(--gold)}.pto-chip.ok{background:rgba(63,191,174,.15);color:var(--teal)}
+.pto-bal{display:inline-block;min-width:38px;padding:2px 8px;border-radius:8px;font-weight:600;font-family:'IBM Plex Mono'}
+.pto-bal.pos{background:rgba(63,191,174,.15);color:var(--teal)}.pto-bal.zero{background:rgba(139,144,160,.12);color:var(--muted)}.pto-bal.neg{background:rgba(226,104,95,.15);color:var(--rose)}
+.pto-m{min-width:38px;text-align:center;font-family:'IBM Plex Mono';font-size:11px;border-left:1px solid var(--line);line-height:1.3}
+.pto-m.on{background:rgba(63,191,174,.10)}.pto-m.fut{background:repeating-linear-gradient(45deg,transparent 0 4px,rgba(255,255,255,.025) 4px 8px)}
+.pto-m span{display:block}.pto-plus{color:var(--teal)}.pto-minus{color:var(--rose)}.pto-used{color:var(--rose);font-size:10px}
+.pto-pending td{opacity:.7;font-style:italic}
+.pto-mini{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.pto-mini .v{font-size:18px}
+.pf-avatar{width:54px;height:54px;border-radius:16px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;color:var(--gold);font-size:20px;flex:none}
+.pf-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.pf-pto-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:10px}.pf-big .v{font-size:36px}
+.pf-bar{height:10px;background:rgba(255,255,255,.06);border-radius:99px;margin-top:12px;overflow:hidden}.pf-bar>div{height:100%;background:var(--gold)}
+@media(max-width:900px){.pto-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.pf-pto-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.pto-kpis,.pto-mini{grid-template-columns:repeat(2,minmax(0,1fr))}.pf-facts{grid-template-columns:1fr}.pf-pto-grid{grid-template-columns:1fr}}
 /* YTD Attendance: compact payroll-style table and rate editor */
 .ytd-summary{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:10px}
 .ytd-summary .stat{min-width:0}
@@ -278,6 +297,24 @@ button.btn{padding:7px 12px;font-size:12px}
   </div>
 </div>
 
+<div id="ptoLedgerOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:70;align-items:center;justify-content:center;padding:20px">
+  <div class="card" style="width:100%;max-width:560px;max-height:90vh;overflow-y:auto">
+    <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="font-size:15px" id="ptoLedgerTitle">PTO history</h3><div class="muted" id="ptoLedgerSub" style="font-size:12px;margin-top:3px"></div></div><button class="btn btn-ghost btn-icon" id="ptoLedgerClose" aria-label="Close">✕</button></div>
+    <div class="pto-mini" id="ptoLedgerStats"></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Date</th><th>Entry</th><th style="text-align:right">±</th><th style="text-align:right">Balance</th></tr></thead><tbody id="ptoLedgerRows"></tbody></table></div>
+    <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:4px">
+      <h3 style="font-size:13px;margin-top:10px">Manual adjustment</h3>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px"><label for="ptoAdjType">Type</label><select id="ptoAdjType"><option value="1">Add credit</option><option value="-1">Remove credit</option></select></div>
+        <div style="flex:1;min-width:110px"><label for="ptoAdjAmount">Amount</label><input id="ptoAdjAmount" type="number" min="0.5" step="0.5" value="0.5"></div>
+        <div style="flex:1;min-width:150px"><label for="ptoAdjDate">Effective date</label><input id="ptoAdjDate" type="date"></div>
+      </div>
+      <label for="ptoAdjReason">Reason (required, kept in history)</label>
+      <input id="ptoAdjReason" type="text" maxlength="500" placeholder="e.g. correction from old tracker">
+      <div class="row" style="margin-top:12px;gap:10px;align-items:center"><button class="btn btn-gold" id="ptoAdjSave">Save adjustment</button><span class="muted" id="ptoAdjMsg" style="font-size:12px"></span></div>
+    </div>
+  </div>
+</div>
 <div id="rejectReqOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:70;align-items:center;justify-content:center;padding:20px">
   <div class="card" style="width:100%;max-width:460px">
     <h3 style="font-size:15px;margin-bottom:8px">Reject request</h3>
@@ -808,6 +845,36 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div class="ytd-summary" id="ytdSummary"></div>
       </div>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Total Working Days = Mon–Fri calendar dates in the selected year (to date for the current year), within each person's employment window. Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus = total basic salary earned this year (by employment days × applicable rate) ÷ 12, per DOLE 13th-month rules.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Total working days</th><th>Days present</th><th>PTO</th><th>PCH</th><th>PA</th><th>OUT</th><th>Eligible basic earnings</th><th>Year End Bonus</th></tr></thead><tbody id="ytdTable"><tr><td colspan="9" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
+    </section>
+
+    <!-- ---------- ADMIN: PTO CREDITS ---------- -->
+    <section id="v-pto" class="hide grid" style="gap:12px">
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">PTO Credits</h3><div class="row" style="gap:7px;flex-wrap:wrap;align-items:center"><label for="ptoYear" style="margin:0">Year</label><select id="ptoYear" style="width:auto;min-width:92px"></select><label for="ptoClientFilter" style="margin:0">Client</label><select id="ptoClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select><button class="btn btn-ghost" id="ptoExport">Export CSV</button><button class="btn btn-gold" id="ptoRefresh">Refresh</button></div></div>
+        <div class="note" style="margin-bottom:9px">PTO starts after the 1-year anniversary, then +0.5 credit on every monthly anniversary date. Each weekday of an approved PTO request uses 1 credit, and pending requests are already taken out of Available. A year's credits expire after the last day of February the next year (Jan–Feb leave uses last year's credits first). Requests are whole days only, and staff can't submit more than they have available. Opening balances: earned is recalculated from the rule; used comes from the old tracker as of Oct 8, 2026.</div>
+        <div id="ptoStatus" class="muted" role="status" aria-live="polite" style="font-size:12px;margin-bottom:9px">Loading…</div>
+        <div class="pto-kpis" id="ptoKpis"></div>
+      </div>
+      <div class="card">
+        <div style="overflow-x:auto"><table class="pto-table"><thead><tr><th>Name</th><th>Hire date</th><th>PTO eligible from</th><th class="c">Earned</th><th class="c">Used</th><th class="c">Pending</th><th class="c">Available now</th><th class="c">Jan</th><th class="c">Feb</th><th class="c">Mar</th><th class="c">Apr</th><th class="c">May</th><th class="c">Jun</th><th class="c">Jul</th><th class="c">Aug</th><th class="c">Sep</th><th class="c">Oct</th><th class="c">Nov</th><th class="c">Dec</th><th></th></tr></thead><tbody id="ptoTable"><tr><td colspan="20" class="muted">Loading…</td></tr></tbody></table></div>
+        <div class="muted" style="font-size:11px;margin-top:8px;line-height:1.45">Month cells: teal = credits earned that month, rose = PTO days used. Earned / Used / months describe the selected year; Available is always as of today. Click ⋯ to see a person's PTO history or adjust their balance.</div>
+      </div>
+    </section>
+
+    <!-- ---------- STAFF: CONTRACTOR PROFILE ---------- -->
+    <section id="v-profile" class="hide grid" style="gap:12px">
+      <div class="card">
+        <div class="row" style="gap:14px;align-items:center"><div class="pf-avatar" id="pfAvatar">—</div><div><h3 style="font-size:19px" id="pfName">—</h3><div class="muted" style="font-size:12.5px" id="pfSub">Contractor</div></div></div>
+        <div class="pf-facts" id="pfFacts"></div>
+      </div>
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">🏖️ My PTO</h3><span id="pfBadge"></span></div>
+        <div id="pfPto"><div class="muted">Loading…</div></div>
+      </div>
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">PTO history</h3></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Date</th><th>What happened</th><th style="text-align:right">±</th><th style="text-align:right">Balance</th></tr></thead><tbody id="pfHistory"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody></table></div>
+      </div>
     </section>
 
     <!-- ---------- ADMIN: POLICY ---------- -->
@@ -2228,18 +2295,18 @@ const PAGES={
   'v-ledger':['🧾 Contractor Ledger','Contractor Ledger','Semi-monthly hours & pay pulled from the time tracker'],
   'v-invoice':['📄 Client Invoice','Client Invoice','Bi-weekly invoice built from the Timesheets Daily Hours Grid, per client'],
   'v-earning':['💰 SMB PH Earning','SMB PH Earning','Admin-only immutable per-semi-monthly-period FX + VSPH/ROI/margin LOCK IN'],
-  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests'], 'v-portal':['🗂️ Freelancer Hole','Freelancer Hole','Documents, contracts, and signatures'], 'v-ytd':['📅 YTD Attendance','YTD Attendance','Calendar-year attendance and Year End Bonus estimate']
+  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Advance & PTO','Advance & PTO Requests','Review and approve staff requests'], 'v-portal':['🗂️ Freelancer Hole','Freelancer Hole','Documents, contracts, and signatures'], 'v-ytd':['📅 YTD Attendance','YTD Attendance','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
 };
 let view='v-punch';
 function buildNav(){
-  const staffIds = ['v-punch',...(me.can_view_live_status?['v-status']:[]),...(me.can_view_adherence?['v-adherence']:[]),'v-ledger','v-req','v-portal'];
-  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-invoice','v-earning','v-reqadmin','v-policy','v-portal','v-ytd'] : staffIds;
+  const staffIds = ['v-punch',...(me.can_view_live_status?['v-status']:[]),...(me.can_view_adherence?['v-adherence']:[]),'v-ledger','v-req','v-profile','v-portal'];
+  const ids = me.role==='admin' ? ['v-punch','v-status','v-staff','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-invoice','v-earning','v-reqadmin','v-policy','v-portal','v-ytd','v-pto'] : staffIds;
   $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   go(view);
 }
 function go(v){
-  if(v==='v-ytd'&&me?.role!=='admin')v='v-punch';
+  if((v==='v-ytd'||v==='v-pto')&&me?.role!=='admin')v='v-punch';
   view=v;
   Object.keys(PAGES).forEach(id=>{const el=$(id); if(el) el.classList.add('hide');});
   $(v).classList.remove('hide');
@@ -2254,7 +2321,7 @@ function go(v){
   if(v==='v-corr'){loadCorrections();}
   if(v==='v-ledger'){initLedgerFilters();} if(v==='v-invoice'){initInvoiceFilters();}
   if(v==='v-earning'){initEarningFilters();}
-  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();} if(v==='v-ytd'){window.initYtdAttendance?.();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();}
 }
 
 /* clocks + running timers */
@@ -3654,7 +3721,7 @@ async function loadMyRequests(){
   myReqs=data||[];
   const {data:dd}=await sb.from('advance_deductions').select('*').eq('staff_id',me.id).order('cutoff_date',{ascending:true});
   myDeductions=dd||[];
-  $('reqPto').textContent=Number(me.pto_balance||0)+' days';
+  $('reqPto').textContent='…'; window.PTOCredits?.refreshRequestPto();
   $('reqSalAdvBal').textContent='₱'+outstanding('salary_advance').toLocaleString();
   $('reqCashAdvBal').textContent='₱'+outstanding('cash_advance').toLocaleString();
   renderRequests();
@@ -3680,6 +3747,11 @@ if($('reqType')){
     if(hasDateRange(t)){
       payload.start_date=$('reqStart').value; payload.end_date=$('reqEnd').value;
       if(!payload.start_date||!payload.end_date) return alert('Pick a start and end date.');
+      if(payload.end_date<payload.start_date) return alert('The end date must be on or after the start date.');
+      if(t==='pto'&&window.PTOCredits){
+        try{const chk=await window.PTOCredits.precheckPto(payload.start_date,payload.end_date); if(!chk.ok){$('reqMsg').textContent=chk.msg; return alert(chk.msg);}}
+        catch(e){return alert('Could not check your PTO balance: '+e.message);}
+      }
     }else{
       payload.amount=Number($('reqAmount').value||0);
       if(!payload.amount||payload.amount<=0) return alert('Enter an amount.');
@@ -5377,6 +5449,234 @@ async function saveInvoiceSettingsForm(){
   }
   window.YTDAttendanceMath={addMonths:ytdAddMonths,parseWorkdays:ytdParseWorkdays,ratesForDate:ytdRatesForDate,defaultPeriods:ytdDefaultPeriods,effectivePay:ytdGetEffectivePay,bonus:ytdBonus,rangeForYear:ytdRangeForYear,computeRows:ytdComputeRows,filterByClient:ytdFilterRowsByClient,autoStart:YTD_AUTO_START};
   window.initYtdAttendance=initYtdAttendance;
+})();
+</script>
+
+<script>
+/* ============================================================
+   PTO CREDITS (admin) + CONTRACTOR PROFILE (staff)
+   All PTO math lives in Supabase (pto_credits.sql): pto_overview, pto_ledger,
+   pto_check_request, admin_add_pto_adjustment + a trigger that blocks PTO requests
+   larger than Available. This file only displays those results.
+   ============================================================ */
+(function(){
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const PTO_MIGRATION_HINT='Run the PTO SQL migration (pto_credits.sql) in the Supabase SQL Editor.';
+  let ptoRows=[],ptoInit=false,ptoBusy=false,ptoLedgerStaff=null;
+  const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0;};
+  const fmtC=v=>{const n=num(v);return Number.isInteger(n)?String(n):n.toFixed(1);};
+  const esc=s=>escapeHtml(s==null?'':String(s));
+  const nice=iso=>iso?fmtNice(String(iso).slice(0,10)):'—';
+  const todayIso=()=>phDate(new Date());
+  const isMissingFn=e=>/function .*does not exist|Could not find the function|schema cache|pto_/i.test(String(e?.message||''))&&/(not exist|Could not find|schema cache)/i.test(String(e?.message||''));
+  const errText=e=>isMissingFn(e)?`The PTO database functions are not installed yet. ${PTO_MIGRATION_HINT}`:String(e?.message||e);
+  function clientName(id){return (clients.find(c=>c.id===id)||{}).name||'';}
+  function tenure(hire){
+    if(!hire)return '—';
+    const t=todayIso();let y=Number(t.slice(0,4))-Number(hire.slice(0,4)),m=Number(t.slice(5,7))-Number(hire.slice(5,7));
+    if(Number(t.slice(8,10))<Number(hire.slice(8,10)))m--; if(m<0){y--;m+=12;}
+    if(y<0)return '—';
+    return (y?`${y} yr${y>1?'s':''} `:'')+`${m} mo${m===1?'':'s'}`;
+  }
+  function daysBetween(a,b){return Math.round((new Date(b+'T00:00:00Z')-new Date(a+'T00:00:00Z'))/86400000);}
+
+  async function fetchOverview(year){
+    const {data,error}=await sb.rpc('pto_overview',{p_year:year});
+    if(error)throw error;
+    return (data||[]).map(r=>typeof r==='string'?JSON.parse(r):r).filter(Boolean);
+  }
+  async function fetchLedger(staffId){
+    const {data,error}=await sb.rpc('pto_ledger',{p_staff_id:staffId});
+    if(error)throw error;
+    // running balance, oldest first; same-day: credits/adjustments before usage
+    const order={credit:0,import_used:1,manual:1,expired:2,leave:3};
+    const rows=(data||[]).slice().sort((a,b)=>String(a.entry_date).localeCompare(String(b.entry_date))||(order[a.kind]??5)-(order[b.kind]??5));
+    let bal=0;rows.forEach(r=>{bal+=num(r.amount);r.balance=bal;});
+    return rows;
+  }
+  function ledgerRowsHtml(rows,emptyText){
+    if(!rows.length)return `<tr><td colspan="4" class="muted">${esc(emptyText)}</td></tr>`;
+    return rows.slice().reverse().map(r=>{
+      const a=num(r.amount),cls=a>0?'pto-plus':'pto-minus',pending=r.status==='pending';
+      return `<tr${pending?' class="pto-pending"':''}><td>${nice(r.entry_date)}</td><td>${esc(r.label)}</td><td style="text-align:right" class="${cls}">${a>0?'+':'−'}${fmtC(Math.abs(a))}</td><td style="text-align:right;font-family:'IBM Plex Mono'">${fmtC(r.balance)}</td></tr>`;
+    }).join('');
+  }
+
+  /* ---------------- ADMIN TAB ---------------- */
+  function sortRows(rows){
+    return rows.slice().sort((a,b)=>{
+      const ca=clientName(a.staff.client_id)||'~',cb=clientName(b.staff.client_id)||'~';
+      return ca.localeCompare(cb)||String(a.staff.hire_date||'9999').localeCompare(String(b.staff.hire_date||'9999'))||String(a.staff.full_name||'').localeCompare(String(b.staff.full_name||''));
+    });
+  }
+  function populateClients(rows){
+    const sel=$('ptoClientFilter'),prev=sel.value||'__all__';
+    const map=new Map();rows.forEach(r=>{const n=clientName(r.staff.client_id);map.set(r.staff.client_id||'__none__',n||'No client');});
+    const opts=[['__all__','All clients'],...[...map.entries()].sort((a,b)=>a[1].localeCompare(b[1]))];
+    sel.innerHTML=opts.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('');
+    sel.value=opts.some(o=>o[0]===prev)?prev:'__all__';
+  }
+  function filtered(){
+    const v=$('ptoClientFilter').value;
+    return v==='__all__'?ptoRows:ptoRows.filter(r=>(r.staff.client_id||'__none__')===v);
+  }
+  function renderKpis(rows){
+    const sum=k=>rows.reduce((a,r)=>a+num(r.calc[k]),0);
+    const elig=rows.filter(r=>r.calc.eligible).length,noHire=rows.filter(r=>!r.staff.hire_date).length,neg=rows.filter(r=>num(r.calc.available)<0).length;
+    const k=(l,v,c)=>`<div class="stat"><div class="k">${l}</div><div class="v"${c?` style="color:${c}"`:''}>${v}</div></div>`;
+    $('ptoKpis').innerHTML=k('Active staff',rows.length)+k('PTO-eligible (1 yr+)',elig,'var(--teal)')+k('Earned '+$('ptoYear').value,fmtC(sum('earned')))+k('Used '+$('ptoYear').value,fmtC(sum('used')),'var(--rose)')+k('Available now',fmtC(sum('available')),'var(--teal)')+k(neg?'Negative balance':'Needs hire date',neg?neg:noHire,'var(--gold)');
+  }
+  function renderTable(){
+    const rows=filtered(),year=Number($('ptoYear').value),t=todayIso(),curY=Number(t.slice(0,4)),curM=Number(t.slice(5,7));
+    renderKpis(rows);
+    if(!rows.length){$('ptoTable').innerHTML='<tr><td colspan="20" class="muted">No active staff for this filter.</td></tr>';return;}
+    $('ptoTable').innerHTML=rows.map(r=>{
+      const s=r.staff,c=r.calc,av=num(c.available);
+      let elig;
+      if(!s.hire_date)elig='<span class="pto-chip warn">⚠ Hire date missing</span>';
+      else if(c.eligible)elig=`<span class="muted">${nice(c.eligible_date)}</span>`;
+      else elig=`<span class="pto-chip">in ${daysBetween(t,c.eligible_date)} days</span>`;
+      const me_=c.months_earned||[],mu=c.months_used||[];
+      const cells=MONTHS.map((_,i)=>{
+        const e=num(me_[i]),u=num(mu[i]),fut=year>curY||(year===curY&&i+1>curM);
+        return `<td class="pto-m${e?' on':''}${fut?' fut':''}">${e?`<span class="pto-plus">+${fmtC(e)}</span>`:''}${u?`<span class="pto-used">−${fmtC(u)}</span>`:''}</td>`;
+      }).join('');
+      const avCls=av<0?'neg':av>0?'pos':'zero';
+      return `<tr><td><div style="font-weight:600">${esc(s.full_name)}</div><span class="pto-tag">${esc(clientName(s.client_id)||'No client')}</span></td>
+<td class="muted">${nice(s.hire_date)}</td><td>${elig}</td>
+<td class="c mono">${s.hire_date?fmtC(c.earned):'—'}</td><td class="c mono pto-minus">${num(c.used)?fmtC(c.used):'—'}</td><td class="c mono muted">${num(c.pending)?fmtC(c.pending):'—'}</td>
+<td class="c"><span class="pto-bal ${avCls}">${s.hire_date||num(c.available)?fmtC(av):'—'}</span></td>${cells}
+<td><button class="btn btn-ghost btn-icon" data-pto-open="${esc(s.id)}" aria-label="PTO history for ${esc(s.full_name)}">⋯</button></td></tr>`;
+    }).join('');
+    $('ptoTable').querySelectorAll('[data-pto-open]').forEach(b=>b.onclick=()=>openLedger(b.dataset.ptoOpen));
+  }
+  async function ptoRun(){
+    if(me?.role!=='admin')return;
+    if(ptoBusy)return;ptoBusy=true;
+    $('ptoStatus').textContent='Loading…';$('ptoRefresh').disabled=true;
+    try{
+      const year=Number($('ptoYear').value);
+      const data=await fetchOverview(year);
+      const byId=Object.fromEntries(staffList.map(s=>[s.id,s]));
+      ptoRows=sortRows(data.map(c=>({calc:c,staff:byId[c.staff_id]})).filter(r=>r.staff&&r.staff.active));
+      populateClients(ptoRows);renderTable();
+      const noHire=ptoRows.filter(r=>!r.staff.hire_date).length,neg=ptoRows.filter(r=>num(r.calc.available)<0);
+      let msg=`As of ${nice(todayIso())} · ${ptoRows.length} active staff.`;
+      if(noHire)msg+=` ${noHire} without a hire date (add it in Staff & Clients to start their PTO).`;
+      if(neg.length)msg+=` Negative balance: ${neg.map(r=>r.staff.full_name).join(', ')} (future credits pay it back).`;
+      $('ptoStatus').textContent=msg;
+    }catch(e){
+      ptoRows=[];$('ptoTable').innerHTML='<tr><td colspan="20" class="muted">Could not load PTO data.</td></tr>';$('ptoKpis').innerHTML='';
+      $('ptoStatus').textContent=errText(e);
+    }finally{ptoBusy=false;$('ptoRefresh').disabled=false;}
+  }
+  function exportCsv(){
+    const rows=filtered();if(!rows.length)return;
+    const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+    const head=['Name','Client','Hire date','PTO eligible from','Earned','Used','Pending','Available now',...MONTHS.map(m=>m+' earned')];
+    const lines=[head.map(q).join(',')].concat(rows.map(r=>[r.staff.full_name,clientName(r.staff.client_id),r.staff.hire_date||'',r.calc.eligible_date||'',fmtC(r.calc.earned),fmtC(r.calc.used),fmtC(r.calc.pending),fmtC(r.calc.available),...(r.calc.months_earned||[]).map(fmtC)].map(q).join(',')));
+    const blob=new Blob([lines.join('\n')],{type:'text/csv'});const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=`pto-credits-${$('ptoYear').value}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  }
+  async function openLedger(staffId){
+    const row=ptoRows.find(r=>r.staff.id===staffId);if(!row)return;
+    ptoLedgerStaff=staffId;
+    const s=row.staff,c=row.calc;
+    $('ptoLedgerTitle').textContent='PTO history · '+s.full_name;
+    $('ptoLedgerSub').textContent=`${clientName(s.client_id)||'No client'} · Hired ${nice(s.hire_date)} · ${c.eligible?'eligible since':'eligible on'} ${nice(c.eligible_date)}`;
+    const st=(l,v,cl)=>`<div class="stat"><div class="k">${l}</div><div class="v ${cl||''}">${v}</div></div>`;
+    $('ptoLedgerStats').innerHTML=st('Earned '+c.year,fmtC(c.earned))+st('Used '+c.year,fmtC(c.used),'pto-minus')+st('Pending',fmtC(c.pending))+st('Available',fmtC(c.available),num(c.available)<0?'pto-minus':'pto-plus');
+    $('ptoLedgerRows').innerHTML='<tr><td colspan="4" class="muted">Loading…</td></tr>';
+    $('ptoAdjType').value='1';$('ptoAdjAmount').value='0.5';$('ptoAdjReason').value='';$('ptoAdjDate').value=todayIso();$('ptoAdjMsg').textContent='';$('ptoAdjSave').disabled=false;
+    $('ptoLedgerOverlay').style.display='flex';
+    try{$('ptoLedgerRows').innerHTML=ledgerRowsHtml(await fetchLedger(staffId),'No PTO activity yet.');}
+    catch(e){$('ptoLedgerRows').innerHTML=`<tr><td colspan="4" class="muted">${esc(errText(e))}</td></tr>`;}
+  }
+  function closeLedger(){ptoLedgerStaff=null;$('ptoLedgerOverlay').style.display='none';}
+  async function saveAdjustment(){
+    if(!ptoLedgerStaff||me?.role!=='admin')return;
+    const amt=Number($('ptoAdjAmount').value),sign=Number($('ptoAdjType').value),reason=$('ptoAdjReason').value.trim(),date=$('ptoAdjDate').value;
+    if(!Number.isFinite(amt)||amt<=0||Math.round(amt*2)!==amt*2){$('ptoAdjMsg').textContent='Amount must be 0.5, 1, 1.5 …';return;}
+    if(!reason){$('ptoAdjMsg').textContent='Enter a reason.';$('ptoAdjReason').focus();return;}
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){$('ptoAdjMsg').textContent='Pick an effective date.';return;}
+    const staffId=ptoLedgerStaff;
+    $('ptoAdjSave').disabled=true;$('ptoAdjMsg').textContent='Saving…';
+    const {error}=await sb.rpc('admin_add_pto_adjustment',{p_staff_id:staffId,p_amount:sign*amt,p_reason:reason,p_effective_date:date});
+    if(error){$('ptoAdjSave').disabled=false;$('ptoAdjMsg').textContent=errText(error);return;}
+    await ptoRun();
+    if(ptoRows.some(r=>r.staff.id===staffId))await openLedger(staffId);
+    $('ptoAdjMsg').textContent='Saved.';
+  }
+  function initPtoCredits(){
+    if(me?.role!=='admin'){go('v-punch');return;}
+    if(!ptoInit){
+      const y=Number(todayIso().slice(0,4)),years=[];for(let i=y;i>=2026;i--)years.push(i);
+      $('ptoYear').innerHTML=years.map(v=>`<option value="${v}">${v}</option>`).join('');$('ptoYear').value=String(y);
+      $('ptoYear').onchange=ptoRun;$('ptoClientFilter').onchange=renderTable;$('ptoRefresh').onclick=ptoRun;$('ptoExport').onclick=exportCsv;
+      $('ptoLedgerClose').onclick=closeLedger;$('ptoLedgerOverlay').onclick=e=>{if(e.target===$('ptoLedgerOverlay'))closeLedger();};
+      $('ptoAdjSave').onclick=saveAdjustment;
+      ptoInit=true;
+    }
+    ptoRun();
+  }
+
+  /* ---------------- STAFF: CONTRACTOR PROFILE ---------------- */
+  async function initContractorProfile(){
+    if(!me)return;
+    const initials=String(me.full_name||'?').split(/[\s,]+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+    $('pfAvatar').textContent=initials||'?';$('pfName').textContent=me.full_name||'—';
+    $('pfSub').textContent='Contractor'+(clientName(me.client_id)?' · '+clientName(me.client_id):'');
+    const f=(l,v,c)=>`<div class="stat"><div class="k">${l}</div><div style="font-weight:600;margin-top:4px${c?';color:'+c:''}">${v}</div></div>`;
+    $('pfFacts').innerHTML=f('Hire date',nice(me.hire_date))+f('Tenure',tenure(me.hire_date))+f('Status',me.active===false?'Inactive':'Active',me.active===false?'var(--rose)':'var(--teal)');
+    $('pfPto').innerHTML='<div class="muted">Loading…</div>';$('pfBadge').innerHTML='';$('pfHistory').innerHTML='<tr><td colspan="4" class="muted">Loading…</td></tr>';
+    try{
+      const [rows,ledger]=await Promise.all([fetchOverview(Number(todayIso().slice(0,4))),fetchLedger(me.id)]);
+      const c=rows[0];if(!c)throw new Error('No PTO record found.');
+      const t=todayIso();
+      if(!me.hire_date){
+        $('pfBadge').innerHTML='<span class="pto-chip warn">Hire date not set</span>';
+        $('pfPto').innerHTML='<div class="note">Your hire date is not in the portal yet, so your PTO can\'t be calculated. Please ask an admin to add it.</div>';
+      }else if(!c.eligible){
+        const total=Math.max(1,daysBetween(me.hire_date,c.eligible_date)),left=Math.max(0,daysBetween(t,c.eligible_date)),pct=Math.min(100,Math.round((total-left)/total*100));
+        $('pfBadge').innerHTML='<span class="pto-chip">Not yet eligible</span>';
+        $('pfPto').innerHTML=`<div class="stat"><div class="k">You start earning PTO on</div><div style="font-family:'Space Grotesk';font-size:24px;font-weight:600;margin-top:4px">${nice(c.eligible_date)}</div>
+<div class="pf-bar"><div style="width:${pct}%"></div></div><div class="row" style="justify-content:space-between;margin-top:6px"><span class="muted" style="font-size:12px">Hired ${nice(me.hire_date)}</span><span class="muted" style="font-size:12px">${left} day${left===1?'':'s'} to go</span></div></div>
+<div class="muted" style="font-size:12.5px;margin-top:10px">After your 1-year anniversary you earn <b style="color:var(--ink)">0.5 PTO credit every month</b>. Your balance will show here.</div>`;
+      }else{
+        const av=num(c.available),m=Number(t.slice(5,7));
+        const exp=num(c.expiring_amount)>0&&c.expiring_on?`<div class="${m<=2?'note':'muted'}" style="font-size:12.5px;margin-top:10px">${fmtC(c.expiring_amount)} credit${num(c.expiring_amount)===1?'':'s'} expire${num(c.expiring_amount)===1?'s':''} after ${nice(c.expiring_on)} if not used.</div>`:'';
+        $('pfBadge').innerHTML='<span class="pto-chip ok">✓ Earning PTO</span>';
+        $('pfPto').innerHTML=`<div class="pf-pto-grid">
+<div class="stat pf-big"><div class="k">Available to use</div><div class="v ${av<0?'pto-minus':'pto-plus'}">${fmtC(av)}</div><div class="muted" style="font-size:11.5px">1 credit = 1 paid day off · whole days only</div></div>
+<div class="stat"><div class="k">Earned in ${c.year}</div><div class="v">${fmtC(c.earned)}</div></div>
+<div class="stat"><div class="k">Used in ${c.year}</div><div class="v pto-minus">${fmtC(c.used)}</div></div>
+<div class="stat"><div class="k">Pending approval</div><div class="v muted">${fmtC(c.pending)}</div></div></div>
+<div class="row" style="justify-content:space-between;margin-top:12px;gap:10px;flex-wrap:wrap"><div class="muted" style="font-size:12.5px">${c.next_credit?`Next credit: <b style="color:var(--ink)">+0.5 on ${nice(c.next_credit)}</b> · `:''}You earn 0.5 PTO credit every month.</div><button class="btn btn-gold" id="pfRequestPto">Request PTO →</button></div>${exp}`;
+        const b=$('pfRequestPto');if(b)b.onclick=()=>{go('v-req');if($('reqType')){$('reqType').value='pto';$('reqType').onchange?.();}};
+      }
+      $('pfHistory').innerHTML=ledgerRowsHtml(ledger,'No PTO activity yet.');
+    }catch(e){
+      $('pfPto').innerHTML=`<div class="muted">${esc(errText(e))}</div>`;$('pfHistory').innerHTML='<tr><td colspan="4" class="muted">—</td></tr>';
+    }
+  }
+
+  /* ---------------- REQUEST TAB: live PTO balance + pre-check ---------------- */
+  async function refreshRequestPto(){
+    const el=$('reqPto');if(!el||!me)return;
+    try{const rows=await fetchOverview(Number(todayIso().slice(0,4)));const c=rows[0];el.textContent=c?`${fmtC(c.available)} available`:'—';}
+    catch(e){el.textContent='—';}
+  }
+  async function precheckPto(start,end){
+    const {data,error}=await sb.rpc('pto_check_request',{p_start:start,p_end:end});
+    if(error){if(isMissingFn(error))return {ok:true};throw error;}
+    const r=typeof data==='string'?JSON.parse(data):data;
+    if(r&&r.ok===false){
+      if(!r.eligible)return {ok:false,msg:`Not enough PTO: you start earning PTO on ${r.eligible_date?nice(r.eligible_date):'your 1-year anniversary'}.`};
+      return {ok:false,msg:`Not enough PTO: this request needs ${fmtC(r.days)} day(s) but you have ${fmtC(r.available)} available. Half credits can't be used until they add up to a full day.`};
+    }
+    return {ok:true};
+  }
+  window.PTOCredits={initPtoCredits,initContractorProfile,refreshRequestPto,precheckPto,_fmt:fmtC};
 })();
 </script>
 
