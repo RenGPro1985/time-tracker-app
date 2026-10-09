@@ -5867,7 +5867,7 @@ async function saveInvoiceSettingsForm(){
 (function(){
   const money=v=>'₱'+Number(v||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
   const EXTRAS_TABLE='contract_fee_extras';
-  const DAYS=22, DEFAULT_MILESTONE=5000;
+  const DAYS=22, DEFAULT_MILESTONE=5000, DEFAULT_COMPLETION=1000; /* Completion Bonus: ₱1,000/month for every staff [Rendy, 2026-10-08] */
   /* Recurring monthly items, read from active SMB Benefits rules assigned to the staff member. */
   const MONTHLY_KEYS=['completion_bonus','meal_allowance','statutory_allowance','workspace_allowance','scope_differential'];
   const LABEL=Object.fromEntries(LEDGER_EXTRA_FIELDS.map(f=>[f.key,f.label]));
@@ -5910,9 +5910,10 @@ async function saveInvoiceSettingsForm(){
     for(const key of MONTHLY_KEYS){
       if(key==='scope_differential'&&scopeOverride)continue;
       const match=(rules||[]).filter(r=>r.field_key===key&&r.active&&(r.pay_15th||r.pay_eom)&&(r.staff_scope==='all'||(r.staff_ids||[]).includes(staff.id)));
-      if(!match.length)continue;
       let mid=0,eom=0;match.forEach(r=>{const a=Number(r.amount||0);if(r.pay_15th)mid+=a;if(r.pay_eom)eom+=a;});
-      if(mid+eom<=0)continue;
+      /* Completion Bonus always counts: use the SMB Benefits rule amount if one is set, else the standard ₱1,000 on the 15th. */
+      if(key==='completion_bonus'&&mid+eom<=0){lines.push({label:LABEL[key],paid:'mid',amount:DEFAULT_COMPLETION,mid:DEFAULT_COMPLETION,eom:0});continue;}
+      if(!match.length||mid+eom<=0)continue;
       const paid=mid&&eom?'both':mid?'mid':'eom';
       if(TENURE_GATED.has(key)&&!eligibleAfterOneMonth(staff.hire_date,todayIso)){
         notIn.push({label:LABEL[key],sub:staff.hire_date?`starts ${fmtNice(oneMonthAfter(staff.hire_date))}`:'starts 1 month after hire date',amount:mid+eom});
