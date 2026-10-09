@@ -537,6 +537,7 @@ button.btn{padding:7px 12px;font-size:12px}
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Staff roster</h3>
           <div class="row" style="gap:8px">
+            <select id="staffStatusFilter" style="width:auto" aria-label="Show active or inactive staff"><option value="active">Active staff</option><option value="inactive">Inactive staff</option><option value="all">All staff</option></select>
             <select id="staffClientFilter" style="width:auto"></select>
             <button class="btn btn-teal" id="saveStaffTable">Save changes</button>
             <button class="btn btn-gold" id="toggleAdd">+ Add staff</button>
@@ -567,7 +568,7 @@ button.btn{padding:7px 12px;font-size:12px}
             <div class="mono" id="addPwVal" style="font-size:18px;margin-top:6px;color:var(--teal)"></div>
           </div>
         </div>
-        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Term / Resignation</th><th>Tenure</th><th>Client</th><th>Monthly rate</th><th title="Calculated as (Monthly rate / 22) / 8">PHP Rate</th><th title="Hourly rate in US dollars">USD Rate</th><th title="Unticking removes them from Timesheets, the Contractor Ledger, and SMB Benefits staff pickers without deleting their account or history.">Active</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
+        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Term / Resignation</th><th>Tenure</th><th>Client</th><th>Monthly rate</th><th title="Calculated as (Monthly rate / 22) / 8">PHP Rate</th><th title="Hourly rate in US dollars">USD Rate</th><th title="What a full standard month pays: contract fee + estimated night differential + monthly benefits. Same total the staff sees on My Contract Fee. Hover a value for the breakdown.">Monthly Contract Fee</th><th title="Unticking removes them from Timesheets, the Contractor Ledger, and SMB Benefits staff pickers without deleting their account or history.">Active</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Bulk add staff</h3><button class="btn btn-ghost" id="toggleBulk">Open</button></div>
@@ -868,7 +869,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div class="pf-facts" id="pfFacts"></div>
       </div>
       <div class="card" id="pfFeeCard">
-        <div class="hdr" style="gap:10px;flex-wrap:wrap"><div><h3 style="font-size:15px">💰 My Monthly Fee</h3><div class="muted" style="font-size:12.5px;margin-top:3px">Your total monthly compensation, before Fee Advance / Adjustments deductions</div></div><select id="pfFeeMonth" style="width:auto;min-width:160px"></select></div>
+        <div class="hdr"><div><h3 style="font-size:15px">💰 My Contract Fee</h3><div class="muted" style="font-size:12.5px;margin-top:3px">A full standard month: every contracted hour worked, no absences or undertime</div></div></div>
         <div id="pfFee" style="overflow-x:auto"><div class="muted">Loading…</div></div>
       </div>
       <div class="card">
@@ -2360,7 +2361,7 @@ function go(v){
   if(v==='v-corr'){loadCorrections();}
   if(v==='v-ledger'){initLedgerFilters();} if(v==='v-invoice'){initInvoiceFilters();}
   if(v==='v-earning'){initEarningFilters();}
-  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.MonthlyFee?.init();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();}
 }
 
 /* clocks + running timers */
@@ -2914,7 +2915,9 @@ function renderStaffAdmin(){
   $('staffClientFilter').value=prevFilter&&[...$('staffClientFilter').options].some(o=>o.value===prevFilter)?prevFilter:'';
   const fc=$('staffClientFilter').value;
 
+  const fs=$('staffStatusFilter')?$('staffStatusFilter').value:'all';
   const ordered=tenureSortedStaff(staffList)
+    .filter(s=>fs==='all'||(fs==='active'?!!s.active:!s.active))
     .filter(s=>!fc||(fc==='__none__'?!s.client_id:s.client_id===fc));
 
   $('staffTable').innerHTML=ordered.length?ordered.map(s=>{
@@ -2927,16 +2930,18 @@ function renderStaffAdmin(){
     <td><input type="number" min="0" step="0.01" data-rate="${s.id}" value="${s.monthly_rate||0}" style="width:100px"></td>
     <td class="mono"><span data-php-rate="${s.id}" title="(Monthly rate / 22) / 8">₱${phpHourlyRate(s.monthly_rate)}</span></td>
     <td><input type="number" min="0" step="0.01" data-usd-rate="${s.id}" value="${s.usd_hourly_rate||0}" style="width:90px" aria-label="USD hourly rate for ${escapeHtml(s.full_name)}"></td>
+    <td style="white-space:nowrap"><span class="mono" data-mcf-val="${s.id}" style="color:var(--gold)">…</span> <button class="btn btn-ghost" data-mcf-extras="${s.id}" style="padding:3px 8px;font-size:11px">Extras</button></td>
     <td style="text-align:center"><input type="checkbox" data-active="${s.id}" ${s.active?'checked':''} style="width:auto" aria-label="Active — ${escapeHtml(s.full_name)}"></td>
     <td style="text-align:right;gap:6px;justify-content:flex-end" class="row">
       <button class="btn btn-ghost btn-icon" data-temp="${s.id}" title="Set new password" aria-label="Set new password"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-9.6 9.6"></path><path d="M15.5 7.5l3 3L22 7l-3-3"></path><circle cx="7.5" cy="16.5" r="5.5"></circle></svg></button>
       <button class="btn btn-rose btn-icon" data-del="${s.id}" title="Delete staff" aria-label="Delete staff"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
     </td></tr>`;}).join('')
-    :`<tr><td colspan="11" class="muted">No staff match this filter.</td></tr>`;
+    :`<tr><td colspan="12" class="muted">No staff match this filter.</td></tr>`;
   /* Editable fields (hire date, client assignment, USD rate, monthly rate, PTO) no longer
      save on every change — they're staged and only written to Supabase when "Save changes"
      is clicked, below. PHP Rate is derived from the staged Monthly rate and never stored. */
   $('staffTable').querySelectorAll('[data-rate]').forEach(input=>input.addEventListener('input',refreshPhpRates));
+  window.ContractFee?.wireRoster();
   $('staffTable').querySelectorAll('[data-temp]').forEach(b=>b.onclick=async()=>{
     const pw=prompt('Set a new password for this person (min 6 characters). Leave blank to auto-generate a random one instead:');
     if(pw===null)return; // cancelled
@@ -3013,6 +3018,7 @@ $('saveStaffTable').onclick=async()=>{
   setTimeout(()=>{$('staffSaveMsg').textContent='';},2500);
 };
 $('staffClientFilter').onchange=renderStaffAdmin;
+$('staffStatusFilter').onchange=renderStaffAdmin;
 $('toggleClient').onclick=()=>$('clientForm').classList.toggle('hide');
 $('cancelClient').onclick=()=>$('clientForm').classList.add('hide');
 $('saveClient').onclick=async()=>{
@@ -5766,92 +5772,11 @@ async function saveInvoiceSettingsForm(){
 </script>
 <script>
 /* ============================================================
-   MY MONTHLY FEE (staff Contractor Profile) + ROSTER → YTD RATE SYNC
+   ROSTER → YTD RATE SYNC
    [Rendy DM, 2026-10-08]
    ============================================================ */
 (function(){
   const money=v=>'₱'+Number(v||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const pad=n=>String(n).padStart(2,'0');
-  const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const MONTH_LONG=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  /* Every pay line on the Contractor Ledger except the two deductions (Fee Advance, Adjustments). */
-  function feeLines(){
-    return [
-      {label:'Total Contract Fee',get:r=>r.regularPay},
-      {label:'Extended-Hours Fee Differential (Pay)',get:r=>r.nightPremium},
-      {label:'Extended-Hours (Pay)',get:r=>r.otPay},
-      {label:'PCH/PTO Pay',get:r=>r.pchPtoPay},
-      ...LEDGER_EXTRA_FIELDS.filter(f=>f.group==='addon').map(f=>({label:f.label,get:r=>r.extras?r.extras[f.key]:null}))
-    ];
-  }
-  /* The two payouts paid in calendar month y-m: the 15th (work Prev 21 – 4) and month-end (work 5 – 20). */
-  function payoutsForMonth(y,m){
-    const py=m===1?y-1:y,pm=m===1?12:m-1,ld=lastDayOfMonth(y,m);
-    const list=[
-      {start:`${py}-${pad(pm)}-21`,end:`${y}-${pad(m)}-04`},
-      {start:`${y}-${pad(m)}-05`,end:`${y}-${pad(m)}-20`}
-    ];
-    return list.map(p=>{const cutoff=payoutCutoffFor(p.end);const d=Number(cutoff.slice(8,10));
-      return {...p,cutoff,label:`${MON[m-1]} ${d} payout`,work:`Work ${MON[Number(p.start.slice(5,7))-1]} ${Number(p.start.slice(8,10))}–${MON[Number(p.end.slice(5,7))-1]} ${Number(p.end.slice(8,10))}`};});
-  }
-  function monthOptions(staff){
-    const today=phDate(new Date());let y=Number(today.slice(0,4)),m=Number(today.slice(5,7));
-    const hire=(staff&&/^\d{4}-\d{2}-\d{2}$/.test(staff.hire_date||''))?staff.hire_date.slice(0,7):null;
-    const out=[];
-    for(let i=0;i<12;i++){
-      const key=`${y}-${pad(m)}`;
-      out.push({key,label:`${MONTH_LONG[m-1]} ${y}`});
-      if(hire&&key<=hire)break;
-      m--;if(m===0){m=12;y--;}
-    }
-    return out;
-  }
-  let gen=0,inited=false;
-  async function render(){
-    const box=document.getElementById('pfFee'),sel=document.getElementById('pfFeeMonth');
-    if(!box||!sel||!me)return;
-    const my=++gen;
-    const [y,m]=sel.value.split('-').map(Number);
-    box.innerHTML='<div class="muted">Loading…</div>';
-    try{
-      const payouts=payoutsForMonth(y,m),today=phDate(new Date());
-      const rows=[];
-      for(const p of payouts){const r=await computeLedgerRowsForPeriod([me],p.start,p.end);rows.push(r[0]||null);}
-      if(my!==gen)return;
-      const lines=feeLines();
-      const cell=v=>v===null||v===undefined?'<td class="mono" style="text-align:right">—</td>':`<td class="mono" style="text-align:right">${money(v)}</td>`;
-      const totals=rows.map(r=>r?lines.reduce((a,l)=>a+(Number(l.get(r))||0),0):0);
-      const body=lines.map(l=>{
-        const vals=rows.map(r=>r?l.get(r):null);
-        const any=vals.some(v=>v!==null&&v!==undefined);
-        const month=any?vals.reduce((a,v)=>a+(Number(v)||0),0):null;
-        return `<tr><td>${escapeHtml(l.label)}</td>${vals.map(cell).join('')}${cell(month)}</tr>`;
-      }).join('');
-      const status=payouts.map((p,i)=>{
-        const r=rows[i];
-        if(r&&r.frozen)return '<span class="pto-chip ok">PAID</span>';
-        if(today<p.start)return '<span class="pto-chip">Not started</span>';
-        return '<span class="pto-chip warn">Estimate</span>';
-      });
-      box.innerHTML=`<table style="margin-top:10px"><thead><tr><th>Fee item</th>${payouts.map(p=>`<th style="text-align:right">${p.label}<div class="muted" style="font-weight:400;font-size:11px">${p.work}</div></th>`).join('')}<th style="text-align:right">Month total</th></tr></thead>
-<tbody>${body}
-<tr style="border-top:2px solid var(--gold,#c9a227)"><td style="font-weight:700">TOTAL MONTHLY FEE</td>${totals.map(t=>`<td class="mono" style="text-align:right;font-weight:700">${money(t)}</td>`).join('')}<td class="mono" style="text-align:right;font-weight:800;font-size:15px;color:var(--gold,#c9a227)">${money(totals[0]+totals[1])}</td></tr>
-<tr><td class="muted">Status</td>${status.map(s=>`<td style="text-align:right">${s}</td>`).join('')}<td></td></tr></tbody></table>
-<div class="note" style="margin-top:12px;font-size:12.5px">These numbers use the same calculation as your Contractor Ledger. A PAID payout shows the final paid amounts. An Estimate can still change until that payout is marked PAID. Fee Advance and Adjustments deductions are not subtracted here.</div>`;
-    }catch(e){
-      if(my!==gen)return;
-      box.innerHTML=`<div class="muted">Could not load your monthly fee: ${escapeHtml(e.message||String(e))}</div>`;
-    }
-  }
-  function init(){
-    const sel=document.getElementById('pfFeeMonth');if(!sel||!me)return;
-    const opts=monthOptions(me),prev=sel.value;
-    sel.innerHTML=opts.map(o=>`<option value="${o.key}">${o.label}</option>`).join('');
-    if(prev&&opts.some(o=>o.key===prev))sel.value=prev;
-    if(!inited){sel.onchange=render;inited=true;}
-    render();
-  }
-  window.MonthlyFee={init,_payoutsForMonth:payoutsForMonth,_feeLines:feeLines,_monthOptions:monthOptions};
 
   /* ---------------- ROSTER → YTD RATE HISTORY ---------------- */
   const RATE_TABLE='ytd_attendance_rates';
@@ -5931,6 +5856,210 @@ async function saveInvoiceSettingsForm(){
   window.RateSync={askEffectiveDate,syncYtd,planFor};
 })();
 
+</script>
+
+<script>
+/* ============================================================
+   MY CONTRACT FEE (staff Contractor Profile) + MONTHLY CONTRACT FEE roster column
+   [Rendy DM, 2026-10-08] A full standard month: every contracted hour worked, no
+   absences/undertime. Display only: never writes payroll, Ledger or ledger_extras.
+   ============================================================ */
+(function(){
+  const money=v=>'₱'+Number(v||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const EXTRAS_TABLE='contract_fee_extras';
+  const DAYS=22, DEFAULT_MILESTONE=5000;
+  /* Recurring monthly items, read from active SMB Benefits rules assigned to the staff member. */
+  const MONTHLY_KEYS=['completion_bonus','meal_allowance','statutory_allowance','workspace_allowance','scope_differential'];
+  const LABEL=Object.fromEntries(LEDGER_EXTRA_FIELDS.map(f=>[f.key,f.label]));
+  const TENURE_GATED=new Set(['meal_allowance','statutory_allowance']);
+  const PAID_ON={mid:'15th',eom:'EOM',both:'15th + EOM'};
+
+  function toMin(t){const m=/^(\d{1,2}):(\d{2})/.exec(String(t||''));return m?Number(m[1])*60+Number(m[2]):null;}
+  function overlap(a,b){return Math.max(0,Math.min(a[1],b[1])-Math.max(a[0],b[0]));}
+  /* Night (10PM–6AM) payable minutes in one standard shift: 60-min break taken mid-shift,
+     payable time capped at 8 contracted hours (same 480-min regular cap as the Ledger). */
+  function nightMinutesPerShift(shiftStart,shiftEnd){
+    const s=toMin(shiftStart);let e=toMin(shiftEnd);
+    if(s===null||e===null)return null;
+    if(e<=s)e+=1440;
+    const len=e-s;if(len<=0)return null;
+    const brk=len>60?60:0,bs=s+Math.floor((len-brk)/2),be=bs+brk;
+    let parts=[[s,bs],[be,e]].filter(p=>p[1]>p[0]);
+    let budget=8*60;parts=parts.map(p=>{const take=Math.max(0,Math.min(p[1]-p[0],budget));budget-=take;return [p[0],p[0]+take];}).filter(p=>p[1]>p[0]);
+    const nights=[[-120,360],[1320,1800],[2760,3240]];
+    return parts.reduce((a,p)=>a+nights.reduce((b,n)=>b+overlap(p,n),0),0);
+  }
+  function nextAnniversary(hireIso,todayIso){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(hireIso||''))return null;
+    const y=Number(todayIso.slice(0,4));
+    for(const yy of [y,y+1]){const d=`${yy}-${hireIso.slice(5)}`;if(d>hireIso&&d>=todayIso)return d;}
+    return null;
+  }
+  function oneMonthAfter(hireIso){const d=new Date(hireIso+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+1);return d.toISOString().slice(0,10);}
+
+  /* Pure calculation, shared by the staff card, the roster column and the Extras preview. */
+  function compute(staff,client,rules,extra,todayIso){
+    const monthly=Number(staff.monthly_rate||0),hourly=Number(phpHourlyRate(monthly));
+    const ex=extra||{};
+    const lines=[],notIn=[];
+    lines.push({label:'Total Contract Fee',sub:'22 days × 8 hrs',paid:'both',amount:monthly});
+    const nm=client?nightMinutesPerShift(client.shift_start,client.shift_end):null;
+    if(nm===null)lines.push({label:'Extended-Hours Fee Differential (Pay)',sub:'no client shift on file',paid:'both',amount:0,muted:true});
+    else lines.push({label:'Extended-Hours Fee Differential (Pay)',sub:'est.',paid:'both',amount:Math.round(nm/60*hourly*0.10*DAYS*100)/100});
+    const scopeOverride=Number(ex.scope_amount||0)>0;
+    for(const key of MONTHLY_KEYS){
+      if(key==='scope_differential'&&scopeOverride)continue;
+      const match=(rules||[]).filter(r=>r.field_key===key&&r.active&&(r.pay_15th||r.pay_eom)&&(r.staff_scope==='all'||(r.staff_ids||[]).includes(staff.id)));
+      if(!match.length)continue;
+      let mid=0,eom=0;match.forEach(r=>{const a=Number(r.amount||0);if(r.pay_15th)mid+=a;if(r.pay_eom)eom+=a;});
+      if(mid+eom<=0)continue;
+      const paid=mid&&eom?'both':mid?'mid':'eom';
+      if(TENURE_GATED.has(key)&&!eligibleAfterOneMonth(staff.hire_date,todayIso)){
+        notIn.push({label:LABEL[key],sub:staff.hire_date?`starts ${fmtNice(oneMonthAfter(staff.hire_date))}`:'starts 1 month after hire date',amount:mid+eom});
+        continue;
+      }
+      lines.push({label:LABEL[key],paid,amount:mid+eom,mid,eom});
+    }
+    if(scopeOverride){
+      const a=Number(ex.scope_amount),p=['mid','eom','both'].includes(ex.scope_paid_on)?ex.scope_paid_on:'eom';
+      lines.push({label:LABEL.scope_differential,sub:ex.scope_note||'',paid:p,amount:a,mid:p==='mid'?a:p==='both'?a/2:0,eom:p==='eom'?a:p==='both'?a/2:0});
+    }
+    let mid=0,eom=0;
+    lines.forEach(l=>{if(l.paid==='both'&&l.mid===undefined){mid+=l.amount/2;eom+=l.amount/2;}else{mid+=l.mid||0;eom+=l.eom||0;}});
+    const total=lines.reduce((a,l)=>a+l.amount,0);
+    const also=[];
+    if(Number(ex.adhoc_amount||0)>0)also.push({label:LABEL.adhoc_project_fee,sub:ex.adhoc_note||'per project',amount:Number(ex.adhoc_amount)});
+    const ms=ex.milestone_amount===undefined||ex.milestone_amount===null?DEFAULT_MILESTONE:Number(ex.milestone_amount);
+    if(ms>0){const na=nextAnniversary(staff.hire_date,todayIso);also.push({label:LABEL.relationship_bonus,sub:'annual, on anniversary',chip:na?`next: ${fmtNice(na)}`:'',amount:ms});}
+    also.push({label:'PTO/PCH Pay',sub:'per approved leave day',amount:Math.round(monthly/DAYS*100)/100});
+    also.push({label:LABEL.incentive_award,sub:ex.incentive_note||'when awarded',amount:Number(ex.incentive_amount||0)>0?Number(ex.incentive_amount):null});
+    return {lines,notIn,also,total,mid,eom,nightMinutes:nm};
+  }
+
+  function cardHtml(c,client){
+    const chip=p=>`<span class="pto-chip${p==='both'?' ok':''}" style="white-space:nowrap">${PAID_ON[p]||''}</span>`;
+    const sub=s=>s?` <span class="muted" style="font-size:12px">(${escapeHtml(s)})</span>`:'';
+    const row=(l,amt,chipHtml)=>`<tr${l.muted?' class="muted"':''}><td>${escapeHtml(l.label)}${sub(l.sub)}</td><td>${chipHtml||''}</td><td class="mono" style="text-align:right">${amt}</td></tr>`;
+    const sec=t=>`<tr><td colspan="3" style="color:var(--gold);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding-top:14px;border-bottom:none">${t}</td></tr>`;
+    const shift=client&&client.shift_start&&client.shift_end?`${client.shift_start.slice(0,5)} – ${client.shift_end.slice(0,5)} PHT`:null;
+    return `<table style="margin-top:10px"><thead><tr><th>Item</th><th>Paid on</th><th style="text-align:right">Amount</th></tr></thead><tbody>
+${sec('Every month')}
+${c.lines.map(l=>row(l,money(l.amount),chip(l.paid))).join('')}
+<tr style="border-top:2px solid var(--gold)"><td colspan="2" style="font-weight:700;font-size:15px">Monthly Contract Fee</td><td class="mono" style="text-align:right;font-weight:800;font-size:16px;color:var(--gold)">${money(c.total)}</td></tr>
+</tbody></table>
+<div class="row" style="gap:10px;margin-top:10px;flex-wrap:wrap">
+<div class="note" style="flex:1;min-width:150px;margin:0"><div class="muted" style="font-size:12px">15th payout</div><b class="mono" style="font-size:15px">${money(c.mid)}</b></div>
+<div class="note" style="flex:1;min-width:150px;margin:0"><div class="muted" style="font-size:12px">End-of-month payout</div><b class="mono" style="font-size:15px">${money(c.eom)}</b></div></div>
+<table style="margin-top:8px"><tbody>
+${sec('Also earned when it applies (not in the monthly total)')}
+${c.also.map(l=>row(l,l.amount===null?'varies':money(l.amount),l.chip?`<span class="pto-chip" style="white-space:nowrap">${escapeHtml(l.chip)}</span>`:'')).join('')}
+${c.notIn.map(l=>row(l,money(l.amount),'<span class="pto-chip warn">not yet</span>')).join('')}
+</tbody></table>
+<div class="muted" style="margin-top:12px;font-size:12px;line-height:1.5">${shift?`Extended-Hours Fee Differential is an estimate from your client shift (${escapeHtml(shift)}) with a 60-min break, 8 contracted hours a day, ${DAYS} days a month.`:'No client shift on file, so the Extended-Hours Fee Differential is not estimated.'} Overtime, reimbursements, fee advances and adjustments are not shown. Your actual payouts are on your Contractor Ledger.</div>`;
+  }
+
+  async function fetchRulesStrict(){
+    const {data,error}=await sb.rpc('visible_benefit_rules');
+    if(error){if(isMissingTableError(error))return [];throw new Error('SMB Benefits: '+error.message);}
+    return data||[];
+  }
+  /* Missing table = SQL not run yet: treat as "no extras" (the card still works) and report it. */
+  async function fetchExtras(staffId){
+    let q=sb.from(EXTRAS_TABLE).select('*');if(staffId)q=q.eq('staff_id',staffId);
+    const {data,error}=await q;
+    if(error){if(isMissingTableError(error))return {rows:[],missing:true};throw new Error('Extras: '+error.message);}
+    return {rows:data||[],missing:false};
+  }
+
+  /* ---------- Staff: Contractor Profile card ---------- */
+  let gen=0;
+  async function init(){
+    const box=document.getElementById('pfFee');if(!box||!me)return;
+    const my=++gen;box.innerHTML='<div class="muted">Loading…</div>';
+    try{
+      const [rules,ex,cl]=await Promise.all([fetchRulesStrict(),fetchExtras(me.id),
+        me.client_id?sb.from('clients').select('*').eq('id',me.client_id).maybeSingle():Promise.resolve({data:null})]);
+      if(cl.error)throw new Error('Client: '+cl.error.message);
+      if(my!==gen)return;
+      const c=compute(me,cl.data,rules,ex.rows[0]||null,phDate(new Date()));
+      box.innerHTML=cardHtml(c,cl.data);
+    }catch(e){if(my!==gen)return;box.innerHTML=`<div class="muted">Could not load your contract fee: ${escapeHtml(e.message||String(e))}</div>`;}
+  }
+
+  /* ---------- Admin: roster column + Extras ---------- */
+  let cache={rules:null,extras:{},missing:false,err:''},rgen=0;
+  function stagedStaff(s){const inp=document.querySelector(`[data-rate="${s.id}"]`),h=document.querySelector(`[data-hire="${s.id}"]`),cl=document.querySelector(`[data-assign="${s.id}"]`);
+    return {...s,monthly_rate:inp?Number(inp.value||0):s.monthly_rate,hire_date:h?(h.value||null):s.hire_date,client_id:cl?(cl.value||null):s.client_id};}
+  function fillCell(s){
+    const el=document.querySelector(`[data-mcf-val="${s.id}"]`);if(!el)return;
+    if(cache.err){el.textContent='error';el.title=cache.err;return;}
+    if(!cache.rules){el.textContent='…';return;}
+    const st=stagedStaff(s),client=clients.find(c=>c.id===st.client_id)||null;
+    const c=compute(st,client,cache.rules,cache.extras[s.id]||null,phDate(new Date()));
+    el.textContent=money(c.total);
+    el.title=c.lines.map(l=>`${l.label}: ${money(l.amount)}`).join('\n')+`\n= ${money(c.total)} / month`;
+  }
+  async function fillRoster(){
+    if(!document.getElementById('staffTable'))return;
+    const my=++rgen;
+    try{
+      const [rules,ex]=await Promise.all([fetchRulesStrict(),fetchExtras(null)]);
+      if(my!==rgen)return;
+      cache={rules,extras:Object.fromEntries(ex.rows.map(r=>[r.staff_id,r])),missing:ex.missing,err:''};
+    }catch(e){if(my!==rgen)return;cache={rules:null,extras:{},missing:false,err:e.message||String(e)};}
+    staffList.forEach(fillCell);
+  }
+  function wireRoster(){
+    document.querySelectorAll('#staffTable [data-rate],#staffTable [data-hire],#staffTable [data-assign]').forEach(inp=>{
+      const id=inp.dataset.rate||inp.dataset.hire||inp.dataset.assign;
+      const recalc=()=>{const s=staffList.find(x=>x.id===id);if(s)fillCell(s);};
+      inp.addEventListener('input',recalc);inp.addEventListener('change',recalc);
+    });
+    document.querySelectorAll('#staffTable [data-mcf-extras]').forEach(b=>b.onclick=()=>openExtras(b.dataset.mcfExtras));
+    fillRoster();
+  }
+  function openExtras(staffId){
+    const s=staffList.find(x=>x.id===staffId);if(!s)return;
+    if(cache.missing)return alert('Extras are not set up on this database yet. Run the contract_fee_extras SQL in the Supabase SQL Editor first.');
+    if(cache.err||!cache.rules)return alert('Could not load the contract fee data: '+(cache.err||'still loading, try again in a second.'));
+    const ex=cache.extras[staffId]||{};
+    const v=k=>ex[k]===undefined||ex[k]===null?'':ex[k];
+    const ov=document.createElement('div');
+    ov.style.cssText='display:flex;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:80;align-items:center;justify-content:center;padding:20px';
+    const fld=(lab,k,nk,ph)=>`<div class="row" style="gap:8px;margin:7px 0;flex-wrap:wrap;align-items:center"><span class="muted" style="width:190px;font-size:12.5px">${lab}</span><input type="number" min="0" step="0.01" data-x="${k}" value="${v(k)}" placeholder="0" style="width:110px">${nk?`<input type="text" data-x="${nk}" value="${escapeHtml(String(v(nk)))}" placeholder="${ph}" maxlength="60" style="flex:1;min-width:140px">`:''}</div>`;
+    ov.innerHTML=`<div class="card" style="width:100%;max-width:640px;max-height:90vh;overflow-y:auto">
+<h3 style="font-size:16px">Extras: ${escapeHtml(s.full_name)}</h3>
+<div class="muted" style="font-size:12.5px;margin-top:3px">Display only. These amounts show on the staff member's My Contract Fee card and are never paid automatically: the Ledger still pays only what you enter there.</div>
+${fld('Scope Differential Fee (monthly)','scope_amount','scope_note','e.g. leadership')}
+<div class="row" style="gap:8px;margin:0 0 7px;align-items:center"><span class="muted" style="width:190px;font-size:12.5px">Scope paid on</span><select data-x="scope_paid_on" style="width:auto"><option value="eom">End of month</option><option value="mid">15th</option><option value="both">Split 15th + EOM</option></select></div>
+${fld('Ad Hoc Project Fee','adhoc_amount','adhoc_note','e.g. per training')}
+${fld('Incentive/Contest Award','incentive_amount','incentive_note','when awarded')}
+${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
+<div class="muted" style="font-size:11.5px">Scope here replaces any SMB Benefits Scope rule for this person (no double count). Leave Relationship-Milestone blank for the default ₱5,000; enter 0 to hide it.</div>
+<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">What ${escapeHtml(s.full_name)} sees</div><div data-x-preview></div></div>
+<div class="row" style="gap:8px;margin-top:14px"><button class="btn btn-gold" data-x-save>Save</button><button class="btn btn-ghost" data-x-cancel>Cancel</button><span class="muted" data-x-msg style="font-size:12px"></span></div></div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('[data-x="scope_paid_on"]').value=['mid','eom','both'].includes(ex.scope_paid_on)?ex.scope_paid_on:'eom';
+    const read=()=>{const o={staff_id:staffId};
+      ['scope_amount','adhoc_amount','incentive_amount'].forEach(k=>{o[k]=Math.max(0,Number(ov.querySelector(`[data-x="${k}"]`).value||0));});
+      const ms=ov.querySelector('[data-x="milestone_amount"]').value;o.milestone_amount=ms===''?null:Math.max(0,Number(ms));
+      ['scope_note','adhoc_note','incentive_note'].forEach(k=>{o[k]=ov.querySelector(`[data-x="${k}"]`).value.trim()||null;});
+      o.scope_paid_on=ov.querySelector('[data-x="scope_paid_on"]').value;return o;};
+    const st=stagedStaff(s),client=clients.find(c=>c.id===st.client_id)||null;
+    const pv=()=>{ov.querySelector('[data-x-preview]').innerHTML=cardHtml(compute(st,client,cache.rules,read(),phDate(new Date())),client);};
+    ov.querySelectorAll('[data-x]').forEach(i=>{i.addEventListener('input',pv);i.addEventListener('change',pv);});pv();
+    ov.querySelector('[data-x-cancel]').onclick=()=>ov.remove();
+    ov.querySelector('[data-x-save]').onclick=async()=>{
+      const btn=ov.querySelector('[data-x-save]'),msg=ov.querySelector('[data-x-msg]');btn.disabled=true;msg.textContent='Saving…';
+      const payload={...read(),updated_by:me.id,updated_at:new Date().toISOString()};
+      const {data,error}=await sb.from(EXTRAS_TABLE).upsert(payload,{onConflict:'staff_id'}).select('*').single();
+      if(error||!data){btn.disabled=false;msg.textContent='';return alert('Could not save: '+(error?(isMissingTableError(error)?'run the contract_fee_extras SQL first.':error.message):'no row returned (check admin permission).'));}
+      cache.extras[staffId]=data;ov.remove();fillCell(s);
+    };
+  }
+  window.ContractFee={init,wireRoster,fillRoster,_compute:compute,_nightMinutesPerShift:nightMinutesPerShift,_nextAnniversary:nextAnniversary};
+  if(document.querySelector('#staffTable [data-mcf-val]'))wireRoster();
+})();
 </script>
 
 </body></html>
