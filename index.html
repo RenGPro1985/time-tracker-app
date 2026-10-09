@@ -867,6 +867,10 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div class="row" style="gap:14px;align-items:center"><div class="pf-avatar" id="pfAvatar">—</div><div><h3 style="font-size:19px" id="pfName">—</h3><div class="muted" style="font-size:12.5px" id="pfSub">Contractor</div></div></div>
         <div class="pf-facts" id="pfFacts"></div>
       </div>
+      <div class="card" id="pfFeeCard">
+        <div class="hdr" style="gap:10px;flex-wrap:wrap"><div><h3 style="font-size:15px">💰 My Monthly Fee</h3><div class="muted" style="font-size:12.5px;margin-top:3px">Your total monthly compensation, before Fee Advance / Adjustments deductions</div></div><select id="pfFeeMonth" style="width:auto;min-width:160px"></select></div>
+        <div id="pfFee" style="overflow-x:auto"><div class="muted">Loading…</div></div>
+      </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">🏖️ My PTO</h3><span id="pfBadge"></span></div>
         <div id="pfPto"><div class="muted">Loading…</div></div>
@@ -2356,7 +2360,7 @@ function go(v){
   if(v==='v-corr'){loadCorrections();}
   if(v==='v-ledger'){initLedgerFilters();} if(v==='v-invoice'){initInvoiceFilters();}
   if(v==='v-earning'){initEarningFilters();}
-  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.MonthlyFee?.init();}
 }
 
 /* clocks + running timers */
@@ -2983,12 +2987,26 @@ $('saveStaffTable').onclick=async()=>{
       active:document.querySelector(`[data-active="${s.id}"]`).checked,
     };
   }).filter(Boolean);
+  /* Auto rate sync (Rendy, 2026-10-08): a monthly rate change asks for an Effective-from date and
+     then writes the YTD Attendance / Year End Bonus rate history. Payroll is unchanged: the Ledger
+     still reads staff.monthly_rate live. Cancel aborts the whole save so nothing is half-saved. */
+  const rateChanges=rows.map(r=>{const s=staffList.find(x=>x.id===r.id);const old=Number(s?.monthly_rate||0);
+    return (s&&old>0&&Math.abs(old-Number(r.monthly_rate||0))>=0.005)?{staff:s,row:r,oldRate:old,newRate:Number(r.monthly_rate||0)}:null;}).filter(Boolean);
+  for(const ch of rateChanges){
+    let eff=null;
+    try{eff=await window.RateSync.askEffectiveDate(ch);}catch(e){eff=null;alert('Could not open the rate change box: '+e.message);}
+    if(!eff){$('staffSaveMsg').textContent='Not saved: rate change cancelled.';$('saveStaffTable').disabled=false;setTimeout(()=>{$('staffSaveMsg').textContent='';},3000);return;}
+    ch.effective=eff;
+  }
   try{
     for(const r of rows){
       const {error}=await sb.from('staff').update({hire_date:r.hire_date,termination_date:r.termination_date,client_id:r.client_id,monthly_rate:r.monthly_rate,usd_hourly_rate:r.usd_hourly_rate,active:r.active}).eq('id',r.id);
       if(error)throw new Error(error.message);
     }
-    $('staffSaveMsg').textContent='Saved.';
+    const syncErrors=[];
+    for(const ch of rateChanges){try{await window.RateSync.syncYtd(ch);}catch(e){syncErrors.push(`${ch.staff.full_name}: ${e.message}`);}}
+    if(syncErrors.length)alert('Roster saved, but the YTD rate history did not update for:\n'+syncErrors.join('\n')+'\n\nPlease set it by hand on the YTD Attendance tab.');
+    $('staffSaveMsg').textContent=rateChanges.length&&!syncErrors.length?'Saved. YTD rate history updated.':'Saved.';
     await reloadStaff();
   }catch(e){$('staffSaveMsg').textContent='';alert(e.message);}
   $('saveStaffTable').disabled=false;
@@ -5745,6 +5763,174 @@ async function saveInvoiceSettingsForm(){
   }
   window.PTOCredits={initPtoCredits,initContractorProfile,refreshRequestPto,precheckPto,_fmt:fmtC};
 })();
+</script>
+<script>
+/* ============================================================
+   MY MONTHLY FEE (staff Contractor Profile) + ROSTER → YTD RATE SYNC
+   [Rendy DM, 2026-10-08]
+   ============================================================ */
+(function(){
+  const money=v=>'₱'+Number(v||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const pad=n=>String(n).padStart(2,'0');
+  const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const MONTH_LONG=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  /* Every pay line on the Contractor Ledger except the two deductions (Fee Advance, Adjustments). */
+  function feeLines(){
+    return [
+      {label:'Total Contract Fee',get:r=>r.regularPay},
+      {label:'Extended-Hours Fee Differential (Pay)',get:r=>r.nightPremium},
+      {label:'Extended-Hours (Pay)',get:r=>r.otPay},
+      {label:'PCH/PTO Pay',get:r=>r.pchPtoPay},
+      ...LEDGER_EXTRA_FIELDS.filter(f=>f.group==='addon').map(f=>({label:f.label,get:r=>r.extras?r.extras[f.key]:null}))
+    ];
+  }
+  /* The two payouts paid in calendar month y-m: the 15th (work Prev 21 – 4) and month-end (work 5 – 20). */
+  function payoutsForMonth(y,m){
+    const py=m===1?y-1:y,pm=m===1?12:m-1,ld=lastDayOfMonth(y,m);
+    const list=[
+      {start:`${py}-${pad(pm)}-21`,end:`${y}-${pad(m)}-04`},
+      {start:`${y}-${pad(m)}-05`,end:`${y}-${pad(m)}-20`}
+    ];
+    return list.map(p=>{const cutoff=payoutCutoffFor(p.end);const d=Number(cutoff.slice(8,10));
+      return {...p,cutoff,label:`${MON[m-1]} ${d} payout`,work:`Work ${MON[Number(p.start.slice(5,7))-1]} ${Number(p.start.slice(8,10))}–${MON[Number(p.end.slice(5,7))-1]} ${Number(p.end.slice(8,10))}`};});
+  }
+  function monthOptions(staff){
+    const today=phDate(new Date());let y=Number(today.slice(0,4)),m=Number(today.slice(5,7));
+    const hire=(staff&&/^\d{4}-\d{2}-\d{2}$/.test(staff.hire_date||''))?staff.hire_date.slice(0,7):null;
+    const out=[];
+    for(let i=0;i<12;i++){
+      const key=`${y}-${pad(m)}`;
+      out.push({key,label:`${MONTH_LONG[m-1]} ${y}`});
+      if(hire&&key<=hire)break;
+      m--;if(m===0){m=12;y--;}
+    }
+    return out;
+  }
+  let gen=0,inited=false;
+  async function render(){
+    const box=document.getElementById('pfFee'),sel=document.getElementById('pfFeeMonth');
+    if(!box||!sel||!me)return;
+    const my=++gen;
+    const [y,m]=sel.value.split('-').map(Number);
+    box.innerHTML='<div class="muted">Loading…</div>';
+    try{
+      const payouts=payoutsForMonth(y,m),today=phDate(new Date());
+      const rows=[];
+      for(const p of payouts){const r=await computeLedgerRowsForPeriod([me],p.start,p.end);rows.push(r[0]||null);}
+      if(my!==gen)return;
+      const lines=feeLines();
+      const cell=v=>v===null||v===undefined?'<td class="mono" style="text-align:right">—</td>':`<td class="mono" style="text-align:right">${money(v)}</td>`;
+      const totals=rows.map(r=>r?lines.reduce((a,l)=>a+(Number(l.get(r))||0),0):0);
+      const body=lines.map(l=>{
+        const vals=rows.map(r=>r?l.get(r):null);
+        const any=vals.some(v=>v!==null&&v!==undefined);
+        const month=any?vals.reduce((a,v)=>a+(Number(v)||0),0):null;
+        return `<tr><td>${escapeHtml(l.label)}</td>${vals.map(cell).join('')}${cell(month)}</tr>`;
+      }).join('');
+      const status=payouts.map((p,i)=>{
+        const r=rows[i];
+        if(r&&r.frozen)return '<span class="pto-chip ok">PAID</span>';
+        if(today<p.start)return '<span class="pto-chip">Not started</span>';
+        return '<span class="pto-chip warn">Estimate</span>';
+      });
+      box.innerHTML=`<table style="margin-top:10px"><thead><tr><th>Fee item</th>${payouts.map(p=>`<th style="text-align:right">${p.label}<div class="muted" style="font-weight:400;font-size:11px">${p.work}</div></th>`).join('')}<th style="text-align:right">Month total</th></tr></thead>
+<tbody>${body}
+<tr style="border-top:2px solid var(--gold,#c9a227)"><td style="font-weight:700">TOTAL MONTHLY FEE</td>${totals.map(t=>`<td class="mono" style="text-align:right;font-weight:700">${money(t)}</td>`).join('')}<td class="mono" style="text-align:right;font-weight:800;font-size:15px;color:var(--gold,#c9a227)">${money(totals[0]+totals[1])}</td></tr>
+<tr><td class="muted">Status</td>${status.map(s=>`<td style="text-align:right">${s}</td>`).join('')}<td></td></tr></tbody></table>
+<div class="note" style="margin-top:12px;font-size:12.5px">These numbers use the same calculation as your Contractor Ledger. A PAID payout shows the final paid amounts. An Estimate can still change until that payout is marked PAID. Fee Advance and Adjustments deductions are not subtracted here.</div>`;
+    }catch(e){
+      if(my!==gen)return;
+      box.innerHTML=`<div class="muted">Could not load your monthly fee: ${escapeHtml(e.message||String(e))}</div>`;
+    }
+  }
+  function init(){
+    const sel=document.getElementById('pfFeeMonth');if(!sel||!me)return;
+    const opts=monthOptions(me),prev=sel.value;
+    sel.innerHTML=opts.map(o=>`<option value="${o.key}">${o.label}</option>`).join('');
+    if(prev&&opts.some(o=>o.key===prev))sel.value=prev;
+    if(!inited){sel.onchange=render;inited=true;}
+    render();
+  }
+  window.MonthlyFee={init,_payoutsForMonth:payoutsForMonth,_feeLines:feeLines,_monthOptions:monthOptions};
+
+  /* ---------------- ROSTER → YTD RATE HISTORY ---------------- */
+  const RATE_TABLE='ytd_attendance_rates';
+  const isIso=v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v||''));
+  async function fetchSaved(staffId){
+    const {data,error}=await sb.from(RATE_TABLE).select('*').eq('staff_id',staffId).maybeSingle();
+    if(error)throw new Error(error.message);
+    return data||null;
+  }
+  /* Pure: the two-period history after a rate change effective `eff`.
+     - Nothing saved yet: Previous = old rate from hire date, Current = new rate from eff.
+     - eff after the saved Current start: Current rolls into Previous, new rate becomes Current.
+     - eff between Previous and Current starts: replaces the Current period.
+     - eff on/before the Previous start (typo fix): the whole history becomes the new rate. */
+  function planFor(saved,staffRow,oldRate,newRate,eff){
+    const hire=isIso(staffRow.hire_date)?staffRow.hire_date:null;
+    if(!saved||!isIso(saved.previous_effective_from)||!isIso(saved.current_effective_from)){
+      const base=hire||'2000-01-01';
+      if(eff>base)return {previous:{rate:oldRate,from:base},current:{rate:newRate,from:eff}};
+      return {previous:{rate:newRate,from:base},current:{rate:newRate,from:addDays(base,1)}};
+    }
+    const prev={rate:Number(saved.previous_monthly_rate),from:saved.previous_effective_from},cur={rate:Number(saved.current_monthly_rate),from:saved.current_effective_from};
+    if(eff>cur.from)return {previous:cur,current:{rate:newRate,from:eff}};
+    if(eff>prev.from)return {previous:prev,current:{rate:newRate,from:eff}};
+    return {previous:{rate:newRate,from:prev.from},current:{rate:newRate,from:cur.from}};
+  }
+  function fmtD(iso){return isIso(iso)?fmtNice(iso):'—';}
+  function defaultEffective(){return semiPeriod(phDate(new Date())).start;}
+  function askEffectiveDate(ch){
+    return new Promise(async resolve=>{
+      let saved=null,loadErr='';
+      try{saved=await fetchSaved(ch.staff.id);}catch(e){loadErr=e.message;}
+      const ov=document.createElement('div');
+      ov.style.cssText='display:flex;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:80;align-items:center;justify-content:center;padding:20px';
+      ov.innerHTML=`<div class="card" style="width:100%;max-width:560px;max-height:90vh;overflow-y:auto">
+<h3 style="font-size:16px">Monthly rate change: ${escapeHtml(ch.staff.full_name||'')}</h3>
+<div class="muted" style="font-size:12.5px;margin-top:3px">The YTD Attendance / Year End Bonus rate history updates automatically.</div>
+<div class="muted" style="font-size:12px;margin-top:12px">Old rate → New rate</div>
+<div style="font-weight:600;margin-top:4px">${money(ch.oldRate)} → <b>${money(ch.newRate)}</b></div>
+<label class="muted" style="font-size:12px;display:block;margin-top:12px">Effective from (required)</label>
+<input type="date" data-rs-eff value="${defaultEffective()}" style="margin-top:4px">
+<div class="muted" style="font-size:11.5px;margin-top:4px">Use the first day of the cutoff the new rate starts (the 5th or the 21st). To fix a typo, use the hire date.</div>
+<div class="note" data-rs-preview style="margin-top:12px;font-size:12.5px"></div>
+<div class="row" style="gap:8px;margin-top:14px"><button class="btn btn-gold" data-rs-ok>Save rate change</button><button class="btn btn-ghost" data-rs-cancel>Cancel</button></div></div>`;
+      document.body.appendChild(ov);
+      const inp=ov.querySelector('[data-rs-eff]'),pv=ov.querySelector('[data-rs-preview]'),ok=ov.querySelector('[data-rs-ok]');
+      const hireRow={hire_date:ch.row.hire_date};
+      const refresh=()=>{
+        const eff=inp.value;
+        if(loadErr){pv.innerHTML=`Could not read the current YTD rate history (${escapeHtml(loadErr)}). The roster will still save, but you will need to set the YTD rate by hand.`;ok.disabled=!isIso(eff);return;}
+        if(!isIso(eff)){pv.textContent='Pick an effective date.';ok.disabled=true;return;}
+        ok.disabled=false;
+        const p=planFor(saved,hireRow,ch.oldRate,ch.newRate,eff),y=eff.slice(0,4);
+        const split=p.previous.rate===p.current.rate?`the whole history at ${money(p.current.rate)}`:`${money(p.previous.rate)} until ${fmtD(addDays(p.current.from,-1))}, then ${money(p.current.rate)} from ${fmtD(p.current.from)}`;
+        pv.innerHTML=`<b>What will happen:</b><br>• Payroll: open (non-PAID) cutoffs use ${money(ch.newRate)} right away. PAID cutoffs don't change.<br>
+• YTD rate history:<br>&nbsp;&nbsp;Previous = ${money(p.previous.rate)} from ${fmtD(p.previous.from)}<br>&nbsp;&nbsp;Current = ${money(p.current.rate)} from ${fmtD(p.current.from)}<br>
+• Year End Bonus: ${split}.`;
+      };
+      inp.addEventListener('input',refresh);inp.addEventListener('change',refresh);refresh();
+      const done=v=>{ov.remove();resolve(v);};
+      ok.onclick=()=>{if(isIso(inp.value))done(inp.value);};
+      ov.querySelector('[data-rs-cancel]').onclick=()=>done(null);
+    });
+  }
+  async function syncYtd(ch){
+    const saved=await fetchSaved(ch.staff.id);
+    const p=planFor(saved,{hire_date:ch.row.hire_date},ch.oldRate,ch.newRate,ch.effective);
+    const payload={staff_id:ch.staff.id,previous_monthly_rate:p.previous.rate,previous_effective_from:p.previous.from,
+      current_monthly_rate:p.current.rate,current_effective_from:p.current.from,updated_by:me.id,updated_at:new Date().toISOString()};
+    const {data,error}=await sb.from(RATE_TABLE).upsert(payload,{onConflict:'staff_id'}).select('*').single();
+    if(error||!data)throw new Error(error?.message||'No row returned (check admin permission on ytd_attendance_rates).');
+    const okv=data.previous_effective_from===p.previous.from&&data.current_effective_from===p.current.from
+      &&Math.abs(Number(data.previous_monthly_rate)-p.previous.rate)<0.005&&Math.abs(Number(data.current_monthly_rate)-p.current.rate)<0.005;
+    if(!okv)throw new Error('Saved values did not verify.');
+    return data;
+  }
+  window.RateSync={askEffectiveDate,syncYtd,planFor};
+})();
+
 </script>
 
 </body></html>
