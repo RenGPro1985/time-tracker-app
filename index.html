@@ -3854,6 +3854,27 @@ function weekdaysInRange(startIso,endIso){
   }
   return days;
 }
+/* Returns an error message if a leave request's dates can't produce any leave days
+   (missing date, end before start, or only Sat/Sun), else ''. Used to block approving
+   or saving a leave that would silently create nothing — the cause of Gilda's 10/12 PTO
+   (end date typed as 2023) never reaching the ledger. [Rendy DM, 2026-10-08] */
+function leaveDateProblem(startIso,endIso){
+  if(!startIso||!endIso) return 'Both a start date and an end date are required.';
+  if(endIso<startIso) return 'The end date must be on or after the start date ('+startIso+' to '+endIso+'). Check the year.';
+  if(!weekdaysInRange(startIso,endIso).length) return 'These dates ('+startIso+' to '+endIso+') have no weekdays, so no leave days would be recorded.';
+  return '';
+}
+/* After an admin edits an approved/paid leave, rebuild that request's leave_days so the
+   Timesheets markers and ledger PTO/PCH pay follow the new dates. */
+async function rebuildLeaveDays(requestId){
+  const {data:rows,error:rerr}=await sb.from('requests').select('*').eq('id',requestId).limit(1);
+  if(rerr){alert('Request saved, but the leave days could not be refreshed: '+rerr.message);return;}
+  const r=rows&&rows[0];
+  if(!r||!hasDateRange(r.type)||!['approved','paid'].includes(r.status)) return;
+  const {error:derr}=await sb.from('leave_days').delete().eq('request_id',requestId);
+  if(derr){alert('Request saved, but the old leave days could not be cleared: '+derr.message);return;}
+  await createLeaveDays(r);
+}
 async function createLeaveDays(r){
   if(!hasDateRange(r.type)||!r.start_date||!r.end_date) return;
   const days=weekdaysInRange(r.start_date,r.end_date);
@@ -3948,6 +3969,8 @@ async function submitEditRequest(){
   if(leave){
     payload.p_start_date=$('editReqStart').value||null;
     payload.p_end_date=$('editReqEnd').value||null;
+    const problem=leaveDateProblem(payload.p_start_date,payload.p_end_date);
+    if(problem){$('editReqMsg').textContent=problem;return;}
   } else {
     const amt=Number($('editReqAmount').value);
     if(!Number.isFinite(amt)||amt<0){$('editReqMsg').textContent='Enter a valid amount.';return;}
@@ -3959,7 +3982,9 @@ async function submitEditRequest(){
   const {error}=await sb.rpc('admin_edit_request',payload);
   $('editReqConfirm').disabled=false;
   if(error){$('editReqMsg').textContent=error.message;return;}
+  const editedId=editReqId;
   closeEditRequest();
+  if(leave&&['approved','paid'].includes(r.status)) await rebuildLeaveDays(editedId);
   await loadReqAdmin();
 }
 $('editReqCancel').onclick=closeEditRequest;
@@ -3982,6 +4007,13 @@ async function decideReq(id,status,rejectionReason=''){
   // changes anything — .select() comes back empty for the second, and it's a no-op.
   const fromStatus = status==='paid' ? 'approved' : 'pending';
   if(status==='rejected'&&!rejectionReason.trim()) return false;
+  if(status==='approved'){
+    const pending=(reqAdminList||[]).find(x=>x.id===id);
+    if(pending&&hasDateRange(pending.type)){
+      const problem=leaveDateProblem(pending.start_date,pending.end_date);
+      if(problem){alert('Not approved. '+problem+' Use Edit to fix the dates first, then approve.');return false;}
+    }
+  }
   const changes={status,reviewed_by:me.id,reviewed_at:new Date().toISOString()};
   if(status==='rejected') changes.rejection_reason=rejectionReason.trim();
   const {data,error}=await sb.from('requests').update(changes).eq('id',id).eq('status',fromStatus).select();
