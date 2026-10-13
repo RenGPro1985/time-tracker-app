@@ -3612,6 +3612,20 @@ async function saveAdjustment(staffId,dateIso,hoursOrNull,cellEl){
    column), not by clocked hours, so no fabricated hours enter the hours totals here. */
 /* Grid marker text per leave_days.type: PTO / PCH (paid) and PA = Planned Absence (unpaid). */
 function leaveTag(t){return t==='planned_absence'?'PA':String(t||'').toUpperCase();}
+/* Billed-leave rules for Admin Timesheets + Client Invoice [Rendy DM, 2026-10-13]:
+   - PCH adds 8 hrs to Total hours for ALL clients.
+   - PTO adds 8 hrs only for clients whose name starts with Beltline, BugBusters or H2H
+     (client pays PTO through billed hours). Other clients: PTO adds 0 (unchanged).
+   - PA adds 0. Contractor Ledger / SMB PH Earning are NOT affected. */
+function clientBillsPtoHours(client){
+  const k=String((client&&client.name)||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  return k.startsWith('beltline')||k.startsWith('bugbuster')||k.startsWith('h2h');
+}
+function leaveBilledHours(t,client){
+  if(t==='pch')return 8;
+  if(t==='pto'&&clientBillsPtoHours(client))return 8;
+  return 0;
+}
 async function fetchLeaveDays(startIso,endIso,staffIds){
   let q=sb.from('leave_days').select('*').gte('date',startIso).lte('date',endIso);
   q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
@@ -3657,7 +3671,9 @@ async function renderSheetGrid(){
       const leaveType=leaveMap[key];
       if(leaveType){
         const title=leaveType==='pch'?'Paid Client Holiday':leaveType==='planned_absence'?'Planned Absence (unpaid)':'Paid Time Off';
-        return `<td class="num"><span class="pill ${leaveType==='planned_absence'?'p-bad':'p-off'}" style="font-size:9.5px;padding:2px 6px" title="${title} — not counted in hours">${leaveTag(leaveType)}</span></td>`;
+        const lh=leaveBilledHours(leaveType,clients.find(c=>c.id===s.client_id));
+        totalHrs+=lh;
+        return `<td class="num"><span class="pill ${leaveType==='planned_absence'?'p-bad':'p-off'}" style="font-size:9.5px;padding:2px 6px" title="${title} — ${lh?'+'+lh+' hrs added to Total hours':'not counted in hours'}">${leaveTag(leaveType)}</span></td>`;
       }
       const hasAdj=Object.prototype.hasOwnProperty.call(adjMap,key);
       let hrs;
@@ -5239,7 +5255,8 @@ async function runClientInvoice(){
       ? Number(civInvoiceRow.holiday_staff_count) : null;
     const holidayRate = Number(settings.holiday_pay_rate||0);
     const holidayTotal = settings.holiday_pay_on && holidayCount ? holidayCount*holidayRate : 0;
-    const paidLeaves = civInvoiceRow ? Number(civInvoiceRow.paid_leaves_amount||0) : 0;
+    const ptoBilled = clientBillsPtoHours(client); /* Beltline / BugBusters / H2H: PTO billed as hours above */
+    const paidLeaves = ptoBilled ? 0 : (civInvoiceRow ? Number(civInvoiceRow.paid_leaves_amount||0) : 0);
 
     let payHtml='';
     if(settings.holiday_pay_on){
@@ -5249,7 +5266,9 @@ async function runClientInvoice(){
     if(settings.thirteenth_month_on){
       payHtml += `<tr><td>13th Month Portion · ${eligibleStaffEquivalent.toFixed(2)} staff-equivalents × <input type="number" min="0" step="0.01" id="civThirteenthOverride" style="width:90px" value="${thirteenthPerStaff.toFixed(2)}"> per staff${thirteenthLegacyNote}</td><td class="mono" style="text-align:right">${civMoney(thirteenthVal)}</td></tr>`;
     }
-    payHtml += `<tr><td>Paid Leaves <input type="number" min="0" step="0.01" id="civPaidLeaves" style="width:90px" value="${paidLeaves.toFixed(2)}"></td><td class="mono" style="text-align:right">${civMoney(paidLeaves)}</td></tr>`;
+    payHtml += ptoBilled
+      ? `<tr><td>Paid Leaves — ${civGridPtoDays} PTO day${civGridPtoDays===1?'':'s'} this cutoff <span class="muted" style="font-size:11px">(billed in hours above)</span></td><td class="mono" style="text-align:right">—</td></tr>`
+      : `<tr><td>Paid Leaves <input type="number" min="0" step="0.01" id="civPaidLeaves" style="width:90px" value="${paidLeaves.toFixed(2)}"></td><td class="mono" style="text-align:right">${civMoney(paidLeaves)}</td></tr>`;
     $('civPayTable').innerHTML = payHtml;
 
     const total = taskTotal + internetTotal + allowanceVal + thirteenthVal + holidayTotal + paidLeaves;
@@ -5283,11 +5302,13 @@ async function runClientInvoice(){
   }
 }
 
+let civGridPtoDays=0; /* PTO days shown in the last-rendered invoice grid */
 async function renderInvoiceDailyGrid(clientId,start,end,people){
   const head=$('civGridHead'), body=$('civGridBody');
   if(!head||!body) return {};
   people = sortStaffByClientTenure(people);
   const gridHrsByStaff={};
+  civGridPtoDays=0;
   const [ents,shifts] = await Promise.all([fetchEntriesRange(start,end,people.map(s=>s.id)),fetchShiftsRange(start,end,people.map(s=>s.id))]);
   const sdm = buildShiftDateMap(shifts), ssm = buildShiftSpanMap(shifts);
   const adj = await fetchAdjustments(start,end,people.map(s=>s.id));
@@ -5310,7 +5331,12 @@ async function renderInvoiceDailyGrid(clientId,start,end,people){
     let totalHrs=0;
     const cells = days.map(d=>{
       const key=s.id+'|'+d, leaveType=leaveMap[key];
-      if(leaveType) return `<td class="num"><span class="pill ${leaveType==='planned_absence'?'p-bad':'p-off'}" style="font-size:9.5px;padding:2px 6px">${leaveTag(leaveType)}</span></td>`;
+      if(leaveType){
+        const lh=leaveBilledHours(leaveType,client);
+        totalHrs+=lh;
+        if(leaveType==='pto') civGridPtoDays++;
+        return `<td class="num"><span class="pill ${leaveType==='planned_absence'?'p-bad':'p-off'}" style="font-size:9.5px;padding:2px 6px"${lh?` title="+${lh} hrs billed"`:''}>${leaveTag(leaveType)}</span></td>`;
+      }
       const hasAdj = Object.prototype.hasOwnProperty.call(adjMap,key);
       let hrs;
       if(hasAdj) hrs=adjMap[key];
