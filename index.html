@@ -5302,11 +5302,18 @@ async function runClientInvoice(){
   }
 }
 
+const CIV_HIRE_DATE_DISPLAY={gretchenmiranda:'2026-01-02'}; /* invoice-display-only hire dates */
 let civGridPtoDays=0; /* PTO days shown in the last-rendered invoice grid */
 async function renderInvoiceDailyGrid(clientId,start,end,people){
   const head=$('civGridHead'), body=$('civGridBody');
   if(!head||!body) return {};
-  people = sortStaffByClientTenure(people);
+  /* Client Invoice view ONLY: show Gretchen Miranda's hire date as 2026-01-02 and
+     compute her tenure from it. Her real hire date (Staff & Client tab) and every
+     other tab/calculation stay unchanged [Rendy DM, 2026-10-13]. */
+  people = sortStaffByClientTenure(people.map(s=>{
+    const o=CIV_HIRE_DATE_DISPLAY[String(s.full_name||'').toLowerCase().replace(/[^a-z]/g,'')];
+    return o?Object.assign({},s,{hire_date:o}):s;
+  }));
   const gridHrsByStaff={};
   civGridPtoDays=0;
   const [ents,shifts] = await Promise.all([fetchEntriesRange(start,end,people.map(s=>s.id)),fetchShiftsRange(start,end,people.map(s=>s.id))]);
