@@ -814,7 +814,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
         <select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
 <div class="hide" id="civSettingsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60"><div class="card" style="max-width:720px;width:92vw;max-height:88vh;overflow-y:auto"><div class="hdr"><h3 style="font-size:15px" id="civSettingsTitle">Client Invoice Settings</h3><button class="btn btn-ghost" id="civSettingsClose">✕ Close</button></div><div class="muted" style="font-size:12px;margin-bottom:12px">Controls exactly what appears on this client's bi-weekly invoice. Nothing here changes payroll (Contractor Ledger) math.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Task Description</div><input type="text" id="civTaskDescription" placeholder="e.g. Back Office CRM tasks" style="margin-bottom:6px"><div class="muted" style="font-size:11px;margin-bottom:14px">One label for everyone on this client. Rate rows on the invoice come straight from each staff member's live hourly rate \u2014 nothing to configure here for that.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Recurring Pay Items</div><table><tbody>
 <tr><td style="width:26px"><input type="checkbox" id="civInternetOn"></td><td><b>Internet / Fiber Share</b><div class="muted" style="font-size:11px">Flat cost line on every invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civInternetAmt" style="width:110px" placeholder="$/period"></td></tr>
 <tr><td><input type="checkbox" id="civThirteenthOn"></td><td><b>13th Month Pay Portion</b><div class="muted" style="font-size:11px">Per-staff amount for each bi-weekly invoice. New/termed staff: (this amount ÷ 10) \u00d7 days present in the cutoff.</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civThirteenthAmt" style="width:110px" placeholder="$/staff / cutoff"></td></tr>
@@ -930,6 +930,40 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     </section>
   </main>
 </div>
+<div class="hide" id="ctsOverlay" style="position:fixed;inset:0;background:var(--bg);z-index:65;overflow:auto"><style>
+#ctsOverlay .cts-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;left:0;background:var(--bg);z-index:3}
+#ctsOverlay .cts-wrap{display:flex;gap:16px;padding:16px 20px;align-items:flex-start}
+#ctsOverlay .cts-sheet{background:#fff;color:#111;border-radius:8px;padding:10px;overflow-x:auto;flex:1;min-width:0}
+#ctsOverlay .cts-sheet table{border-collapse:collapse;font-size:12px;width:auto;background:#fff}
+#ctsOverlay .cts-sheet th{background:#000;color:#3f3;font-size:10.5px;padding:6px 5px;border:1px solid #444;text-align:center;white-space:nowrap;line-height:1.25}
+#ctsOverlay .cts-sheet th.dh{color:#fff;min-width:44px}
+#ctsOverlay .cts-sheet td{color:#111;background:#fff;border:1px solid #bbb;padding:4px 6px;white-space:nowrap}
+#ctsOverlay .cts-sheet td.r{text-align:right;font-variant-numeric:tabular-nums}
+#ctsOverlay .cts-sheet td.b{font-weight:700}
+#ctsOverlay .cts-sheet td.it{font-style:italic;font-weight:600}
+#ctsOverlay .cts-sheet td.cy{background:#00f0ff}
+#ctsOverlay .cts-sheet td.pk{background:#d8a8c0}
+#ctsOverlay .cts-sheet td.d{text-align:center;min-width:44px}
+#ctsOverlay .cts-sheet td.g{background:#22e322}
+#ctsOverlay .cts-sheet td.y{background:#ffe600}
+#ctsOverlay .cts-sheet td.lab{font-weight:700;background:#e6e6e6}
+#ctsOverlay .cts-sheet td.pb{font-weight:700;background:#9fe0ff;font-size:11px;line-height:1.05}
+#ctsOverlay .cts-sheet td.pb small{display:block;font-weight:400;font-size:9px}
+#ctsOverlay .cts-sheet td.miss{background:#ffd6d3;color:#a00}
+#ctsOverlay .cts-sheet tr.sub td{background:#f4f4f4;font-weight:700;border-top:2px solid #333}
+#ctsOverlay .cts-sheet tr.sub td.cyb{background:#5b8def;color:#fff}
+#ctsOverlay .cts-sheet tr.sub td.pkb{background:#b0789a;color:#fff}
+#ctsOverlay .cts-legend{font-size:11px;color:#444;margin-top:6px}
+#ctsOverlay .cts-side{width:320px;flex:0 0 320px;display:flex;flex-direction:column;gap:12px}
+#ctsOverlay .cts-kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+#ctsOverlay .cts-er{display:flex;justify-content:space-between;align-items:center;margin:6px 0;font-size:13.5px;gap:8px}
+#ctsOverlay .cts-er input{width:110px;text-align:right}
+#ctsOverlay .cts-auto{background:rgba(63,191,174,.18);color:var(--teal);font-size:9.5px;padding:1px 6px;border-radius:6px;margin-left:4px;font-weight:700}
+#ctsOverlay .cts-man{background:rgba(227,166,62,.18);color:var(--gold);font-size:9.5px;padding:1px 6px;border-radius:6px;margin-left:4px;font-weight:700;cursor:pointer}
+#ctsOverlay textarea{width:100%;min-height:130px;font-size:12px;box-sizing:border-box}
+#ctsStatus:empty{display:none}
+@media(max-width:1100px){#ctsOverlay .cts-wrap{flex-direction:column}#ctsOverlay .cts-side{width:100%;flex:none}}
+</style><div class="cts-top"><button class="btn btn-ghost" id="ctsClose">← Client INV</button><h3 style="font-size:17px;margin:0 8px 0 0">SMB Client Timesheet</h3><select id="ctsPeriod" style="width:auto"></select><span class="pill" style="font-size:11px">Admin only · all clients · every active staff</span><div style="flex:1"></div><button class="btn btn-gold" id="ctsXlsxBtn" disabled>⬇ Download Excel</button></div><div id="ctsStatus" class="note" style="margin:12px 20px 0"></div><div class="cts-wrap" id="ctsBody" style="display:none"><div class="cts-sheet"><table><thead><tr id="ctsHead"></tr></thead><tbody id="ctsRows"></tbody></table><div class="cts-legend"><b style="background:#22e322;padding:0 4px">8.00</b> 8+ hrs · <b style="background:#ffe600;padding:0 4px">7.07</b> under 8 · <b style="background:#9fe0ff;padding:0 4px">PTO 8h</b> / <b style="background:#9fe0ff;padding:0 4px">PCH 8h</b> billed to client = 8 hrs · <b style="background:#e6e6e6;padding:0 4px">PTO</b> (G Squared &amp; SC, paid by SMB) / PA / OUT = 0 hrs · blank = no hours · <b style="background:#ffd6d3;padding:0 4px">red</b> = rate missing</div></div><div class="cts-side"><div class="card"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Pay period summary</div><div id="ctsSummary"></div></div><div class="card"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Expenses <span style="color:var(--gold)">(editable)</span></div><div id="ctsExpenses"></div><div class="cts-kv" style="border:0;border-top:1px solid var(--line);margin-top:6px"><span>Total Expenses</span><b class="mono" id="ctsExpTotal">$0.00</b></div><div class="muted" style="font-size:11px;margin-top:6px">AUTO = filled from the app: Allowances and Holiday from this cutoff's Client Invoices, 13th month $31.50 (Issa, SMB SC), Paid Leaves = Daily Rate × PTO days for G Squared &amp; SMB SC. Type a number to override; click MANUAL to go back to auto.</div></div><div class="card"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Notes <span style="color:var(--gold)">(editable)</span></div><textarea id="ctsNotes"></textarea><div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn btn-gold" id="ctsSave">Save expenses &amp; notes</button></div><div class="muted" style="font-size:11px;margin-top:6px" id="ctsSaveMsg">Saved per pay period.</div></div></div></div></div>
 
 <script>
 /* ============================================================
@@ -5232,6 +5266,7 @@ function initInvoiceFilters(){
   $('civRun').onclick = runClientInvoice;
   $('civSettingsBtn').onclick = openInvoiceSettings;
   $('civPdfBtn').onclick = downloadClientInvoicePdf;
+  $('ctsOpenBtn').onclick = openClientTimesheet;
   $('civSettingsClose').onclick = closeInvoiceSettings;
   $('civSettingsCancel').onclick = closeInvoiceSettings;
   $('civSettingsSave').onclick = saveInvoiceSettingsForm;
@@ -5574,6 +5609,257 @@ async function saveInvoiceSettingsForm(){
   $('civSettingsMsg').textContent='Saved.';
   closeInvoiceSettings();
   runClientInvoice();
+}
+
+/* ---------- SMB Client Timesheet (admin, all clients, bi-weekly) [Rendy DM, 2026-10-13] ----------
+   One sheet per pay period, every active staff (blank rows kept) + anyone with hours.
+   SMB PH Rate = usd_hourly_rate (staff cost); SMB VS LLC Rate = SMB Rate (staff_smb_rates).
+   Daily Rate (USD) = PH rate x 8. Hours per day follow the Client Invoice grid rules:
+   PCH = 8 billed hrs for every client; PTO = 8 billed hrs for Beltline/BugBusters/H2H only;
+   G Squared / SMB SC PTO = 0 hrs (paid by SMB -> Paid Leaves expense). PA/OUT = 0 hrs.
+   DBG = VS gross - PH gross; Actual Net = DBG - expenses; Bonus = 20% of DBG.
+   Expenses + notes saved per period in client_timesheet_expenses (null = use auto value). */
+var ctsModel=null, ctsGen=0;
+const CTS_BONUS_RATE=0.20, CTS_13TH_DEFAULT=31.50;
+const CTS_EXP_FIELDS=[['allowances','Allowances'],['thirteenth_month','13th month'],['holiday','Holiday'],['paid_leaves','Paid Leaves']];
+const CTS_DEFAULT_NOTES='Allowances are paid by SMB VS\nSC staff 13th month is covered by SMB VS\nGSF and SC\'s leaves are paid by SMB VS\nGSF pays for banking holidays\nBeltline VS has no paid holidays.\nPH Holidays is paid by SMB VS';
+function ctsR2(n){ return Math.round((Number(n)||0)*100)/100; }
+function ctsMoney(n){ return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function ctsDayHead(iso){ const d=new Date(iso+'T00:00:00Z');
+  return [d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'}), d.toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short'}).toUpperCase()]; }
+function ctsSmbRate(s){ const v=smbRates&&smbRates[s.id]; return (v!=null&&Number.isFinite(Number(v)))?Number(v):null; }
+
+function openClientTimesheet(){
+  const list=periodList('biweekly',26);
+  const cur=($('civPeriod')&&$('civPeriod').value)||'';
+  $('ctsPeriod').innerHTML=list.map(p=>`<option value="${p.start}|${p.end}">${fmtNice(p.start)} \u2013 ${fmtNice(p.end)} (bi-weekly)</option>`).join('');
+  if(cur&&list.some(p=>`${p.start}|${p.end}`===cur)) $('ctsPeriod').value=cur;
+  $('ctsPeriod').onchange=runClientTimesheet;
+  $('ctsClose').onclick=()=>{ $('ctsOverlay').classList.add('hide'); document.body.style.overflow=''; };
+  $('ctsXlsxBtn').onclick=downloadClientTimesheetXlsx;
+  $('ctsSave').onclick=saveClientTimesheetExpenses;
+  $('ctsOverlay').classList.remove('hide'); document.body.style.overflow='hidden';
+  runClientTimesheet();
+}
+
+/* Pure: builds the sheet model. Exposed for tests. */
+function ctsBuildModel(o){
+  const {start,end,people,ents,sdm,ssm,adjMap,leaveMap,days,invSettings,invRows,saved}=o;
+  const byClient={};
+  sortStaffByClientTenure(people).forEach(s=>{ (byClient[s.client_id]=byClient[s.client_id]||[]).push(s); });
+  const clientOrder=[]; sortStaffByClientTenure(people).forEach(s=>{ if(!clientOrder.includes(s.client_id)) clientOrder.push(s.client_id); });
+  const groups=[]; let totHrs=0, gPh=0, gVs=0, paidLeavesAuto=0, allowAuto=0, holAuto=0, missingRates=0;
+  clientOrder.forEach(cid=>{
+    const client=clients.find(c=>c.id===cid)||{name:''};
+    const billsPto=clientBillsPtoHours(client);
+    const rows=[]; let sPh=0, sVs=0;
+    byClient[cid].forEach(s=>{
+      const mine=ents.filter(e=>e.staff_id===s.id);
+      const byDay={}; mine.forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
+      let hrsTot=0, leaveCount=0, ptoUnbilled=0;
+      const cells=days.map(d=>{
+        const key=s.id+'|'+d, lt=leaveMap[key];
+        if(lt){ const lh=leaveBilledHours(lt,client); hrsTot+=lh; leaveCount++;
+          if(lt==='pto'&&!billsPto) ptoUnbilled++;
+          return {label:leaveTag(lt),billed:lh}; }
+        let h;
+        if(Object.prototype.hasOwnProperty.call(adjMap,key)) h=adjMap[key];
+        else{ const w=shiftWindowFor(client,d); const sum=summarize(byDay[d]||[],null,w,spanFor(byDay[d]||[],ssm)); h=sum.billable/60; }
+        h=ctsR2(h); hrsTot+=h;
+        return {hrs:h};
+      });
+      hrsTot=ctsR2(hrsTot);
+      if(!s.active && hrsTot===0 && leaveCount===0) return; /* inactive + nothing this period: leave off */
+      const ph=Number(s.usd_hourly_rate||0), vs=ctsSmbRate(s);
+      if(!ph||vs==null) missingRates++;
+      const phW=ctsR2(ph*hrsTot), vsW=ctsR2((vs||0)*hrsTot);
+      sPh+=phW; sVs+=vsW; totHrs+=hrsTot;
+      paidLeavesAuto+=ctsR2(ph*8)*ptoUnbilled;
+      rows.push({staff:s, name:s.full_name||'', hire:s.hire_date||'', tenure:s.hire_date?tenureStr(s.hire_date):'\u2014',
+        ph, vs, daily:ctsR2(ph*8), hrs:hrsTot, phW, vsW, cells, ptoUnbilled, billsPto});
+    });
+    if(!rows.length) return;
+    /* Allowance + Holiday as the Client Invoice computes them for this cutoff */
+    const st=invSettings[cid]||{}, inv=invRows[cid]||null;
+    const activeCount=rows.filter(r=>r.staff.active).length;
+    if(st.allowance_on){ const ov=inv&&inv.allowance_override!=null?Number(inv.allowance_override):null;
+      allowAuto+= ov!=null?ov:activeCount*Number(st.allowance_rate||0); }
+    if(st.holiday_pay_on&&inv&&inv.holiday_staff_count!=null) holAuto+=Number(inv.holiday_staff_count)*Number(st.holiday_pay_rate||0);
+    groups.push({clientId:cid, clientName:client.name||'', billsPto, rows, subPh:ctsR2(sPh), subVs:ctsR2(sVs)});
+    gPh+=sPh; gVs+=sVs;
+  });
+  const auto={allowances:ctsR2(allowAuto), thirteenth_month:CTS_13TH_DEFAULT, holiday:ctsR2(holAuto), paid_leaves:ctsR2(paidLeavesAuto)};
+  const sv=saved||{};
+  const exp={}; CTS_EXP_FIELDS.forEach(([k])=>{ exp[k]={auto:auto[k], manual:sv[k]!=null?Number(sv[k]):null}; exp[k].value=exp[k].manual!=null?exp[k].manual:exp[k].auto; });
+  return {start,end,days,groups,totHrs:ctsR2(totHrs),gPh:ctsR2(gPh),gVs:ctsR2(gVs),exp,notes:o.notes,missingRates};
+}
+function ctsTotals(m){
+  const expTotal=ctsR2(CTS_EXP_FIELDS.reduce((a,[k])=>a+Number(m.exp[k].value||0),0));
+  const dbg=ctsR2(m.gVs-m.gPh);
+  return {expTotal,dbg,net:ctsR2(dbg-expTotal),bonus:ctsR2(dbg*CTS_BONUS_RATE)};
+}
+
+async function runClientTimesheet(){
+  const my=++ctsGen;
+  const [start,end]=($('ctsPeriod').value||'').split('|');
+  $('ctsBody').style.display='none'; $('ctsXlsxBtn').disabled=true; ctsModel=null;
+  if(!start||!end){ $('ctsStatus').textContent='Pick a period.'; return; }
+  $('ctsStatus').textContent='Loading\u2026';
+  try{
+    const people=(staffList||[]).filter(s=>s.client_id && clients.some(c=>c.id===s.client_id) && civEmploymentDays(s,start,end)>0);
+    const ids=people.map(s=>s.id);
+    const [ents,shifts,adj,leaves]=await Promise.all([fetchEntriesRange(start,end,ids),fetchShiftsRange(start,end,ids),fetchAdjustments(start,end,ids),fetchLeaveDays(start,end,ids)]);
+    if(my!==ctsGen) return;
+    const sdm=buildShiftDateMap(shifts), ssm=buildShiftSpanMap(shifts);
+    const adjMap={}; adj.forEach(a=>adjMap[a.staff_id+'|'+a.work_date]=Number(a.hours));
+    const leaveMap={}; leaves.forEach(l=>leaveMap[l.staff_id+'|'+l.date]=l.type);
+    const activeDays=new Set(); ents.forEach(e=>activeDays.add(shiftDateOf(e,sdm))); adj.forEach(a=>activeDays.add(a.work_date)); leaves.forEach(l=>activeDays.add(l.date));
+    const days=weekdayList(start,end,activeDays);
+    const invSettings={}, invRows={};
+    { const {data,error}=await sb.from('client_invoice_settings').select('*'); if(error&&!isMissingTableError(error)) console.warn(error.message); (data||[]).forEach(r=>invSettings[r.client_id]=r); }
+    { const {data,error}=await sb.from('client_invoices').select('*').eq('period_start',start).eq('period_end',end); if(error&&!isMissingTableError(error)) console.warn(error.message); (data||[]).forEach(r=>invRows[r.client_id]=r); }
+    let saved=null, notes=null, tableMissing=false;
+    { const {data,error}=await sb.from('client_timesheet_expenses').select('*').eq('period_start',start).maybeSingle();
+      if(error){ if(isMissingTableError(error)) tableMissing=true; else throw error; }
+      saved=data||null; notes=saved&&saved.notes!=null?saved.notes:null; }
+    if(notes==null&&!tableMissing){ const {data}=await sb.from('client_timesheet_expenses').select('notes,period_start').lt('period_start',start).not('notes','is',null).order('period_start',{ascending:false}).limit(1);
+      notes=data&&data[0]?data[0].notes:null; }
+    if(notes==null) notes=CTS_DEFAULT_NOTES;
+    if(my!==ctsGen) return;
+    ctsModel=ctsBuildModel({start,end,people,ents,sdm,ssm,adjMap,leaveMap,days,invSettings,invRows,saved,notes});
+    ctsModel.tableMissing=tableMissing;
+    renderClientTimesheet();
+    $('ctsStatus').innerHTML=(tableMissing?'<b style="color:var(--rose)">Expenses table not set up yet</b> \u2014 run the client_timesheet_expenses SQL in Supabase to save expenses &amp; notes. ':'')
+      +(ctsModel.missingRates?`<b style="color:var(--rose)">${ctsModel.missingRates} staff missing a USD or SMB Rate</b> (red cells) \u2014 fix under Staff &amp; Clients.`:'');
+    $('ctsBody').style.display='flex'; $('ctsXlsxBtn').disabled=false;
+  }catch(e){ if(my!==ctsGen) return; $('ctsStatus').innerHTML=`<b style="color:var(--rose)">Could not load.</b> ${escapeHtml(e.message||String(e))}`; }
+}
+
+function ctsCellHtml(c){
+  if(c.label){ return c.billed?`<td class="d pb">${escapeHtml(c.label)}<small>${c.billed}h</small></td>`:`<td class="d lab">${escapeHtml(c.label)}</td>`; }
+  if(!c.hrs) return '<td class="d"></td>';
+  return `<td class="d ${c.hrs>=8?'g':'y'}">${c.hrs.toFixed(2)}</td>`;
+}
+function renderClientTimesheet(){
+  const m=ctsModel; if(!m) return;
+  $('ctsHead').innerHTML='<th>HIRE<br>DATE</th><th>TENURE</th><th>STAFF<br>NAME</th><th>CLIENT</th><th>DAILY RATE<br>(USD)</th><th>SMB PH<br>RATE</th><th>WAGES EARNED<br>BY SMB PH</th><th>SMB VS LLC<br>RATE</th><th>WAGES EARNED<br>BY SMB VS</th><th>TOTAL HRS<br>WORKED</th>'
+    +m.days.map(d=>{const [a,b]=ctsDayHead(d);return `<th class="dh">${a}<br>${b}</th>`;}).join('');
+  let h='';
+  m.groups.forEach(g=>{
+    g.rows.forEach(r=>{
+      h+=`<tr><td>${r.hire?mmddyy(r.hire):'\u2014'}</td><td class="it">${escapeHtml(r.tenure)}</td><td class="b">${escapeHtml(r.name)}</td><td>${escapeHtml(g.clientName)}</td>`
+        +`<td class="r">${ctsMoney(r.daily)}</td><td class="r${r.ph?'':' miss'}">${r.ph?ctsMoney(r.ph):'missing'}</td><td class="r cy">${ctsMoney(r.phW)}</td>`
+        +`<td class="r${r.vs!=null?'':' miss'}">${r.vs!=null?ctsMoney(r.vs):'missing'}</td><td class="r pk">${ctsMoney(r.vsW)}</td><td class="r b">${r.hrs.toFixed(2)}</td>`
+        +r.cells.map(ctsCellHtml).join('')+'</tr>';
+    });
+    h+=`<tr class="sub"><td colspan="6" class="r">${escapeHtml(g.clientName)} subtotal</td><td class="r cyb">${ctsMoney(g.subPh)}</td><td></td><td class="r pkb">${ctsMoney(g.subVs)}</td><td colspan="${1+m.days.length}"></td></tr>`;
+  });
+  $('ctsRows').innerHTML=h||`<tr><td colspan="${10+m.days.length}">No staff for this period.</td></tr>`;
+  $('ctsNotes').value=m.notes||'';
+  $('ctsExpenses').innerHTML=CTS_EXP_FIELDS.map(([k,lab])=>{const e=m.exp[k];
+    return `<div class="cts-er"><span>${lab} ${e.manual!=null?`<span class="cts-man" data-cts-reset="${k}" title="Click to go back to the auto value (${ctsMoney(e.auto)})">MANUAL</span>`:'<span class="cts-auto">AUTO</span>'}</span><input type="number" step="0.01" min="0" data-cts-exp="${k}" value="${Number(e.value).toFixed(2)}"></div>`;}).join('');
+  document.querySelectorAll('[data-cts-exp]').forEach(inp=>inp.oninput=()=>{
+    const k=inp.dataset.ctsExp, v=inp.value.trim(); const e=m.exp[k];
+    e.manual = v===''?null:Number(v); e.value = e.manual!=null?e.manual:e.auto; renderCtsSummary(); });
+  document.querySelectorAll('[data-cts-reset]').forEach(b=>b.onclick=()=>{ const e=m.exp[b.dataset.ctsReset]; e.manual=null; e.value=e.auto; m.notes=$('ctsNotes').value; renderClientTimesheet(); });
+  renderCtsSummary();
+}
+function renderCtsSummary(){
+  const m=ctsModel; const t=ctsTotals(m);
+  const kv=(k,v,c)=>`<div class="cts-kv"><span>${k}</span><b class="mono"${c?` style="color:${c}"`:''}>${v}</b></div>`;
+  $('ctsSummary').innerHTML=kv('Pay period',`${fmtNice(m.start)} \u2013 ${fmtNice(m.end)}`)+kv('Total hours',m.totHrs.toFixed(2))+kv('Gross SMB-PH',ctsMoney(m.gPh))+kv('Gross SMB-VS-LLC',ctsMoney(m.gVs))
+    +kv('Diff. bet. Gross (DBG)',ctsMoney(t.dbg))+kv('Total Expenses',ctsMoney(t.expTotal))+kv('Actual Net',ctsMoney(t.net),t.net<0?'var(--rose)':'')+kv('20% Bonus from DBG',ctsMoney(t.bonus),'var(--gold)');
+  $('ctsExpTotal').textContent=ctsMoney(t.expTotal);
+}
+async function saveClientTimesheetExpenses(){
+  const m=ctsModel; if(!m) return;
+  const btn=$('ctsSave'); btn.disabled=true; $('ctsSaveMsg').textContent='Saving\u2026';
+  const row={period_start:m.start, period_end:m.end, notes:$('ctsNotes').value, updated_at:new Date().toISOString()};
+  CTS_EXP_FIELDS.forEach(([k])=>{ const e=m.exp[k]; row[k]=(e.manual!=null&&Math.abs(e.manual-e.auto)>=0.005)?ctsR2(e.manual):null; });
+  try{
+    const {data,error}=await sb.from('client_timesheet_expenses').upsert(row,{onConflict:'period_start'}).select().maybeSingle();
+    if(error) throw error;
+    if(!data) throw new Error('Save could not be verified.');
+    m.notes=data.notes; CTS_EXP_FIELDS.forEach(([k])=>{ const e=m.exp[k]; e.manual=data[k]!=null?Number(data[k]):null; e.value=e.manual!=null?e.manual:e.auto; });
+    renderClientTimesheet(); $('ctsSaveMsg').textContent='Saved for '+fmtNice(m.start)+' \u2013 '+fmtNice(m.end)+'.';
+  }catch(e){ $('ctsSaveMsg').innerHTML=`<b style="color:var(--rose)">${isMissingTableError(e)?'Expenses table not set up \u2014 run the SQL first.':escapeHtml(e.message||String(e))}</b>`; }
+  finally{ btn.disabled=false; }
+}
+
+/* ---------- Excel export (exceljs, loaded only when clicked) ---------- */
+async function ctsXlsxLib(){ if(!window.ExcelJS) await civPdfLoadScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'); return window.ExcelJS; }
+function ctsColL(n){ let s=''; while(n>0){ const r=(n-1)%26; s=String.fromCharCode(65+r)+s; n=Math.floor((n-1)/26); } return s; }
+async function downloadClientTimesheetXlsx(){
+  const m=ctsModel; if(!m) return;
+  m.notes=$('ctsNotes').value;
+  const btn=$('ctsXlsxBtn'), label=btn.textContent; btn.disabled=true; btn.textContent='Building\u2026';
+  try{
+    const ExcelJS=await ctsXlsxLib();
+    const wb=new ExcelJS.Workbook(); wb.calcProperties.fullCalcOnLoad=true;
+    const [y1,mo1,d1]=m.start.split('-'), [y2,mo2,d2]=m.end.split('-');
+    const ws=wb.addWorksheet(`${mo1}${d1}-${mo2}${d2}`,{views:[{state:'frozen',xSplit:4,ySplit:1}],pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+    const fill=c=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+c}});
+    const thin={style:'thin',color:{argb:'FF999999'}}, bd={top:thin,left:thin,bottom:thin,right:thin};
+    const usd='"$"#,##0.00', nd=m.days.length, firstDay=11, lastDay=10+nd, LD=ctsColL(lastDay), FD=ctsColL(firstDay);
+    const hdr=['HIRE DATE','TENURE','STAFF NAME','CLIENT','DAILY RATE (USD)','SMB PH RATE','WAGES EARNED BY SMB PH','SMB VS LLC RATE','WAGES EARNED BY SMB VS','TOTAL HRS WORKED'].concat(m.days.map(d=>ctsDayHead(d).join('\n')));
+    hdr.forEach((t,i)=>{ const c=ws.getCell(1,i+1); c.value=t; c.fill=fill('000000'); c.font={bold:true,size:9,color:{argb:i<10?'FF33FF33':'FFFFFFFF'}}; c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; c.border=bd; });
+    ws.getRow(1).height=42;
+    let r=2; const subs=[], plRows=[];
+    m.groups.forEach(g=>{
+      const first=r;
+      g.rows.forEach(x=>{
+        ws.getCell(r,1).value=x.hire?mmddyy(x.hire):'';
+        Object.assign(ws.getCell(r,2),{value:x.tenure,font:{bold:true,italic:true}});
+        Object.assign(ws.getCell(r,3),{value:x.name,font:{bold:true}});
+        ws.getCell(r,4).value=g.clientName;
+        ws.getCell(r,5).value={formula:`F${r}*8`,result:x.daily};
+        ws.getCell(r,6).value=x.ph;
+        Object.assign(ws.getCell(r,7),{value:{formula:`ROUND(F${r}*J${r},2)`,result:x.phW},fill:fill('00F0FF')});
+        ws.getCell(r,8).value=x.vs!=null?x.vs:0;
+        Object.assign(ws.getCell(r,9),{value:{formula:`ROUND(H${r}*J${r},2)`,result:x.vsW},fill:fill('D8A8C0')});
+        Object.assign(ws.getCell(r,10),{value:{formula:`ROUND(SUM(${FD}${r}:${LD}${r}),2)`,result:x.hrs},font:{bold:true},numFmt:'0.00'});
+        if(!x.ph) ws.getCell(r,6).fill=fill('FFD6D3'); if(x.vs==null) ws.getCell(r,8).fill=fill('FFD6D3');
+        x.cells.forEach((c,j)=>{ const cell=ws.getCell(r,firstDay+j); cell.alignment={horizontal:'center'};
+          if(c.label){ if(c.billed){ cell.value=c.billed; cell.numFmt=`"${c.label}"`; cell.fill=fill('9FE0FF'); } else { cell.value=c.label; cell.fill=fill('E6E6E6'); } cell.font={bold:true}; }
+          else if(c.hrs){ cell.value=c.hrs; cell.numFmt='0.00'; cell.fill=fill(c.hrs>=8?'22E322':'FFE600'); } });
+        [5,6,7,8,9].forEach(k=>ws.getCell(r,k).numFmt=usd);
+        for(let k=1;k<=lastDay;k++) ws.getCell(r,k).border=bd;
+        if(!g.billsPto) plRows.push(r);
+        r++;
+      });
+      Object.assign(ws.getCell(r,4),{value:`${g.clientName} subtotal`,font:{bold:true}});
+      [[7,'5B8DEF',g.subPh],[9,'B0789A',g.subVs]].forEach(([k,c,res])=>{ const L=ctsColL(k);
+        Object.assign(ws.getCell(r,k),{value:{formula:`SUM(${L}${first}:${L}${r-1})`,result:res},fill:fill(c),font:{bold:true,color:{argb:'FFFFFFFF'}},numFmt:usd}); });
+      for(let k=1;k<=lastDay;k++) ws.getCell(r,k).border={top:{style:'medium'}};
+      subs.push(r); r++;
+    });
+    const last=r-1, X=lastDay+4, Y=lastDay+5, XL=ctsColL(X), YL=ctsColL(Y), t=ctsTotals(m);
+    const kv=(row,k,v,fmt,f,res)=>{ const a=ws.getCell(row,X), b=ws.getCell(row,Y); a.value=k; a.font={bold:true}; b.value=res!==undefined?{formula:v,result:res}:v; b.numFmt=fmt||usd; a.border=b.border=bd; if(f){a.fill=b.fill=fill(f);} };
+    const sc=L=>subs.map(s=>L+s).join(',')||'0';
+    kv(1,'PAY PERIOD',`${fmtNice(m.start)} - ${fmtNice(m.end)}`,'@','5B8DEF');
+    kv(2,'TOTAL HOURS',`SUM(J2:J${Math.max(2,last)})`,'#,##0.00','FFFF00',m.totHrs);
+    kv(3,'Gross SMB-PH',`SUM(${sc('G')})`,usd,null,m.gPh);
+    kv(4,'Gross SMB-VS-LLC',`SUM(${sc('I')})`,usd,null,m.gVs);
+    kv(5,'Diff. bet. Gross (DBG)',`${YL}4-${YL}3`,usd,null,t.dbg);
+    kv(6,'Total Expenses',`${YL}14`,usd,null,t.expTotal);
+    kv(7,'Actual Net',`${YL}5-${YL}6`,usd,null,t.net);
+    kv(8,'20% Bonus from DBG',`ROUND(${YL}5*${CTS_BONUS_RATE},2)`,usd,'00F0FF',t.bonus);
+    kv(10,'Allowances',m.exp.allowances.value); kv(11,'13th month',m.exp.thirteenth_month.value); kv(12,'Holiday',m.exp.holiday.value);
+    if(m.exp.paid_leaves.manual==null&&plRows.length) kv(13,'Paid Leaves',plRows.map(q=>`COUNTIF(${FD}${q}:${LD}${q},"PTO")*E${q}`).join('+'),usd,null,m.exp.paid_leaves.value);
+    else kv(13,'Paid Leaves',m.exp.paid_leaves.value);
+    kv(14,'Total Expenses',`SUM(${YL}10:${YL}13)`,usd,'E6E6E6',t.expTotal);
+    Object.assign(ws.getCell(16,X),{value:'NOTES',font:{bold:true}});
+    String(m.notes||'').split('\n').forEach((line,i)=>Object.assign(ws.getCell(17+i,X),{value:line,font:{italic:true}}));
+    [10,24,14,18,10,9,13,10,13,10].forEach((w,i)=>ws.getColumn(i+1).width=w);
+    for(let k=firstDay;k<=lastDay;k++) ws.getColumn(k).width=8;
+    for(let k=lastDay+1;k<X;k++) ws.getColumn(k).width=3;
+    ws.getColumn(X).width=24; ws.getColumn(Y).width=24;
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`SMB_Client_Timesheet_${m.start}_to_${m.end}.xlsx`;
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+  }catch(e){ alert('Excel export failed: '+(e.message||e)); }
+  finally{ btn.textContent=label; btn.disabled=!ctsModel; }
 }
 
 </script>
