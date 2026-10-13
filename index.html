@@ -582,7 +582,7 @@ button.btn{padding:7px 12px;font-size:12px}
           </div>
         </div>
         <div class="muted" id="staffSaveMsg" style="font-size:12px;margin-bottom:8px;min-height:14px"></div>
-        <div class="muted" style="font-size:11.5px;margin-bottom:10px">PHP Rate is calculated as <span class="mono">(Monthly rate / 22) / 8</span>. PHP Rate and USD Rate are hourly staff rates.</div>
+        <div class="muted" style="font-size:11.5px;margin-bottom:10px">PHP Rate is calculated as <span class="mono">(Monthly rate / 22) / 8</span>. PHP Rate and USD Rate are hourly staff rates. SMB Rate is the hourly USD rate the client pays SMB (required, admin-only).</div>
         <div id="addForm" class="hide" style="background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px">
           <div class="grid" style="grid-template-columns:repeat(5,1fr);gap:10px">
             <div><label>Full name</label><input id="nName"></div>
@@ -593,6 +593,7 @@ button.btn{padding:7px 12px;font-size:12px}
             <div><label>Client</label><select id="nClient"></select></div>
             <div><label>Monthly rate</label><input id="nMonthlyRate" type="number" min="0" step="0.01" placeholder="0.00"></div>
             <div><label>USD Rate (hourly)</label><input id="nUsdHourlyRate" type="number" min="0" step="0.01" placeholder="0.00"></div>
+            <div><label>SMB Rate (hourly)</label><input id="nSmbHourlyRate" type="number" min="0.01" step="0.01" placeholder="Required"></div>
             <div><label>Role</label><select id="nRole"><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
             <div><label>Access</label><select id="nMode">
               <option value="password">Temporary password (no email needed)</option>
@@ -606,7 +607,7 @@ button.btn{padding:7px 12px;font-size:12px}
             <div class="mono" id="addPwVal" style="font-size:18px;margin-top:6px;color:var(--teal)"></div>
           </div>
         </div>
-        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Term / Resignation</th><th>Tenure</th><th>Client</th><th>Monthly rate</th><th title="Calculated as (Monthly rate / 22) / 8">PHP Rate</th><th title="Hourly rate in US dollars">USD Rate</th><th title="What a full standard month pays: contract fee + estimated night differential + monthly benefits. Same total the staff sees on My Contract Fee. Hover a value for the breakdown.">Monthly Contract Fee</th><th title="Unticking removes them from Timesheets, the Contractor Ledger, and SMB Benefits staff pickers without deleting their account or history.">Active</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
+        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Term / Resignation</th><th>Tenure</th><th>Client</th><th>Monthly rate</th><th title="Calculated as (Monthly rate / 22) / 8">PHP Rate</th><th title="Hourly rate in US dollars">USD Rate</th><th title="Hourly rate in US dollars the client pays SMB for this person">SMB Rate</th><th title="What a full standard month pays: contract fee + estimated night differential + monthly benefits. Same total the staff sees on My Contract Fee. Hover a value for the breakdown.">Monthly Contract Fee</th><th title="Unticking removes them from Timesheets, the Contractor Ledger, and SMB Benefits staff pickers without deleting their account or history.">Active</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Bulk add staff</h3><button class="btn btn-ghost" id="toggleBulk">Open</button></div>
@@ -1000,7 +1001,7 @@ const PH = 'Asia/Manila';
 const CONFIGURED = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SERVER_URL.startsWith('http');
 const sb = CONFIGURED ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 const $ = id => document.getElementById(id);
-let me=null, clients=[], staffList=[], allowance={}, unpaidBreakClients=new Set(), curShift=null, curEntry=null, tickBase=0, sheetRows=[], sheetDetail=[];
+let me=null, clients=[], staffList=[], smbRates={}, allowance={}, unpaidBreakClients=new Set(), curShift=null, curEntry=null, tickBase=0, sheetRows=[], sheetDetail=[];
 
 /* ---------- secure Slack notifications (webhook URLs stay on Render) ---------- */
 const slackWarned=new Set();
@@ -2307,7 +2308,7 @@ async function start(){
   allowance=st?.value||{};
   const {data:ub}=await sb.from('settings').select('*').eq('key','unpaid_break_clients').maybeSingle();
   unpaidBreakClients=new Set((ub?.value?.ids)||[]);
-  if(me.role==='admin'){const {data:sl}=await sb.from('staff').select('*').order('full_name'); staffList=sl||[];}
+  if(me.role==='admin'){const {data:sl}=await sb.from('staff').select('*').order('full_name'); staffList=sl||[]; await loadSmbRates();}
   else{staffList=[me];}
 
   await loadAdminNavOrder();
@@ -2934,6 +2935,8 @@ async function api(path,opts={}){
 $('toggleAdd').onclick=()=>{$('addForm').classList.toggle('hide');fill('nClient','— no client —',clients.map(c=>[c.id,c.name]));};
 $('cancelAdd').onclick=()=>$('addForm').classList.add('hide');
 $('saveStaff').onclick = async () => {
+  const newSmbRate=$('nSmbHourlyRate').value;
+  if(!smbRateValid(newSmbRate))return alert('SMB Rate is required: enter the hourly USD rate the client pays (more than 0).');
   $('saveStaff').disabled=true;$('addMsg').textContent='Creating…';$('addPw').classList.add('hide');
   try{
     const mode=$('nMode').value;
@@ -2942,6 +2945,10 @@ $('saveStaff').onclick = async () => {
       client_id:$('nClient').value||null,role:$('nRole').value,mode,
       hire_date:$('nHireDate').value||null,birth_date:$('nBirthDate').value||null,
       monthly_rate:Number($('nMonthlyRate').value||0),usd_hourly_rate:Number($('nUsdHourlyRate').value||0)})});
+    let smbErr='';
+    if(r.id){const {error:se}=await sb.from('staff_smb_rates').upsert({staff_id:r.id,smb_hourly_rate:Math.round(Number(newSmbRate)*100)/100,updated_at:new Date().toISOString()});if(se)smbErr=se.message;}
+    else smbErr='no staff id returned';
+    if(smbErr)alert('Account created, but the SMB Rate did not save ('+smbErr+'). Enter it in the staff table and click Save changes.');
     if(r.temp_password){
       $('addMsg').textContent='Account created.';
       $('addPwVal').textContent=$('nUser').value.trim()+'  /  '+r.temp_password;
@@ -2949,7 +2956,7 @@ $('saveStaff').onclick = async () => {
     } else {
       $('addMsg').textContent='Created — setup email sent.';
     }
-    ['nName','nUser','nEmail','nHireDate','nBirthDate','nMonthlyRate','nUsdHourlyRate'].forEach(i=>$(i).value='');
+    ['nName','nUser','nEmail','nHireDate','nBirthDate','nMonthlyRate','nUsdHourlyRate','nSmbHourlyRate'].forEach(i=>$(i).value='');
     await reloadStaff();
   }catch(e){$('addMsg').textContent='';alert(e.message);}
   $('saveStaff').disabled=false;
@@ -2992,7 +2999,16 @@ $('bulkCsv').onclick=()=>{
   ).map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
   downloadCsv(csv,'smb-time-logins');
 };
-async function reloadStaff(){const {data}=await sb.from('staff').select('*').order('full_name');staffList=data||[];renderStaffAdmin();}
+/* SMB Rate (Rendy, 2026-10-13): hourly USD rate the CLIENT pays SMB for this person. Stored in the
+   admin-only table staff_smb_rates (not on staff, so staff can never read it). Display/edit only:
+   Client Invoice and SMB PH Earning still use usd_hourly_rate. */
+async function loadSmbRates(){
+  try{const {data,error}=await sb.from('staff_smb_rates').select('staff_id,smb_hourly_rate');
+    if(error)throw error; smbRates={}; (data||[]).forEach(r=>{smbRates[r.staff_id]=Number(r.smb_hourly_rate);});}
+  catch(e){console.warn('SMB rates not loaded:',e.message||e);}
+}
+function smbRateValid(v){const n=Number(v);return v!==''&&v!=null&&Number.isFinite(n)&&n>0;}
+async function reloadStaff(){const {data}=await sb.from('staff').select('*').order('full_name');staffList=data||[];await loadSmbRates();renderStaffAdmin();}
 async function reloadClients(){const {data}=await sb.from('clients').select('*').order('name');clients=data||[];renderStaffAdmin();}
 
 /* Tenure sort key: earlier hire_date = longer tenure = ranks first. No hire date sinks to the bottom. */
@@ -3037,13 +3053,14 @@ function renderStaffAdmin(){
     <td><input type="number" min="0" step="0.01" data-rate="${s.id}" value="${s.monthly_rate||0}" style="width:100px"></td>
     <td class="mono"><span data-php-rate="${s.id}" title="(Monthly rate / 22) / 8">₱${phpHourlyRate(s.monthly_rate)}</span></td>
     <td><input type="number" min="0" step="0.01" data-usd-rate="${s.id}" value="${s.usd_hourly_rate||0}" style="width:90px" aria-label="USD hourly rate for ${escapeHtml(s.full_name)}"></td>
+    <td><input type="number" min="0.01" step="0.01" data-smb-rate="${s.id}" value="${smbRates[s.id]!=null?smbRates[s.id]:''}" placeholder="Required" style="width:90px${smbRates[s.id]!=null?'':';border-color:var(--rose)'}" title="${smbRates[s.id]!=null?'':'SMB Rate missing'}" aria-label="SMB hourly rate for ${escapeHtml(s.full_name)}"></td>
     <td style="white-space:nowrap"><span class="mono" data-mcf-val="${s.id}" style="color:var(--gold)">…</span> <button class="btn btn-ghost" data-mcf-extras="${s.id}" style="padding:3px 8px;font-size:11px">Extras</button></td>
     <td style="text-align:center"><input type="checkbox" data-active="${s.id}" ${s.active?'checked':''} style="width:auto" aria-label="Active — ${escapeHtml(s.full_name)}"></td>
     <td style="text-align:right;gap:6px;justify-content:flex-end" class="row">
       <button class="btn btn-ghost btn-icon" data-temp="${s.id}" title="Set new password" aria-label="Set new password"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-9.6 9.6"></path><path d="M15.5 7.5l3 3L22 7l-3-3"></path><circle cx="7.5" cy="16.5" r="5.5"></circle></svg></button>
       <button class="btn btn-rose btn-icon" data-del="${s.id}" title="Delete staff" aria-label="Delete staff"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
     </td></tr>`;}).join('')
-    :`<tr><td colspan="12" class="muted">No staff match this filter.</td></tr>`;
+    :`<tr><td colspan="13" class="muted">No staff match this filter.</td></tr>`;
   /* Editable fields (hire date, client assignment, USD rate, monthly rate, PTO) no longer
      save on every change — they're staged and only written to Supabase when "Save changes"
      is clicked, below. PHP Rate is derived from the staged Monthly rate and never stored. */
@@ -3096,9 +3113,16 @@ $('saveStaffTable').onclick=async()=>{
       client_id:document.querySelector(`[data-assign="${s.id}"]`).value||null,
       monthly_rate:Number(document.querySelector(`[data-rate="${s.id}"]`).value||0),
       usd_hourly_rate:Number(document.querySelector(`[data-usd-rate="${s.id}"]`).value||0),
+      smb_rate_raw:document.querySelector(`[data-smb-rate="${s.id}"]`)?.value??'',
       active:document.querySelector(`[data-active="${s.id}"]`).checked,
     };
   }).filter(Boolean);
+  /* SMB Rate can never be blank: block the save if any visible row has none (or a value <= 0). */
+  const smbMissing=rows.filter(r=>!smbRateValid(r.smb_rate_raw)).map(r=>staffList.find(x=>x.id===r.id)?.full_name||r.id);
+  if(smbMissing.length){
+    $('staffSaveMsg').textContent='';$('saveStaffTable').disabled=false;
+    return alert('SMB Rate is required for every staff member. Missing or 0 for:\n'+smbMissing.join('\n'));
+  }
   /* Auto rate sync (Rendy, 2026-10-08): a monthly rate change asks for an Effective-from date and
      then writes the YTD Attendance / Year End Bonus rate history. Payroll is unchanged: the Ledger
      still reads staff.monthly_rate live. Cancel aborts the whole save so nothing is half-saved. */
@@ -3115,6 +3139,10 @@ $('saveStaffTable').onclick=async()=>{
       const {error}=await sb.from('staff').update({hire_date:r.hire_date,termination_date:r.termination_date,client_id:r.client_id,monthly_rate:r.monthly_rate,usd_hourly_rate:r.usd_hourly_rate,active:r.active}).eq('id',r.id);
       if(error)throw new Error(error.message);
     }
+    const smbUpserts=rows.map(r=>({staff_id:r.id,smb_hourly_rate:Math.round(Number(r.smb_rate_raw)*100)/100}))
+      .filter(u=>smbRates[u.staff_id]==null||Math.abs(Number(smbRates[u.staff_id])-u.smb_hourly_rate)>=0.005)
+      .map(u=>({...u,updated_at:new Date().toISOString()}));
+    if(smbUpserts.length){const {error:se}=await sb.from('staff_smb_rates').upsert(smbUpserts);if(se)throw new Error('SMB Rate not saved: '+se.message);}
     const syncErrors=[];
     for(const ch of rateChanges){try{await window.RateSync.syncYtd(ch);}catch(e){syncErrors.push(`${ch.staff.full_name}: ${e.message}`);}}
     if(syncErrors.length)alert('Roster saved, but the YTD rate history did not update for:\n'+syncErrors.join('\n')+'\n\nPlease set it by hand on the YTD Attendance tab.');
