@@ -260,6 +260,28 @@ button.btn{padding:7px 12px;font-size:12px}
 @media(max-width:820px){.ytd-table{min-width:1075px}.ytd-rate-editor{min-width:0}}
 @media(max-width:560px){.ytd-rate-row{grid-template-columns:1fr 1fr}.ytd-rate-row>div:first-child{grid-column:1/-1}.ytd-table th:nth-child(1),.ytd-table td:nth-child(1){width:310px}}
 @media(max-width:560px){#v-ytd .hdr{align-items:flex-start}#v-ytd .hdr>.row{width:100%;justify-content:flex-start}#v-ytd .hdr h3{margin-bottom:8px}#v-ytd .ytd-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.ytd-table td.ytd-staff-cell{padding-right:10px}.ytd-count-details{max-width:100%}.ytd-count-editor{max-width:100%;overflow:hidden}.ytd-count-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ytd-count-grid>div{min-width:0}.ytd-count-grid input{width:100%;min-width:0}#v-ytd .ytd-attendance-help{margin:5px 0 9px!important;line-height:1.4}}
+/* YTD layout (2026-10-12): 2-line headers so the table fits ~975px without sideways scroll; Staff column frozen on the left. */
+.ytd-table{min-width:975px}
+.ytd-table th{white-space:normal;vertical-align:bottom;line-height:1.35;letter-spacing:.06em;padding:10px}
+.ytd-table td{padding:12px 10px}
+.ytd-table th:nth-child(1),.ytd-table td:nth-child(1){width:235px}
+.ytd-table th:nth-child(2),.ytd-table td:nth-child(2){width:105px;text-align:center}
+.ytd-table th:nth-child(3),.ytd-table td:nth-child(3){width:78px;text-align:center}
+.ytd-table th:nth-child(4),.ytd-table td:nth-child(4),.ytd-table th:nth-child(5),.ytd-table td:nth-child(5),.ytd-table th:nth-child(6),.ytd-table td:nth-child(6),.ytd-table th:nth-child(7),.ytd-table td:nth-child(7){width:48px;text-align:center}
+.ytd-table th:nth-child(8),.ytd-table td:nth-child(8){width:120px}
+.ytd-table th:nth-child(9),.ytd-table td:nth-child(9){width:110px}
+.ytd-table th:nth-child(10),.ytd-table td:nth-child(10){width:135px}
+.ytd-table .ytd-less-ded{white-space:normal}
+.ytd-table td[colspan]{width:auto;text-align:left}
+.ytd-rate-details,.ytd-count-details{max-width:100%}
+.ytd-table td.ytd-staff-cell .ytd-rate-row{grid-template-columns:1fr 1fr}
+.ytd-table td.ytd-staff-cell .ytd-rate-row>div:first-child{grid-column:1/-1}
+.ytd-table td.ytd-staff-cell .ytd-rate-row>div,.ytd-table td.ytd-staff-cell .ytd-count-grid>div{min-width:0}
+.ytd-table td.ytd-staff-cell input{box-sizing:border-box;max-width:100%}
+.ytd-table th.sticky-col,.ytd-table td.sticky-col{position:sticky;left:0;z-index:2;background:var(--card);box-shadow:inset -1px 0 0 var(--line),4px 0 6px rgba(0,0,0,.28)}
+.ytd-table thead th.sticky-col{z-index:3}
+@media(max-width:820px){.ytd-table{min-width:975px}}
+@media(max-width:560px){.ytd-table th:nth-child(1),.ytd-table td:nth-child(1){width:230px}}
 
 </style>
 </head>
@@ -847,7 +869,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div id="ytdStatus" class="note" role="status" aria-live="polite" style="margin-bottom:9px">Choose a calendar year and run the report.</div>
         <div class="ytd-summary" id="ytdSummary"></div>
       </div>
-      <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Total Working Days = Mon–Fri calendar dates in the selected year (to date for the current year), within each person's employment window. Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus = total basic salary earned this year (by employment days × applicable rate) ÷ 12, per DOLE 13th-month rules. Less Absences = Year End Bonus − (PA + OUT) × daily rate ÷ 12, where daily rate = current monthly rate ÷ 22; PTO/PCH are paid and not deducted.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Total working days</th><th>Days present</th><th>PTO</th><th>PCH</th><th>PA</th><th>OUT</th><th>Eligible basic earnings</th><th>Year End Bonus</th><th>Less Absences</th></tr></thead><tbody id="ytdTable"><tr><td colspan="10" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Total Working Days = Mon–Fri calendar dates in the selected year (to date for the current year), within each person's employment window. Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus = total basic salary earned this year (by employment days × applicable rate) ÷ 12, per DOLE 13th-month rules. Less Absences = Year End Bonus − (PA + OUT) × daily rate ÷ 12, where daily rate = current monthly rate ÷ 22; PTO/PCH are paid and not deducted.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Total<br>working days</th><th>Days<br>present</th><th>PTO</th><th>PCH</th><th>PA</th><th>OUT</th><th>Eligible basic<br>earnings</th><th>Year End<br>Bonus</th><th>Less<br>Absences</th></tr></thead><tbody id="ytdTable"><tr><td colspan="10" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
     </section>
 
     <!-- ---------- ADMIN: PTO CREDITS ---------- -->
