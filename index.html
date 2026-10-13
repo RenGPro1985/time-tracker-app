@@ -5644,7 +5644,9 @@ function openClientTimesheet(){
 
 /* Pure: builds the sheet model. Exposed for tests. */
 function ctsBuildModel(o){
-  const {start,end,people,ents,sdm,ssm,adjMap,leaveMap,days,invSettings,invRows,saved}=o;
+  const {start,ents,sdm,ssm,adjMap,leaveMap,days,invSettings,invRows,saved,end}=o;
+  /* Same invoice-display hire dates as the Client Invoice grid (Gretchen = 2026-01-02); real hire dates elsewhere stay unchanged [Rendy DM, 2026-10-13]. */
+  const people=(o.people||[]).map(s=>{ const ov=(typeof CIV_HIRE_DATE_DISPLAY!=='undefined')&&CIV_HIRE_DATE_DISPLAY[String(s.full_name||'').toLowerCase().replace(/[^a-z]/g,'')]; return ov?Object.assign({},s,{hire_date:ov}):s; });
   const byClient={};
   sortStaffByClientTenure(people).forEach(s=>{ (byClient[s.client_id]=byClient[s.client_id]||[]).push(s); });
   const clientOrder=[]; sortStaffByClientTenure(people).forEach(s=>{ if(!clientOrder.includes(s.client_id)) clientOrder.push(s.client_id); });
