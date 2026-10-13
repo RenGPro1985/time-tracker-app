@@ -3667,6 +3667,7 @@ async function renderSheetGrid(){
         const sum=summarize(byDay[d]||[],null,w,spanFor(byDay[d]||[],ssm));
         hrs=sum.billable/60;
       }
+      hrs=Math.round(hrs*100)/100; /* round each day to the 2 decimals shown so the total = sum of visible cells */
       totalHrs+=hrs;
       const shown=hrs?hrs.toFixed(2):'0.00';
       return `<td class="num"><input type="number" class="dayval${hasAdj?' is-adj':''}" min="0" step="0.25" data-staff="${s.id}" data-date="${d}" value="${shown}"></td>`;
@@ -4798,9 +4799,16 @@ async function computeLedgerRowsForPeriod(peopleSubset, start, end) {
   const rulesByField = {}; rulesRaw.forEach(r => { (rulesByField[r.field_key] = rulesByField[r.field_key] || []).push(r); });
   const adjustmentsByStaff = {}; adjustmentsRaw.forEach(a => { adjustmentsByStaff[a.staff_id] = Number(a.amount); });
   const paidByStaff = {}; paidRaw.forEach(p => { paidByStaff[p.staff_id] = p; });
-  return peopleSubset.map(staff => computeLedgerRowPure(staff, {
+  /* Client Invoice billed hours: each day's hours (regular + extended) rounded to
+     2 decimals first, then added — matches the daily grid and manual tracker.
+     Display/billing only; pay fields from computeLedgerRowPure are unchanged. */
+  const dayHrs = {};
+  ledgerDetailRows.forEach(r => { const k = r.staffId + '|' + r.date; dayHrs[k] = (dayHrs[k] || 0) + (r.regularMin + r.otMin) / 60; });
+  const roundedHrsByStaff = {};
+  Object.keys(dayHrs).forEach(k => { const id = k.split('|')[0]; roundedHrsByStaff[id] = (roundedHrsByStaff[id] || 0) + Math.round(dayHrs[k] * 100) / 100; });
+  return peopleSubset.map(staff => Object.assign(computeLedgerRowPure(staff, {
     clients, ledgerDetailRows, leavesByStaff, extrasByStaff, rulesByField, advanceByStaff, adjustmentsByStaff, paidByStaff, cutoffIso, phase,
-  }));
+  }), { invoiceHrsRounded: Math.round((roundedHrsByStaff[staff.id] || 0) * 100) / 100 }));
 }
 
 /* Total hours for the SMB PH Earning tab now comes straight from the
@@ -5202,7 +5210,7 @@ async function runClientInvoice(){
     const people = (staffList||[]).filter(s=>s.client_id===clientId && civEmploymentDays(s,start,end)>0);
     const ledgerRows = people.length ? await computeLedgerRowsForPeriod(people,start,end) : [];
     if(myGen!==civGen) return;
-    const hoursByStaff={}; ledgerRows.forEach(r=>{ hoursByStaff[r.staffId] = (r.regularHrs||0)+(r.otHrs||0); });
+    const hoursByStaff={}; ledgerRows.forEach(r=>{ hoursByStaff[r.staffId] = Number.isFinite(r.invoiceHrsRounded) ? r.invoiceHrsRounded : (r.regularHrs||0)+(r.otHrs||0); });
 
     // Everyone on this client does the same task; rate rows come straight from
     // each staff member's live usd_hourly_rate — nothing to configure in Settings
@@ -5305,6 +5313,7 @@ async function renderInvoiceDailyGrid(clientId,start,end,people){
       let hrs;
       if(hasAdj) hrs=adjMap[key];
       else{ const w=shiftWindowFor(client,d); const sum=summarize(byDay[d]||[],null,w,spanFor(byDay[d]||[],ssm)); hrs=sum.billable/60; }
+      hrs=Math.round(hrs*100)/100;
       totalHrs+=hrs;
       return `<td class="num mono">${hrs?hrs.toFixed(2):'\u2014'}</td>`;
     }).join('');
