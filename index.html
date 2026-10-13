@@ -379,9 +379,9 @@ button.btn{padding:7px 12px;font-size:12px}
     <div class="muted" id="corrReviewContext" style="font-size:12px;margin-bottom:12px"></div>
     <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px">
       <div><label>Recorded activity</label><select id="corrReviewEntry"></select></div>
-      <div><label>Resolution</label><select id="corrReviewAction"><option value="" selected disabled>Choose a resolution</option><option value="delete_duplicate">Delete confirmed duplicate record</option><option value="change_start">Change start time</option><option value="change_end">Change end time</option><option value="change_activity">Change activity</option><option value="split_entry">Split into a second activity</option></select></div>
+      <div><label>Resolution</label><select id="corrReviewAction"><option value="" selected disabled>Choose a resolution</option><option value="delete_duplicate">Delete confirmed duplicate record</option><option value="change_start">Change start time</option><option value="change_end">Change end time</option><option value="change_activity">Change activity</option><option value="split_entry">Split into a second activity</option><option value="extend_shift">Extend shift to (logged out early / missing logout)</option></select></div>
       <div id="corrReviewStartWrap" class="hide"><label>Correct start time (PHT)</label><input type="datetime-local" id="corrReviewStart"></div>
-      <div id="corrReviewEndWrap" class="hide"><label>Correct end time (PHT)</label><input type="datetime-local" id="corrReviewEnd"></div>
+      <div id="corrReviewEndWrap" class="hide"><label id="corrReviewEndLabel">Correct end time (PHT)</label><input type="datetime-local" id="corrReviewEnd"></div>
       <div id="corrReviewActWrap" class="hide"><label>Correct activity</label><select id="corrReviewActivity"></select></div>
       <div id="corrReviewSplitWrap" class="hide" style="grid-column:1 / -1"><label>Split at / second activity (PHT)</label><div class="row"><input type="datetime-local" id="corrReviewSplitAt" style="flex:1"><select id="corrReviewSplitActivity" style="flex:1"></select></div></div>
     </div>
@@ -3639,7 +3639,7 @@ async function openCorrectionReview(id){
   ]);
   if(entryErr||shiftErr){$('corrReviewMsg').textContent=(entryErr||shiftErr).message;return;}
   const shiftsById=Object.fromEntries((shifts||[]).map(sh=>[sh.id,sh])); const dateMap=buildShiftDateMap(shifts||[]);
-  let options=(entries||[]).filter(e=>e.ended_at && (corr.shift_id?e.shift_id===corr.shift_id:shiftDateOf(e,dateMap)===date));
+  let options=(entries||[]).filter(e=>(corr.shift_id?e.shift_id===corr.shift_id:shiftDateOf(e,dateMap)===date));
   if(corr.entry_id){const linked=(entries||[]).find(e=>e.id===corr.entry_id);if(linked&&!options.some(e=>e.id===linked.id))options.unshift(linked);}
   if(!options.length){$('corrReviewMsg').textContent='No closed entry was found for this request. Reject it and ask staff to submit a new linked correction.';return;}
   correctionReview={corr,options,shiftsById,allEntries:entries||[]};
@@ -3654,12 +3654,13 @@ async function refreshCorrectionReview(){
   const entry=correctionReview.options.find(e=>e.id===$('corrReviewEntry').value);if(!entry)return;
   const action=$('corrReviewAction').value;
   $('corrReviewStartWrap').classList.toggle('hide',action!=='change_start');
-  $('corrReviewEndWrap').classList.toggle('hide',action!=='change_end');
+  $('corrReviewEndWrap').classList.toggle('hide',action!=='change_end'&&action!=='extend_shift');
+  $('corrReviewEndLabel').textContent=action==='extend_shift'?'Real end of shift (PHT)':'Correct end time (PHT)';
   $('corrReviewActWrap').classList.toggle('hide',action!=='change_activity');
   $('corrReviewSplitWrap').classList.toggle('hide',action!=='split_entry');
   if(!$('corrReviewStart').value)$('corrReviewStart').value=phtDateTimeLocal(entry.started_at);
-  if(!$('corrReviewEnd').value)$('corrReviewEnd').value=phtDateTimeLocal(entry.ended_at);
-  if(!$('corrReviewSplitAt').value){
+  if(!$('corrReviewEnd').value)$('corrReviewEnd').value=phtDateTimeLocal(entry.ended_at||entry.started_at);
+  if(!$('corrReviewSplitAt').value&&entry.ended_at){
     const midpoint=new Date((new Date(entry.started_at).getTime()+new Date(entry.ended_at).getTime())/2);
     $('corrReviewSplitAt').value=phtDateTimeLocal(midpoint);
   }
@@ -3673,6 +3674,13 @@ async function refreshCorrectionReview(){
   if(action==='change_start'&&roundedCorrectionDateTimeToIso($('corrReviewStart').value)){target.started_at=roundedCorrectionDateTimeToIso($('corrReviewStart').value);}
   if(action==='change_end'&&roundedCorrectionDateTimeToIso($('corrReviewEnd').value)){target.ended_at=roundedCorrectionDateTimeToIso($('corrReviewEnd').value);}
   if(action==='change_activity')target.activity=$('corrReviewActivity').value;
+  let extendNote='';
+  if(action==='extend_shift'){
+    const sim=simulateExtendShift(entry,roundedCorrectionDateTimeToIso($('corrReviewEnd').value));
+    if(sim.error){$('corrReviewImpact').innerHTML=`<b style="color:var(--rose)">Can't extend:</b> ${escapeHtml(sim.error)}`;return;}
+    $('corrReviewImpact').innerHTML=correctionImpactHtml(before,sim.after,sim.shift,correctionReview.corr.staff_id)+sim.note;
+    return;
+  }
   if(action==='split_entry'){
     const at=roundedCorrectionDateTimeToIso($('corrReviewSplitAt').value);
     if(at&&new Date(at)>new Date(target.started_at)&&new Date(at)<new Date(target.ended_at)){
@@ -3681,6 +3689,46 @@ async function refreshCorrectionReview(){
     }
   }
   $('corrReviewImpact').innerHTML=correctionImpactHtml(before,after,shift,correctionReview.corr.staff_id);
+}
+/* Mirrors resolve_time_correction's 'extend_shift' in the database (the DB re-checks
+   everything; this is only the preview + early warnings). */
+function simulateExtendShift(picked,endIso){
+  const cr=correctionReview; if(!picked)return {error:'Select a recorded activity.'};
+  if(!endIso)return {error:'Enter the real end of the shift.'};
+  const shift=cr.shiftsById[picked.shift_id]; if(!shift)return {error:'Shift not found for this activity.'};
+  const end=new Date(endIso).getTime(), login=new Date(shift.login_at).getTime();
+  let after=cr.allEntries.filter(e=>e.shift_id===shift.id&&e.active!==false).map(e=>({...e}));
+  after.sort((a,b)=>new Date(a.started_at)-new Date(b.started_at));
+  const last=after[after.length-1]; if(!last)return {error:'This shift has no recorded activity.'};
+  const lastEnd=new Date(last.ended_at||last.started_at).getTime();
+  if(end<=lastEnd)return {error:'The new end time must be after the last recorded activity ('+phTime(new Date(lastEnd))+'). To shorten a shift use Change end time.'};
+  if(end>login+10*3600000)return {error:'A shift can\'t run more than 10 hours after login. Log the extra time as Overtime instead.'};
+  const merged=[];
+  const others=Object.values(cr.shiftsById).filter(o=>o.id!==shift.id&&o.staff_id===shift.staff_id&&new Date(o.login_at).getTime()>=login&&new Date(o.login_at).getTime()<end)
+    .sort((a,b)=>new Date(a.login_at)-new Date(b.login_at));
+  for(const o of others){
+    const oLogin=new Date(o.login_at).getTime(), when=phTime(new Date(o.login_at));
+    if(!shift.logout_at||!last.ended_at)return {error:'This shift is still open but has a later login. Send this one to Viktor.'};
+    if(oLogin<Math.min(new Date(shift.logout_at).getTime(),lastEnd))return {error:'Another login ('+when+' PHT) overlaps this shift.'};
+    const oEntries=cr.allEntries.filter(e=>e.shift_id===o.id&&e.active!==false);
+    if(!o.logout_at||oEntries.some(e=>!e.ended_at))return {error:'Her later login ('+when+' PHT) is still open. Close it first.'};
+    const oEnd=Math.max(new Date(o.logout_at).getTime(),...oEntries.map(e=>new Date(e.ended_at).getTime()));
+    if(oEnd>=end+60000)return {error:'Her later login runs until '+phTime(new Date(oEnd))+' PHT, after the end time you entered. Check the real end time.'};
+    oEntries.forEach(e=>{const c={...e,shift_id:shift.id};if(new Date(c.ended_at).getTime()>end)c.ended_at=new Date(end).toISOString();after.push(c);});
+    merged.push(when);
+  }
+  after.sort((a,b)=>new Date(a.started_at)-new Date(b.started_at));
+  const tail=after[after.length-1]; let how;
+  if(!tail.ended_at){tail.ended_at=new Date(end).toISOString();how='closes the running '+tail.activity+' at the new end';}
+  else if(new Date(tail.ended_at).getTime()<end){
+    if(tail.activity==='Working'||tail.activity===OVERTIME){tail.ended_at=new Date(end).toISOString();how='stretches the last '+tail.activity+' block to the new end';}
+    else{after.push({...tail,id:'preview-extend',activity:'Working',started_at:tail.ended_at,ended_at:new Date(end).toISOString()});how='adds Working after the '+tail.activity+' up to the new end';}
+  }else how='ends the shift at the new end';
+  const newShift={...shift,logout_at:new Date(end).toISOString()};
+  const regMin=after.filter(e=>e.activity!==OVERTIME&&e.activity!=='60min Break'&&!NON_BILLABLE.includes(e.activity)).reduce((n,e)=>n+minutesOf(e),0);
+  let note='<div style="margin-top:8px"><b>What will happen:</b> '+(merged.length?'merges her re-login at '+escapeHtml(merged.join(', '))+' PHT into this shift, then ':'')+escapeHtml(how)+'; shift logout becomes '+escapeHtml(phTime(new Date(end)))+' PHT.</div>';
+  if(regMin>480)note+='<div style="margin-top:6px;color:#F2B84B"><b>Over 8 hours:</b> regular time after this is '+hm(regMin)+'. The Ledger pays a maximum of 8 regular hours a day; anything above that is only paid if it is tagged Overtime.</div>';
+  return {after,shift:newShift,note};
 }
 async function applyCorrectionResolution(status){
   if(!correctionReview)return;
@@ -3706,6 +3754,14 @@ async function applyCorrectionResolution(status){
       if(!$('corrReviewEnd').value)return alert('Enter the correct end time.');
       args.p_new_ended_at=roundedCorrectionDateTimeToIso($('corrReviewEnd').value);
       if(!args.p_new_ended_at)return alert('Enter a valid end time.');
+    }
+    const picked=correctionReview.options.find(e=>e.id===entry);
+    if(action!=='extend_shift'&&picked&&!picked.ended_at)return alert('This activity is still running. Use "Extend shift to" to close it at the real end time.');
+    if(action==='extend_shift'){
+      args.p_new_ended_at=roundedCorrectionDateTimeToIso($('corrReviewEnd').value);
+      if(!args.p_new_ended_at)return alert('Enter the real end of the shift.');
+      const sim=simulateExtendShift(picked,args.p_new_ended_at);
+      if(sim.error)return alert(sim.error);
     }
     if(action==='change_activity')args.p_new_activity=$('corrReviewActivity').value;
     if(action==='split_entry'){
