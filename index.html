@@ -225,10 +225,10 @@ button.btn{padding:7px 12px;font-size:12px}
 @media(max-width:900px){.pto-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.pf-pto-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.pto-kpis,.pto-mini{grid-template-columns:repeat(2,minmax(0,1fr))}.pf-facts{grid-template-columns:1fr}.pf-pto-grid{grid-template-columns:1fr}}
 /* YTD Attendance: compact payroll-style table and rate editor */
-.ytd-summary{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:10px}
+.ytd-summary{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:10px}
 .ytd-summary .stat{min-width:0}
 .ytd-table-wrap{overflow-x:auto;width:100%;max-width:100%;min-width:0;contain:inline-size}
-.ytd-table{min-width:1075px;table-layout:fixed;font-variant-numeric:tabular-nums}
+.ytd-table{min-width:1215px;table-layout:fixed;font-variant-numeric:tabular-nums}
 .ytd-table th,.ytd-table td{white-space:nowrap;vertical-align:top}
 .ytd-table th:nth-child(1),.ytd-table td:nth-child(1){width:360px}
 .ytd-table th:nth-child(2),.ytd-table td:nth-child(2){width:110px}
@@ -237,6 +237,8 @@ button.btn{padding:7px 12px;font-size:12px}
 .ytd-table td:nth-child(4),.ytd-table td:nth-child(5),.ytd-table td:nth-child(6),.ytd-table td:nth-child(7){width:54px;text-align:center}
 .ytd-table th:nth-child(8),.ytd-table td:nth-child(8){width:150px}
 .ytd-table th:nth-child(9),.ytd-table td:nth-child(9){width:135px}
+.ytd-table th:nth-child(10),.ytd-table td:nth-child(10){width:140px}
+.ytd-less-ded{display:block;margin-top:3px;font-size:11px;color:var(--rose)}
 .ytd-table td.ytd-staff-cell{white-space:normal}
 .ytd-rate-details{margin-top:7px;max-width:340px}
 .ytd-rate-details summary{cursor:pointer;color:var(--gold);font-size:11px;font-weight:600}
@@ -845,7 +847,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div id="ytdStatus" class="note" role="status" aria-live="polite" style="margin-bottom:9px">Choose a calendar year and run the report.</div>
         <div class="ytd-summary" id="ytdSummary"></div>
       </div>
-      <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Total Working Days = Mon–Fri calendar dates in the selected year (to date for the current year), within each person's employment window. Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus = total basic salary earned this year (by employment days × applicable rate) ÷ 12, per DOLE 13th-month rules.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Total working days</th><th>Days present</th><th>PTO</th><th>PCH</th><th>PA</th><th>OUT</th><th>Eligible basic earnings</th><th>Year End Bonus</th></tr></thead><tbody id="ytdTable"><tr><td colspan="9" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Total Working Days = Mon–Fri calendar dates in the selected year (to date for the current year), within each person's employment window. Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus = total basic salary earned this year (by employment days × applicable rate) ÷ 12, per DOLE 13th-month rules. Less Absences = Year End Bonus − (PA + OUT) × daily rate ÷ 12, where daily rate = current monthly rate ÷ 22; PTO/PCH are paid and not deducted.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Total working days</th><th>Days present</th><th>PTO</th><th>PCH</th><th>PA</th><th>OUT</th><th>Eligible basic earnings</th><th>Year End Bonus</th><th>Less Absences</th></tr></thead><tbody id="ytdTable"><tr><td colspan="10" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
     </section>
 
     <!-- ---------- ADMIN: PTO CREDITS ---------- -->
@@ -5317,6 +5319,9 @@ async function saveInvoiceSettingsForm(){
     return Math.max(0,Number(hours)||0)*rate/22/8 + Math.max(0,Number(paidDays)||0)*rate/22;
   }
   function ytdBonus(eligibleEarnings){return Math.max(0,Number(eligibleEarnings)||0)/12;}
+  // Less Absences: each unpaid absence (PA/OUT) removes one day's basic pay (current monthly rate ÷ 22) from the year's basic, i.e. ÷12 from the bonus.
+  function ytdAbsenceDeduction(absences,monthlyRate){const rate=Number(monthlyRate);if(!Number.isFinite(rate)||rate<0)return null;return Math.max(0,Number(absences)||0)*rate/22/12;}
+  function ytdLessAbsences(bonus,deduction){if(bonus===null||bonus===undefined||deduction===null||deduction===undefined)return null;return Math.max(0,Number(bonus)-Number(deduction));}
   function ytdEscape(value){return escapeHtml(String(value??''));}
   function ytdMoney(value){return '₱'+Number(value||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});}
   function ytdStatus(message,isError){const el=$('ytdStatus');el.className=isError?'err':'note';el.textContent=message;el.setAttribute('role',isError?'alert':'status');el.setAttribute('aria-live','polite');}
@@ -5517,7 +5522,10 @@ async function saveInvoiceSettingsForm(){
       const manualRecord=manualByStaff[staff.id]||null,manualAttendanceCounts=manualRecord?Object.fromEntries(YTD_COUNT_FIELDS.map(k=>[k,Number(manualRecord[`manual_${k}`]||0)])):null;
       const attendanceCountsComplete=reportYear>=2027||!!manualRecord;
       const totalCounts=Object.fromEntries(YTD_COUNT_FIELDS.map(k=>[k,(manualRecord?Number(manualRecord[`manual_${k}`]||0):0)+autoCounts[k]]));
-      return{staff,client,workingDays:totalWorkingDays,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,pa:totalCounts.pa,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus:missingRateDays?null:ytdBonus(eligibleEarnings),missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate};
+      const bonus=missingRateDays?null:ytdBonus(eligibleEarnings),absences=totalCounts.pa+totalCounts.out;
+      const currentRateRow=perDateRate(employed.valid?employed.end:end),currentMonthlyRate=currentRateRow?Number(currentRateRow.monthly_rate):null;
+      const absenceDeduction=currentRateRow?ytdAbsenceDeduction(absences,currentMonthlyRate):null,lessAbsences=ytdLessAbsences(bonus,absenceDeduction);
+      return{staff,client,workingDays:totalWorkingDays,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,pa:totalCounts.pa,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus,absences,currentMonthlyRate,absenceDeduction,lessAbsences,missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate};
     }).sort((a,b)=>{
       const ad=ytdIsIso(a.staff.hire_date)?a.staff.hire_date:'9999-12-31',bd=ytdIsIso(b.staff.hire_date)?b.staff.hire_date:'9999-12-31';
       return ad.localeCompare(bd)||String(a.staff.full_name||'').localeCompare(String(b.staff.full_name||''));
@@ -5525,9 +5533,10 @@ async function saveInvoiceSettingsForm(){
   }
   function ytdSummaryHtml(rows){
     const totalOut=rows.reduce((n,r)=>n+r.out,0),totalPa=rows.reduce((n,r)=>n+r.pa,0),paid=rows.reduce((n,r)=>n+r.pto+r.pch,0),incomplete=rows.some(r=>r.bonus===null),historyMissing=rows.some(r=>!r.attendanceCountsComplete);
+    const lessIncomplete=rows.some(r=>r.lessAbsences===null),less=lessIncomplete?null:rows.reduce((n,r)=>n+r.lessAbsences,0);
     const bonus=incomplete?null:rows.reduce((n,r)=>n+r.bonus,0),paidValue=historyMissing?`Partial · ${paid}`:String(paid),absenceValue=historyMissing?`Partial · ${totalPa+totalOut}`:String(totalPa+totalOut);
-    const stats=[['Staff shown',String(rows.length)],['Paid leave days',paidValue],['Unpaid absences (PA + OUT)',absenceValue],['Year End Bonus estimate',bonus===null?'Incomplete':ytdMoney(bonus)]];
-    $('ytdSummary').innerHTML=stats.map(([label,value])=>`<div class="stat"><div class="k">${ytdEscape(label)}</div><div class="v" style="font-size:${label.includes('Bonus')?'17px':'20px'}">${ytdEscape(value)}</div></div>`).join('');
+    const stats=[['Staff shown',String(rows.length)],['Paid leave days',paidValue],['Unpaid absences (PA + OUT)',absenceValue],['Year End Bonus estimate',bonus===null?'Incomplete':ytdMoney(bonus)],['Less Absences total',less===null?'Incomplete':(historyMissing?`Partial · ${ytdMoney(less)}`:ytdMoney(less))]];
+    $('ytdSummary').innerHTML=stats.map(([label,value])=>`<div class="stat"><div class="k">${ytdEscape(label)}</div><div class="v" style="font-size:${(label.includes('Bonus')||label.includes('Less Absences'))?'17px':'20px'}">${ytdEscape(value)}</div></div>`).join('');
   }
   function ytdPopulateClientFilter(rows){
     const select=$('ytdClientFilter');if(!select)return;
@@ -5551,8 +5560,8 @@ async function saveInvoiceSettingsForm(){
     $('ytdTable').innerHTML=rows.length?rows.map(r=>`<tr>
       <td class="sticky-col ytd-staff-cell"><b>${ytdEscape(r.staff.full_name)}</b>${r.missingHireDate?'<div class="pill p-bad" style="margin-top:4px">Hire date needed for OUT</div>':''}${Number(year)<=2026&&!r.attendanceCountsComplete?'<div class="pill p-bad" style="margin-top:4px">Historical counts needed</div>':''}${ytdRenderRates(r.staff,rates,year)}${ytdAttendanceEditorHtml(r.staff,r,year)}</td>
       <td class="mono">${r.workingDays}</td>${YTD_COUNT_FIELDS.map(k=>`<td class="mono" title="${!r.attendanceCountsComplete?`Automatic portion only: ${r.autoCounts[k]}; enter historical counts to complete`:''}">${r.attendanceCountsComplete?r[k]:(r.autoCounts[k]>0?r.autoCounts[k]:'—')}</td>`).join('')}
-      <td class="mono">${r.missingRateDays?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.eligibleEarnings)}</td><td class="mono" title="${r.missingRateDays?`${r.missingRateDays} day(s) have no applicable rate period`:''}">${r.bonus===null?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.bonus)}</td>
-    </tr>`).join(''):`<tr><td colspan="9" class="muted">No active employees found for this client.</td></tr>`;
+      <td class="mono">${r.missingRateDays?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.eligibleEarnings)}</td><td class="mono" title="${r.missingRateDays?`${r.missingRateDays} day(s) have no applicable rate period`:''}">${r.bonus===null?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.bonus)}</td><td class="mono" title="${r.lessAbsences===null?'Rate needed':`(PA ${r.pa} + OUT ${r.out}) × ₱${Number(r.currentMonthlyRate).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})} ÷ 22 ÷ 12${r.attendanceCountsComplete?'':' · automatic counts only; enter historical counts to complete'}`}">${r.lessAbsences===null?'<span class="pill p-bad">Rate needed</span>':`<b>${ytdMoney(r.lessAbsences)}</b><span class="ytd-less-ded">− ${ytdMoney(r.absenceDeduction)} (${r.absences} day${r.absences===1?'':'s'}${r.attendanceCountsComplete?'':', partial'})</span>`}</td>
+    </tr>`).join(''):`<tr><td colspan="10" class="muted">No active employees found for this client.</td></tr>`;
     $('ytdTable').setAttribute('aria-live','polite');
     document.querySelectorAll('[data-ytd-save]').forEach(btn=>btn.onclick=()=>ytdSaveRates(btn.dataset.ytdSave));
     document.querySelectorAll('[data-ytd-count-save]').forEach(btn=>btn.onclick=()=>ytdSaveManualCounts(btn.dataset.ytdCountSave));
@@ -5561,7 +5570,7 @@ async function saveInvoiceSettingsForm(){
     if(me?.role!=='admin'){ytdStatus('This report is available to admins only.',true);return;}
     if(ytdBusy)return;ytdBusy=true;
     ytdComputedRows=[];ytdCurrentYear=null;ytdRows=[];
-    $('ytdRun').disabled=true;$('ytdRun').textContent='Loading…';$('ytdTable').innerHTML='<tr><td colspan="9" class="muted">Loading report data…</td></tr>';$('ytdSummary').innerHTML='';
+    $('ytdRun').disabled=true;$('ytdRun').textContent='Loading…';$('ytdTable').innerHTML='<tr><td colspan="10" class="muted">Loading report data…</td></tr>';$('ytdSummary').innerHTML='';
     try{
       const year=ytdSelectedYear(),range=ytdRangeForYear(year),people=staffList.filter(s=>s.active);
       if(!range.end||range.start>range.end)throw new Error('Selected year does not have a reportable date range.');
@@ -5581,7 +5590,7 @@ async function saveInvoiceSettingsForm(){
       ytdStatus(msg,!!missing||!!historyMissing);
     }catch(e){
       ytdComputedRows=[];ytdCurrentYear=null;ytdRows=[];ytdPopulateClientFilter([]);
-      $('ytdTable').innerHTML='<tr><td colspan="9" class="muted">Report could not be calculated; no partial totals shown.</td></tr>';
+      $('ytdTable').innerHTML='<tr><td colspan="10" class="muted">Report could not be calculated; no partial totals shown.</td></tr>';
       $('ytdSummary').innerHTML='';ytdStatus(`Could not load a complete report: ${e.message}. Check the YTD rate and attendance-count migrations and data permissions, then rerun.`,true);
     }finally{ytdBusy=false;$('ytdRun').disabled=false;$('ytdRun').textContent='Run report';}
   }
@@ -5594,7 +5603,7 @@ async function saveInvoiceSettingsForm(){
     }
     ytdRun();
   }
-  window.YTDAttendanceMath={addMonths:ytdAddMonths,parseWorkdays:ytdParseWorkdays,ratesForDate:ytdRatesForDate,defaultPeriods:ytdDefaultPeriods,effectivePay:ytdGetEffectivePay,bonus:ytdBonus,rangeForYear:ytdRangeForYear,computeRows:ytdComputeRows,filterByClient:ytdFilterRowsByClient,autoStart:YTD_AUTO_START};
+  window.YTDAttendanceMath={addMonths:ytdAddMonths,parseWorkdays:ytdParseWorkdays,ratesForDate:ytdRatesForDate,defaultPeriods:ytdDefaultPeriods,effectivePay:ytdGetEffectivePay,bonus:ytdBonus,absenceDeduction:ytdAbsenceDeduction,lessAbsences:ytdLessAbsences,rangeForYear:ytdRangeForYear,computeRows:ytdComputeRows,filterByClient:ytdFilterRowsByClient,autoStart:YTD_AUTO_START};
   window.initYtdAttendance=initYtdAttendance;
 })();
 </script>
