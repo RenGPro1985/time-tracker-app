@@ -5106,6 +5106,7 @@ function civBuildTaskRows(taskDescription,people,hoursByStaff){
     if(!b){b={description,rate,hours:0,staff:0};buckets.push(b);}
     b.hours+=hrs; b.staff+=1;
   });
+  buckets.forEach(b=>{ b.hours=Math.round(b.hours*100)/100; b.total=Math.round(b.rate*b.hours*100)/100; });
   buckets.sort((a,b)=>a.rate-b.rate);
   return buckets;
 }
@@ -5113,7 +5114,7 @@ function civTaskRowsHtml(taskRowsOut){
   if(!taskRowsOut.length) return '<tr><td colspan="5" class="muted">No staff with an hourly rate are assigned to this client for this period.</td></tr>';
   return taskRowsOut.map((r,i)=>{
     const taskCell=i===0?`<td rowspan="${taskRowsOut.length}">${escapeHtml(r.description||'—')}</td>`:'';
-    const total=r.rate*r.hours;
+    const total=r.total;
     return `<tr>${taskCell}<td class="mono">$${r.rate.toFixed(2)}</td>`
       +`<td class="mono">${r.hours.toFixed(2)}</td><td class="mono">${r.staff}</td><td class="mono" style="text-align:right">${civMoney(total)}</td></tr>`;
   }).join('');
@@ -5208,9 +5209,11 @@ async function runClientInvoice(){
     if(myGen!==civGen) return;
 
     const people = (staffList||[]).filter(s=>s.client_id===clientId && civEmploymentDays(s,start,end)>0);
-    const ledgerRows = people.length ? await computeLedgerRowsForPeriod(people,start,end) : [];
+    /* Billed hours = the exact "Total hrs" shown in the daily grid below (each day
+       rounded to 2 decimals, admin adjustments included), so Hours x Rate on the
+       invoice always matches what the grid shows [Rendy DM, 2026-10-13]. */
+    const hoursByStaff = await renderInvoiceDailyGrid(clientId,start,end,people);
     if(myGen!==civGen) return;
-    const hoursByStaff={}; ledgerRows.forEach(r=>{ hoursByStaff[r.staffId] = Number.isFinite(r.invoiceHrsRounded) ? r.invoiceHrsRounded : (r.regularHrs||0)+(r.otHrs||0); });
 
     // Everyone on this client does the same task; rate rows come straight from
     // each staff member's live usd_hourly_rate — nothing to configure in Settings
@@ -5221,7 +5224,7 @@ async function runClientInvoice(){
     $('civTaskTable').innerHTML = civTaskRowsHtml(taskRowsOut) + (settings.internet_share_on
       ? `<tr><td>Fiber Internet</td><td class="mono">\u2014</td><td class="mono">\u2014</td><td class="mono">\u2014</td><td class="mono" style="text-align:right">${civMoney(internetTotal)}</td></tr>`
       : '');
-    const taskTotal = taskRowsOut.reduce((a,r)=>a+r.rate*r.hours,0);
+    const taskTotal = taskRowsOut.reduce((a,r)=>a+r.total,0);
 
     // Pay items
     const activeCount = people.filter(s=>s.active).length;
@@ -5273,8 +5276,6 @@ async function runClientInvoice(){
       saveClientInvoiceField({paid_leaves_amount:Number(e.target.value||0)}).then(runClientInvoice);
     };
 
-    await renderInvoiceDailyGrid(clientId,start,end,people);
-    if(myGen!==civGen) return;
     $('civGridCard').classList.remove('hide');
   }catch(e){
     if(myGen!==civGen) return;
@@ -5284,8 +5285,9 @@ async function runClientInvoice(){
 
 async function renderInvoiceDailyGrid(clientId,start,end,people){
   const head=$('civGridHead'), body=$('civGridBody');
-  if(!head||!body) return;
+  if(!head||!body) return {};
   people = sortStaffByClientTenure(people);
+  const gridHrsByStaff={};
   const [ents,shifts] = await Promise.all([fetchEntriesRange(start,end,people.map(s=>s.id)),fetchShiftsRange(start,end,people.map(s=>s.id))]);
   const sdm = buildShiftDateMap(shifts), ssm = buildShiftSpanMap(shifts);
   const adj = await fetchAdjustments(start,end,people.map(s=>s.id));
@@ -5317,9 +5319,11 @@ async function renderInvoiceDailyGrid(clientId,start,end,people){
       totalHrs+=hrs;
       return `<td class="num mono">${hrs?hrs.toFixed(2):'\u2014'}</td>`;
     }).join('');
+    totalHrs=Math.round(totalHrs*100)/100; gridHrsByStaff[s.id]=totalHrs;
     rowsHtml += `<tr><td class="sticky-col"><b>${escapeHtml(s.full_name)}</b></td><td class="mono">${mmddyy(s.hire_date)}</td><td class="mono">${mmddyy(s.termination_date)}</td><td class="mono">${escapeHtml(tenureStr(s.hire_date))}</td><td class="mono">${totalHrs.toFixed(2)}</td>${cells}</tr>`;
   });
   body.innerHTML = rowsHtml || `<tr><td colspan="${5+days.length}" class="muted">No staff employed during this period.</td></tr>`;
+  return gridHrsByStaff;
 }
 
 /* ---------- Settings modal ---------- */
