@@ -834,6 +834,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     <div class="card hide" id="portalSignCard">
       <div class="hdr"><h3 style="font-size:15px">Sign Document</h3></div>
       <div class="muted" id="portalSignDocTitle" style="margin-bottom:10px"></div>
+      <div class="row" style="align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap"><button class="btn btn-ghost" id="portalSignViewBtn" type="button">Open document</button><span class="muted" id="portalSignViewNote" style="font-size:12px">Please open and read the document before signing.</span></div>
       <div class="row" style="align-items:flex-end;gap:10px">
         <div style="flex:1"><label>Type your full legal name to sign</label><input id="portalSignName" placeholder="e.g. Juan Dela Cruz"></div>
         <div style="flex:0 0 auto"><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="portalSignAgree"> I acknowledge and agree</label></div>
@@ -1100,12 +1101,12 @@ function phTime(d){const p=phParts(d);return `${p.hour}:${p.minute}`;}
 function phClock(d){const p=phParts(d);return `${p.hour}:${p.minute}:${p.second}`;}
 function tzClock(d,tz){try{return new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);}catch(e){return '--:--:--';}} function shiftWindowFor(client,dateIso){ if(!client||!client.shift_start||!client.shift_end) return null; const pad=t=>t.length===5?t+':00':t; const start=new Date(dateIso+'T'+pad(client.shift_start)+'+08:00'); let end=new Date(dateIso+'T'+pad(client.shift_end)+'+08:00'); if(end<=start) end=new Date(end.getTime()+86400000); return {start,end}; }
 
-/* ---------- early-login guard (staff may only log in up to 15min before shift start) ---------- */
-const EARLY_LOGIN_GRACE_MIN=15;
+/* ---------- early-login guard (staff may log in up to 60min before shift start; pay still counts only inside the shift window) ---------- */
+const EARLY_LOGIN_GRACE_MIN=60;
 function checkLoginWindow(client,now){
   if(!client||!client.shift_start||!client.shift_end) return {ok:true}; // no client assigned — nothing to enforce against
   const todayIso=phDate(now), yestIso=phDate(new Date(now.getTime()-86400000));
-  for(const dIso of [todayIso,yestIso]){
+  for(const dIso of [todayIso,yestIso,addDays(todayIso,1)]){ // tomorrow covers early logins for shifts starting just after midnight
     const w=shiftWindowFor(client,dIso);
     if(!w) continue;
     const earliest=new Date(w.start.getTime()-EARLY_LOGIN_GRACE_MIN*60000);
@@ -1118,9 +1119,15 @@ function checkLoginWindow(client,now){
 /* ---------- force-logout guard (10h shift cap, waived while on Overtime) ---------- */
 const FORCE_LOGOUT_MS=10*3600*1000;
 let forceLogoutBusy=false;
+/* 10h cap counts from the later of login or scheduled shift start, so logging in early doesn't shorten the shift. */
+function forceLogoutBaseMs(sh){
+  const login=new Date(sh.login_at).getTime();
+  try{ const c=shiftClientFor(sh); const w=c&&shiftWindowFor(c,shiftDateOf(sh,c)); if(w&&w.start.getTime()>login) return Math.min(w.start.getTime(),login+EARLY_LOGIN_GRACE_MIN*60000); }catch(_){}
+  return login;
+}
 async function checkForceLogout(){
   if(!curShift||curShift.logout_at||forceLogoutBusy) return;
-  if(Date.now()-new Date(curShift.login_at).getTime() < FORCE_LOGOUT_MS) return;
+  if(Date.now()-forceLogoutBaseMs(curShift) < FORCE_LOGOUT_MS) return;
   if(curEntry && curEntry.activity===OVERTIME) return; // staff is on Overtime — no cap while there
   forceLogoutBusy=true;
   try{
@@ -1145,7 +1152,22 @@ async function checkForceLogout(){
    calendar date its login_at falls on. Group/report by that shift date, never by each
    entry's own started_at date, or hours logged after midnight silently fall outside
    that day's shift window and get miscounted as non-billable / attributed to the wrong day. */
-function buildShiftDateMap(shifts){const m={};(shifts||[]).forEach(sh=>{m[sh.id]=phDate(new Date(sh.login_at));});return m;}
+/* Shift date = the PH date of the shift window the login belongs to. A login inside the early-login
+   grace before the NEXT day's window (e.g. 23:30 login for a 00:00 shift) belongs to that next day. */
+function shiftClientFor(sh){
+  const sid=sh&&sh.staff_id;
+  const st=(typeof staffList!=='undefined'&&staffList||[]).find(x=>x.id===sid)||((typeof me!=='undefined'&&me&&(!sid||me.id===sid))?me:null);
+  return st?(clients||[]).find(c=>c.id===st.client_id)||null:null;
+}
+function shiftDateOf(sh,client){
+  const login=new Date(sh.login_at), d=phDate(login);
+  const c=client!==undefined?client:shiftClientFor(sh);
+  if(!c) return d;
+  const nxt=shiftWindowFor(c,addDays(d,1));
+  if(nxt&&login>=new Date(nxt.start.getTime()-EARLY_LOGIN_GRACE_MIN*60000)) return addDays(d,1);
+  return d;
+}
+function buildShiftDateMap(shifts){const m={};(shifts||[]).forEach(sh=>{m[sh.id]=shiftDateOf(sh);});return m;}
 function shiftDateOf(entry,shiftDateMap){return (entry.shift_id&&shiftDateMap[entry.shift_id])||phDate(new Date(entry.started_at));}
 function hm(mins){const m=Math.max(0,Math.round(mins));return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
 function hms(sec){sec=Math.max(0,Math.floor(sec));return [Math.floor(sec/3600),Math.floor(sec/60)%60,sec%60].map(n=>String(n).padStart(2,'0')).join(':');}
@@ -1380,7 +1402,7 @@ function payableIntervalsForShift(entries,window,extraBlackouts){
      shift is paid exactly as if lunch had been taken inside the window (flat 60-min ND
      deduction), and the shift is flagged so admins can call out the missing lunch log. */
 function ledgerShiftRow(staff,client,shift,entries,nightWins){
-  const date=phDate(new Date(shift.login_at)),window=shiftWindowFor(client,date);
+  const date=shiftDateOf(shift,client),window=shiftWindowFor(client,date);
   let payable=payableIntervalsForShift(entries,window),missingLunch=false,virtualMin=0;
   const hasLunch=entries.some(e=>e.activity==='60min Break');
   if(client&&unpaidBreakClients.has(client.id)&&!hasLunch){
@@ -2029,7 +2051,7 @@ async function runLedger(){
   people.forEach(staff=>{
     const client=clients.find(c=>c.id===staff.client_id);
     shifts.filter(sh=>sh.staff_id===staff.id).forEach(shift=>{
-      const date=phDate(new Date(shift.login_at));if(date<start||date>end)return;
+      const date=shiftDateOf(shift);if(date<start||date>end)return;
       const shiftEntries=ents.filter(e=>e.staff_id===staff.id&&e.shift_id===shift.id);
       ledgerDetailRows.push(ledgerShiftRow(staff,client,shift,shiftEntries,nightWins));
     });
@@ -2670,7 +2692,7 @@ async function renderToday(){
      date instead meant that right after logging out of an overnight shift (login 9pm, logout
      6am next day) the window was built for the WRONG date, no entry fell inside it, and the
      card reported 0:00 billable for a full shift just worked. */
-  const anchorDate=shift?phDate(new Date(shift.login_at)):phDate(new Date()); const myWindow=shiftWindowFor(cMe,anchorDate);
+  const anchorDate=shift?shiftDateOf(shift,cMe||null):phDate(new Date()); const myWindow=shiftWindowFor(cMe,anchorDate);
   $('entries').innerHTML = es.length? es.map(e=>{
     const bill=!NON_BILLABLE.includes(e.activity);
     return `<tr><td>${e.activity}</td><td class="mono">${phTime(new Date(e.started_at))}</td>
@@ -2904,7 +2926,7 @@ async function loadRoster(){
     // are still open, the most recently started one is the real current one.
     const openOnes=sh?mine.filter(e=>!e.ended_at):[];
     const running=openOnes.length?openOnes.reduce((a,b)=>new Date(a.started_at)>new Date(b.started_at)?a:b):null;
-    const anchorDate=relevant?phDate(new Date(relevant.login_at)):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate),relevant?ssm[relevant.id]:0);
+    const anchorDate=relevant?shiftDateOf(relevant):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate),relevant?ssm[relevant.id]:0);
     const status= onLeave ? `On Leave (${LEAVE_LABEL[onLeave]||onLeave})` : (!sh ? 'Off shift' : (running&&running.activity.includes('Break')?'On break':'Working'));
     if(onLeave)leaveN++;else if(status==='Off shift')off++;else if(status==='On break')br++;else on++;
     if(!onLeave&&sum.total>0){pctSum+=sum.billable/sum.total*100;pctN++;}
@@ -3490,7 +3512,7 @@ async function fetchShiftsRange(startIso,endIso,staffIds){
   const to=new Date(endIso+'T23:59:59+08:00'); to.setDate(to.getDate()+1);
   if(staffIds&&!staffIds.length) return [];
   const data=await pagedSelect(()=>applyStaffFilter(sb.from('shifts').select('*').gte('login_at',from.toISOString()).lte('login_at',to.toISOString()).order('login_at'),staffIds));
-  return (data||[]).filter(sh=>{ const d=phDate(new Date(sh.login_at)); return d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(sh.staff_id)); });
+  return (data||[]).filter(sh=>{ const d=shiftDateOf(sh); return d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(sh.staff_id)); });
 }
 function reportEntryInterval(e,shifts,now){
   const start=new Date(e.started_at).getTime();
@@ -3802,7 +3824,7 @@ function correctionOverbreakText(sum){
 }
 function correctionImpactHtml(beforeEntries,afterEntries,shift,staffId){
   const staff=staffList.find(s=>s.id===staffId), client=staff&&clients.find(c=>c.id===staff.client_id);
-  const shiftDate=shift?phDate(new Date(shift.login_at)):phDate(new Date(beforeEntries[0].started_at));
+  const shiftDate=shift?shiftDateOf(shift,client||null):phDate(new Date(beforeEntries[0].started_at));
   const span=shift?buildShiftSpanMap([shift])[shift.id]:0, win=shiftWindowFor(client,shiftDate);
   const before=summarize(beforeEntries,null,win,span), after=summarize(afterEntries,null,win,span);
   const row=(label,a,b)=>`<tr><td>${label}</td><td class="mono">${a}</td><td class="mono">${b}</td></tr>`;
@@ -4347,6 +4369,7 @@ async function loadPortalStaffDocs() {
   let j;
   try { j = await api('/api/portal/docs'); } catch (e) { alert(e.message); return; }
   portalDocsCache = j.docs || [];
+  portalDocsLoadedAt = Date.now();
   const company = portalDocsCache.filter(d => d.visibility === 'all');
   const mine = portalDocsCache.filter(d => d.visibility !== 'all');
   $('portalCompanyDocs').innerHTML = renderStaffDocRows(company);
@@ -4360,32 +4383,93 @@ function renderStaffDocRows(docs) {
     const status = !d.requires_signature ? '<span class="pill">—</span>'
       : d.signed_at ? `<span class="pill p-work"><span class="dot"></span>Signed ${escapeHtml(fmtNice(d.signed_at.slice(0,10)))}</span>`
       : `<span class="pill p-break"><span class="dot"></span>Needs signature</span>`;
-    const action = d.requires_signature && !d.signed_at
-      ? `<button class="btn btn-gold" data-sign="${d.id}" data-title="${escapeHtml(d.title)}">Sign</button>`
-      : `<a class="btn btn-ghost" href="${d.drive_link}" target="_blank" rel="noopener">View</a>`;
-    return `<tr><td><b>${escapeHtml(d.title)}</b></td><td class="muted">${escapeHtml(d.category)}</td><td>${status}</td><td style="text-align:right">${action}</td></tr>`;
+    const viewBtn = `<button class="btn btn-ghost" data-view="${d.id}" type="button">View</button>`;
+    const needsSign = d.requires_signature && !d.signed_at;
+    const viewed = portalHasViewed(d.id);
+    const signBtn = needsSign
+      ? `<button class="btn btn-gold" data-sign="${d.id}" data-title="${escapeHtml(d.title)}" ${viewed?'':'disabled title="Open the document first"'} style="margin-left:6px">Sign</button>`
+      : '';
+    const hint = needsSign && !viewed ? `<div class="muted" style="font-size:11px;margin-top:4px">View the document to unlock Sign</div>` : '';
+    return `<tr><td><b>${escapeHtml(d.title)}</b></td><td class="muted">${escapeHtml(d.category)}</td><td>${status}</td><td style="text-align:right;white-space:nowrap">${viewBtn}${signBtn}${hint}</td></tr>`;
   }).join('');
 }
 
+/* View-before-sign: links are 1-hour signed URLs, so refresh them if stale. */
+let portalDocsLoadedAt = 0;
+function portalViewedKey(){ return 'portalViewed_' + ((me && me.id) || 'anon'); }
+function portalViewedSet(){ try { return new Set(JSON.parse(localStorage.getItem(portalViewedKey()) || '[]').map(String)); } catch (_) { return new Set(); } }
+function portalHasViewed(docId){ return portalViewedSet().has(String(docId)); }
+function portalMarkViewed(docId){ try { const s = portalViewedSet(); s.add(String(docId)); localStorage.setItem(portalViewedKey(), JSON.stringify([...s])); } catch (_) {} }
+async function portalOpenDoc(docId) {
+  // Open the tab synchronously (avoids popup blockers), then point it at a fresh link.
+  const w = window.open('', '_blank');
+  if (w) { try { w.document.write('<p style="font-family:sans-serif;padding:20px">Opening document…</p>'); } catch (_) {} }
+  try {
+    if (!portalDocsLoadedAt || Date.now() - portalDocsLoadedAt > 45 * 60 * 1000) {
+      const j = await api('/api/portal/docs');
+      portalDocsCache = j.docs || [];
+      portalDocsLoadedAt = Date.now();
+    }
+    const d = portalDocsCache.find(x => String(x.id) === String(docId));
+    const url = d && d.drive_link;
+    if (!url || url === 'null') {
+      if (w) w.close();
+      alert('This document file could not be found. Please ask an admin to re-upload it.');
+      return false;
+    }
+    if (w) w.location.href = url; else window.location.href = url;
+    portalMarkViewed(docId);
+    return true;
+  } catch (e) {
+    if (w) w.close();
+    alert('Could not open the document: ' + e.message);
+    return false;
+  }
+}
 function wirePortalDocActions() {
+  document.querySelectorAll('[data-view]').forEach(btn => {
+    btn.onclick = async () => {
+      const ok = await portalOpenDoc(btn.dataset.view);
+      if (ok) {
+        const cardOpen = !$('portalSignCard').classList.contains('hide') ? $('portalSignCard').dataset.docId : null;
+        $('portalCompanyDocs').innerHTML = renderStaffDocRows(portalDocsCache.filter(d => d.visibility === 'all'));
+        $('portalMyDocs').innerHTML = renderStaffDocRows(portalDocsCache.filter(d => d.visibility !== 'all'));
+        wirePortalDocActions();
+        if (cardOpen) portalUpdateSignGate(cardOpen);
+      }
+    };
+  });
   document.querySelectorAll('[data-sign]').forEach(btn => {
     btn.onclick = () => {
+      if (!portalHasViewed(btn.dataset.sign)) { alert('Please open and read the document first.'); return; }
       $('portalSignCard').classList.remove('hide');
       $('portalSignCard').dataset.docId = btn.dataset.sign;
       $('portalSignDocTitle').textContent = 'Signing: ' + btn.dataset.title;
       $('portalSignName').value = '';
       $('portalSignAgree').checked = false;
       $('portalSignMsg').textContent = '';
+      portalUpdateSignGate(btn.dataset.sign);
       $('portalSignCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
   });
 }
+function portalUpdateSignGate(docId) {
+  const viewed = portalHasViewed(docId);
+  $('portalSignSubmit').disabled = !viewed;
+  $('portalSignViewNote').textContent = viewed ? 'Document opened. You can sign below.' : 'Please open and read the document before signing.';
+}
+$('portalSignViewBtn').onclick = async () => {
+  const docId = $('portalSignCard').dataset.docId;
+  if (!docId) return;
+  if (await portalOpenDoc(docId)) { portalUpdateSignGate(docId); }
+};
 
 $('portalSignSubmit').onclick = async () => {
   const docId = $('portalSignCard').dataset.docId;
   const name = $('portalSignName').value.trim();
   if (!name) { $('portalSignMsg').textContent = 'Please type your full name.'; return; }
   if (!$('portalSignAgree').checked) { $('portalSignMsg').textContent = 'Please check the agreement box.'; return; }
+  if (!portalHasViewed(docId)) { $('portalSignMsg').textContent = 'Please open and read the document first.'; return; }
   $('portalSignSubmit').disabled = true;
   $('portalSignMsg').textContent = 'Saving…';
   try {
@@ -4395,7 +4479,7 @@ $('portalSignSubmit').onclick = async () => {
   } catch (e) {
     $('portalSignMsg').textContent = e.message;
   } finally {
-    $('portalSignSubmit').disabled = false;
+    $('portalSignSubmit').disabled = !portalHasViewed(docId);
   }
 };
 
@@ -4428,7 +4512,7 @@ async function loadPortalAdminDocs() {
   $('portalAdminDocs').innerHTML = portalDocsCache.length ? portalDocsCache.map(d => {
     const assignee = d.visibility === 'all' ? 'Everyone' : escapeHtml((staffList.find(s => s.id === d.visibility) || {}).full_name || '—');
     const sigCol = d.requires_signature ? `<button class="btn btn-ghost" data-sigs="${d.id}" title="See who signed" style="padding:3px 10px">${d.signed_count}/${d.eligible_count}${d.eligible_count>d.signed_count?' <span style="color:var(--rose)">• '+(d.eligible_count-d.signed_count)+' missing</span>':''}</button>` : '—';
-    return `<tr><td><a href="${d.drive_link}" target="_blank" rel="noopener"><b>${escapeHtml(d.title)}</b></a></td><td class="muted">${escapeHtml(d.category)}</td><td>${assignee}</td><td>${sigCol}</td><td style="text-align:right"><button class="btn btn-rose" data-del="${d.id}">Delete</button></td></tr>`;
+    return `<tr><td>${d.drive_link?`<a href="${d.drive_link}" target="_blank" rel="noopener"><b>${escapeHtml(d.title)}</b></a>`:`<b>${escapeHtml(d.title)}</b> <span class="muted" style="font-size:11px;color:var(--rose)">(file missing)</span>`}</td><td class="muted">${escapeHtml(d.category)}</td><td>${assignee}</td><td>${sigCol}</td><td style="text-align:right"><button class="btn btn-rose" data-del="${d.id}">Delete</button></td></tr>`;
   }).join('') : `<tr><td colspan="5" class="muted">No documents yet.</td></tr>`;
   document.querySelectorAll('[data-sigs]').forEach(btn => { btn.onclick = () => showPortalSigs(btn.dataset.sigs); });
   renderPortalMissing();
@@ -4814,7 +4898,7 @@ async function fetchShiftsRangeStrict(startIso, endIso, staffIds) {
       sb.from('shifts').select('*').gte('login_at', from.toISOString()).lte('login_at', to.toISOString()).order('login_at'),
       ids),
     staffIds, 'shifts');
-  return data.filter(sh => { const d = phDate(new Date(sh.login_at)); return d >= startIso && d <= endIso && (!staffIds || staffIds.includes(sh.staff_id)); });
+  return data.filter(sh => { const d = shiftDateOf(sh); return d >= startIso && d <= endIso && (!staffIds || staffIds.includes(sh.staff_id)); });
 }
 async function fetchEntriesRangeStrict(startIso, endIso, staffIds) {
   const from = new Date(startIso + 'T00:00:00+08:00'); from.setDate(from.getDate() - 1);
@@ -4857,7 +4941,7 @@ async function computeLedgerRowsForPeriod(peopleSubset, start, end) {
   peopleSubset.forEach(staff => {
     const client = clients.find(c => c.id === staff.client_id);
     shifts.filter(sh => sh.staff_id === staff.id).forEach(shift => {
-      const date = phDate(new Date(shift.login_at)); if (date < start || date > end) return;
+      const date = shiftDateOf(shift); if (date < start || date > end) return;
       const shiftEntries = ents.filter(e => e.staff_id === staff.id && e.shift_id === shift.id);
       ledgerDetailRows.push(ledgerShiftRow(staff, client, shift, shiftEntries, nightWins));
     });
@@ -6051,7 +6135,7 @@ async function downloadClientTimesheetXlsx(){
     const reportYear=Number(start.slice(0,4)),shiftsByStaff={},shiftDateById={},recordedDatesByStaff={},manualByStaff={};
     shifts.forEach(sh=>{
       (shiftsByStaff[sh.staff_id]=shiftsByStaff[sh.staff_id]||[]).push(sh);
-      const date=phDate(new Date(sh.login_at));
+      const date=shiftDateOf(sh);
       if(ytdIsIso(date)){shiftDateById[sh.id]=date;(recordedDatesByStaff[sh.staff_id]=recordedDatesByStaff[sh.staff_id]||new Set()).add(date);}
     });
     entries.forEach(e=>{
@@ -6082,7 +6166,7 @@ async function downloadClientTimesheetXlsx(){
       const ratePeriods=savedRate?[{effective_from:savedRate.previous_effective_from,monthly_rate:savedRate.previous_monthly_rate},{effective_from:savedRate.current_effective_from,monthly_rate:savedRate.current_monthly_rate}]:ytdDefaultPeriods(staff,reportYear);
       const hoursByDay={},openPunchByDay={},employed=ytdEmploymentWindow(staff,start,end);
       (shiftsByStaff[staff.id]||[]).forEach(sh=>{
-        const date=phDate(new Date(sh.login_at));if(date<start||date>end)return;
+        const date=shiftDateOf(sh);if(date<start||date>end)return;
         const sourceEntries=entriesByShift[sh.id]||[],window=shiftWindowFor(client,date);
         const hasOpenEntry=sourceEntries.some(e=>!e.ended_at),hasOpenShift=!sh.logout_at&&date===currentDate&&window&&window.end.getTime()>nowMs;
         if(hasOpenEntry||hasOpenShift)openPunchByDay[date]=true;
