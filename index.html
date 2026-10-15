@@ -1155,7 +1155,7 @@ let forceLogoutBusy=false;
 /* 10h cap counts from the later of login or scheduled shift start, so logging in early doesn't shorten the shift. */
 function forceLogoutBaseMs(sh){
   const login=new Date(sh.login_at).getTime();
-  try{ const c=shiftClientFor(sh); const w=c&&shiftWindowFor(c,shiftDateOf(sh,c)); if(w&&w.start.getTime()>login) return Math.min(w.start.getTime(),login+EARLY_LOGIN_GRACE_MIN*60000); }catch(_){}
+  try{ const c=shiftClientFor(sh); const w=c&&shiftWindowFor(c,shiftAnchorDate(sh,c)); if(w&&w.start.getTime()>login) return Math.min(w.start.getTime(),login+EARLY_LOGIN_GRACE_MIN*60000); }catch(_){}
   return login;
 }
 async function checkForceLogout(){
@@ -1192,7 +1192,7 @@ function shiftClientFor(sh){
   const st=(typeof staffList!=='undefined'&&staffList||[]).find(x=>x.id===sid)||((typeof me!=='undefined'&&me&&(!sid||me.id===sid))?me:null);
   return st?(clients||[]).find(c=>c.id===st.client_id)||null:null;
 }
-function shiftDateOf(sh,client){
+function shiftAnchorDate(sh,client){
   const login=new Date(sh.login_at), d=phDate(login);
   const c=client!==undefined?client:shiftClientFor(sh);
   if(!c) return d;
@@ -1200,7 +1200,7 @@ function shiftDateOf(sh,client){
   if(nxt&&login>=new Date(nxt.start.getTime()-EARLY_LOGIN_GRACE_MIN*60000)) return addDays(d,1);
   return d;
 }
-function buildShiftDateMap(shifts){const m={};(shifts||[]).forEach(sh=>{m[sh.id]=shiftDateOf(sh);});return m;}
+function buildShiftDateMap(shifts){const m={};(shifts||[]).forEach(sh=>{m[sh.id]=shiftAnchorDate(sh);});return m;}
 function shiftDateOf(entry,shiftDateMap){return (entry.shift_id&&shiftDateMap[entry.shift_id])||phDate(new Date(entry.started_at));}
 function hm(mins){const m=Math.max(0,Math.round(mins));return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
 function hms(sec){sec=Math.max(0,Math.floor(sec));return [Math.floor(sec/3600),Math.floor(sec/60)%60,sec%60].map(n=>String(n).padStart(2,'0')).join(':');}
@@ -1435,7 +1435,7 @@ function payableIntervalsForShift(entries,window,extraBlackouts){
      shift is paid exactly as if lunch had been taken inside the window (flat 60-min ND
      deduction), and the shift is flagged so admins can call out the missing lunch log. */
 function ledgerShiftRow(staff,client,shift,entries,nightWins){
-  const date=shiftDateOf(shift,client),window=shiftWindowFor(client,date);
+  const date=shiftAnchorDate(shift,client),window=shiftWindowFor(client,date);
   let payable=payableIntervalsForShift(entries,window),missingLunch=false,virtualMin=0;
   const hasLunch=entries.some(e=>e.activity==='60min Break');
   if(client&&unpaidBreakClients.has(client.id)&&!hasLunch){
@@ -2084,7 +2084,7 @@ async function runLedger(){
   people.forEach(staff=>{
     const client=clients.find(c=>c.id===staff.client_id);
     shifts.filter(sh=>sh.staff_id===staff.id).forEach(shift=>{
-      const date=shiftDateOf(shift);if(date<start||date>end)return;
+      const date=shiftAnchorDate(shift);if(date<start||date>end)return;
       const shiftEntries=ents.filter(e=>e.staff_id===staff.id&&e.shift_id===shift.id);
       ledgerDetailRows.push(ledgerShiftRow(staff,client,shift,shiftEntries,nightWins));
     });
@@ -2765,7 +2765,7 @@ async function checkPreShiftOtSwitch(){
   if(!curShift||curShift.logout_at||!curEntry||curEntry.activity!==OVERTIME||curEntry.ended_at) return;
   if(otAutoBusy||switchBusy||Date.now()<otAutoRetryAt) return;
   const c=clients.find(x=>x.id===me.client_id); if(!c) return;
-  const w=shiftWindowFor(c,shiftDateOf(curShift,c)); if(!w) return;
+  const w=shiftWindowFor(c,shiftAnchorDate(curShift,c)); if(!w) return;
   const ws=w.start.getTime(), st=new Date(curEntry.started_at).getTime();
   if(!(st<ws&&Date.now()>=ws)) return;
   otAutoBusy=true;
@@ -2831,7 +2831,7 @@ async function renderToday(){
      date instead meant that right after logging out of an overnight shift (login 9pm, logout
      6am next day) the window was built for the WRONG date, no entry fell inside it, and the
      card reported 0:00 billable for a full shift just worked. */
-  const anchorDate=shift?shiftDateOf(shift,cMe||null):phDate(new Date()); const myWindow=shiftWindowFor(cMe,anchorDate);
+  const anchorDate=shift?shiftAnchorDate(shift,cMe||null):phDate(new Date()); const myWindow=shiftWindowFor(cMe,anchorDate);
   $('entries').innerHTML = es.length? es.map(e=>{
     const bill=!NON_BILLABLE.includes(e.activity);
     return `<tr><td>${e.activity}</td><td class="mono">${phTime(new Date(e.started_at))}</td>
@@ -3065,7 +3065,7 @@ async function loadRoster(){
     // are still open, the most recently started one is the real current one.
     const openOnes=sh?mine.filter(e=>!e.ended_at):[];
     const running=openOnes.length?openOnes.reduce((a,b)=>new Date(a.started_at)>new Date(b.started_at)?a:b):null;
-    const anchorDate=relevant?shiftDateOf(relevant):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate),relevant?ssm[relevant.id]:0);
+    const anchorDate=relevant?shiftAnchorDate(relevant):today; const c=clients.find(c=>c.id===s.client_id); const sum=summarize(mine,null,shiftWindowFor(c,anchorDate),relevant?ssm[relevant.id]:0);
     const status= onLeave ? `On Leave (${LEAVE_LABEL[onLeave]||onLeave})` : (!sh ? 'Off shift' : (running&&running.activity.includes('Break')?'On break':'Working'));
     if(onLeave)leaveN++;else if(status==='Off shift')off++;else if(status==='On break')br++;else on++;
     if(!onLeave&&sum.total>0){pctSum+=sum.billable/sum.total*100;pctN++;}
@@ -3651,7 +3651,7 @@ async function fetchShiftsRange(startIso,endIso,staffIds){
   const to=new Date(endIso+'T23:59:59+08:00'); to.setDate(to.getDate()+1);
   if(staffIds&&!staffIds.length) return [];
   const data=await pagedSelect(()=>applyStaffFilter(sb.from('shifts').select('*').gte('login_at',from.toISOString()).lte('login_at',to.toISOString()).order('login_at'),staffIds));
-  return (data||[]).filter(sh=>{ const d=shiftDateOf(sh); return d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(sh.staff_id)); });
+  return (data||[]).filter(sh=>{ const d=shiftAnchorDate(sh); return d>=startIso&&d<=endIso&&(!staffIds||staffIds.includes(sh.staff_id)); });
 }
 function reportEntryInterval(e,shifts,now){
   const start=new Date(e.started_at).getTime();
@@ -3970,13 +3970,13 @@ async function loadEditLoginShifts(){
   const {data,error}=await sb.from('shifts').select('*').eq('staff_id',sid).gte('login_at',from).order('login_at',{ascending:false});
   if(error){$('elShift').innerHTML=`<option value="">${escapeHtml(error.message)}</option>`;return;}
   elShifts=data||[];
-  $('elShift').innerHTML=elShifts.length?elShifts.map(sh=>`<option value="${sh.id}">${escapeHtml(shiftDateOf(sh))} · login ${escapeHtml(phTime(new Date(sh.login_at)))} → ${sh.logout_at?escapeHtml(phTime(new Date(sh.logout_at))):'still open'}</option>`).join(''):'<option value="">No shifts in the last 7 days</option>';
+  $('elShift').innerHTML=elShifts.length?elShifts.map(sh=>`<option value="${sh.id}">${escapeHtml(shiftAnchorDate(sh))} · login ${escapeHtml(phTime(new Date(sh.login_at)))} → ${sh.logout_at?escapeHtml(phTime(new Date(sh.logout_at))):'still open'}</option>`).join(''):'<option value="">No shifts in the last 7 days</option>';
   elShiftChanged();
 }
 function elShiftChanged(){
   const sh=elShifts.find(x=>x.id===$('elShift').value);
   if(sh){
-    const c=shiftClientFor(sh),w=c&&shiftWindowFor(c,shiftDateOf(sh,c));
+    const c=shiftClientFor(sh),w=c&&shiftWindowFor(c,shiftAnchorDate(sh,c));
     const def=(w&&w.start<new Date(sh.login_at))?w.start:null;
     $('elDate').value=phDate(def||new Date(sh.login_at));
     $('elTime').value=def?phTime(def):'';
@@ -3986,7 +3986,7 @@ function elShiftChanged(){
 function elPreviewUpdate(){
   const sh=elShifts.find(x=>x.id===$('elShift').value),iso=elNewIso(),el=$('elPreview');
   if(!sh){el.textContent='';return;}
-  const c=shiftClientFor(sh),w=c&&shiftWindowFor(c,shiftDateOf(sh,c));
+  const c=shiftClientFor(sh),w=c&&shiftWindowFor(c,shiftAnchorDate(sh,c));
   const sched=w?` · scheduled start ${phTime(w.start)} PHT`:'';
   if(!iso){el.innerHTML=`Current login: <b>${escapeHtml(elFmt(sh.login_at))}</b>${sched}`;return;}
   const diff=Math.round((new Date(sh.login_at)-new Date(iso))/60000);
@@ -4042,7 +4042,7 @@ function correctionOverbreakText(sum){
 }
 function correctionImpactHtml(beforeEntries,afterEntries,shift,staffId){
   const staff=staffList.find(s=>s.id===staffId), client=staff&&clients.find(c=>c.id===staff.client_id);
-  const shiftDate=shift?shiftDateOf(shift,client||null):phDate(new Date(beforeEntries[0].started_at));
+  const shiftDate=shift?shiftAnchorDate(shift,client||null):phDate(new Date(beforeEntries[0].started_at));
   const span=shift?buildShiftSpanMap([shift])[shift.id]:0, win=shiftWindowFor(client,shiftDate);
   const before=summarize(beforeEntries,null,win,span), after=summarize(afterEntries,null,win,span);
   const row=(label,a,b)=>`<tr><td>${label}</td><td class="mono">${a}</td><td class="mono">${b}</td></tr>`;
@@ -5116,7 +5116,7 @@ async function fetchShiftsRangeStrict(startIso, endIso, staffIds) {
       sb.from('shifts').select('*').gte('login_at', from.toISOString()).lte('login_at', to.toISOString()).order('login_at'),
       ids),
     staffIds, 'shifts');
-  return data.filter(sh => { const d = shiftDateOf(sh); return d >= startIso && d <= endIso && (!staffIds || staffIds.includes(sh.staff_id)); });
+  return data.filter(sh => { const d = shiftAnchorDate(sh); return d >= startIso && d <= endIso && (!staffIds || staffIds.includes(sh.staff_id)); });
 }
 async function fetchEntriesRangeStrict(startIso, endIso, staffIds) {
   const from = new Date(startIso + 'T00:00:00+08:00'); from.setDate(from.getDate() - 1);
@@ -5159,7 +5159,7 @@ async function computeLedgerRowsForPeriod(peopleSubset, start, end) {
   peopleSubset.forEach(staff => {
     const client = clients.find(c => c.id === staff.client_id);
     shifts.filter(sh => sh.staff_id === staff.id).forEach(shift => {
-      const date = shiftDateOf(shift); if (date < start || date > end) return;
+      const date = shiftAnchorDate(shift); if (date < start || date > end) return;
       const shiftEntries = ents.filter(e => e.staff_id === staff.id && e.shift_id === shift.id);
       ledgerDetailRows.push(ledgerShiftRow(staff, client, shift, shiftEntries, nightWins));
     });
@@ -6353,7 +6353,7 @@ async function downloadClientTimesheetXlsx(){
     const reportYear=Number(start.slice(0,4)),shiftsByStaff={},shiftDateById={},recordedDatesByStaff={},manualByStaff={};
     shifts.forEach(sh=>{
       (shiftsByStaff[sh.staff_id]=shiftsByStaff[sh.staff_id]||[]).push(sh);
-      const date=shiftDateOf(sh);
+      const date=shiftAnchorDate(sh);
       if(ytdIsIso(date)){shiftDateById[sh.id]=date;(recordedDatesByStaff[sh.staff_id]=recordedDatesByStaff[sh.staff_id]||new Set()).add(date);}
     });
     entries.forEach(e=>{
@@ -6384,7 +6384,7 @@ async function downloadClientTimesheetXlsx(){
       const ratePeriods=savedRate?[{effective_from:savedRate.previous_effective_from,monthly_rate:savedRate.previous_monthly_rate},{effective_from:savedRate.current_effective_from,monthly_rate:savedRate.current_monthly_rate}]:ytdDefaultPeriods(staff,reportYear);
       const hoursByDay={},openPunchByDay={},employed=ytdEmploymentWindow(staff,start,end);
       (shiftsByStaff[staff.id]||[]).forEach(sh=>{
-        const date=shiftDateOf(sh);if(date<start||date>end)return;
+        const date=shiftAnchorDate(sh);if(date<start||date>end)return;
         const sourceEntries=entriesByShift[sh.id]||[],window=shiftWindowFor(client,date);
         const hasOpenEntry=sourceEntries.some(e=>!e.ended_at),hasOpenShift=!sh.logout_at&&date===currentDate&&window&&window.end.getTime()>nowMs;
         if(hasOpenEntry||hasOpenShift)openPunchByDay[date]=true;
