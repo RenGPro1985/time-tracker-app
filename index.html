@@ -390,6 +390,39 @@ button.btn{padding:7px 12px;font-size:12px}
   </div>
 </div>
 
+<div id="elOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:72;align-items:center;justify-content:center;padding:20px;overflow:auto" onclick="if(event.target===this)this.style.display='none'">
+  <div class="card" style="width:100%;max-width:620px;max-height:92vh;overflow:auto">
+    <div class="hdr"><h3 style="font-size:15px">Edit login time</h3><button class="btn btn-ghost" type="button" onclick="document.getElementById('elOverlay').style.display='none'">Close</button></div>
+    <div class="muted" style="font-size:12px;margin-bottom:10px">Moves a shift's login <b>earlier</b> and starts the shift's first activity at that time (if the first activity is a break, a Working block is added before it). Pay still follows the normal rules: time before the scheduled shift start is unpaid unless it is Overtime. Max 3 hours earlier; can't overlap the previous shift; every edit is logged.</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:180px"><label>Staff</label><select id="elStaff" style="width:100%"></select></div>
+      <div style="flex:1.4;min-width:220px"><label>Shift (last 7 days)</label><select id="elShift" style="width:100%"></select></div>
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px">
+      <div style="flex:1;min-width:150px"><label>Correct login date (PHT)</label><input type="date" id="elDate" style="width:100%"></div>
+      <div style="flex:1;min-width:120px"><label>Correct login time (PHT)</label><input type="time" id="elTime" style="width:100%"></div>
+    </div>
+    <div id="elPreview" class="note" style="font-size:12.5px;margin-top:10px;min-height:18px"></div>
+    <div style="margin-top:10px"><label>Reason (required)</label><input id="elReason" placeholder="e.g. Couldn't log in early due to the 15-min restriction" style="width:100%"></div>
+    <div class="row" style="margin-top:12px"><button class="btn btn-teal" id="elSave" type="button">Save login time</button><span class="muted" id="elMsg" style="font-size:12px"></span></div>
+    <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px">Recent login edits</div>
+    <table><thead><tr><th>Edited</th><th>Staff</th><th>Old → New login (PHT)</th><th>Reason</th></tr></thead><tbody id="elHistory"></tbody></table>
+  </div>
+</div>
+<div id="payAllOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:71;align-items:center;justify-content:center;padding:20px;overflow:auto">
+  <div class="card" style="width:100%;max-width:620px;max-height:90vh;display:flex;flex-direction:column">
+    <h3 style="font-size:15px;margin-bottom:8px">Mark all as paid</h3>
+    <div class="muted" style="font-size:12px;margin-bottom:10px">Each ticked row is confirmed PAID one by one, exactly like ticking its PAID box: it locks that row's payout figures, deducts any scheduled Fee Advance repayment for this cutoff, and notifies the staff member. It cannot be unchecked. Untick anyone you are not paying. Rows with ₱0.00 start unticked.</div>
+    <div id="payAllCutoff" class="note" style="font-size:12.5px;margin-bottom:8px"></div>
+    <div style="overflow:auto;flex:1;min-height:80px"><table><thead><tr><th><input type="checkbox" id="payAllToggle" title="Tick / untick all"></th><th>Staff</th><th>Client</th><th style="text-align:right">Net Amount Payable</th><th>Status</th></tr></thead><tbody id="payAllBody"></tbody></table></div>
+    <div class="row" style="justify-content:space-between;margin-top:10px;font-size:13px"><span id="payAllCount" class="muted"></span><b class="mono" id="payAllTotal" style="color:var(--gold)"></b></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn btn-teal" id="payAllYes">Confirm PAID</button>
+      <button class="btn btn-ghost" id="payAllCancel">Cancel</button>
+    </div>
+    <div class="muted" id="payAllMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div>
+  </div>
+</div>
 <div id="payConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:71;align-items:center;justify-content:center;padding:20px">
   <div class="card" style="width:100%;max-width:480px">
     <h3 style="font-size:15px;margin-bottom:8px">Confirm PAID</h3>
@@ -812,9 +845,9 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     <!-- ---------- ADMIN: CORRECTIONS ---------- -->
     <section id="v-corr" class="hide grid" style="gap:16px">
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
-        <select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div>
+        <div class="row" style="gap:8px"><button class="btn btn-gold" id="elOpenBtn" type="button" title="Move a shift's login earlier (e.g. staff couldn't log in on time)">Edit login time</button><select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
 <div class="hide" id="civSettingsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60"><div class="card" style="max-width:720px;width:92vw;max-height:88vh;overflow-y:auto"><div class="hdr"><h3 style="font-size:15px" id="civSettingsTitle">Client Invoice Settings</h3><button class="btn btn-ghost" id="civSettingsClose">✕ Close</button></div><div class="muted" style="font-size:12px;margin-bottom:12px">Controls exactly what appears on this client's bi-weekly invoice. Nothing here changes payroll (Contractor Ledger) math.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Task Description</div><input type="text" id="civTaskDescription" placeholder="e.g. Back Office CRM tasks" style="margin-bottom:6px"><div class="muted" style="font-size:11px;margin-bottom:14px">One label for everyone on this client. Rate rows on the invoice come straight from each staff member's live hourly rate \u2014 nothing to configure here for that.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Recurring Pay Items</div><table><tbody>
 <tr><td style="width:26px"><input type="checkbox" id="civInternetOn"></td><td><b>Internet / Fiber Share</b><div class="muted" style="font-size:11px">Flat cost line on every invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civInternetAmt" style="width:110px" placeholder="$/period"></td></tr>
 <tr><td><input type="checkbox" id="civThirteenthOn"></td><td><b>13th Month Pay Portion</b><div class="muted" style="font-size:11px">Per-staff amount for each bi-weekly invoice. New/termed staff: (this amount ÷ 10) \u00d7 days present in the cutoff.</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civThirteenthAmt" style="width:110px" placeholder="$/staff / cutoff"></td></tr>
@@ -926,7 +959,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     <section id="v-policy" class="hide grid" style="gap:16px">
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Activity &amp; billing rules</h3><button class="btn btn-gold" id="savePolicy">Save allowances</button></div>
         <table><thead><tr><th>Status</th><th>Billable</th><th>Allowance per instance (minutes)</th><th>Notes</th></tr></thead><tbody id="policyTable"></tbody></table>
-        <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>, but only for time inside your shift window — time logged before your shift starts or after it ends is automatically non-billable. Select <b>Overtime</b> to bill time outside the shift window; Overtime has no cap and is always fully billable. On top of that, minutes spent on a normal activity beyond its allowance are deducted from billable time (Overtime is never capped) — <b>this is checked per instance (each time you use that activity), not summed across the shift.</b> 15min Break allows up to 2 instances per shift (two uses less than 1hr apart count as one instance), 30min and 60min Break allow 1 instance per shift; any use beyond that limit is entirely non-billable. Personal and Bio Break have no instance limit. Set an allowance to 0 to never deduct.</div>
+        <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>, but only for time inside your shift window — time logged before your shift starts or after it ends is automatically non-billable. Select <b>Overtime</b> to bill time outside the shift window; Overtime has no cap and is always fully billable. Overtime started <b>before</b> your shift switches to Working automatically at your shift start. On top of that, minutes spent on a normal activity beyond its allowance are deducted from billable time (Overtime is never capped) — <b>this is checked per instance (each time you use that activity), not summed across the shift.</b> 15min Break allows up to 2 instances per shift (two uses less than 1hr apart count as one instance), 30min and 60min Break allow 1 instance per shift; any use beyond that limit is entirely non-billable. Personal and Bio Break have no instance limit. Set an allowance to 0 to never deduct.</div>
       </div>
     </section>
   </main>
@@ -2200,6 +2233,75 @@ $('payConfirmYes').onclick=async()=>{
   }catch(e){$('payConfirmMsg').textContent='';alert(e.message);}
   $('payConfirmYes').disabled=false;
 };
+/* ---------- Mark all as paid (admin): bulk version of the PAID checkbox. Same eligibility as
+   paidCellHtml (not paid, not reversed, not a future cutoff) and the same confirm_cutoff_paid RPC
+   + snapshot, called one row at a time so a failure on one staff never affects the others. ---------- */
+function payAllEligibleRows(){
+  if(!me||me.role!=='admin')return [];
+  const todayIso=phDate(new Date());
+  return ledgerRows.filter(r=>!r.paid&&!(r.cutoffIso>todayIso));
+}
+let payAllBusy=false;
+function payAllMoney(n){return '₱'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+function updatePayAllButton(){
+  const b=$('lgMarkAllPaid');if(!b)return;
+  if(!me||me.role!=='admin'){b.classList.add('hide');return;}
+  const n=payAllEligibleRows().length;
+  b.classList.toggle('hide',!ledgerRows.length);
+  b.disabled=!n||payAllBusy;
+  b.textContent=n?`Mark all as paid (${n})`:'Mark all as paid';
+  b.title=n?'Mark every unpaid staff row currently shown as PAID':(ledgerRows.length&&ledgerRows[0].cutoffIso>phDate(new Date())?'This cutoff is in the future and cannot be marked paid yet.':'Everyone shown is already paid.');
+}
+function payAllRefreshTotals(){
+  const boxes=[...$('payAllBody').querySelectorAll('input.payall-cb:not(:disabled)')];
+  const picked=boxes.filter(b=>b.checked);
+  const total=picked.reduce((a,b)=>a+(ledgerRows.find(r=>r.staffId===b.dataset.staff&&r.cutoffIso===b.dataset.cutoff)||{total:0}).total,0);
+  $('payAllCount').textContent=`${picked.length} of ${boxes.length} selected`;
+  $('payAllTotal').textContent='Total: '+payAllMoney(total);
+  $('payAllYes').disabled=!picked.length||payAllBusy;
+  $('payAllToggle').checked=boxes.length>0&&picked.length===boxes.length;
+}
+function openPayAll(){
+  const rows=payAllEligibleRows();
+  if(!rows.length){alert('There are no unpaid rows to mark in this view.');return;}
+  const r0=rows[0];
+  const sentEarly=rows.filter(r=>sentEarlyRec(r)).length;
+  $('payAllCutoff').innerHTML=`Cutoff <b>${fmtNice(r0.cutoffIso)}</b> (${r0.phase==='mid'?'15th':'End of month'}) · only the rows shown with your current Client/Staff filter`+(sentEarly?`<br>Includes ${sentEarly} staff ticked <b>Sent Early</b>.`:'');
+  $('payAllBody').innerHTML=rows.map(r=>`<tr><td><input type="checkbox" class="payall-cb" data-staff="${r.staffId}" data-cutoff="${r.cutoffIso}"${r.total>0?' checked':''}></td><td><b>${escapeHtml(r.name)}</b>${sentEarlyRec(r)?' <span class="muted" style="font-size:11px">(Sent Early)</span>':''}</td><td class="muted">${escapeHtml(r.client)}</td><td class="mono" style="text-align:right">${payAllMoney(r.total)}</td><td class="muted" data-status="${r.staffId}" style="font-size:12px"></td></tr>`).join('');
+  $('payAllBody').querySelectorAll('input.payall-cb').forEach(cb=>cb.onchange=payAllRefreshTotals);
+  $('payAllMsg').textContent='';$('payAllCancel').textContent='Cancel';
+  payAllRefreshTotals();
+  $('payAllOverlay').style.display='flex';
+}
+function closePayAll(){if(payAllBusy)return;$('payAllOverlay').style.display='none';}
+$('lgMarkAllPaid').onclick=openPayAll;
+$('payAllCancel').onclick=closePayAll;
+$('payAllOverlay').onclick=e=>{if(e.target===$('payAllOverlay'))closePayAll();};
+$('payAllToggle').onchange=()=>{const on=$('payAllToggle').checked;$('payAllBody').querySelectorAll('input.payall-cb:not(:disabled)').forEach(b=>b.checked=on);payAllRefreshTotals();};
+$('payAllYes').onclick=async()=>{
+  const picked=[...$('payAllBody').querySelectorAll('input.payall-cb:checked:not(:disabled)')];
+  const rows=picked.map(b=>ledgerRows.find(r=>r.staffId===b.dataset.staff&&r.cutoffIso===b.dataset.cutoff)).filter(r=>r&&!r.paid);
+  if(!rows.length)return;
+  const total=rows.reduce((a,r)=>a+r.total,0);
+  if(!confirm(`Mark ${rows.length} staff as PAID for a total of ${payAllMoney(total)}? This cannot be undone.`))return;
+  payAllBusy=true;$('payAllYes').disabled=true;$('payAllCancel').disabled=true;
+  $('payAllBody').querySelectorAll('input.payall-cb,#payAllToggle').forEach(b=>b.disabled=true);$('payAllToggle').disabled=true;
+  let okN=0;const failed=[];
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i],cell=$('payAllBody').querySelector(`[data-status="${r.staffId}"]`);
+    $('payAllMsg').textContent=`Confirming ${i+1} of ${rows.length}…`;
+    if(cell)cell.textContent='Saving…';
+    try{
+      const {error}=await sb.rpc('confirm_cutoff_paid',{p_staff_id:r.staffId,p_cutoff_date:r.cutoffIso,p_snapshot:buildPaidSnapshot(r)});
+      if(error)throw new Error(isMissingTableError(error)?'Adjustments migration not run':error.message);
+      okN++;if(cell){cell.textContent='✓ Paid';cell.style.color='var(--teal)';}
+    }catch(e){failed.push(r.name+': '+e.message);if(cell){cell.textContent='✗ '+e.message;cell.style.color='var(--rose)';}}
+  }
+  payAllBusy=false;$('payAllCancel').disabled=false;
+  $('payAllMsg').innerHTML=`<b>${okN} marked PAID.</b>`+(failed.length?` <span style="color:var(--rose)">${failed.length} failed — they are still unpaid; see the Status column.</span>`:'');
+  $('payAllCancel').textContent='Close';
+  await runLedger();
+};
 function renderLedgerTable(start,end){
   const grand=ledgerRows.reduce((a,r)=>a+r.total,0);$('lgTotal').textContent='₱'+grand.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});$('lgRangeLabel').textContent=start&&end?`${fmtNice(start)} – ${fmtNice(end)}`:'—';
   $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr${me.role==='admin'&&sentEarlyRec(r)&&!(r.paid&&r.paid.status==='paid')?' style="background:rgba(242,184,75,.07)"':''}><td class="sticky-col"><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
@@ -2210,7 +2312,7 @@ function renderLedgerTable(start,end){
     +`<td class="mono" style="color:var(--gold);font-weight:600">${r.total.toFixed(2)}</td>`
     +sentEarlyCellHtml(r)+paidCellHtml(r)+`</tr>`).join(''):`<tr><td colspan="${me.role==='admin'?28:27}" class="muted">No staff match this filter. Press Run.</td></tr>`;
   if($('lgSentEarlyTh'))$('lgSentEarlyTh').classList.toggle('hide',me.role!=='admin');
-  wirePaidCheckboxes();wireSentEarlyCheckboxes();renderSentEarlyBanner();
+  wirePaidCheckboxes();wireSentEarlyCheckboxes();renderSentEarlyBanner();updatePayAllButton();
   $('ledgerTable').querySelectorAll('input.ledger-extra').forEach(inp=>{
     const baseline=inp.value;
     inp.onchange=async()=>{
@@ -2540,6 +2642,7 @@ const BIGTIMER_MAX_PX=54, BIGTIMER_MIN_PX=18;function setActTimer(text){ const e
     if(curEntry) setActTimer(curEntry.activity+' — '+hms((now-new Date(curEntry.started_at))/1000));
     else setActTimer('Timer stopped — pick an activity to resume');
     checkForceLogout();
+    checkPreShiftOtSwitch();
   }
   tickRosterTimes();
 }
@@ -2653,6 +2756,42 @@ $('stopBtn').onclick = async () => {
 };
 
 let switchBusy=false;
+/* Pre-shift Overtime auto-switch: Overtime that STARTED before the scheduled shift start is
+   closed exactly at shift start and a Working entry begins at that same instant (no gap, no
+   overlap). Overtime clicked after shift start is never touched. Runs in the staff browser
+   on the 1s clock tick; if the tab was asleep, it back-dates the switch to the shift start. */
+let otAutoBusy=false, otAutoRetryAt=0;
+async function checkPreShiftOtSwitch(){
+  if(!curShift||curShift.logout_at||!curEntry||curEntry.activity!==OVERTIME||curEntry.ended_at) return;
+  if(otAutoBusy||switchBusy||Date.now()<otAutoRetryAt) return;
+  const c=clients.find(x=>x.id===me.client_id); if(!c) return;
+  const w=shiftWindowFor(c,shiftDateOf(curShift,c)); if(!w) return;
+  const ws=w.start.getTime(), st=new Date(curEntry.started_at).getTime();
+  if(!(st<ws&&Date.now()>=ws)) return;
+  otAutoBusy=true;
+  try{
+    const iso=w.start.toISOString(), shiftId=curShift.id, otId=curEntry.id;
+    const {error:closeErr}=await sb.from('entries').update({ended_at:iso}).eq('id',otId).is('ended_at',null);
+    if(closeErr){ otAutoRetryAt=Date.now()+30000; return; }
+    const {data,error}=await sb.from('entries').insert({shift_id:shiftId,staff_id:me.id,activity:'Working',started_at:iso}).select().single();
+    if(error){
+      // put the Overtime back open so time is never lost, then retry later
+      await sb.from('entries').update({ended_at:null}).eq('id',otId);
+      otAutoRetryAt=Date.now()+30000; return;
+    }
+    curEntry=data; paintShiftState();
+    notifyActivity(data.id);
+    await renderToday();
+    otAutoNotice(`Your shift started at ${phTime(w.start)} PHT — Overtime was switched to Working automatically. Click Overtime again only if you're doing extra work.`);
+  } finally { otAutoBusy=false; }
+}
+function otAutoNotice(msg){
+  let el=document.getElementById('otAutoNotice');
+  if(!el){ el=document.createElement('div'); el.id='otAutoNotice';
+    el.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:520px;background:var(--teal);color:#0b1a18;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:600;z-index:90;box-shadow:0 6px 24px rgba(0,0,0,.35);cursor:pointer';
+    el.onclick=()=>el.remove(); document.body.appendChild(el); }
+  el.textContent=msg; clearTimeout(el._t); el._t=setTimeout(()=>el.remove(),20000);
+}
 async function switchActivity(act){
   if(!curShift) return alert('Press LOGIN first — activities only run inside a shift.');
   if(curEntry&&curEntry.activity===act) return;
@@ -3810,6 +3949,85 @@ async function loadCorrections(){
       <td>${escapeHtml(correctionStatus(c))}</td><td style="text-align:right">${c.status==='pending'?`<button class="btn btn-teal" data-review="${c.id}">Review</button>`:''}</td></tr>`;
   }).join(''):`<tr><td colspan="6" class="muted">Nothing here.</td></tr>`;
   $('corrTable').querySelectorAll('[data-review]').forEach(b=>b.onclick=()=>openCorrectionReview(b.dataset.review));
+}
+/* ---------- Edit login time (admin): admin_edit_shift_login RPC + shift_login_edits audit ---------- */
+let elShifts=[];
+function elFmt(iso){return iso?fmtNice(phDate(new Date(iso))).replace(/, \d{4}$/,'')+' '+phTime(new Date(iso)):'Open';}
+function elNewIso(){const d=$('elDate').value,t=$('elTime').value;return d&&t?new Date(`${d}T${t}:00+08:00`).toISOString():null;}
+async function openEditLogin(){
+  const act=(staffList||[]).filter(s=>s.active!==false).slice().sort((a,b)=>String(a.full_name||'').localeCompare(String(b.full_name||'')));
+  $('elStaff').innerHTML='<option value="">— pick staff —</option>'+act.map(s=>`<option value="${s.id}">${escapeHtml(s.full_name||'—')}</option>`).join('');
+  $('elShift').innerHTML='<option value="">— pick staff first —</option>';elShifts=[];
+  $('elDate').value='';$('elTime').value='';$('elReason').value='';$('elMsg').textContent='';$('elPreview').textContent='';
+  $('elOverlay').style.display='flex';
+  loadEditLoginHistory();
+}
+async function loadEditLoginShifts(){
+  const sid=$('elStaff').value;elShifts=[];
+  if(!sid){$('elShift').innerHTML='<option value="">— pick staff first —</option>';elPreviewUpdate();return;}
+  $('elShift').innerHTML='<option value="">Loading…</option>';
+  const from=new Date(Date.now()-7*86400000).toISOString();
+  const {data,error}=await sb.from('shifts').select('*').eq('staff_id',sid).gte('login_at',from).order('login_at',{ascending:false});
+  if(error){$('elShift').innerHTML=`<option value="">${escapeHtml(error.message)}</option>`;return;}
+  elShifts=data||[];
+  $('elShift').innerHTML=elShifts.length?elShifts.map(sh=>`<option value="${sh.id}">${escapeHtml(shiftDateOf(sh))} · login ${escapeHtml(phTime(new Date(sh.login_at)))} → ${sh.logout_at?escapeHtml(phTime(new Date(sh.logout_at))):'still open'}</option>`).join(''):'<option value="">No shifts in the last 7 days</option>';
+  elShiftChanged();
+}
+function elShiftChanged(){
+  const sh=elShifts.find(x=>x.id===$('elShift').value);
+  if(sh){
+    const c=shiftClientFor(sh),w=c&&shiftWindowFor(c,shiftDateOf(sh,c));
+    const def=(w&&w.start<new Date(sh.login_at))?w.start:null;
+    $('elDate').value=phDate(def||new Date(sh.login_at));
+    $('elTime').value=def?phTime(def):'';
+  }
+  elPreviewUpdate();
+}
+function elPreviewUpdate(){
+  const sh=elShifts.find(x=>x.id===$('elShift').value),iso=elNewIso(),el=$('elPreview');
+  if(!sh){el.textContent='';return;}
+  const c=shiftClientFor(sh),w=c&&shiftWindowFor(c,shiftDateOf(sh,c));
+  const sched=w?` · scheduled start ${phTime(w.start)} PHT`:'';
+  if(!iso){el.innerHTML=`Current login: <b>${escapeHtml(elFmt(sh.login_at))}</b>${sched}`;return;}
+  const diff=Math.round((new Date(sh.login_at)-new Date(iso))/60000);
+  let warn='';
+  if(diff<=0)warn=' <span style="color:var(--rose)">— must be earlier than the current login</span>';
+  else if(diff>180)warn=' <span style="color:var(--rose)">— more than 3 hours earlier is not allowed</span>';
+  else if(new Date(iso)>new Date())warn=' <span style="color:var(--rose)">— cannot be in the future</span>';
+  else if(w&&new Date(iso)<w.start)warn=' <span style="color:var(--gold)">— before the scheduled start: that part is unpaid unless it is Overtime</span>';
+  el.innerHTML=`Login <b>${escapeHtml(elFmt(sh.login_at))}</b> → <b>${escapeHtml(elFmt(iso))}</b> (${diff>0?diff+' min earlier':'not earlier'})${sched}${warn}`;
+}
+async function saveEditLogin(){
+  const sh=elShifts.find(x=>x.id===$('elShift').value),iso=elNewIso(),reason=$('elReason').value.trim();
+  if(!sh){$('elMsg').textContent='Pick a staff member and shift.';return;}
+  if(!iso){$('elMsg').textContent='Enter the correct login date and time.';return;}
+  if(reason.length<3){$('elMsg').textContent='Please enter a reason.';return;}
+  const name=(staffList.find(s=>s.id===sh.staff_id)||{}).full_name||'this staff member';
+  if(!confirm(`Change ${name}'s login from ${elFmt(sh.login_at)} to ${elFmt(iso)} PHT?`))return;
+  $('elSave').disabled=true;$('elMsg').textContent='Saving…';
+  try{
+    const {data,error}=await sb.rpc('admin_edit_shift_login',{p_shift_id:sh.id,p_new_login:iso,p_reason:reason});
+    if(error){
+      const m=String(error.message||'');
+      throw new Error(/admin_edit_shift_login|schema cache|does not exist/i.test(m)&&!/Shift not found/.test(m)?'The Edit-login SQL has not been run yet. Run edit_login_time.sql in the Supabase SQL Editor.':m);
+    }
+    $('elMsg').innerHTML=`<span style="color:var(--teal)">✓ Saved — ${escapeHtml((data&&data.action)||'login updated')}.</span>`;
+    $('elReason').value='';
+    await loadEditLoginShifts();loadEditLoginHistory();
+  }catch(e){$('elMsg').innerHTML=`<span style="color:var(--rose)">${escapeHtml(e.message)}</span>`;}
+  finally{$('elSave').disabled=false;}
+}
+async function loadEditLoginHistory(){
+  const {data,error}=await sb.from('shift_login_edits').select('*').order('edited_at',{ascending:false}).limit(10);
+  if(error){$('elHistory').innerHTML='<tr><td colspan="4" class="muted">No history yet (run the SQL first).</td></tr>';return;}
+  $('elHistory').innerHTML=(data||[]).length?data.map(r=>`<tr><td class="mono" style="font-size:12px">${escapeHtml(elFmt(r.edited_at))}<div class="muted" style="font-size:11px">${escapeHtml((staffList.find(s=>s.id===r.edited_by)||{}).full_name||'')}</div></td><td>${escapeHtml((staffList.find(s=>s.id===r.staff_id)||{}).full_name||'—')}</td><td class="mono" style="font-size:12px">${escapeHtml(elFmt(r.old_login))} → ${escapeHtml(elFmt(r.new_login))}</td><td style="font-size:12px">${escapeHtml(r.reason)}</td></tr>`).join(''):'<tr><td colspan="4" class="muted">No edits yet.</td></tr>';
+}
+if($('elOpenBtn')){
+  $('elOpenBtn').onclick=openEditLogin;
+  $('elStaff').onchange=loadEditLoginShifts;
+  $('elShift').onchange=elShiftChanged;
+  $('elDate').oninput=elPreviewUpdate;$('elTime').oninput=elPreviewUpdate;
+  $('elSave').onclick=saveEditLogin;
 }
 function closeCorrectionReview(){correctionReview=null;$('corrReviewOverlay').style.display='none';}
 function correctionBreakTotal(entries){return entries.filter(e=>BREAK_ACTIVITIES.includes(e.activity)).reduce((n,e)=>n+minutesOf(e),0);}
