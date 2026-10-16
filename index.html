@@ -75,16 +75,17 @@ select,input,textarea{background:var(--card2);border:1px solid var(--line);color
 .act.on{border-color:var(--gold);background:rgba(227,166,62,.10)}
 /* Adherence productivity table: keep the wide staff report scrollable inside its card. */
 .ad-table-wrap{overflow-x:auto;max-width:100%}
-.ad-productivity-table{min-width:1480px;table-layout:fixed}
+.ad-productivity-table{min-width:1590px;table-layout:fixed}
 .ad-productivity-table th,.ad-productivity-table td{padding:9px 7px;white-space:nowrap}
 .ad-productivity-table th{font-size:10px;letter-spacing:.04em}
 .ad-productivity-table td{font-size:12px}
 .ad-productivity-table th:nth-child(1){width:190px}
-.ad-productivity-table th:nth-child(2){width:118px}
-.ad-productivity-table th:nth-child(3){width:108px}
-.ad-productivity-table th:nth-child(n+4):nth-child(-n+13){width:88px}
-.ad-productivity-table th:nth-child(14),.ad-productivity-table th:nth-child(15){width:120px}
-@media(max-width:820px){.ad-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important}.ad-productivity-table{min-width:1480px}}
+.ad-productivity-table tr.ad-staff-row td{background:rgba(255,255,255,.035);border-top:1px solid var(--line)}
+.ad-productivity-table tr.ad-staff-row td:first-child{cursor:pointer}
+.ad-productivity-table tr.ad-date-row td:first-child{padding-left:26px;color:var(--muted)}
+.ad-productivity-table tr.ad-total-row td{border-top:2px solid var(--line);font-weight:700}
+.ad-productivity-table .ad-over{color:var(--rose);font-weight:700}
+@media(max-width:820px){.ad-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important}.ad-productivity-table{min-width:1590px}}
 /* SMB Benefits tab: compact rows + a checklist dropdown for the staff picker (native
    multi-select <select multiple> reads as unfamiliar/hidden to non-technical admins). */
 #v-benefits td,#v-benefits th{padding:7px 10px;font-size:12.5px}
@@ -209,8 +210,9 @@ button.btn{padding:7px 12px;font-size:12px}
 .ad-productivity-table th,.ad-productivity-table td{padding:8px 6px}
 .ad-productivity-table thead tr:first-child th:nth-child(1),.ad-productivity-table tbody td:nth-child(1){position:sticky;left:0;z-index:2;background:var(--card);width:110px!important;min-width:110px;max-width:110px;white-space:normal;line-height:1.25;box-shadow:inset -1px 0 0 var(--line),4px 0 6px -4px rgba(0,0,0,.6)}
 .ad-productivity-table thead tr:first-child th:nth-child(1){z-index:3}
-.ad-productivity-table thead tr:first-child th:nth-child(2),.ad-productivity-table tbody td:nth-child(2){width:52px!important;min-width:52px;max-width:52px;white-space:normal;text-align:center;line-height:1.25}
-.ad-productivity-table thead tr:first-child th:nth-child(3),.ad-productivity-table tbody td:nth-child(3){width:58px!important;min-width:58px;max-width:58px;white-space:normal;text-align:center;line-height:1.25}
+.ad-productivity-table thead tr:first-child th:nth-child(2),.ad-productivity-table tbody td:nth-child(2){width:96px!important;min-width:96px;white-space:nowrap;text-align:center;line-height:1.35}
+.ad-productivity-table thead tr:first-child th:nth-child(3),.ad-productivity-table tbody td:nth-child(3){width:52px!important;min-width:52px;max-width:52px;white-space:normal;text-align:center;line-height:1.25}
+.ad-productivity-table thead tr:first-child th:nth-child(4),.ad-productivity-table tbody td:nth-child(4){width:58px!important;min-width:58px;max-width:58px;white-space:normal;text-align:center;line-height:1.25}
 /* Break group color coding (2026-09-23). */
 .ad-productivity-table .b15{background:rgba(63,191,174,.10)}.ad-productivity-table th.b15{color:rgb(63,191,174)}.ad-productivity-table th.b15.grp{background:rgba(63,191,174,.22);border-top:3px solid rgb(63,191,174)}.ad-productivity-table .b15.first{border-left:2px solid rgba(63,191,174,.7)}
 .ad-productivity-table .b30{background:rgba(227,166,62,.10)}.ad-productivity-table th.b30{color:rgb(227,166,62)}.ad-productivity-table th.b30.grp{background:rgba(227,166,62,.22);border-top:3px solid rgb(227,166,62)}.ad-productivity-table .b30.first{border-left:2px solid rgba(227,166,62,.7)}
@@ -797,11 +799,12 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
             <div><label>From</label><input type="date" id="aFrom" style="width:auto"></div>
             <div><label>To</label><input type="date" id="aTo" style="width:auto"></div>
           </div>
-          <div><label>Client</label><select id="aClient" style="width:auto"></select></div>
-          <div><label>Staff</label><select id="aStaff" style="width:auto"></select></div>
-          <div><label>Late grace (min)</label><input id="aGrace" type="number" min="0" step="1" value="0" style="width:70px"></div>
+          <div id="aClientWrap"><label>Client</label><select id="aClient" style="width:auto"></select></div>
+          <div id="aStaffWrap"><label>Staff</label><select id="aStaff" style="width:auto"></select></div>
+          <div id="aGraceWrap"><label>Late grace (min)</label><input id="aGrace" type="number" min="0" step="1" value="0" style="width:70px"></div>
           <button class="btn btn-ghost" id="runAdherence">Run</button>
           <button class="btn btn-gold" id="dlAdherence">Download CSV</button>
+          <button class="btn btn-ghost hide" id="adExpandAllBtn">⊟ Collapse to totals</button>
         </div>
         <div class="muted" id="adRangeLabel" style="font-size:11.5px;margin-top:8px"></div>
       </div>
@@ -823,10 +826,10 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div class="stat"><div class="k">Late log-ins</div><div class="v" style="color:var(--rose)" id="adLateCount">—</div></div>
       </div>
       <div class="card">
-        <div class="hdr"><h3 style="font-size:15px">Productivity by staff</h3><span class="muted" style="font-size:11px">Break cell = recorded sessions / policy instances · duration = HH:MM</span></div>
+        <div class="hdr"><h3 style="font-size:15px" id="adTableTitle">Productivity by staff</h3><span class="muted" style="font-size:11px" id="adTableHint">Break cell = recorded sessions / policy instances · duration = HH:MM</span></div>
         <div class="ad-table-wrap"><table class="ad-productivity-table"><thead>
           <tr>
-            <th rowspan="2">Staff</th><th rowspan="2">Late<br>log-in</th><th rowspan="2">Logged-in<br>hours</th>
+            <th rowspan="2" id="adFirstColHead">Staff</th><th rowspan="2">Shift<br>(PHT)</th><th rowspan="2">Late<br>log-in</th><th rowspan="2">Logged-in<br>hours</th>
             <th colspan="2" class="b15 grp first">15min Break</th><th colspan="2" class="b30 grp first">30min Break</th><th colspan="2" class="b60 grp first">60min Break</th>
             <th colspan="2" class="bp grp first">Personal Break</th><th colspan="2" class="bb grp first">Bio Break</th>
             <th rowspan="2">Total break<br>time</th><th rowspan="2">Actual working<br>time</th>
@@ -2559,8 +2562,14 @@ async function saveAdminNavOrder(order){
   if(error) throw error;
 }
 function adminNavIds(){ return adminNavOrder||ADMIN_NAV_DEFAULT.slice(); }
+/* Adherence tab: admins + ticked team leads see "Adherence & Breaks" (team view);
+   every other staff member sees "My Adherence & Breaks" with only their own rows. */
+const ADH_PAGE_TEAM=PAGES['v-adherence'].slice();
+const ADH_PAGE_MINE=['📊 My Adherence & Breaks','My Adherence & Breaks','Your own breaks, overages, and late log-ins'];
+function adherenceOwnOnly(){ return !!me&&me.role!=='admin'&&!me.can_view_adherence; }
 function buildNav(){
-  const staffIds = ['v-punch',...(me.can_view_live_status?['v-status']:[]),...(me.can_view_adherence?['v-adherence']:[]),'v-ledger','v-req','v-profile','v-portal'];
+  PAGES['v-adherence']=adherenceOwnOnly()?ADH_PAGE_MINE:ADH_PAGE_TEAM;
+  const staffIds = ['v-punch','v-adherence',...(me.can_view_live_status?['v-status']:[]),'v-ledger','v-req','v-profile','v-portal'];
   const isAdmin=me.role==='admin';
   const ids = isAdmin ? adminNavIds() : staffIds;
   if(navFirstBuild){ navFirstBuild=false; if(isAdmin) view='v-status'; }
@@ -3578,7 +3587,7 @@ let adherenceRosterStaff=[], adherenceIsInit=false;
 function iAmAdherenceAdmin(){ return me.role==='admin'; }
 async function ensureAdherenceRosterStaff(){
   if(iAmAdherenceAdmin()){ adherenceRosterStaff=staffList; return; }
-  if(!me.can_view_adherence){ adherenceRosterStaff=[]; return; }
+  if(!me.can_view_adherence){ adherenceRosterStaff=[me]; return; }
   // RLS (p_staff_adherence_read) only allows this select to return staff who
   // share this viewer's client_id — enforced server-side, not just hidden in the UI.
   const {data}=await sb.from('staff').select('*').eq('client_id',me.client_id).order('full_name');
@@ -3593,6 +3602,11 @@ async function initAdherenceFilters(){
   if(admin){ fill('aClient','All clients',clients.map(c=>[c.id,c.name])); }
   else{ const myClient=clients.find(c=>c.id===me.client_id); fill('aClient','All clients',myClient?[[myClient.id,myClient.name]]:[]); }
   fill('aStaff','All staff',rosterStaff.map(s=>[s.id,s.full_name]));
+  const ownOnly=adherenceOwnOnly();
+  ['aClientWrap','aStaffWrap','aGraceWrap'].forEach(id=>$(id).classList.toggle('hide',ownOnly));
+  if(ownOnly){ $('aClient').value=''; $('aStaff').value=''; $('aGrace').value='0'; }
+  $('adTableTitle').textContent=ownOnly?'My day-by-day breakdown':'Productivity by staff';
+  $('adFirstColHead').textContent=ownOnly?'Date':'Staff';
   $('manageAdherenceAccessBtn').classList.toggle('hide',!admin);
   $('adherenceAccessCountBadge').classList.toggle('hide',!admin);
   if(admin){
@@ -3604,7 +3618,7 @@ async function initAdherenceFilters(){
   if(!$('aMonth').value) $('aMonth').value=phDate(new Date()).slice(0,7);
   if(!$('aFrom').value){ const p=biweeklyPeriod(phDate(new Date())); $('aFrom').value=p.start; $('aTo').value=p.end; }
   $('aGrain').onchange=toggleAdherenceInputs; toggleAdherenceInputs();
-  if(!adherenceIsInit){ $('runAdherence').onclick=runAdherence; $('dlAdherence').onclick=downloadAdherenceCsv; adherenceIsInit=true; }
+  if(!adherenceIsInit){ $('runAdherence').onclick=runAdherence; $('dlAdherence').onclick=downloadAdherenceCsv; $('adExpandAllBtn').onclick=toggleAdherenceExpandAll; adherenceIsInit=true; }
   runAdherence();
 }
 function renderAdherenceAccessBadge(){
@@ -3688,44 +3702,67 @@ function adherenceStatusHtml(activity,stats){
   const bad=stats.violationShifts>0;
   return `<span class="ad-status ${bad?'ad-status-bad':'ad-status-ok'}">${escapeHtml(adherenceBreakStatus(activity,stats))}</span>`;
 }
+/* Per-date breakdown: daily view = one row per staff (unchanged). Weekly / monthly /
+   custom range = per staff, one row per shift date + a period total. Team viewers get
+   a collapsible staff total row; "My Adherence & Breaks" gets date rows + a total row. */
+let adExpanded=new Set(), adExpandAll=true, adLastMode='';
+function adShiftClock(d){ return d.toLocaleTimeString('en-GB',{timeZone:'Asia/Manila',hour:'2-digit',minute:'2-digit',hour12:false}); }
+function adDateLabel(iso){ const d=new Date(iso+'T00:00:00Z'); return d.toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short'})+' '+iso.slice(5,7)+'/'+iso.slice(8,10); }
+function adShiftSpan(shifts){
+  if(!shifts.length) return '—';
+  return shifts.map(sh=>adShiftClock(new Date(sh.login_at))+'–'+(sh.logout_at?adShiftClock(new Date(sh.logout_at)):'now')).join(', ');
+}
+/* Stats for a set of entries + shifts (one date, or a whole range). */
+function adherenceStats(client,ents,shifts,allShs,shiftDateMap,shiftSpanMap,grace){
+  const breakStats={}; BREAK_ACTS.forEach(act=>{ const p=policyBreakStats(ents,act,allShs); breakStats[act]={...p,count:p.sessions,minutes:0}; });
+  let loggedIn=0,lateCount=0,lateMinTotal=0;
+  shifts.forEach(sh=>{
+    const login=new Date(sh.login_at), logout=sh.logout_at?new Date(sh.logout_at):new Date();
+    loggedIn+=Math.max(0,(logout-login)/60000);
+    // For overnight shifts, compare the login to the closest of the prior/current PH-day window starts.
+    const d=phDate(login), cands=[shiftWindowFor(client,addDays(d,-1)),shiftWindowFor(client,d)].filter(Boolean);
+    if(!cands.length)return;
+    const win=cands.reduce((a,b)=>Math.abs(login-a.start)<=Math.abs(login-b.start)?a:b);
+    const lateMin=(login-win.start)/60000;
+    if(lateMin>grace){lateCount++;lateMinTotal+=lateMin;}
+  });
+  const byDay={}; ents.forEach(e=>{const d=shiftDateOf(e,shiftDateMap);(byDay[d]=byDay[d]||[]).push(e);});
+  Object.keys(byDay).forEach(d=>{
+    const sum=summarize(byDay[d],null,shiftWindowFor(client,d),spanFor(byDay[d],shiftSpanMap));
+    BREAK_ACTS.forEach(act=>{breakStats[act].minutes+=sum.per[act]||0;});
+  });
+  const totalBreak=BREAK_ACTS.reduce((n,act)=>n+breakStats[act].minutes,0);
+  return {loggedIn,totalBreak,working:loggedIn-totalBreak,breakStats,lateCount,lateMinTotal,shifts:shifts.length,shiftText:adShiftSpan(shifts)};
+}
 async function runAdherence(){
   const {start,end}=adherenceRange();
   if(!start||!end||start>end) return alert('Pick a valid date range.');
   adRangeStr=`${start}_${end}`;
   $('adRangeLabel').textContent=`${fmtNice(start)} – ${fmtNice(end)} (Philippine time)`;
   await ensureAdherenceRosterStaff();
-  const fc=$('aClient').value, fs=$('aStaff').value, grace=Number($('aGrace').value||0);
+  const ownOnly=adherenceOwnOnly();
+  const fc=ownOnly?'':$('aClient').value, fs=ownOnly?'':$('aStaff').value, grace=ownOnly?0:Number($('aGrace').value||0);
   const people=adherenceRosterStaff.filter(s=>(!fc||s.client_id===fc)&&(!fs||s.id===fs));
   const ids=people.map(s=>s.id);
   const [ents,shs]=await Promise.all([fetchEntriesRange(start,end,ids),fetchShiftsRange(start,end,ids)]);
   const shiftDateMap=buildShiftDateMap(shs), shiftSpanMap=buildShiftSpanMap(shs);
   const dailyView=$('aGrain').value==='daily';
+  const mode=$('aGrain').value+'|'+adRangeStr+'|'+fc+'|'+fs;
+  if(mode!==adLastMode){ adLastMode=mode; adExpandAll=true; adExpanded=new Set(); }
   adRows=[];
   people.forEach(s=>{
     const client=clients.find(x=>x.id===s.client_id);
     const mine=ents.filter(e=>e.staff_id===s.id), mySh=shs.filter(sh=>sh.staff_id===s.id);
-    const byDay={}; mine.forEach(e=>{const d=shiftDateOf(e,shiftDateMap);(byDay[d]=byDay[d]||[]).push(e);});
-    const breakStats={}; BREAK_ACTS.forEach(act=>{
-      const policy=policyBreakStats(mine,act,shs);
-      breakStats[act]={...policy,count:policy.sessions,minutes:0};
-    });
-    let loggedIn=0,lateCount=0,lateMinTotal=0;
-    mySh.forEach(sh=>{
-      const login=new Date(sh.login_at), logout=sh.logout_at?new Date(sh.logout_at):new Date();
-      loggedIn+=Math.max(0,(logout-login)/60000);
-      // For overnight shifts, compare the login to the closest of the prior/current PH-day window starts.
-      const d=phDate(login), cands=[shiftWindowFor(client,addDays(d,-1)),shiftWindowFor(client,d)].filter(Boolean);
-      if(!cands.length)return;
-      const win=cands.reduce((a,b)=>Math.abs(login-a.start)<=Math.abs(login-b.start)?a:b);
-      const lateMin=(login-win.start)/60000;
-      if(lateMin>grace){lateCount++;lateMinTotal+=lateMin;}
-    });
-    Object.keys(byDay).forEach(d=>{
-      const sum=summarize(byDay[d],null,shiftWindowFor(client,d),spanFor(byDay[d],shiftSpanMap));
-      BREAK_ACTS.forEach(act=>{breakStats[act].minutes+=sum.per[act]||0;});
-    });
-    const totalBreak=BREAK_ACTS.reduce((n,act)=>n+breakStats[act].minutes,0);
-    adRows.push({name:s.full_name,loggedIn,totalBreak,working:loggedIn-totalBreak,breakStats,lateCount,lateMinTotal,shifts:mySh.length});
+    const total=adherenceStats(client,mine,mySh,shs,shiftDateMap,shiftSpanMap,grace);
+    const days=[];
+    if(!dailyView){
+      const dates=new Set(); mySh.forEach(sh=>dates.add(shiftDateMap[sh.id])); mine.forEach(e=>dates.add(shiftDateOf(e,shiftDateMap)));
+      [...dates].filter(d=>d&&d>=start&&d<=end).sort().forEach(d=>{
+        const dEnts=mine.filter(e=>shiftDateOf(e,shiftDateMap)===d), dSh=mySh.filter(sh=>shiftDateMap[sh.id]===d);
+        days.push({date:d,...adherenceStats(client,dEnts,dSh,shs,shiftDateMap,shiftSpanMap,grace)});
+      });
+    }
+    adRows.push({id:s.id,name:s.full_name,...total,days});
   });
   const grandLogged=adRows.reduce((a,r)=>a+r.loggedIn,0), grandBreak=adRows.reduce((a,r)=>a+r.totalBreak,0);
   $('adLoggedInHrs').textContent=adHm(grandLogged);
@@ -3733,38 +3770,78 @@ async function runAdherence(){
   $('adWorkingHrs').textContent=adHm(grandLogged-grandBreak);
   const totalLate=adRows.reduce((a,r)=>a+r.lateCount,0), totalShifts=adRows.reduce((a,r)=>a+r.shifts,0);
   $('adLateCount').textContent=dailyView?String(totalLate):`${totalLate}/${totalShifts}`;
-  $('adherenceTable').innerHTML=adRows.length?adRows.map(r=>{
-    const lateText=dailyView?(r.lateCount?`Yes<br>${Math.round(r.lateMinTotal)}m`:'No'):(r.shifts?`${r.lateCount}/${r.shifts}`:'—');
-    const lateColor=r.lateCount?'var(--rose)':'var(--teal)';
-    const limited=['15min Break','30min Break','60min Break'];
-    const stats=limited.map(act=>{
-      const b=r.breakStats[act], k=AD_BREAK_CLS[act];
-      return `<td class="mono ${k} first" title="${b.instances} total policy instances across the selected range">${b.sessions} / ${b.highest}</td><td class="mono ${k}">${adHm(b.minutes)}</td>`;
-    }).join('')+
-      ['Personal Break','Bio Break'].map(act=>`<td class="mono ${AD_BREAK_CLS[act]} first">${r.breakStats[act].sessions}</td><td class="mono ${AD_BREAK_CLS[act]}">${adHm(r.breakStats[act].minutes)}</td>`).join('');
-    return `<tr><td><b>${escapeHtml(r.name)}</b></td><td class="mono" style="color:${lateColor}">${lateText}</td><td class="mono">${adHm(r.loggedIn)}</td>${stats}<td class="mono" style="color:var(--gold)">${adHm(r.totalBreak)}</td><td class="mono" style="color:var(--teal)">${adHm(r.working)}</td></tr>`;
-  }).join(''):`<tr><td colspan="15" class="muted">No data for that range.</td></tr>`;
+  renderAdherenceTable();
 }
+function adCells(r,kind){
+  // kind: 'date' (one shift date / daily row) or 'total' (period total)
+  const perShift=kind==='date';
+  const lateText=perShift?(r.shifts?(r.lateCount?`Yes ${Math.round(r.lateMinTotal)}m`:'No'):'—'):(r.shifts?`${r.lateCount}/${r.shifts}`:'—');
+  const lateColor=r.lateCount?'var(--rose)':'var(--teal)';
+  const shiftText=perShift?r.shiftText:(r.shifts?`${r.shifts} shift${r.shifts===1?'':'s'}`:'—');
+  const stats=['15min Break','30min Break','60min Break'].map(act=>{
+    const b=r.breakStats[act], k=AD_BREAK_CLS[act], over=b.violationShifts>0;
+    const tip=over?`Over limit on ${b.violationShifts} shift${b.violationShifts===1?'':'s'}`:`${b.instances} policy instance${b.instances===1?'':'s'}`;
+    return `<td class="mono ${k} first${over?' ad-over':''}" title="${tip}">${b.sessions} / ${b.highest}${perShift||!b.highest?'':' max'}</td><td class="mono ${k}">${adHm(b.minutes)}</td>`;
+  }).join('')+
+    ['Personal Break','Bio Break'].map(act=>`<td class="mono ${AD_BREAK_CLS[act]} first">${r.breakStats[act].sessions}</td><td class="mono ${AD_BREAK_CLS[act]}">${adHm(r.breakStats[act].minutes)}</td>`).join('');
+  return `<td class="mono">${escapeHtml(shiftText).replace(/, /g,'<br>')}</td><td class="mono" style="color:${lateColor}">${lateText}</td><td class="mono">${adHm(r.loggedIn)}</td>${stats}<td class="mono" style="color:var(--gold)">${adHm(r.totalBreak)}</td><td class="mono" style="color:var(--teal)">${adHm(r.working)}</td>`;
+}
+function adIsOpen(id){ return adExpandAll?!adExpanded.has(id):adExpanded.has(id); }
+function renderAdherenceTable(){
+  const dailyView=$('aGrain').value==='daily', ownOnly=adherenceOwnOnly();
+  const periodWord={weekly:'Week',monthly:'Month',range:'Range'}[$('aGrain').value]||'Period';
+  $('adExpandAllBtn').classList.toggle('hide',dailyView||ownOnly||!adRows.length);
+  $('adExpandAllBtn').textContent=adExpandAll?'⊟ Collapse to totals':'⊞ Expand all dates';
+  $('adTableHint').textContent=dailyView?'Break cell = recorded sessions / policy instances · duration = HH:MM'
+    :(ownOnly?`One row per shift date, ${periodWord.toLowerCase()} total at the bottom · red = over the break limit that shift`
+      :`Staff row = ${periodWord.toLowerCase()} total; click ▸/▾ to show or hide that person's dates · red = over the break limit`);
+  if(!adRows.length){ $('adherenceTable').innerHTML=`<tr><td colspan="16" class="muted">No data for that range.</td></tr>`; return; }
+  let html='';
+  if(dailyView){
+    html=adRows.map(r=>`<tr><td><b>${escapeHtml(r.name)}</b></td>${adCells(r,'date')}</tr>`).join('');
+  }else if(ownOnly){
+    const r=adRows[0]||{days:[]};
+    html=r.days.map(d=>`<tr><td><b>${adDateLabel(d.date)}</b></td>${adCells(d,'date')}</tr>`).join('')
+      +(r.days.length?`<tr class="ad-total-row"><td><b>${periodWord} total</b></td>${adCells(r,'total')}</tr>`:`<tr><td colspan="16" class="muted">No shifts in that range.</td></tr>`);
+  }else{
+    html=adRows.map(r=>{
+      const open=adIsOpen(r.id), has=r.days.length>0;
+      const head=`<tr class="ad-staff-row" data-ad-staff="${r.id}"><td title="${has?'Show / hide dates':''}"><b>${has?(open?'▾ ':'▸ '):''}${escapeHtml(r.name)}</b></td>${adCells(r,'total')}</tr>`;
+      return head+(open?r.days.map(d=>`<tr class="ad-date-row"><td>${adDateLabel(d.date)}</td>${adCells(d,'date')}</tr>`).join(''):'');
+    }).join('');
+  }
+  $('adherenceTable').innerHTML=html;
+  $('adherenceTable').querySelectorAll('tr.ad-staff-row td:first-child').forEach(td=>td.onclick=()=>{
+    const id=td.parentElement.dataset.adStaff; if(adExpanded.has(id)) adExpanded.delete(id); else adExpanded.add(id); renderAdherenceTable();
+  });
+}
+function toggleAdherenceExpandAll(){ adExpandAll=!adExpandAll; adExpanded=new Set(); renderAdherenceTable(); }
 
 const AD_BREAK_CLS={'15min Break':'b15','30min Break':'b30','60min Break':'b60','Personal Break':'bp','Bio Break':'bb'};
 function downloadAdherenceCsv(){
   if(!adRows.length) return alert('Press Run first.');
   const dailyView=$('aGrain').value==='daily';
-  const head=['Staff','Late log-in','Total logged-in hours'];
+  const head=['Staff','Date','Shift (PHT)','Late log-in','Total logged-in hours'];
   ['15min Break','30min Break','60min Break'].forEach(act=>{
     head.push(`${act} recorded sessions`,`${act} total policy instances`,`${act} highest instances in one shift`,`${act} time (HH:MM)`,`${act} status`);
   });
   ['Personal Break','Bio Break'].forEach(act=>head.push(`${act} sessions`,`${act} time (HH:MM)`));
   head.push('Total break time (HH:MM)','Actual working time (HH:MM)');
   const lines=[[`Adherence & productivity ${adRangeStr.replace('_',' to ')} (Philippine time)`],[],head];
-  adRows.forEach(r=>{
-    const lateText=dailyView?(r.lateCount?`Yes - ${Math.round(r.lateMinTotal)} min`:'No'):(r.shifts?`${r.lateCount}/${r.shifts}`:'—');
-    const row=[r.name,lateText,adHm(r.loggedIn)];
+  const line=(name,dateText,r,perShift)=>{
+    const lateText=perShift?(r.shifts?(r.lateCount?`Yes - ${Math.round(r.lateMinTotal)} min`:'No'):'—'):(r.shifts?`${r.lateCount}/${r.shifts}`:'—');
+    const shiftText=perShift?r.shiftText:(r.shifts?`${r.shifts} shift${r.shifts===1?'':'s'}`:'—');
+    const row=[name,dateText,shiftText,lateText,adHm(r.loggedIn)];
     ['15min Break','30min Break','60min Break'].forEach(act=>{
       const b=r.breakStats[act]; row.push(b.sessions,b.instances,b.highest,adHm(b.minutes),adherenceBreakStatus(act,b));
     });
     ['Personal Break','Bio Break'].forEach(act=>{const b=r.breakStats[act];row.push(b.sessions,adHm(b.minutes));});
     row.push(adHm(r.totalBreak),adHm(r.working)); lines.push(row);
+  };
+  adRows.forEach(r=>{
+    if(dailyView){ line(r.name,adRangeStr.split('_')[0],r,true); return; }
+    r.days.forEach(d=>line(r.name,d.date,d,true));
+    line(r.name,'TOTAL',r,false);
   });
   const text=lines.map(l=>l.map(csvEscape).join(',')).join('\n');
   const blob=new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'});
