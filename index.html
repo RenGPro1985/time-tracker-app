@@ -69,6 +69,10 @@ select,input,textarea{background:var(--card2);border:1px solid var(--line);color
 .stat .k{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.08em}
 .stat .v{font-size:26px;margin-top:6px;font-family:'IBM Plex Mono'}
 .bigtimer{font-family:'IBM Plex Mono';font-size:54px;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+/* Activity timer fit (2026-10-15): name on its own wrapping line, digits shrink to fit, buttons wrap below instead of overlapping. */
+.timer-row{flex-wrap:wrap}.timer-box{flex:1 1 240px;min-width:0;max-width:100%}.timer-btns{flex:0 0 auto}
+.act-name{font-family:'Space Grotesk',Inter,sans-serif;font-size:20px;font-weight:600;color:var(--gold);line-height:1.2;margin:4px 0 2px;overflow-wrap:anywhere}.act-name:empty{display:none}
+.act-name.stopped{color:var(--muted);font-size:14px;font-weight:500}
 .acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
 .act{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px 13px;cursor:pointer}
 .act:hover{border-color:rgba(255,255,255,.18)}
@@ -219,6 +223,7 @@ button.btn{padding:7px 12px;font-size:12px}
 .ad-productivity-table .b60{background:rgba(155,126,222,.10)}.ad-productivity-table th.b60{color:rgb(155,126,222)}.ad-productivity-table th.b60.grp{background:rgba(155,126,222,.22);border-top:3px solid rgb(155,126,222)}.ad-productivity-table .b60.first{border-left:2px solid rgba(155,126,222,.7)}
 .ad-productivity-table .bp{background:rgba(91,155,230,.10)}.ad-productivity-table th.bp{color:rgb(91,155,230)}.ad-productivity-table th.bp.grp{background:rgba(91,155,230,.22);border-top:3px solid rgb(91,155,230)}.ad-productivity-table .bp.first{border-left:2px solid rgba(91,155,230,.7)}
 .ad-productivity-table .bb{background:rgba(226,104,95,.10)}.ad-productivity-table th.bb{color:rgb(226,104,95)}.ad-productivity-table th.bb.grp{background:rgba(226,104,95,.22);border-top:3px solid rgb(226,104,95)}.ad-productivity-table .bb.first{border-left:2px solid rgba(226,104,95,.7)}
+.ad-productivity-table .bh{background:rgba(90,200,235,.10)}.ad-productivity-table th.bh{color:rgb(90,200,235)}.ad-productivity-table th.bh.grp{background:rgba(90,200,235,.22);border-top:3px solid rgb(90,200,235)}.ad-productivity-table .bh.first{border-left:2px solid rgba(90,200,235,.7)}
 
 /* PTO Credits + Contractor Profile */
 .pto-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
@@ -508,11 +513,12 @@ button.btn{padding:7px 12px;font-size:12px}
             <div class="muted mono" style="font-size:12px;margin-top:3px" id="pcShift"></div></div>
             <span id="shiftPill" class="pill p-off"><span class="dot"></span>Logged out</span>
           </div>
-          <div class="row" style="align-items:flex-end">
-            <div><div class="muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em">Activity timer</div>
+          <div class="row timer-row" style="align-items:flex-end">
+            <div class="timer-box"><div class="muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em">Activity timer</div>
+            <div class="act-name" id="actName"></div>
             <div class="bigtimer" id="actTimer">00:00:00</div>
             <div class="muted mono" style="font-size:12px;margin-top:6px" id="shiftTimer">Shift 00:00:00</div></div>
-            <div style="margin-left:auto" class="row">
+            <div style="margin-left:auto" class="row timer-btns">
               <button class="btn btn-teal" id="loginBtn">LOGIN — start shift</button>
               <button class="btn btn-ghost" id="stopBtn">Stop timer</button>
             </div>
@@ -831,14 +837,14 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
           <tr>
             <th rowspan="2" id="adFirstColHead">Staff</th><th rowspan="2">Shift<br>(PHT)</th><th rowspan="2">Late<br>log-in</th><th rowspan="2">Logged-in<br>hours</th>
             <th colspan="2" class="b15 grp first">15min Break</th><th colspan="2" class="b30 grp first">30min Break</th><th colspan="2" class="b60 grp first">60min Break</th>
-            <th colspan="2" class="bp grp first">Personal Break</th><th colspan="2" class="bb grp first">Bio Break</th>
+            <th colspan="2" class="bp grp first">Personal Break</th><th colspan="2" class="bb grp first">Bio Break</th><th colspan="2" class="bh grp first">H2O Break</th>
             <th rowspan="2">Total break<br>time</th><th rowspan="2">Actual working<br>time</th>
           </tr>
           <tr>
             <th class="b15 first">Sessions /<br>max instances</th><th class="b15">Total<br>time</th>
             <th class="b30 first">Sessions /<br>max instances</th><th class="b30">Total<br>time</th>
             <th class="b60 first">Sessions /<br>max instances</th><th class="b60">Total<br>time</th>
-            <th class="bp first">Sessions</th><th class="bp">Total<br>time</th><th class="bb first">Sessions</th><th class="bb">Total<br>time</th>
+            <th class="bp first">Sessions</th><th class="bp">Total<br>time</th><th class="bb first">Sessions</th><th class="bb">Total<br>time</th><th class="bh first">Sessions</th><th class="bh">Total<br>time</th>
           </tr>
         </thead><tbody id="adherenceTable"></tbody></table></div>
         <div class="muted" style="font-size:10.5px;margin-top:8px">Actual working time = logged-in hours − total break time. For 15/30/60-minute breaks, sessions are raw records and instances are grouped per shift under the allowance rules. A status is <b>Over limit</b> only when a shift exceeds its allowed instance count.</div>
@@ -962,7 +968,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     <section id="v-policy" class="hide grid" style="gap:16px">
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Activity &amp; billing rules</h3><button class="btn btn-gold" id="savePolicy">Save allowances</button></div>
         <table><thead><tr><th>Status</th><th>Billable</th><th>Allowance per instance (minutes)</th><th>Notes</th></tr></thead><tbody id="policyTable"></tbody></table>
-        <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>, but only for time inside your shift window — time logged before your shift starts or after it ends is automatically non-billable. Select <b>Overtime</b> to bill time outside the shift window; Overtime has no cap and is always fully billable. Overtime started <b>before</b> your shift switches to Working automatically at your shift start. On top of that, minutes spent on a normal activity beyond its allowance are deducted from billable time (Overtime is never capped) — <b>this is checked per instance (each time you use that activity), not summed across the shift.</b> 15min Break allows up to 2 instances per shift (two uses less than 1hr apart count as one instance), 30min and 60min Break allow 1 instance per shift; any use beyond that limit is entirely non-billable. Personal and Bio Break have no instance limit. Set an allowance to 0 to never deduct.</div>
+        <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>, but only for time inside your shift window — time logged before your shift starts or after it ends is automatically non-billable. Select <b>Overtime</b> to bill time outside the shift window; Overtime has no cap and is always fully billable. Overtime started <b>before</b> your shift switches to Working automatically at your shift start. On top of that, minutes spent on a normal activity beyond its allowance are deducted from billable time (Overtime is never capped) — <b>this is checked per instance (each time you use that activity), not summed across the shift.</b> 15min Break allows up to 2 instances per shift (two uses less than 1hr apart count as one instance), 30min and 60min Break allow 1 instance per shift; any use beyond that limit is entirely non-billable. Personal, Bio and H2O Break have no instance limit. Set an allowance to 0 to never deduct.</div>
       </div>
     </section>
   </main>
@@ -1011,7 +1017,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const SERVER_URL        = "https://time-tracker-app-95fe.onrender.com";        // e.g. https://smb-time-server.onrender.com
 /* ============================================================ */
 
-const ACTIVITIES = ['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','Meeting/Coaching','Overtime'];const OVERTIME = 'Overtime';
+const ACTIVITIES = ['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','H2O Break','Meeting/Coaching','Overtime'];const OVERTIME = 'Overtime';
 const NON_BILLABLE = ['60min Break'];
 /* Per-instance break policy (2026-09-22, applies from Sep 16, 2026 onward — everything here
    is calculated live from raw entries, so this takes effect automatically for any shift
@@ -1021,7 +1027,7 @@ const NON_BILLABLE = ['60min Break'];
    instance beyond that gets ZERO allowance (100% of it is non-billable), not just the minutes
    past the cap. mergeGapMin: two same-activity entries closer together than this count as ONE
    instance (time added together, then capped once) — closes the loophole of splitting one
-   break into several short back-to-back punches. Personal/Bio Break: per-instance cap only,
+   break into several short back-to-back punches. Personal/Bio/H2O Break: per-instance cap only,
    no merge rule, no instance-count limit (tracked, not capped on count). */
 const BREAK_INSTANCE_RULES = {
   '15min Break': { mergeGapMin: 60, maxInstances: 2 },
@@ -2640,7 +2646,9 @@ function go(v){
 }
 
 /* clocks + running timers */
-const BIGTIMER_MAX_PX=54, BIGTIMER_MIN_PX=18;function setActTimer(text){ const el=$('actTimer'); el.textContent=text; el.style.fontSize=BIGTIMER_MAX_PX+'px'; const box=el.parentElement; if(!box) return; let size=BIGTIMER_MAX_PX; while(el.scrollWidth>box.clientWidth && size>BIGTIMER_MIN_PX){ size--; el.style.fontSize=size+'px'; } } window.addEventListener('resize',()=>{ if($('actTimer').textContent) setActTimer($('actTimer').textContent); }); function tick(){
+const BIGTIMER_MAX_PX=54, BIGTIMER_MIN_PX=18;function fitActTimer(){ const el=$('actTimer'); el.style.fontSize=BIGTIMER_MAX_PX+'px'; const box=el.parentElement; if(!box||!box.clientWidth) return; let size=BIGTIMER_MAX_PX; while(el.scrollWidth>box.clientWidth && size>BIGTIMER_MIN_PX){ size--; el.style.fontSize=size+'px'; } }
+/* setActTimer(name, digits): activity name on its own line, digits alone in the big timer. Called with one string (legacy) it is shown as a muted status line. */
+function setActTimer(name,digits){ const n=$('actName'), el=$('actTimer'); if(digits===undefined){ n.textContent=name||''; n.classList.add('stopped'); el.textContent=name?'--:--:--':''; } else { n.textContent=name; n.classList.remove('stopped'); el.textContent=digits; } fitActTimer(); } window.addEventListener('resize',()=>{ if($('actTimer').textContent) fitActTimer(); }); function tick(){
   const now=new Date();
   $('phtClock').textContent=phClock(now);
   const c=clients.find(c=>c.id===me.client_id);
@@ -2648,7 +2656,7 @@ const BIGTIMER_MAX_PX=54, BIGTIMER_MIN_PX=18;function setActTimer(text){ const e
   $('clientClock').textContent = c? tzClock(now,c.timezone) : '--:--:--';
   if(curShift&&!curShift.logout_at){
     $('shiftTimer').textContent='Shift '+hms((now-new Date(curShift.login_at))/1000);
-    if(curEntry) setActTimer(curEntry.activity+' — '+hms((now-new Date(curEntry.started_at))/1000));
+    if(curEntry) setActTimer(curEntry.activity,hms((now-new Date(curEntry.started_at))/1000));
     else setActTimer('Timer stopped — pick an activity to resume');
     checkForceLogout();
     checkPreShiftOtSwitch();
@@ -2696,7 +2704,7 @@ function paintShiftState(){
   const p=$('shiftPill');
   p.className='pill '+(on?(curEntry&&curEntry.activity.includes('Break')?'p-break':'p-work'):'p-off');
   p.innerHTML=`<span class="dot"></span>${on?(curEntry?curEntry.activity:'On shift — timer stopped'):'Logged out'}`;
-  if(!on){$('shiftTimer').textContent='Shift 00:00:00';$('actTimer').textContent='';$('actTimer').style.fontSize='';}
+  if(!on){$('shiftTimer').textContent='Shift 00:00:00';$('actTimer').textContent='';$('actTimer').style.fontSize='';$('actName').textContent='';}
   $('stopBtn').disabled=!curEntry;
   renderActs();
 }
@@ -2902,7 +2910,7 @@ async function renderPayPeriod(){
 }
 
 /* weekday-only (Mon-Fri) hours grid for the pay period card */
-const PP_BREAK_ACTS=['15min Break','30min Break','60min Break','Personal Break','Bio Break'];
+const PP_BREAK_ACTS=['15min Break','30min Break','60min Break','Personal Break','Bio Break','H2O Break'];
 function renderPayPeriodTable(p,byDay,cMe,ssm){
   const head=$('ppTableHead'),body=$('ppTableBody');
   if(!head||!body)return;
@@ -3482,7 +3490,7 @@ async function runSheet(){
   const sdm=buildShiftDateMap(shifts);
   const ssm=buildShiftSpanMap(shifts);
   sheetRows=[];sheetDetail=[];
-  const OVERBREAK_ACTS=['15min Break','30min Break','60min Break','Personal Break','Bio Break'];
+  const OVERBREAK_ACTS=['15min Break','30min Break','60min Break','Personal Break','Bio Break','H2O Break'];
   people.forEach(s=>{
     const mine=ents.filter(e=>e.staff_id===s.id); const sc=clients.find(c=>c.id===s.client_id);
     const byDay={};mine.forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
@@ -3552,7 +3560,7 @@ function summaryCsv(){
 function detailBillingRule(activity){
   if(activity==='60min Break')return 'Non-billable';
   if(activity==='Overtime')return 'Billable overtime';
-  if(['15min Break','30min Break','Personal Break','Bio Break'].includes(activity))return 'Allowance applies; excess is non-billable';
+  if(['15min Break','30min Break','Personal Break','Bio Break','H2O Break'].includes(activity))return 'Allowance applies; excess is non-billable';
   return 'Billable inside client shift; daily cap applies';
 }
 function detailCsv(){
@@ -3576,7 +3584,7 @@ function downloadCsv(text,name){
    and a pie/doughnut breakdown of total hours by activity \u2014 handy
    for 1:1 coaching (billable Working time vs. everything else).
    ============================================================ */
-const BREAK_ACTS = ['15min Break','30min Break','60min Break','Personal Break','Bio Break'];
+const BREAK_ACTS = ['15min Break','30min Break','60min Break','Personal Break','Bio Break','H2O Break'];
 let adRows=[], adRangeStr='';
 function adHm(mins){const raw=Math.round(Number(mins)||0),m=Math.abs(raw);return (raw<0?'-':'')+String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
 
@@ -3783,7 +3791,7 @@ function adCells(r,kind){
     const tip=over?`Over limit on ${b.violationShifts} shift${b.violationShifts===1?'':'s'}`:`${b.instances} policy instance${b.instances===1?'':'s'}`;
     return `<td class="mono ${k} first${over?' ad-over':''}" title="${tip}">${b.sessions} / ${b.highest}${perShift||!b.highest?'':' max'}</td><td class="mono ${k}">${adHm(b.minutes)}</td>`;
   }).join('')+
-    ['Personal Break','Bio Break'].map(act=>`<td class="mono ${AD_BREAK_CLS[act]} first">${r.breakStats[act].sessions}</td><td class="mono ${AD_BREAK_CLS[act]}">${adHm(r.breakStats[act].minutes)}</td>`).join('');
+    ['Personal Break','Bio Break','H2O Break'].map(act=>`<td class="mono ${AD_BREAK_CLS[act]} first">${r.breakStats[act].sessions}</td><td class="mono ${AD_BREAK_CLS[act]}">${adHm(r.breakStats[act].minutes)}</td>`).join('');
   return `<td class="mono">${escapeHtml(shiftText).replace(/, /g,'<br>')}</td><td class="mono" style="color:${lateColor}">${lateText}</td><td class="mono">${adHm(r.loggedIn)}</td>${stats}<td class="mono" style="color:var(--gold)">${adHm(r.totalBreak)}</td><td class="mono" style="color:var(--teal)">${adHm(r.working)}</td>`;
 }
 function adIsOpen(id){ return adExpandAll?!adExpanded.has(id):adExpanded.has(id); }
@@ -3795,14 +3803,14 @@ function renderAdherenceTable(){
   $('adTableHint').textContent=dailyView?'Break cell = recorded sessions / policy instances · duration = HH:MM'
     :(ownOnly?`One row per shift date, ${periodWord.toLowerCase()} total at the bottom · red = over the break limit that shift`
       :`Staff row = ${periodWord.toLowerCase()} total; click ▸/▾ to show or hide that person's dates · red = over the break limit`);
-  if(!adRows.length){ $('adherenceTable').innerHTML=`<tr><td colspan="16" class="muted">No data for that range.</td></tr>`; return; }
+  if(!adRows.length){ $('adherenceTable').innerHTML=`<tr><td colspan="18" class="muted">No data for that range.</td></tr>`; return; }
   let html='';
   if(dailyView){
     html=adRows.map(r=>`<tr><td><b>${escapeHtml(r.name)}</b></td>${adCells(r,'date')}</tr>`).join('');
   }else if(ownOnly){
     const r=adRows[0]||{days:[]};
     html=r.days.map(d=>`<tr><td><b>${adDateLabel(d.date)}</b></td>${adCells(d,'date')}</tr>`).join('')
-      +(r.days.length?`<tr class="ad-total-row"><td><b>${periodWord} total</b></td>${adCells(r,'total')}</tr>`:`<tr><td colspan="16" class="muted">No shifts in that range.</td></tr>`);
+      +(r.days.length?`<tr class="ad-total-row"><td><b>${periodWord} total</b></td>${adCells(r,'total')}</tr>`:`<tr><td colspan="18" class="muted">No shifts in that range.</td></tr>`);
   }else{
     html=adRows.map(r=>{
       const open=adIsOpen(r.id), has=r.days.length>0;
@@ -3817,7 +3825,7 @@ function renderAdherenceTable(){
 }
 function toggleAdherenceExpandAll(){ adExpandAll=!adExpandAll; adExpanded=new Set(); renderAdherenceTable(); }
 
-const AD_BREAK_CLS={'15min Break':'b15','30min Break':'b30','60min Break':'b60','Personal Break':'bp','Bio Break':'bb'};
+const AD_BREAK_CLS={'15min Break':'b15','30min Break':'b30','60min Break':'b60','Personal Break':'bp','Bio Break':'bb','H2O Break':'bh'};
 function downloadAdherenceCsv(){
   if(!adRows.length) return alert('Press Run first.');
   const dailyView=$('aGrain').value==='daily';
@@ -3825,7 +3833,7 @@ function downloadAdherenceCsv(){
   ['15min Break','30min Break','60min Break'].forEach(act=>{
     head.push(`${act} recorded sessions`,`${act} total policy instances`,`${act} highest instances in one shift`,`${act} time (HH:MM)`,`${act} status`);
   });
-  ['Personal Break','Bio Break'].forEach(act=>head.push(`${act} sessions`,`${act} time (HH:MM)`));
+  ['Personal Break','Bio Break','H2O Break'].forEach(act=>head.push(`${act} sessions`,`${act} time (HH:MM)`));
   head.push('Total break time (HH:MM)','Actual working time (HH:MM)');
   const lines=[[`Adherence & productivity ${adRangeStr.replace('_',' to ')} (Philippine time)`],[],head];
   const line=(name,dateText,r,perShift)=>{
@@ -3835,7 +3843,7 @@ function downloadAdherenceCsv(){
     ['15min Break','30min Break','60min Break'].forEach(act=>{
       const b=r.breakStats[act]; row.push(b.sessions,b.instances,b.highest,adHm(b.minutes),adherenceBreakStatus(act,b));
     });
-    ['Personal Break','Bio Break'].forEach(act=>{const b=r.breakStats[act];row.push(b.sessions,adHm(b.minutes));});
+    ['Personal Break','Bio Break','H2O Break'].forEach(act=>{const b=r.breakStats[act];row.push(b.sessions,adHm(b.minutes));});
     row.push(adHm(r.totalBreak),adHm(r.working)); lines.push(row);
   };
   adRows.forEach(r=>{
@@ -4010,7 +4018,7 @@ async function renderSheetGrid(){
    8. ADMIN — CORRECTIONS
    ============================================================ */
 let correctionRows=[], correctionReview=null;
-const CORRECTION_ACTIVITIES=['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','Meeting/Coaching','Overtime'];
+const CORRECTION_ACTIVITIES=['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','H2O Break','Meeting/Coaching','Overtime'];
 function correctionStatus(c){return c.status==='approved'?'Approved — '+(c.admin_note||'applied'):c.status==='rejected'?'Rejected — '+(c.admin_note||'no reason recorded'):'Pending review';}
 async function loadCorrections(){
   $('corrFilter').onchange=loadCorrections;
