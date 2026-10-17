@@ -8010,7 +8010,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   /* Called with the client-filtered rows before the table renders → ranks follow the filter. */
   function setShown(rows){
     relShownIds=(rows||[]).map(r=>r.staff.id).filter(id=>relByStaff[id]);
-    const ranked=relShownIds.filter(id=>relByStaff[id].score!=null).sort((a,b)=>relByStaff[b].score-relByStaff[a].score||String(relByStaff[a].name).localeCompare(String(relByStaff[b].name)));
+    const ranked=relShownIds.filter(id=>relByStaff[id].score!=null&&!relByStaff[id].partial).sort((a,b)=>relByStaff[b].score-relByStaff[a].score||String(relByStaff[a].name).localeCompare(String(relByStaff[b].name)));
     relRankById={}; ranked.forEach((id,i)=>relRankById[id]=i+1);
   }
   const fmtPct=v=>v==null?'—':`${v.toFixed(1)}%`;
@@ -8020,9 +8020,9 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const r=relByStaff[staffId]; if(!r)return '';
     const b=band(r.score),rank=relRankById[staffId],total=Object.keys(relRankById).length,open=relOpen.has(staffId);
     const exc=relExcusals.filter(x=>x.staff_id===staffId);
-    const tag=r.partial?' · Partial':'';
+    const tag=r.partial&&r.score!=null?' · Partial, not ranked':(r.partial?' · Partial':'');
     const line=(k,v,s,dim)=>`<div class="rel-bd-row${dim?' dim':''}"><span>${k}</span><b class="mono">${v}</b><i class="mono">${s==null?'—':'→ '+fmtS(s)}</i></div>`;
-    const notes=[r.countsMissing?'Historical counts missing: attendance uses automatic dates only (from Sep 28).':'',r.missingHireDate?'Hire date missing: absences cannot be checked, so there is no score until a hire date is added.':'',r.partial&&r.score!=null?`Partial: only ${r.trackedDays} tracked day${r.trackedDays===1?'':'s'} (needs ${REL_MIN_TRACKED}), so the score is attendance only for now.`:''].filter(Boolean);
+    const notes=[r.countsMissing?'Historical counts missing: attendance uses automatic dates only (from Sep 28).':'',r.missingHireDate?'Hire date missing: absences cannot be checked, so there is no score until a hire date is added.':'',r.partial&&r.score!=null?`Partial: only ${r.trackedDays} tracked day${r.trackedDays===1?'':'s'} (needs ${REL_MIN_TRACKED}), so the score is attendance only and is listed separately, not ranked, until then.`:''].filter(Boolean);
     return `<details class="rel-det" data-rel-det="${esc(staffId)}"${open?' open':''}><summary class="rel-pill b-${b.cls}"><span class="rel-dot"></span>Reliability <b class="mono">${fmtS(r.score)}</b> · ${esc(r.missingHireDate?'Hire date needed':b.name)}${rank?` · #${rank} of ${total}`:''}${tag}</summary>
       <div class="rel-bd">
         ${line('Attendance (60%)',fmtPct(r.attendance.pct),r.attendance.score)}
@@ -8072,19 +8072,20 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     card.style.display='';
     if(relCtx.setupErr){card.innerHTML=`<div class="hdr"><h3 style="font-size:15px">🏅 Reliability ranking</h3></div><div class="note">Reliability tables are not ready: ${esc(relCtx.setupErr)}. Run the reliability SQL in Supabase, then rerun the report.</div>`;return;}
     const list=relShownIds.map(id=>relByStaff[id]);
-    const scored=list.filter(r=>r.score!=null).sort((a,b)=>relRankById[a.staffId]-relRankById[b.staffId]), none=list.filter(r=>r.score==null);
+    const scored=list.filter(r=>r.score!=null&&!r.partial).sort((a,b)=>relRankById[a.staffId]-relRankById[b.staffId]), partials=list.filter(r=>r.score!=null&&r.partial).sort((a,b)=>b.score-a.score||String(a.name).localeCompare(String(b.name))), none=list.filter(r=>r.score==null);
     const avg=scored.length?r2(scored.reduce((n,r)=>n+r.score,0)/scored.length):null;
     const cnt=f=>scored.filter(f).length;
     const kp=(k,v,c)=>`<div class="stat"><div class="k">${k}</div><div class="v mono" style="font-size:20px${c?';color:'+c:''}">${v}</div></div>`;
-    const bar=r=>{const b=band(r.score);return `<div class="rel-bar"><span class="rel-rk mono">#${relRankById[r.staffId]}</span><span class="rel-nm" title="${esc(r.clientName)}">${esc(r.name)}</span><div class="rel-trk"><div class="rel-fill b-${b.cls}" style="width:${Math.max(2,(r.score-1)/4*100).toFixed(1)}%"></div>${avg!=null?`<div class="rel-avg" style="left:${((avg-1)/4*100).toFixed(1)}%"></div>`:''}</div><span class="rel-sc mono">${r.score.toFixed(2)}</span><span>${r.partial?'<span class="rel-part" title="Under 40 tracked days: attendance only">Partial</span>':''}${r.countsMissing?'<span class="rel-part" title="Historical counts missing">Counts</span>':''}</span></div>`;};
-    card.innerHTML=`<div class="hdr"><div><h3 style="font-size:15px">🏅 Reliability ranking · ${esc(relYear)}</h3><div class="muted" style="font-size:12px;margin-top:3px">Highest first${avg!=null?` · dashed line = average (${avg.toFixed(2)})`:''}. Follows the Client filter. Admin only, and it never changes the Year End Bonus.</div></div>
+    const bar=r=>{const b=band(r.score);return `<div class="rel-bar"><span class="rel-rk mono">${relRankById[r.staffId]?'#'+relRankById[r.staffId]:'—'}</span><span class="rel-nm" title="${esc(r.clientName)}">${esc(r.name)}</span><div class="rel-trk"><div class="rel-fill b-${b.cls}" style="width:${Math.max(2,(r.score-1)/4*100).toFixed(1)}%"></div>${avg!=null?`<div class="rel-avg" style="left:${((avg-1)/4*100).toFixed(1)}%"></div>`:''}</div><span class="rel-sc mono">${r.score.toFixed(2)}</span><span>${r.partial?`<span class="rel-part" title="Under ${REL_MIN_TRACKED} tracked days: attendance only, not ranked">${r.trackedDays}/${REL_MIN_TRACKED} days</span>`:''}${r.countsMissing?'<span class="rel-part" title="Historical counts missing">Counts</span>':''}</span></div>`;};
+    card.innerHTML=`<div class="hdr"><div><h3 style="font-size:15px">🏅 Reliability ranking · ${esc(relYear)}</h3><div class="muted" style="font-size:12px;margin-top:3px">Highest first${avg!=null?` · dashed line = average of ranked staff (${avg.toFixed(2)})`:''}. Partial staff are listed separately and not ranked. Follows the Client filter. Admin only, and it never changes the Year End Bonus.</div></div>
       <div class="row" style="gap:7px;flex-wrap:wrap;align-items:center"><button type="button" class="btn btn-ghost" id="relCsv">Export CSV</button><button type="button" class="btn ${relStaffVisible?'btn-teal':'btn-ghost'}" id="relToggle">${relStaffVisible?'👁 Staff can see their card: ON':'🔒 Staff can see their card: OFF'}</button></div></div>
-      <div class="rel-kpis">${kp('Average',avg==null?'—':avg.toFixed(2))}${kp('Outstanding (≥4.50)',cnt(r=>r.score>=4.5),'var(--teal)')}${kp('Developing (<3.00)',cnt(r=>r.score<3),'var(--rose)')}${kp('Partial (<40 tracked days)',list.filter(r=>r.partial&&r.score!=null).length,'var(--gold)')}</div>
-      ${scored.length?scored.map(bar).join(''):'<div class="muted">No scores yet for this selection.</div>'}
+      <div class="rel-kpis">${kp('Average',avg==null?'—':avg.toFixed(2))}${kp('Outstanding (≥4.50)',cnt(r=>r.score>=4.5),'var(--teal)')}${kp('Developing (<3.00)',cnt(r=>r.score<3),'var(--rose)')}${kp(`Not ranked yet (<${REL_MIN_TRACKED} days)`,partials.length,'var(--gold)')}</div>
+      ${scored.length?scored.map(bar).join(''):'<div class="muted">No ranked scores yet for this selection.</div>'}
+      ${partials.length?`<div class="rel-partsec" id="relPartialSec"><div style="font-size:12.5px;font-weight:600;margin:12px 0 2px">Not ranked yet · Partial (${partials.length})</div><div class="muted" style="font-size:11.5px;margin-bottom:5px">Under ${REL_MIN_TRACKED} tracked days, so these scores are attendance only. Each person joins the ranking automatically once they reach ${REL_MIN_TRACKED} tracked days.</div>${partials.map(bar).join('')}</div>`:''}
       ${none.length?`<div class="muted" style="font-size:11.5px;margin-top:6px">No score yet: ${none.map(r=>esc(r.name)+(r.missingHireDate?' (hire date needed)':'')).join(', ')}</div>`:''}
       <div class="rel-legend"><span class="b-t"><i></i>Outstanding ≥4.50</span><span class="b-g"><i></i>Exceeds 3.75–4.49</span><span class="b-s"><i></i>Meets 3.00–3.74</span><span class="b-r"><i></i>Developing &lt;3.00</span></div>
-      <div class="muted" style="font-size:11px;margin-top:8px;line-height:1.45">Attendance 60% = (expected days − PA − 2×OUT) ÷ expected days; expected = Mon–Fri working days − PTO − PCH − excused. Late = first log-in of the shift more than ${REL_LATE_GRACE_MIN} min after shift start (25%). Over-break = minutes over each break's allowance, same as Timesheets (15%). Late and over-break use every tracked shift date, scaled per 20 days. Scores slide smoothly between the thresholds. Under ${REL_MIN_TRACKED} tracked days = Partial (attendance only). Admin accounts are not scored. <span id="relPublishMsg">${esc(relPublishMsg)}</span></div>`;
-    $('relToggle').onclick=toggleStaffView; $('relCsv').onclick=()=>exportCsv(scored.concat(none));
+      <div class="muted" style="font-size:11px;margin-top:8px;line-height:1.45">Attendance 60% = (expected days − PA − 2×OUT) ÷ expected days; expected = Mon–Fri working days − PTO − PCH − excused. Late = first log-in of the shift more than ${REL_LATE_GRACE_MIN} min after shift start (25%). Over-break = minutes over each break's allowance, same as Timesheets (15%). Late and over-break use every tracked shift date, scaled per 20 days. Scores slide smoothly between the thresholds. Under ${REL_MIN_TRACKED} tracked days = Partial (attendance only, listed separately, not ranked). Admin accounts are not scored. <span id="relPublishMsg">${esc(relPublishMsg)}</span></div>`;
+    $('relToggle').onclick=toggleStaffView; $('relCsv').onclick=()=>exportCsv(scored.concat(partials,none));
   }
   async function toggleStaffView(){
     const next=!relStaffVisible;
