@@ -300,6 +300,10 @@ button.btn{padding:7px 12px;font-size:12px}
 .ytd-table td.ytd-staff-cell input{box-sizing:border-box;max-width:100%}
 .ytd-table th.sticky-col,.ytd-table td.sticky-col{position:sticky;left:0;z-index:2;background:var(--card);box-shadow:inset -1px 0 0 var(--line),4px 0 6px rgba(0,0,0,.28)}
 .ytd-table thead th.sticky-col{z-index:3}
+/* Sticky header: table scrolls inside its own box (Rendy option 1, 2026-10-17) */
+.ytd-table-wrap{max-height:calc(100vh - 110px);overflow:auto;overscroll-behavior:contain}
+.ytd-table thead th{position:sticky;top:0;z-index:3;background:var(--card);box-shadow:inset 0 -1px 0 var(--line)}
+.ytd-table thead th.sticky-col{z-index:4;box-shadow:inset -1px -1px 0 var(--line),4px 0 6px rgba(0,0,0,.28)}
 @media(max-width:820px){.ytd-table{min-width:975px}}
 @media(max-width:560px){.ytd-table th:nth-child(1),.ytd-table td:nth-child(1){width:230px}}
 
@@ -7863,6 +7867,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   const REL_BRK_PTS=[[5,5],[15,4],[30,3],[60,2],[120,1]];           // over-break minutes per 20 tracked days
   const REL_OVER_ACTS=['15min Break','30min Break','60min Break','Personal Break','Bio Break','H2O Break'];
   const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let relExpanded=false, relHowOpen=false; const REL_COLLAPSED_N=5;
   let relByStaff={}, relShownIds=[], relRankById={}, relCtx=null, relExcusals=[], relStaffVisible=false, relOpen=new Set(), relPublishMsg='', relYear=null;
 
   const esc=v=>escapeHtml(String(v??''));
@@ -8075,17 +8080,29 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const scored=list.filter(r=>r.score!=null&&!r.partial).sort((a,b)=>relRankById[a.staffId]-relRankById[b.staffId]), partials=list.filter(r=>r.score!=null&&r.partial).sort((a,b)=>b.score-a.score||String(a.name).localeCompare(String(b.name))), none=list.filter(r=>r.score==null);
     const avg=scored.length?r2(scored.reduce((n,r)=>n+r.score,0)/scored.length):null;
     const cnt=f=>scored.filter(f).length;
-    const kp=(k,v,c)=>`<div class="stat"><div class="k">${k}</div><div class="v mono" style="font-size:20px${c?';color:'+c:''}">${v}</div></div>`;
-    const bar=r=>{const b=band(r.score);return `<div class="rel-bar"><span class="rel-rk mono">${relRankById[r.staffId]?'#'+relRankById[r.staffId]:'—'}</span><span class="rel-nm" title="${esc(r.clientName)}">${esc(r.name)}</span><div class="rel-trk"><div class="rel-fill b-${b.cls}" style="width:${Math.max(2,(r.score-1)/4*100).toFixed(1)}%"></div>${avg!=null?`<div class="rel-avg" style="left:${((avg-1)/4*100).toFixed(1)}%"></div>`:''}</div><span class="rel-sc mono">${r.score.toFixed(2)}</span><span>${r.partial?`<span class="rel-part" title="Under ${REL_MIN_TRACKED} tracked days: attendance only, not ranked">${r.trackedDays}/${REL_MIN_TRACKED} days</span>`:''}${r.countsMissing?'<span class="rel-part" title="Historical counts missing">Counts</span>':''}</span></div>`;};
-    card.innerHTML=`<div class="hdr"><div><h3 style="font-size:15px">🏅 Reliability ranking · ${esc(relYear)}</h3><div class="muted" style="font-size:12px;margin-top:3px">Highest first${avg!=null?` · dashed line = average of ranked staff (${avg.toFixed(2)})`:''}. Partial staff are listed separately and not ranked. Follows the Client filter. Admin only, and it never changes the Year End Bonus.</div></div>
-      <div class="row" style="gap:7px;flex-wrap:wrap;align-items:center"><button type="button" class="btn btn-ghost" id="relCsv">Export CSV</button><button type="button" class="btn ${relStaffVisible?'btn-teal':'btn-ghost'}" id="relToggle">${relStaffVisible?'👁 Staff can see their card: ON':'🔒 Staff can see their card: OFF'}</button></div></div>
-      <div class="rel-kpis">${kp('Average',avg==null?'—':avg.toFixed(2))}${kp('Outstanding (≥4.50)',cnt(r=>r.score>=4.5),'var(--teal)')}${kp('Developing (<3.00)',cnt(r=>r.score<3),'var(--rose)')}${kp(`Not ranked yet (<${REL_MIN_TRACKED} days)`,partials.length,'var(--gold)')}</div>
-      ${scored.length?scored.map(bar).join(''):'<div class="muted">No ranked scores yet for this selection.</div>'}
-      ${partials.length?`<div class="rel-partsec" id="relPartialSec"><div style="font-size:12.5px;font-weight:600;margin:12px 0 2px">Not ranked yet · Partial (${partials.length})</div><div class="muted" style="font-size:11.5px;margin-bottom:5px">Under ${REL_MIN_TRACKED} tracked days, so these scores are attendance only. Each person joins the ranking automatically once they reach ${REL_MIN_TRACKED} tracked days.</div>${partials.map(bar).join('')}</div>`:''}
-      ${none.length?`<div class="muted" style="font-size:11.5px;margin-top:6px">No score yet: ${none.map(r=>esc(r.name)+(r.missingHireDate?' (hire date needed)':'')).join(', ')}</div>`:''}
-      <div class="rel-legend"><span class="b-t"><i></i>Outstanding ≥4.50</span><span class="b-g"><i></i>Exceeds 3.75–4.49</span><span class="b-s"><i></i>Meets 3.00–3.74</span><span class="b-r"><i></i>Developing &lt;3.00</span></div>
-      <div class="muted" style="font-size:11px;margin-top:8px;line-height:1.45">Attendance 60% = (expected days − PA − 2×OUT) ÷ expected days; expected = Mon–Fri working days − PTO − PCH − excused. Late = first log-in of the shift more than ${REL_LATE_GRACE_MIN} min after shift start (25%). Over-break = minutes over each break's allowance, same as Timesheets (15%). Late and over-break use every tracked shift date, scaled per 20 days. Scores slide smoothly between the thresholds. Under ${REL_MIN_TRACKED} tracked days = Partial (attendance only, listed separately, not ranked). Admin accounts are not scored. <span id="relPublishMsg">${esc(relPublishMsg)}</span></div>`;
+    const chip=(k,v,c)=>`<span class="rel-chip ${c}">${k} <b class="mono">${v}</b></span>`;
+    const row=r=>{const b=band(r.score);return `<div class="rel-row"><span class="rel-rk mono">${relRankById[r.staffId]?'#'+relRankById[r.staffId]:'—'}</span><span class="rel-nm" title="${esc(r.name)}${r.clientName?' · '+esc(r.clientName):''}">${esc(r.name)}${r.countsMissing?' <span class="rel-part" title="Historical counts missing">Counts</span>':''}</span><div class="rel-trk"><div class="rel-fill b-${b.cls}" style="width:${Math.max(2,(r.score-1)/4*100).toFixed(1)}%"></div>${avg!=null?`<div class="rel-avg" style="left:${((avg-1)/4*100).toFixed(1)}%"></div>`:''}</div><b class="rel-sc mono">${r.score.toFixed(2)}</b></div>`;};
+    const N=REL_COLLAPSED_N;
+    let body;
+    if(!scored.length){body='<div class="muted" style="font-size:12px">No ranked scores yet for this selection.</div>';}
+    else if(!relExpanded&&scored.length>2*N){
+      body=`<div class="rel-two"><div><div class="rel-lab">Top ${N}</div>${scored.slice(0,N).map(row).join('')}</div><div><div class="rel-lab">Needs attention</div>${scored.slice(-N).map(row).join('')}</div></div>`;
+    }else{
+      const half=Math.ceil(scored.length/2);
+      body=`<div class="rel-grid" style="grid-template-rows:repeat(${half},22px)">${scored.map(row).join('')}</div>`;
+    }
+    const showPartials=partials.length&&(relExpanded||scored.length<=2*N);
+    const partHtml=showPartials?`<div class="rel-partsec" id="relPartialSec"><div class="rel-lab" style="margin-top:8px">Partial · not ranked yet (under ${REL_MIN_TRACKED} tracked days, attendance only)</div><div class="rel-pchips">${partials.map(r=>`<span class="rel-pchip b-${band(r.score).cls}" title="${esc(r.clientName||'')}">${esc(r.name)} <b class="mono">${r.score.toFixed(2)}</b> <em>${r.trackedDays}/${REL_MIN_TRACKED}</em></span>`).join('')}</div></div>`:'';
+    const noneHtml=none.length&&(relExpanded||scored.length<=2*N)?`<div class="muted" style="font-size:11px;margin-top:6px">No score yet: ${none.map(r=>esc(r.name)+(r.missingHireDate?' (hire date needed)':'')).join(', ')}</div>`:'';
+    const extra=partials.length?` + ${partials.length} partial`:'';
+    const toggle=scored.length>2*N?`<button type="button" class="rel-lnk" id="relMore">${relExpanded?'▾ Show less':`▸ Show all ${scored.length} ranked${extra}`}</button>`:'<span></span>';
+    card.innerHTML=`<div class="rel-head"><h3>🏅 Reliability · ${esc(relYear)}</h3>${chip('Avg',avg==null?'—':avg.toFixed(2),'rel-c-avg')}${chip('Outstanding',cnt(r=>r.score>=4.5),'b-t')}${chip('Developing',cnt(r=>r.score<3),'b-r')}${chip('Partial',partials.length,'b-y')}<span style="flex:1"></span><button type="button" class="rel-lnk" id="relHow">ⓘ How it's scored</button><button type="button" class="rel-sbtn" id="relCsv">CSV</button><button type="button" class="rel-sbtn${relStaffVisible?' on':''}" id="relToggle">${relStaffVisible?'👁 Staff view: ON':'🔒 Staff view: OFF'}</button></div>
+      <div class="rel-how${relHowOpen?'':' hide'}" id="relHowBox">Highest first. Dashed line = average of ranked staff${avg!=null?` (${avg.toFixed(2)})`:''}. Follows the Client filter. Admin only, and it never changes the Year End Bonus.<br>Attendance 60% = (expected days − PA − 2×OUT) ÷ expected days; expected = Mon–Fri working days − PTO − PCH − excused. Late = first log-in of the shift more than ${REL_LATE_GRACE_MIN} min after shift start (25%). Over-break = minutes over each break's allowance, same as Timesheets (15%). Late and over-break use every tracked shift date, scaled per 20 days. Scores slide smoothly between the thresholds. Under ${REL_MIN_TRACKED} tracked days = Partial (attendance only, listed separately, not ranked). Admin accounts are not scored.<div class="rel-legend"><span class="b-t"><i></i>Outstanding ≥4.50</span><span class="b-g"><i></i>Exceeds 3.75–4.49</span><span class="b-s"><i></i>Meets 3.00–3.74</span><span class="b-r"><i></i>Developing &lt;3.00</span></div></div>
+      ${body}${partHtml}${noneHtml}
+      <div class="rel-foot">${toggle}<span class="muted">Dashed line = average · Follows Client filter · Admin only · Never affects Year End Bonus <span id="relPublishMsg">${esc(relPublishMsg)}</span></span></div>`;
     $('relToggle').onclick=toggleStaffView; $('relCsv').onclick=()=>exportCsv(scored.concat(partials,none));
+    $('relHow').onclick=()=>{relHowOpen=!relHowOpen;$('relHowBox').classList.toggle('hide',!relHowOpen);};
+    const m=$('relMore'); if(m)m.onclick=()=>{relExpanded=!relExpanded;renderChart();};
   }
   async function toggleStaffView(){
     const next=!relStaffVisible;
@@ -8153,6 +8170,20 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   .rel-exc-form{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.rel-exc-form input{width:auto;flex:1 1 120px;font-size:11.5px;padding:5px 7px}.rel-exc-form .btn{font-size:11.5px;padding:5px 9px}
   .rel-exc-msg{font-size:10.5px;color:var(--gold);min-height:12px}.rel-prev{font-size:11.5px;padding:5px 9px;margin-top:6px}
   .rel-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:12px}
+  .b-y{--rc:var(--gold)}
+  .rel-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:9px}.rel-head h3{font-size:14px;margin-right:6px}
+  .rel-chip{--rc:var(--ink);font-size:11.5px;padding:3px 9px;border-radius:999px;background:var(--card2);color:var(--muted)}.rel-chip b{color:var(--rc);margin-left:3px}
+  .rel-lnk{all:unset;color:var(--gold);font-size:11.5px;cursor:pointer}.rel-lnk:hover{text-decoration:underline}
+  .rel-sbtn{all:unset;box-sizing:border-box;font-size:11.5px;padding:4px 10px;border-radius:8px;background:var(--card2);box-shadow:inset 0 0 0 1px var(--line);cursor:pointer;font-weight:600}.rel-sbtn.on{color:var(--teal)}
+  .rel-how{font-size:11px;color:var(--muted);line-height:1.45;background:var(--card2);border-radius:10px;padding:8px 10px;margin-bottom:9px}
+  .rel-two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .rel-lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:3px}
+  .rel-row{display:grid;grid-template-columns:28px minmax(90px,150px) 1fr 38px;gap:8px;align-items:center;height:22px;font-size:12px}
+  .rel-row .rel-trk{height:7px;border-radius:4px}.rel-row .rel-fill{border-radius:4px}.rel-row .rel-avg{top:-3px;bottom:-3px;border-left-width:1.5px}.rel-row .rel-sc{font-size:12px}
+  .rel-grid{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;column-gap:22px;max-height:242px;overflow:auto}
+  .rel-pchips{display:flex;gap:6px;flex-wrap:wrap}.rel-pchip{font-size:11.5px;padding:3px 9px;border-radius:999px;border:1px solid rgba(227,166,62,.4)}.rel-pchip b{color:var(--rc)}.rel-pchip em{font-style:normal;color:var(--gold);font-size:10.5px;margin-left:3px}
+  .rel-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:9px;padding-top:7px;border-top:1px solid var(--line);font-size:11px}
+  #relChartCard{padding:12px 14px}
   .rel-bar{display:grid;grid-template-columns:34px minmax(110px,190px) 1fr 46px 70px;gap:9px;align-items:center;padding:3px 0;font-size:13px}
   .rel-rk{color:var(--muted);font-size:11px}.rel-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rel-trk{height:15px;background:var(--card2);border-radius:5px;position:relative}
   .rel-fill{height:100%;border-radius:5px;background:var(--rc)}.rel-avg{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink);opacity:.45}
@@ -8170,7 +8201,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   .rel-mo{display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;gap:3px;min-width:0}.rel-mo span{font-size:10px;color:var(--muted);text-align:center}
   .rel-mo-bar{background:color-mix(in srgb,var(--rc) 60%,transparent);border-radius:4px 4px 0 0;flex:0 0 auto;max-height:52px}
   .rel-mo.man .rel-mo-bar{background:repeating-linear-gradient(45deg,#2a2f42 0 4px,#20253a 4px 8px);height:52px!important}
-  @media(max-width:720px){.rel-wrap{grid-template-columns:1fr}.rel-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-met{grid-template-columns:110px 1fr 64px}.rel-bar{grid-template-columns:28px 100px 1fr 40px 50px;font-size:12px}}`;
+  @media(max-width:720px){.rel-wrap{grid-template-columns:1fr}.rel-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-met{grid-template-columns:110px 1fr 64px}.rel-bar{grid-template-columns:28px 100px 1fr 40px 50px;font-size:12px}.rel-two,.rel-grid{grid-template-columns:1fr}.rel-grid{grid-auto-flow:row;grid-template-rows:none!important}}`;
   document.head.appendChild(css);
 
   window.Reliability={compute,setShown,pillHtml,bindRows,renderChart,initProfile,preview,_interp:interp,_attScore:attScore,_lateScore:lateScore,_brkScore:brkScore,_combine:combine,_byStaff:()=>relByStaff};
