@@ -1176,7 +1176,7 @@ function checkLoginWindow(client,now){
 
 /* ---------- force-logout guard (10h shift cap, waived while on Overtime) ---------- */
 const FORCE_LOGOUT_MS=10*3600*1000;
-let forceLogoutBusy=false;
+let forceLogoutBusy=false, forceLogoutRetryAt=0;
 /* 10h cap counts from the later of login or scheduled shift start, so logging in early doesn't shorten the shift. */
 function forceLogoutBaseMs(sh){
   const login=new Date(sh.login_at).getTime();
@@ -1184,17 +1184,16 @@ function forceLogoutBaseMs(sh){
   return login;
 }
 async function checkForceLogout(){
-  if(!curShift||curShift.logout_at||forceLogoutBusy) return;
+  if(!curShift||curShift.logout_at||forceLogoutBusy||Date.now()<forceLogoutRetryAt) return;
   if(Date.now()-forceLogoutBaseMs(curShift) < FORCE_LOGOUT_MS) return;
   if(curEntry && curEntry.activity===OVERTIME) return; // staff is on Overtime — no cap while there
   forceLogoutBusy=true;
   try{
-    const now=new Date().toISOString();
     const endedShiftId=curShift.id;
-    const closeErr=await closeOpenEntries(endedShiftId, now);
-    if(closeErr) return;
-    const {error}=await sb.from('shifts').update({logout_at:now}).eq('id',endedShiftId);
-    if(error) return;
+    // Secure server function: closes open activities + logs out using the SERVER clock.
+    // It refuses before 10h since login (e.g. this PC's clock is fast) -> retry in a minute.
+    const {error}=await sb.rpc('punch_logout',{p_shift_id:endedShiftId,p_reason:'auto_10h'});
+    if(error){ forceLogoutRetryAt=Date.now()+60000; return; }
     curShift=null; curEntry=null;
     paintShiftState(); await renderToday(); await renderPayPeriod();
     syncOverbreakAlerts(endedShiftId);
@@ -2737,10 +2736,8 @@ function paintShiftState(){
    shift_id instead is self-healing: it sweeps up any stray open entries as a side effect
    of the very next click, and callers now check the result for an error instead of
    assuming it worked. */
-async function closeOpenEntries(shiftId, endedAt){
-  const {error}=await sb.from('entries').update({ended_at:endedAt}).eq('shift_id',shiftId).eq('active',true).is('ended_at',null);
-  return error;
-}
+/* (closeOpenEntries removed: staff can no longer write shifts/entries directly. The punch_* server
+   functions close every open entry of the shift by shift_id, so the self-healing behaviour above is kept.) */
 
 $('loginBtn').onclick = async () => {
   $('loginBtn').disabled=true;
@@ -2762,19 +2759,18 @@ $('loginBtn').onclick = async () => {
         const cMe=clients.find(x=>x.id===me.client_id);
         const win=checkLoginWindow(cMe,new Date());
         if(!win.ok){ alert(win.message); return; }
-        const {data,error}=await sb.from('shifts').insert({staff_id:me.id}).select().single();
+        // Secure server function: starts the shift + Working on the SERVER clock (or adopts an open shift).
+        const {data,error}=await sb.rpc('punch_login');
         if(error) throw error;
-        curShift=data;
-        const {data:e}=await sb.from('entries').insert({shift_id:curShift.id,staff_id:me.id,activity:'Working'}).select().single();
-        curEntry=e;
+        curShift=data.shift;
+        curEntry=data.entry||null;
       }
     }else{
       if(!confirm('End your shift now? This stops all timers.')){$('loginBtn').disabled=false;return;}
-      const now=new Date().toISOString();
       const endedShiftId=curShift.id;
-      const closeErr=await closeOpenEntries(endedShiftId, now);
-      if(closeErr) throw closeErr;
-      await sb.from('shifts').update({logout_at:now}).eq('id',endedShiftId);
+      // Secure server function: closes open activities + logs out on the SERVER clock.
+      const {error:outErr}=await sb.rpc('punch_logout',{p_shift_id:endedShiftId,p_reason:'manual'});
+      if(outErr) throw outErr;
       syncOverbreakAlerts(endedShiftId); // final catch-up before leaving the shift
       curShift=null;curEntry=null;
     }
@@ -2786,7 +2782,7 @@ $('loginBtn').onclick = async () => {
 $('stopBtn').onclick = async () => {
   if(!curShift)return;
   const shiftId=curShift.id;
-  const closeErr=await closeOpenEntries(shiftId, new Date().toISOString());
+  const {error:closeErr}=await sb.rpc('punch_stop',{p_shift_id:shiftId});
   if(closeErr) return alert('Could not stop: '+closeErr.message);
   curEntry=null; paintShiftState(); syncOverbreakAlerts(shiftId); await renderToday();
 };
@@ -2807,14 +2803,10 @@ async function checkPreShiftOtSwitch(){
   otAutoBusy=true;
   try{
     const iso=w.start.toISOString(), shiftId=curShift.id, otId=curEntry.id;
-    const {error:closeErr}=await sb.from('entries').update({ended_at:iso}).eq('id',otId).is('ended_at',null);
-    if(closeErr){ otAutoRetryAt=Date.now()+30000; return; }
-    const {data,error}=await sb.from('entries').insert({shift_id:shiftId,staff_id:me.id,activity:'Working',started_at:iso}).select().single();
-    if(error){
-      // put the Overtime back open so time is never lost, then retry later
-      await sb.from('entries').update({ended_at:null}).eq('id',otId);
-      otAutoRetryAt=Date.now()+30000; return;
-    }
+    // Secure server function: closes this Overtime at shift start and opens Working at the
+    // same instant, in one step (all-or-nothing, so time is never lost). Server checks the time.
+    const {data,error}=await sb.rpc('punch_ot_autoswitch',{p_entry_id:otId,p_at:iso});
+    if(error){ otAutoRetryAt=Date.now()+30000; return; }
     curEntry=data; paintShiftState();
     notifyActivity(data.id);
     await renderToday();
@@ -2834,10 +2826,8 @@ async function switchActivity(act){
   if(switchBusy) return; // ignore a double-click/rapid re-tap while the previous switch is still in flight
   switchBusy=true;
   try{
-    const now=new Date().toISOString();
-    const closeErr=await closeOpenEntries(curShift.id, now);
-    if(closeErr) return alert('Could not switch: '+closeErr.message);
-    const {data,error}=await sb.from('entries').insert({shift_id:curShift.id,staff_id:me.id,activity:act,started_at:now}).select().single();
+    // Secure server function: closes whatever is open + starts the new activity on the SERVER clock, in one step.
+    const {data,error}=await sb.rpc('punch_switch',{p_shift_id:curShift.id,p_activity:act});
     if(error) return alert('Could not switch: '+error.message);
     curEntry=data; paintShiftState();
     notifyActivity(data.id); // record is saved first; Slack failure never rolls time back
