@@ -933,6 +933,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div id="ytdStatus" class="note" role="status" aria-live="polite" style="margin-bottom:9px">Choose a calendar year and run the report.</div>
         <div class="ytd-summary" id="ytdSummary"></div>
       </div>
+      <div class="card" id="relChartCard" style="display:none"></div>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Total Working Days = Mon–Fri calendar dates in the selected year (to date for the current year), within each person's employment window. Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus = total basic salary earned this year (by employment days × applicable rate) ÷ 12, per DOLE 13th-month rules. Less Absences = Year End Bonus − (PA + OUT) × daily rate ÷ 12, where daily rate = current monthly rate ÷ 22; PTO/PCH are paid and not deducted.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Total<br>working days</th><th>Days<br>present</th><th>PTO</th><th>PCH</th><th>PA</th><th>OUT</th><th>Eligible basic<br>earnings</th><th>Year End<br>Bonus</th><th>Less<br>Absences</th></tr></thead><tbody id="ytdTable"><tr><td colspan="10" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
     </section>
 
@@ -956,6 +957,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div class="row" style="gap:14px;align-items:center"><div class="pf-avatar" id="pfAvatar">—</div><div><h3 style="font-size:19px" id="pfName">—</h3><div class="muted" style="font-size:12.5px" id="pfSub">Contractor</div></div></div>
         <div class="pf-facts" id="pfFacts"></div>
       </div>
+      <div class="card hide" id="pfRelCard"></div>
       <div class="card" id="pfQrCard">
         <div class="hdr"><div><h3 style="font-size:15px">💳 My Salary QR</h3><div class="muted" style="font-size:12.5px;margin-top:3px">Admin uses this QR to send your contract fee. Changes need admin approval.</div></div></div>
         <div id="pfQr"><div class="muted">Loading…</div></div>
@@ -2655,7 +2657,7 @@ function go(v){
   if(v==='v-corr'){loadCorrections();}
   if(v==='v-ledger'){initLedgerFilters();} if(v==='v-invoice'){initInvoiceFilters();}
   if(v==='v-earning'){initEarningFilters();}
-  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();window.Reliability?.initProfile();}
 }
 
 /* clocks + running timers */
@@ -6499,7 +6501,7 @@ async function downloadClientTimesheetXlsx(){
       adjustments.filter(a=>a.staff_id===staff.id&&ytdIsIso(a.work_date)).forEach(a=>{hoursByDay[a.work_date]=Math.max(0,Number(a.hours)||0);});
       const dayTypes={};Object.entries(leaveByDay).forEach(([key,type])=>{const [sid,date]=key.split('|');if(sid===staff.id)dayTypes[date]=type;});
       let worked=0,eligibleEarnings=0,missingRateDays=0,workdaysUninferable=false,totalWorkingDays=0;
-      const autoCounts={days_present:0,pto:0,pch:0,pa:0,out:0},perDateRate=iso=>ytdRatesForDate(ratePeriods,iso);
+      const outDates=[],autoCounts={days_present:0,pto:0,pch:0,pa:0,out:0},perDateRate=iso=>ytdRatesForDate(ratePeriods,iso);
       ytdListDates(start,end).forEach(date=>{
         if(!employed.valid||date<employed.start||date>employed.end)return;
         const dow=ytdDayOfWeek(date);
@@ -6515,7 +6517,7 @@ async function downloadClientTimesheetXlsx(){
           else{
             const window=shiftWindowFor(client,date),shiftHasEnded=date<currentDate||(date===currentDate&&window&&window.end.getTime()<=nowMs);
             // OUT follows the approved rule: expected scheduled day with no payable hours.
-            if(employed.hasHireDate&&schedule.has(ytdDayOfWeek(date))&&!status&&hours<=0&&shiftHasEnded&&!openPunchByDay[date])autoCounts.out++;
+            if(employed.hasHireDate&&schedule.has(ytdDayOfWeek(date))&&!status&&hours<=0&&shiftHasEnded&&!openPunchByDay[date]){autoCounts.out++;outDates.push(date);}
           }
         }
         if(hours>0)worked++;
@@ -6528,7 +6530,7 @@ async function downloadClientTimesheetXlsx(){
       const bonus=missingRateDays?null:ytdBonus(eligibleEarnings),absences=totalCounts.pa+totalCounts.out;
       const currentRateRow=perDateRate(employed.valid?employed.end:end),currentMonthlyRate=currentRateRow?Number(currentRateRow.monthly_rate):null;
       const absenceDeduction=currentRateRow?ytdAbsenceDeduction(absences,currentMonthlyRate):null,lessAbsences=ytdLessAbsences(bonus,absenceDeduction);
-      return{staff,client,workingDays:totalWorkingDays,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,pa:totalCounts.pa,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus,absences,currentMonthlyRate,absenceDeduction,lessAbsences,missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate};
+      return{staff,client,workingDays:totalWorkingDays,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,pa:totalCounts.pa,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus,absences,currentMonthlyRate,absenceDeduction,lessAbsences,missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate,outDates,dayTypes,employed,recordedDates:recordedDatesByStaff[staff.id]||new Set()};
     }).sort((a,b)=>{
       const ad=ytdIsIso(a.staff.hire_date)?a.staff.hire_date:'9999-12-31',bd=ytdIsIso(b.staff.hire_date)?b.staff.hire_date:'9999-12-31';
       return ad.localeCompare(bd)||String(a.staff.full_name||'').localeCompare(String(b.staff.full_name||''));
@@ -6556,23 +6558,27 @@ async function downloadClientTimesheetXlsx(){
     if(ytdCurrentYear===null)return;
     const selected=$('ytdClientFilter')?.value||'__all__';
     const rows=ytdFilterRowsByClient(ytdComputedRows,selected);
+    window.Reliability?.setShown(rows);
     ytdRenderTable(rows,ytdRows,ytdCurrentYear);
     ytdSummaryHtml(rows);
+    window.Reliability?.renderChart();
   }
   function ytdRenderTable(rows,rates,year){
     $('ytdTable').innerHTML=rows.length?rows.map(r=>`<tr>
-      <td class="sticky-col ytd-staff-cell"><b>${ytdEscape(r.staff.full_name)}</b>${r.missingHireDate?'<div class="pill p-bad" style="margin-top:4px">Hire date needed for OUT</div>':''}${Number(year)<=2026&&!r.attendanceCountsComplete?'<div class="pill p-bad" style="margin-top:4px">Historical counts needed</div>':''}${ytdRenderRates(r.staff,rates,year)}${ytdAttendanceEditorHtml(r.staff,r,year)}</td>
+      <td class="sticky-col ytd-staff-cell"><b>${ytdEscape(r.staff.full_name)}</b>${window.Reliability?window.Reliability.pillHtml(r.staff.id):''}${r.missingHireDate?'<div class="pill p-bad" style="margin-top:4px">Hire date needed for OUT</div>':''}${Number(year)<=2026&&!r.attendanceCountsComplete?'<div class="pill p-bad" style="margin-top:4px">Historical counts needed</div>':''}${ytdRenderRates(r.staff,rates,year)}${ytdAttendanceEditorHtml(r.staff,r,year)}</td>
       <td class="mono">${r.workingDays}</td>${YTD_COUNT_FIELDS.map(k=>`<td class="mono" title="${!r.attendanceCountsComplete?`Automatic portion only: ${r.autoCounts[k]}; enter historical counts to complete`:''}">${r.attendanceCountsComplete?r[k]:(r.autoCounts[k]>0?r.autoCounts[k]:'—')}</td>`).join('')}
       <td class="mono">${r.missingRateDays?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.eligibleEarnings)}</td><td class="mono" title="${r.missingRateDays?`${r.missingRateDays} day(s) have no applicable rate period`:''}">${r.bonus===null?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.bonus)}</td><td class="mono" title="${r.lessAbsences===null?'Rate needed':`(PA ${r.pa} + OUT ${r.out}) × ₱${Number(r.currentMonthlyRate).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})} ÷ 22 ÷ 12${r.attendanceCountsComplete?'':' · automatic counts only; enter historical counts to complete'}`}">${r.lessAbsences===null?'<span class="pill p-bad">Rate needed</span>':`<b>${ytdMoney(r.lessAbsences)}</b><span class="ytd-less-ded">− ${ytdMoney(r.absenceDeduction)} (${r.absences} day${r.absences===1?'':'s'}${r.attendanceCountsComplete?'':', partial'})</span>`}</td>
     </tr>`).join(''):`<tr><td colspan="10" class="muted">No active employees found for this client.</td></tr>`;
     $('ytdTable').setAttribute('aria-live','polite');
     document.querySelectorAll('[data-ytd-save]').forEach(btn=>btn.onclick=()=>ytdSaveRates(btn.dataset.ytdSave));
     document.querySelectorAll('[data-ytd-count-save]').forEach(btn=>btn.onclick=()=>ytdSaveManualCounts(btn.dataset.ytdCountSave));
+    window.Reliability?.bindRows();
   }
   async function ytdRun(){
     if(me?.role!=='admin'){ytdStatus('This report is available to admins only.',true);return;}
     if(ytdBusy)return;ytdBusy=true;
     ytdComputedRows=[];ytdCurrentYear=null;ytdRows=[];
+    {const rc=$('relChartCard');if(rc)rc.style.display='none';}
     $('ytdRun').disabled=true;$('ytdRun').textContent='Loading…';$('ytdTable').innerHTML='<tr><td colspan="10" class="muted">Loading report data…</td></tr>';$('ytdSummary').innerHTML='';
     try{
       const year=ytdSelectedYear(),range=ytdRangeForYear(year),people=staffList.filter(s=>s.active);
@@ -6583,6 +6589,7 @@ async function downloadClientTimesheetXlsx(){
       const [attendance,manualCounts]=await Promise.all([ytdLoadAttendance(range.start,range.end,people),ytdFetchManualCounts(people,year)]);
       const clientsById=Object.fromEntries(clients.map(c=>[c.id,c]));
       const rows=ytdComputeRows(people,clientsById,range,attendance,rates,manualCounts);
+      try{await window.Reliability?.compute(rows,attendance,range,year);}catch(relErr){console.error('Reliability',relErr);}
       ytdCurrentYear=year;ytdComputedRows=rows;ytdPopulateClientFilter(rows);ytdApplyClientFilter();
       const unknown=rows.filter(r=>r.workdaysUninferable).length,missing=rows.filter(r=>r.missingRateDays).length,noHire=rows.filter(r=>r.missingHireDate).length,historyMissing=rows.filter(r=>!r.attendanceCountsComplete).length;
       let msg=`Loaded ${rows.length} active employees. Days Present counts a shift login or timesheet entry, even with zero payable hours. For 2026, enter historical counts through Sep 27; automatic counts start Sep 28. Earlier years use saved full-year totals. Year End Bonus formula is unchanged.`;
@@ -6606,7 +6613,7 @@ async function downloadClientTimesheetXlsx(){
     }
     ytdRun();
   }
-  window.YTDAttendanceMath={addMonths:ytdAddMonths,parseWorkdays:ytdParseWorkdays,ratesForDate:ytdRatesForDate,defaultPeriods:ytdDefaultPeriods,effectivePay:ytdGetEffectivePay,bonus:ytdBonus,absenceDeduction:ytdAbsenceDeduction,lessAbsences:ytdLessAbsences,rangeForYear:ytdRangeForYear,computeRows:ytdComputeRows,filterByClient:ytdFilterRowsByClient,autoStart:YTD_AUTO_START};
+  window.YTDAttendanceMath={addMonths:ytdAddMonths,parseWorkdays:ytdParseWorkdays,ratesForDate:ytdRatesForDate,defaultPeriods:ytdDefaultPeriods,effectivePay:ytdGetEffectivePay,bonus:ytdBonus,absenceDeduction:ytdAbsenceDeduction,lessAbsences:ytdLessAbsences,rangeForYear:ytdRangeForYear,computeRows:ytdComputeRows,filterByClient:ytdFilterRowsByClient,autoStart:YTD_AUTO_START,applyClientFilter:ytdApplyClientFilter};
   window.initYtdAttendance=initYtdAttendance;
 })();
 </script>
@@ -7839,6 +7846,333 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     host.innerHTML=me.role==='admin'?adminHtml():staffHtml();
   }
   window.PerfReview={init,_roster:roster,_suggestPeers:suggestPeers,_monthsBetween:monthsBetween};
+})();
+</script>
+
+<script>
+/* ===== Reliability pillar (2026-10-17) =====
+   Same formula as Annual Performance → Reliability (20%).
+   Attendance 60% · Punctuality 25% · Breaks 15%, smooth scoring between thresholds.
+   Admin: YTD tab ranking chart + pill per staff + excuse dates + preview card.
+   Staff: Contractor Profile card, only when admin turns staff view ON (DB-enforced). */
+(function(){
+  const REL_LATE_GRACE_MIN=5, REL_MIN_TRACKED=40;
+  const REL_W={att:.60,punct:.25,brk:.15};
+  const REL_ATT_PTS=[[80,1],[85,2],[90,3],[95,4],[98,5]];          // % → score (higher is better)
+  const REL_LATE_PTS=[[0.5,5],[1,4],[2,3],[4,2],[8,1]];             // late log-ins per 20 tracked days
+  const REL_BRK_PTS=[[5,5],[15,4],[30,3],[60,2],[120,1]];           // over-break minutes per 20 tracked days
+  const REL_OVER_ACTS=['15min Break','30min Break','60min Break','Personal Break','Bio Break','H2O Break'];
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let relByStaff={}, relShownIds=[], relRankById={}, relCtx=null, relExcusals=[], relStaffVisible=false, relOpen=new Set(), relPublishMsg='', relYear=null;
+
+  const esc=v=>escapeHtml(String(v??''));
+  const r2=n=>Math.round(n*100)/100;
+  const dowOf=iso=>new Date(iso+'T00:00:00Z').getUTCDay();
+  const isWeekday=iso=>{const d=dowOf(iso);return d>=1&&d<=5;};
+  function datesBetween(a,b){const out=[];if(!a||!b||a>b)return out;for(let d=a;d<=b;d=addDays(d,1))out.push(d);return out;}
+  /* piecewise-linear between threshold points; pts sorted by x ascending */
+  function interp(x,pts){
+    if(x<=pts[0][0])return pts[0][1];
+    if(x>=pts[pts.length-1][0])return pts[pts.length-1][1];
+    for(let i=1;i<pts.length;i++){const [x0,y0]=pts[i-1],[x1,y1]=pts[i];if(x<=x1)return y0+(x-x0)/(x1-x0)*(y1-y0);}
+    return pts[pts.length-1][1];
+  }
+  const attScore=pct=>r2(interp(pct,REL_ATT_PTS));
+  const lateScore=p20=>r2(interp(p20,REL_LATE_PTS));
+  const brkScore=p20=>r2(interp(p20,REL_BRK_PTS));
+  function band(s){
+    if(s==null)return{name:'Not enough data',cls:'n'};
+    if(s>=4.5)return{name:'Outstanding',cls:'t'}; if(s>=3.75)return{name:'Exceeds',cls:'g'};
+    if(s>=3)return{name:'Meets',cls:'s'}; return{name:'Developing',cls:'r'};
+  }
+  /* Combine pieces → one score. Partial (<40 tracked days) = attendance only. */
+  function combine(attPct,tracked,late,over,applyPartialRule){
+    if(attPct==null)return{score:null};
+    const a=attScore(attPct);
+    if(!tracked||(applyPartialRule&&tracked<REL_MIN_TRACKED))return{score:a,att:a,partial:true};
+    const lp=late*20/tracked, bp=over*20/tracked, p=lateScore(lp), b=brkScore(bp);
+    return{score:r2(REL_W.att*a+REL_W.punct*p+REL_W.brk*b),att:a,punct:p,brk:b,latePer20:r2(lp),overPer20:r2(bp),partial:false};
+  }
+
+  /* Late check = same method as Adherence (closest of prior/current PH-day shift window), first log-in of each shift date only. */
+  function lateMinutesFor(client,loginIso){
+    const login=new Date(loginIso),d=phDate(login);
+    const cands=[shiftWindowFor(client,addDays(d,-1)),shiftWindowFor(client,d)].filter(Boolean);
+    if(!cands.length)return null;
+    const win=cands.reduce((a,b)=>Math.abs(login-a.start)<=Math.abs(login-b.start)?a:b);
+    return (login-win.start)/60000;
+  }
+
+  function computeOne(row,ctx,excusedMap){
+    const staff=row.staff,client=row.client,{range,year,autoStart}=ctx;
+    const emp=row.employed||{start:range.start,end:range.end,valid:true};
+    const shifts=(ctx.shiftsByStaff[staff.id]||[]), entries=(ctx.entriesByStaff[staff.id]||[]);
+    const dayTypes=row.dayTypes||{}, outDates=new Set(row.outDates||[]), recorded=row.recordedDates||new Set();
+    const exc=excusedMap[staff.id]||{};
+    const autoFrom=year>=2027?range.start:(year===2026?autoStart:null);
+    const inAuto=d=>autoFrom!=null&&d>=autoFrom;
+    /* ---- attendance ---- */
+    let E,PA,OUT,countsMissing=false,manualOut=0,manualPa=0;
+    if(row.attendanceCountsComplete){
+      E=row.workingDays-row.pto-row.pch;PA=row.pa;OUT=row.out;
+      if(row.manualAttendanceCounts){manualOut=row.manualAttendanceCounts.out||0;manualPa=row.manualAttendanceCounts.pa||0;}
+    }else{
+      countsMissing=true;
+      const lo=[range.start,autoFrom||range.end,emp.start].sort().pop();
+      const autoWd=(emp.valid&&autoFrom!=null)?datesBetween(lo,emp.end).filter(isWeekday).length:0;
+      E=autoWd-row.autoCounts.pto-row.autoCounts.pch;PA=row.autoCounts.pa;OUT=row.autoCounts.out;
+    }
+    let excusedCount=0;
+    Object.keys(exc).forEach(d=>{
+      if(d<range.start||d>range.end||!emp.valid||d<emp.start||d>emp.end||!isWeekday(d))return;
+      if(dayTypes[d]==='pto'||dayTypes[d]==='pch')return;
+      excusedCount++;
+      if(recorded.has(d))return; // present that day: only its late/break is removed
+      if(inAuto(d)){E--; if(outDates.has(d))OUT--; else if(dayTypes[d]==='planned_absence')PA--;}
+      else if(!countsMissing){E--; if(manualOut>0){manualOut--;OUT--;}else if(manualPa>0){manualPa--;PA--;}}
+    });
+    E=Math.max(0,E);PA=Math.max(0,PA);OUT=Math.max(0,OUT);
+    const attPct=E>0?Math.max(0,(E-PA-2*OUT)/E)*100:null;
+    /* ---- punctuality + breaks (every tracked shift date, minus excused) ---- */
+    const firstLogin={};
+    shifts.forEach(sh=>{const d=shiftAnchorDate(sh);if(!d||d<range.start||d>range.end||exc[d])return;if(!firstLogin[d]||sh.login_at<firstLogin[d])firstLogin[d]=sh.login_at;});
+    const trackedDates=Object.keys(firstLogin).sort();
+    const lateByDate={},overByDate={};
+    trackedDates.forEach(d=>{const m=lateMinutesFor(client,firstLogin[d]);lateByDate[d]=m!=null&&m>REL_LATE_GRACE_MIN?1:0;});
+    const byDay={};entries.forEach(e=>{const d=shiftDateOf(e,ctx.shiftDateMap);if(firstLogin[d])(byDay[d]=byDay[d]||[]).push(e);});
+    Object.keys(byDay).forEach(d=>{
+      try{const sum=summarize(byDay[d],null,shiftWindowFor(client,d),spanFor(byDay[d],ctx.shiftSpanMap));overByDate[d]=REL_OVER_ACTS.reduce((n,a)=>n+(sum.overByAct?.[a]||0),0);}catch(e){overByDate[d]=0;}
+    });
+    const late=trackedDates.reduce((n,d)=>n+(lateByDate[d]||0),0), over=Math.round(trackedDates.reduce((n,d)=>n+(overByDate[d]||0),0));
+    const c=row.missingHireDate?{score:null}:combine(attPct,trackedDates.length,late,over,true); // no hire date → absences can't be verified, so no score
+    /* ---- monthly strip ---- */
+    const months=MONTHS.map((label,i)=>{
+      const mm=String(i+1).padStart(2,'0'),ms=`${year}-${mm}-01`,me_=addDays(`${year}-${String(i+2>12?12:i+2).padStart(2,'0')}-01`,i===11?30:-1);
+      const lo=[ms,range.start,emp.start].sort().pop(),hi=[me_,range.end,emp.end].sort()[0];
+      if(!emp.valid||lo>hi)return{label,kind:ms>range.end?'future':'none',score:null};
+      if(autoFrom==null||hi<autoFrom)return{label,kind:'manual',score:null};
+      let e=0,pa=0,out=0,tr=0,lt=0,ov=0;
+      datesBetween(lo<autoFrom?autoFrom:lo,hi).forEach(d=>{
+        if(firstLogin[d]){tr++;lt+=lateByDate[d]||0;ov+=overByDate[d]||0;}
+        if(!isWeekday(d)||exc[d]||dayTypes[d]==='pto'||dayTypes[d]==='pch')return;
+        e++; if(outDates.has(d))out++; else if(dayTypes[d]==='planned_absence')pa++;
+      });
+      const mc=combine(e>0?Math.max(0,(e-pa-2*out)/e)*100:null,tr,lt,ov,false);
+      return{label,kind:lo<autoFrom?'mixed':'auto',score:mc.score};
+    });
+    return{staffId:staff.id,name:staff.full_name,clientName:client?.name||'Unassigned',year,
+      score:c.score,band:band(c.score).name,partial:!!c.partial,countsMissing,missingHireDate:!!row.missingHireDate,
+      attendance:{pct:attPct==null?null:r2(attPct),score:c.att??null,expected:E,present:countsMissing?row.autoCounts.days_present:row.days_present,pto:countsMissing?row.autoCounts.pto:row.pto,pch:countsMissing?row.autoCounts.pch:row.pch,pa:PA,out:OUT,excused:excusedCount},
+      punctuality:{late,per20:c.latePer20??null,score:c.punct??null},
+      breaks:{over,per20:c.overPer20??null,score:c.brk??null},
+      trackedDays:trackedDates.length,firstTracked:trackedDates[0]||null,months,computedAt:new Date().toISOString()};
+  }
+
+  async function fetchExcusals(range){
+    const {data,error}=await sb.from('reliability_excusals').select('*').gte('excused_date',range.start).lte('excused_date',range.end).order('excused_date');
+    if(error)throw error; return data||[];
+  }
+  async function fetchSetting(){
+    const {data,error}=await sb.from('reliability_settings').select('staff_visible').eq('id',1).maybeSingle();
+    if(error)throw error; return !!data?.staff_visible;
+  }
+  function excusedMap(){const m={};relExcusals.forEach(x=>{(m[x.staff_id]=m[x.staff_id]||{})[x.excused_date]=x;});return m;}
+  function recompute(){
+    if(!relCtx)return; const m=excusedMap(); relByStaff={};
+    relCtx.rows.forEach(row=>{if(row.staff.role==='admin')return; try{relByStaff[row.staff.id]=computeOne(row,relCtx,m);}catch(e){console.error('reliability',row.staff.full_name,e);}});
+  }
+
+  /* Called by ytdRun after rows are computed (admin only). */
+  async function compute(rows,attendance,range,year){
+    relYear=year; relPublishMsg=''; relCtx=null; relByStaff={};
+    const shiftsByStaff={},entriesByStaff={};
+    (attendance.shifts||[]).forEach(s=>(shiftsByStaff[s.staff_id]=shiftsByStaff[s.staff_id]||[]).push(s));
+    (attendance.entries||[]).forEach(e=>(entriesByStaff[e.staff_id]=entriesByStaff[e.staff_id]||[]).push(e));
+    relCtx={rows,range,year,autoStart:window.YTDAttendanceMath?.autoStart||'2026-09-28',shiftsByStaff,entriesByStaff,
+      shiftDateMap:buildShiftDateMap(attendance.shifts||[]),shiftSpanMap:buildShiftSpanMap(attendance.shifts||[])};
+    let setupErr='';
+    try{relExcusals=await fetchExcusals(range);}catch(e){relExcusals=[];setupErr=e.message;}
+    try{relStaffVisible=await fetchSetting();}catch(e){relStaffVisible=false;setupErr=setupErr||e.message;}
+    relCtx.setupErr=setupErr;
+    recompute();
+    if(!setupErr)publish();
+  }
+  /* Store each person's own result (no rank). Staff can read theirs only while staff view is ON. */
+  async function publish(){
+    if(!relCtx||me?.role!=='admin'||relYear!==Number(phDate(new Date()).slice(0,4)))return;
+    const rows=Object.values(relByStaff).map(r=>({staff_id:r.staffId,calendar_year:r.year,payload:r,computed_at:new Date().toISOString()}));
+    if(!rows.length)return;
+    const {error}=await sb.from('reliability_snapshots').upsert(rows,{onConflict:'staff_id,calendar_year'});
+    relPublishMsg=error?`Staff cards not updated: ${error.message}`:`Staff cards refreshed ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}.`;
+    const el=$('relPublishMsg'); if(el)el.textContent=relPublishMsg;
+  }
+
+  /* Called with the client-filtered rows before the table renders → ranks follow the filter. */
+  function setShown(rows){
+    relShownIds=(rows||[]).map(r=>r.staff.id).filter(id=>relByStaff[id]);
+    const ranked=relShownIds.filter(id=>relByStaff[id].score!=null).sort((a,b)=>relByStaff[b].score-relByStaff[a].score||String(relByStaff[a].name).localeCompare(String(relByStaff[b].name)));
+    relRankById={}; ranked.forEach((id,i)=>relRankById[id]=i+1);
+  }
+  const fmtPct=v=>v==null?'—':`${v.toFixed(1)}%`;
+  const fmtS=v=>v==null?'—':v.toFixed(2);
+
+  function pillHtml(staffId){
+    const r=relByStaff[staffId]; if(!r)return '';
+    const b=band(r.score),rank=relRankById[staffId],total=Object.keys(relRankById).length,open=relOpen.has(staffId);
+    const exc=relExcusals.filter(x=>x.staff_id===staffId);
+    const tag=r.partial?' · Partial':'';
+    const line=(k,v,s,dim)=>`<div class="rel-bd-row${dim?' dim':''}"><span>${k}</span><b class="mono">${v}</b><i class="mono">${s==null?'—':'→ '+fmtS(s)}</i></div>`;
+    const notes=[r.countsMissing?'Historical counts missing: attendance uses automatic dates only (from Sep 28).':'',r.missingHireDate?'Hire date missing: absences cannot be checked, so there is no score until a hire date is added.':'',r.partial&&r.score!=null?`Partial: only ${r.trackedDays} tracked day${r.trackedDays===1?'':'s'} (needs ${REL_MIN_TRACKED}), so the score is attendance only for now.`:''].filter(Boolean);
+    return `<details class="rel-det" data-rel-det="${esc(staffId)}"${open?' open':''}><summary class="rel-pill b-${b.cls}"><span class="rel-dot"></span>Reliability <b class="mono">${fmtS(r.score)}</b> · ${esc(r.missingHireDate?'Hire date needed':b.name)}${rank?` · #${rank} of ${total}`:''}${tag}</summary>
+      <div class="rel-bd">
+        ${line('Attendance (60%)',fmtPct(r.attendance.pct),r.attendance.score)}
+        <div class="rel-sub">Expected ${r.attendance.expected} · PA ${r.attendance.pa} · OUT ${r.attendance.out} (×2)${r.attendance.excused?` · ${r.attendance.excused} excused`:''}</div>
+        ${line('Late log-ins / 20 days (25%)',r.punctuality.per20==null?`${r.punctuality.late} total`:r.punctuality.per20.toFixed(1),r.punctuality.score,r.partial)}
+        ${line('Over-break min / 20 days (15%)',r.breaks.per20==null?`${r.breaks.over} total`:r.breaks.per20.toFixed(0),r.breaks.score,r.partial)}
+        <div class="rel-sub">${r.trackedDays} tracked day${r.trackedDays===1?'':'s'}${r.firstTracked?` since ${esc(fmtNice(r.firstTracked))}`:''} · ${r.punctuality.late} late (&gt;${REL_LATE_GRACE_MIN} min) · ${r.breaks.over} over-break min</div>
+        ${notes.map(n=>`<div class="rel-warn">${esc(n)}</div>`).join('')}
+        <div class="rel-exc"><div class="rel-exc-h">Excused dates</div>
+          ${exc.length?exc.map(x=>`<div class="rel-exc-item"><span class="mono">${esc(x.excused_date)}</span><span>${esc(x.note)}</span><button type="button" class="rel-x" title="Remove" data-rel-exc-del="${esc(x.id)}">×</button></div>`).join(''):'<div class="muted" style="font-size:11px">None yet.</div>'}
+          <div class="rel-exc-form"><input type="date" data-rel-exc-date="${esc(staffId)}" min="${esc(relCtx?.range.start||'')}" max="${esc(relCtx?.range.end||'')}"><input type="text" maxlength="300" placeholder="Reason (typhoon, outage…)" data-rel-exc-note="${esc(staffId)}"><button type="button" class="btn btn-ghost" data-rel-exc-add="${esc(staffId)}">Excuse date</button></div>
+          <div class="rel-exc-msg" data-rel-exc-msg="${esc(staffId)}" role="status"></div>
+        </div>
+        <button type="button" class="btn btn-ghost rel-prev" data-rel-preview="${esc(staffId)}">👁 Preview staff card</button>
+      </div></details>`;
+  }
+  function bindRows(){
+    document.querySelectorAll('[data-rel-det]').forEach(d=>d.ontoggle=()=>{const id=d.dataset.relDet;if(d.open)relOpen.add(id);else relOpen.delete(id);});
+    document.querySelectorAll('[data-rel-exc-add]').forEach(b=>b.onclick=()=>addExcusal(b.dataset.relExcAdd));
+    document.querySelectorAll('[data-rel-exc-del]').forEach(b=>b.onclick=()=>delExcusal(b.dataset.relExcDel));
+    document.querySelectorAll('[data-rel-preview]').forEach(b=>b.onclick=()=>preview(b.dataset.relPreview));
+  }
+  async function refreshAfterExcusal(){
+    relExcusals=await fetchExcusals(relCtx.range); recompute(); window.YTDAttendanceMath?.applyClientFilter?.(); publish();
+  }
+  async function addExcusal(staffId){
+    const sel=a=>document.querySelector(`[${a}="${CSS.escape(staffId)}"]`);
+    const date=sel('data-rel-exc-date')?.value,note=(sel('data-rel-exc-note')?.value||'').trim(),msg=sel('data-rel-exc-msg');
+    if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)){if(msg)msg.textContent='Pick a date.';return;}
+    if(relCtx&&(date<relCtx.range.start||date>relCtx.range.end)){if(msg)msg.textContent='Pick a date inside this report year.';return;}
+    if(note.length<3){if(msg)msg.textContent='Add a short reason (at least 3 characters).';return;}
+    if(msg)msg.textContent='Saving…';
+    const {error}=await sb.from('reliability_excusals').insert({staff_id:staffId,excused_date:date,note,created_by:me.id,created_by_name:me.full_name||null});
+    if(error){if(msg)msg.textContent=error.code==='23505'?'That date is already excused.':`Save failed: ${error.message}`;return;}
+    relOpen.add(staffId); await refreshAfterExcusal();
+  }
+  async function delExcusal(id){
+    const x=relExcusals.find(e=>e.id===id); if(!x||!confirm(`Remove the excuse for ${x.excused_date}?`))return;
+    const {error}=await sb.from('reliability_excusals').delete().eq('id',id);
+    if(error)return alert(`Remove failed: ${error.message}`);
+    relOpen.add(x.staff_id); await refreshAfterExcusal();
+  }
+
+  function renderChart(){
+    const card=$('relChartCard'); if(!card)return;
+    if(!relCtx){card.style.display='none';return;}
+    card.style.display='';
+    if(relCtx.setupErr){card.innerHTML=`<div class="hdr"><h3 style="font-size:15px">🏅 Reliability ranking</h3></div><div class="note">Reliability tables are not ready: ${esc(relCtx.setupErr)}. Run the reliability SQL in Supabase, then rerun the report.</div>`;return;}
+    const list=relShownIds.map(id=>relByStaff[id]);
+    const scored=list.filter(r=>r.score!=null).sort((a,b)=>relRankById[a.staffId]-relRankById[b.staffId]), none=list.filter(r=>r.score==null);
+    const avg=scored.length?r2(scored.reduce((n,r)=>n+r.score,0)/scored.length):null;
+    const cnt=f=>scored.filter(f).length;
+    const kp=(k,v,c)=>`<div class="stat"><div class="k">${k}</div><div class="v mono" style="font-size:20px${c?';color:'+c:''}">${v}</div></div>`;
+    const bar=r=>{const b=band(r.score);return `<div class="rel-bar"><span class="rel-rk mono">#${relRankById[r.staffId]}</span><span class="rel-nm" title="${esc(r.clientName)}">${esc(r.name)}</span><div class="rel-trk"><div class="rel-fill b-${b.cls}" style="width:${Math.max(2,(r.score-1)/4*100).toFixed(1)}%"></div>${avg!=null?`<div class="rel-avg" style="left:${((avg-1)/4*100).toFixed(1)}%"></div>`:''}</div><span class="rel-sc mono">${r.score.toFixed(2)}</span><span>${r.partial?'<span class="rel-part" title="Under 40 tracked days: attendance only">Partial</span>':''}${r.countsMissing?'<span class="rel-part" title="Historical counts missing">Counts</span>':''}</span></div>`;};
+    card.innerHTML=`<div class="hdr"><div><h3 style="font-size:15px">🏅 Reliability ranking · ${esc(relYear)}</h3><div class="muted" style="font-size:12px;margin-top:3px">Highest first${avg!=null?` · dashed line = average (${avg.toFixed(2)})`:''}. Follows the Client filter. Admin only, and it never changes the Year End Bonus.</div></div>
+      <div class="row" style="gap:7px;flex-wrap:wrap;align-items:center"><button type="button" class="btn btn-ghost" id="relCsv">Export CSV</button><button type="button" class="btn ${relStaffVisible?'btn-teal':'btn-ghost'}" id="relToggle">${relStaffVisible?'👁 Staff can see their card: ON':'🔒 Staff can see their card: OFF'}</button></div></div>
+      <div class="rel-kpis">${kp('Average',avg==null?'—':avg.toFixed(2))}${kp('Outstanding (≥4.50)',cnt(r=>r.score>=4.5),'var(--teal)')}${kp('Developing (<3.00)',cnt(r=>r.score<3),'var(--rose)')}${kp('Partial (<40 tracked days)',list.filter(r=>r.partial&&r.score!=null).length,'var(--gold)')}</div>
+      ${scored.length?scored.map(bar).join(''):'<div class="muted">No scores yet for this selection.</div>'}
+      ${none.length?`<div class="muted" style="font-size:11.5px;margin-top:6px">No score yet: ${none.map(r=>esc(r.name)+(r.missingHireDate?' (hire date needed)':'')).join(', ')}</div>`:''}
+      <div class="rel-legend"><span class="b-t"><i></i>Outstanding ≥4.50</span><span class="b-g"><i></i>Exceeds 3.75–4.49</span><span class="b-s"><i></i>Meets 3.00–3.74</span><span class="b-r"><i></i>Developing &lt;3.00</span></div>
+      <div class="muted" style="font-size:11px;margin-top:8px;line-height:1.45">Attendance 60% = (expected days − PA − 2×OUT) ÷ expected days; expected = Mon–Fri working days − PTO − PCH − excused. Late = first log-in of the shift more than ${REL_LATE_GRACE_MIN} min after shift start (25%). Over-break = minutes over each break's allowance, same as Timesheets (15%). Late and over-break use every tracked shift date, scaled per 20 days. Scores slide smoothly between the thresholds. Under ${REL_MIN_TRACKED} tracked days = Partial (attendance only). Admin accounts are not scored. <span id="relPublishMsg">${esc(relPublishMsg)}</span></div>`;
+    $('relToggle').onclick=toggleStaffView; $('relCsv').onclick=()=>exportCsv(scored.concat(none));
+  }
+  async function toggleStaffView(){
+    const next=!relStaffVisible;
+    if(next&&!confirm('Turn ON? Each staff member will see only their own Reliability card on their Contractor Profile (no rank, no one else\'s numbers).'))return;
+    if(!next&&!confirm('Turn OFF? Staff will no longer see their Reliability card.'))return;
+    const {data,error}=await sb.from('reliability_settings').update({staff_visible:next,updated_by:me.id,updated_at:new Date().toISOString()}).eq('id',1).select('staff_visible').maybeSingle();
+    if(error||!data)return alert(`Could not change it: ${error?.message||'no row updated (run the reliability SQL)'}`);
+    relStaffVisible=!!data.staff_visible; if(relStaffVisible)await publish(); renderChart();
+  }
+  function exportCsv(list){
+    const head=['Rank','Staff','Client','Score','Band','Partial','Attendance %','Expected days','PA','OUT','Excused','Late log-ins','Late per 20 days','Over-break min','Over-break per 20 days','Tracked days','Historical counts missing'];
+    const lines=[head].concat(list.map(r=>[relRankById[r.staffId]||'',r.name,r.clientName,r.score??'',r.band,r.partial?'Yes':'No',r.attendance.pct??'',r.attendance.expected,r.attendance.pa,r.attendance.out,r.attendance.excused,r.punctuality.late,r.punctuality.per20??'',r.breaks.over,r.breaks.per20??'',r.trackedDays,r.countsMissing?'Yes':'No']));
+    const csv=lines.map(l=>l.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`reliability_${relYear}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  }
+
+  /* ---------- the card (staff profile + admin preview) ---------- */
+  function cardHtml(r){
+    const b=band(r.score),pct=r.score==null?0:Math.max(0,(r.score-1)/4*100);
+    const met=(title,sub,val,score,cls,off)=>`<div class="rel-met b-${off?'n':cls}"><div class="rel-lbl"><b>${title}</b><span>${sub}</span></div><div class="rel-mtrk"><div style="width:${off||score==null?0:Math.max(3,(score-1)/4*100).toFixed(0)}%"></div></div><div class="rel-v mono">${off?'<small>not counted yet</small>':`${val}<small>score ${fmtS(score)}</small>`}</div></div>`;
+    const sc=s=>band(s).cls;
+    const att=r.attendance,maxM=5;
+    const months=(r.months||[]).map(m=>`<div class="rel-mo ${m.kind==='manual'?'man':''}" title="${esc(m.label)}${m.score!=null?': '+m.score.toFixed(2):m.kind==='manual'?': old records, no monthly detail':''}"><div class="rel-mo-bar b-${m.score!=null?sc(m.score):'n'}" style="height:${m.kind==='manual'?100:m.score!=null?Math.max(6,(m.score-1)/(maxM-1)*100):0}%"></div><span>${esc(m.label)}</span></div>`).join('');
+    const fact=(k,v)=>`<div class="stat"><div class="k">${k}</div><div class="v mono" style="font-size:17px">${v}</div></div>`;
+    return `<div class="hdr"><div><h3 style="font-size:15px">📊 My Reliability</h3><div class="muted" style="font-size:12.5px;margin-top:3px">How dependable your attendance, log-ins and breaks have been in ${esc(r.year)}. This counts for 20% of your Annual Performance review.</div></div></div>
+      <div class="rel-wrap"><div style="text-align:center"><div class="rel-ring b-${b.cls}" style="--p:${pct.toFixed(1)}%"><div><b class="mono">${fmtS(r.score)}</b><span>out of 5</span></div></div><div style="margin-top:8px"><span class="rel-tag b-${b.cls}">${esc(b.name)}</span></div></div>
+      <div>${met('Attendance · 60%','Days you showed up when expected',fmtPct(att.pct),att.score,sc(att.score),false)}
+      ${met('Punctuality · 25%',`Late log-ins (over ${REL_LATE_GRACE_MIN} min) per 20 days`,r.punctuality.per20==null?'—':r.punctuality.per20.toFixed(1),r.punctuality.score,sc(r.punctuality.score),r.partial)}
+      ${met('Breaks · 15%','Over-break minutes per 20 days',r.breaks.per20==null?'—':`${r.breaks.per20.toFixed(0)} min`,r.breaks.score,sc(r.breaks.score),r.partial)}</div></div>
+      ${r.partial?`<div class="note" style="margin-top:10px">Only ${r.trackedDays} day${r.trackedDays===1?'':'s'} tracked so far. Punctuality and breaks start counting once you have ${REL_MIN_TRACKED}, so for now your score is attendance only.</div>`:''}
+      <div class="rel-facts">${fact('Expected days',att.expected)}${fact('Days present',att.present)}${fact('PTO + holidays (never count against you)',att.pto+att.pch)}${fact(`Missed (PA ${att.pa} + OUT ${att.out} counted ×2)`,att.pa+2*att.out)}${fact('Late log-ins · over-break min',`${r.punctuality.late} · ${r.breaks.over}`)}</div>
+      <div class="muted" style="font-size:12px;margin-top:12px">Monthly score</div><div class="rel-months">${months}</div>
+      <div class="note" style="margin-top:10px">${r.year===2026?'Jan–Sep 27 attendance comes from the old records, so there is no monthly detail for those months (striped). ':''}Late log-ins and breaks only use days the portal tracked${r.firstTracked?` (since ${esc(fmtNice(r.firstTracked))})`:''}. Something wrong, like an outage or typhoon day? Tell your PM; they can excuse the date.${att.excused?` ${att.excused} date${att.excused===1?' is':'s are'} already excused.`:''}</div>
+      <details style="margin-top:8px;font-size:12px" class="muted"><summary>How it's calculated</summary><div style="margin-top:6px;line-height:1.5">Attendance = (expected days − PA − 2×OUT) ÷ expected days, where expected = Mon–Fri working days − PTO − holidays − excused days. Late = logged in more than ${REL_LATE_GRACE_MIN} min after shift start. Over-break = minutes over each break's allowance. Score = 60% attendance + 25% punctuality + 15% breaks. Updated ${esc(new Date(r.computedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}))}.</div></details>`;
+  }
+  function preview(staffId){
+    const r=relByStaff[staffId]; if(!r)return;
+    let ov=$('relPreviewOverlay');
+    if(!ov){ov=document.createElement('div');ov.id='relPreviewOverlay';ov.style.cssText='display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:75;align-items:flex-start;justify-content:center;padding:20px;overflow:auto';ov.onclick=e=>{if(e.target===ov)ov.style.display='none';};document.body.appendChild(ov);}
+    ov.innerHTML=`<div class="card" style="max-width:860px;width:100%;margin:auto"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px"><div class="pill ${relStaffVisible?'p-ok':'p-bad'}">${relStaffVisible?'Staff view is ON: this is what':'Preview only: staff view is OFF. This is what'} ${esc(r.name)} ${relStaffVisible?'sees':'would see'}</div><button type="button" class="btn btn-ghost" id="relPrevClose">Close</button></div>${cardHtml(r)}</div>`;
+    ov.style.display='flex'; $('relPrevClose').onclick=()=>ov.style.display='none';
+  }
+  async function initProfile(){
+    const card=$('pfRelCard'); if(!card||!me)return;
+    card.classList.add('hide');
+    if(me.role==='admin')return;
+    try{
+      const {data,error}=await sb.from('reliability_snapshots').select('payload').eq('staff_id',me.id).eq('calendar_year',Number(phDate(new Date()).slice(0,4))).maybeSingle();
+      if(error||!data?.payload)return; // hidden by admin (RLS) or not published yet
+      card.innerHTML=cardHtml(data.payload); card.classList.remove('hide');
+    }catch(e){/* stay hidden */}
+  }
+
+  const css=document.createElement('style');css.id='relCss';css.textContent=`
+  .b-t{--rc:var(--teal)}.b-g{--rc:var(--gold)}.b-s{--rc:#9AA3B8}.b-r{--rc:var(--rose)}.b-n{--rc:var(--slate)}
+  .rel-det{margin-top:5px}.rel-det>summary{list-style:none;cursor:pointer}.rel-det>summary::-webkit-details-marker{display:none}
+  .rel-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:11.5px;color:var(--rc);background:color-mix(in srgb,var(--rc) 14%,transparent);border:1px solid color-mix(in srgb,var(--rc) 35%,transparent);flex-wrap:wrap;max-width:260px;line-height:1.35}
+  .rel-pill::after{content:'▸';opacity:.7}.rel-det[open]>.rel-pill::after{content:'▾'}
+  .rel-dot{width:7px;height:7px;border-radius:50%;background:var(--rc)}
+  .rel-bd{background:var(--card2);border:1px dashed rgba(255,255,255,.14);border-radius:10px;padding:8px 10px;margin-top:6px;font-size:11.5px;max-width:420px}
+  .rel-bd-row{display:grid;grid-template-columns:1fr 64px 52px;gap:6px;padding:2px 0}.rel-bd-row span{color:var(--muted)}.rel-bd-row i{font-style:normal;text-align:right;color:var(--teal)}.rel-bd-row.dim{opacity:.5}
+  .rel-sub{font-size:10.5px;color:var(--muted);margin:0 0 4px}.rel-warn{font-size:10.5px;color:var(--gold);margin-top:3px}
+  .rel-exc{border-top:1px solid var(--line);margin-top:7px;padding-top:6px}.rel-exc-h{font-size:11px;font-weight:600;margin-bottom:3px}
+  .rel-exc-item{display:grid;grid-template-columns:84px 1fr 20px;gap:6px;align-items:center;font-size:11px;padding:1px 0}.rel-x{background:none;border:0;color:var(--rose);cursor:pointer;font-size:14px;padding:0}
+  .rel-exc-form{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.rel-exc-form input{width:auto;flex:1 1 120px;font-size:11.5px;padding:5px 7px}.rel-exc-form .btn{font-size:11.5px;padding:5px 9px}
+  .rel-exc-msg{font-size:10.5px;color:var(--gold);min-height:12px}.rel-prev{font-size:11.5px;padding:5px 9px;margin-top:6px}
+  .rel-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:12px}
+  .rel-bar{display:grid;grid-template-columns:34px minmax(110px,190px) 1fr 46px 70px;gap:9px;align-items:center;padding:3px 0;font-size:13px}
+  .rel-rk{color:var(--muted);font-size:11px}.rel-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rel-trk{height:15px;background:var(--card2);border-radius:5px;position:relative}
+  .rel-fill{height:100%;border-radius:5px;background:var(--rc)}.rel-avg{position:absolute;top:-4px;bottom:-4px;border-left:2px dashed var(--ink);opacity:.45}
+  .rel-sc{text-align:right;font-weight:600}.rel-part{font-size:10px;color:var(--gold);border:1px solid rgba(227,166,62,.4);border-radius:999px;padding:1px 6px;margin-right:3px}
+  .rel-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:10px}.rel-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--rc);margin-right:5px;vertical-align:-1px}
+  .rel-wrap{display:grid;grid-template-columns:170px 1fr;gap:20px;align-items:center}
+  .rel-ring{width:150px;height:150px;border-radius:50%;background:conic-gradient(var(--rc) 0 var(--p),var(--card2) 0);display:grid;place-items:center;margin:auto}
+  .rel-ring>div{width:118px;height:118px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}.rel-ring b{font-size:34px;line-height:1}.rel-ring span{font-size:11.5px;color:var(--muted)}
+  .rel-tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:color-mix(in srgb,var(--rc) 16%,transparent);color:var(--rc)}
+  .rel-met{display:grid;grid-template-columns:150px 1fr 74px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}.rel-met:last-child{border:0}
+  .rel-lbl b{display:block;font-size:13px}.rel-lbl span{font-size:11px;color:var(--muted)}.rel-mtrk{height:9px;background:var(--card2);border-radius:9px;overflow:hidden}.rel-mtrk div{height:100%;background:var(--rc);border-radius:9px}
+  .rel-v{text-align:right;font-size:14.5px}.rel-v small{display:block;font-size:10.5px;color:var(--muted)}
+  .rel-facts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:12px}
+  .rel-months{display:grid;grid-template-columns:repeat(12,1fr);gap:5px;height:72px;margin-top:5px}
+  .rel-mo{display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;gap:3px;min-width:0}.rel-mo span{font-size:10px;color:var(--muted);text-align:center}
+  .rel-mo-bar{background:color-mix(in srgb,var(--rc) 60%,transparent);border-radius:4px 4px 0 0;flex:0 0 auto;max-height:52px}
+  .rel-mo.man .rel-mo-bar{background:repeating-linear-gradient(45deg,#2a2f42 0 4px,#20253a 4px 8px);height:52px!important}
+  @media(max-width:720px){.rel-wrap{grid-template-columns:1fr}.rel-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-met{grid-template-columns:110px 1fr 64px}.rel-bar{grid-template-columns:28px 100px 1fr 40px 50px;font-size:12px}}`;
+  document.head.appendChild(css);
+
+  window.Reliability={compute,setShown,pillHtml,bindRows,renderChart,initProfile,preview,_interp:interp,_attScore:attScore,_lateScore:lateScore,_brkScore:brkScore,_combine:combine,_byStaff:()=>relByStaff};
 })();
 </script>
 
