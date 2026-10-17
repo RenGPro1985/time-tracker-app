@@ -856,7 +856,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
         <div class="row" style="gap:8px"><button class="btn btn-gold" id="elOpenBtn" type="button" title="Move a shift's login earlier (e.g. staff couldn't log in on time)">Edit login time</button><select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
+        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div id="lgQrBanner" class="hide" style="background:rgba(91,141,239,.12);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div style="overflow-x:auto"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
 <div class="hide" id="civSettingsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60"><div class="card" style="max-width:720px;width:92vw;max-height:88vh;overflow-y:auto"><div class="hdr"><h3 style="font-size:15px" id="civSettingsTitle">Client Invoice Settings</h3><button class="btn btn-ghost" id="civSettingsClose">✕ Close</button></div><div class="muted" style="font-size:12px;margin-bottom:12px">Controls exactly what appears on this client's bi-weekly invoice. Nothing here changes payroll (Contractor Ledger) math.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Task Description</div><input type="text" id="civTaskDescription" placeholder="e.g. Back Office CRM tasks" style="margin-bottom:6px"><div class="muted" style="font-size:11px;margin-bottom:14px">One label for everyone on this client. Rate rows on the invoice come straight from each staff member's live hourly rate \u2014 nothing to configure here for that.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Recurring Pay Items</div><table><tbody>
 <tr><td style="width:26px"><input type="checkbox" id="civInternetOn"></td><td><b>Internet / Fiber Share</b><div class="muted" style="font-size:11px">Flat cost line on every invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civInternetAmt" style="width:110px" placeholder="$/period"></td></tr>
 <tr><td><input type="checkbox" id="civThirteenthOn"></td><td><b>13th Month Pay Portion</b><div class="muted" style="font-size:11px">Per-staff amount for each bi-weekly invoice. New/termed staff: (this amount ÷ 10) \u00d7 days present in the cutoff.</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civThirteenthAmt" style="width:110px" placeholder="$/staff / cutoff"></td></tr>
@@ -949,6 +949,10 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card">
         <div class="row" style="gap:14px;align-items:center"><div class="pf-avatar" id="pfAvatar">—</div><div><h3 style="font-size:19px" id="pfName">—</h3><div class="muted" style="font-size:12.5px" id="pfSub">Contractor</div></div></div>
         <div class="pf-facts" id="pfFacts"></div>
+      </div>
+      <div class="card" id="pfQrCard">
+        <div class="hdr"><div><h3 style="font-size:15px">💳 My Salary QR</h3><div class="muted" style="font-size:12.5px;margin-top:3px">Admin uses this QR to send your contract fee. Changes need admin approval.</div></div></div>
+        <div id="pfQr"><div class="muted">Loading…</div></div>
       </div>
       <div class="card" id="pfFeeCard">
         <div class="hdr"><div><h3 style="font-size:15px">💰 My Contract Fee</h3><div class="muted" style="font-size:12.5px;margin-top:3px">A full standard month: every contracted hour worked, no absences or undertime</div></div></div>
@@ -2221,6 +2225,7 @@ function wirePaidCheckboxes(){
       $('payConfirmDetail').innerHTML=`<b>${escapeHtml(r.name)}</b> — cutoff ${fmtNice(r.cutoffIso)} (${r.phase==='mid'?'15th':'End of month'})<br>
         Fee Advance: ₱${Number(r.extras.fee_advance||0).toLocaleString()} · Adjustments: ₱${Number(r.extras.adjustments||0).toLocaleString()}<br>
         <b>Net Amount Payable: ₱${r.total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</b>`;
+      if(window.SalaryQR)$('payConfirmDetail').insertAdjacentHTML('beforeend',SalaryQR.payWarnHtml(r.staffId));
       $('payConfirmMsg').textContent='';
       $('payConfirmOverlay').style.display='flex';
     };
@@ -2276,7 +2281,7 @@ function openPayAll(){
   const r0=rows[0];
   const sentEarly=rows.filter(r=>sentEarlyRec(r)).length;
   $('payAllCutoff').innerHTML=`Cutoff <b>${fmtNice(r0.cutoffIso)}</b> (${r0.phase==='mid'?'15th':'End of month'}) · only the rows shown with your current Client/Staff filter`+(sentEarly?`<br>Includes ${sentEarly} staff ticked <b>Sent Early</b>.`:'');
-  $('payAllBody').innerHTML=rows.map(r=>`<tr><td><input type="checkbox" class="payall-cb" data-staff="${r.staffId}" data-cutoff="${r.cutoffIso}"${r.total>0?' checked':''}></td><td><b>${escapeHtml(r.name)}</b>${sentEarlyRec(r)?' <span class="muted" style="font-size:11px">(Sent Early)</span>':''}</td><td class="muted">${escapeHtml(r.client)}</td><td class="mono" style="text-align:right">${payAllMoney(r.total)}</td><td class="muted" data-status="${r.staffId}" style="font-size:12px"></td></tr>`).join('');
+  $('payAllBody').innerHTML=rows.map(r=>`<tr><td><input type="checkbox" class="payall-cb" data-staff="${r.staffId}" data-cutoff="${r.cutoffIso}"${r.total>0?' checked':''}></td><td><b>${escapeHtml(r.name)}</b>${sentEarlyRec(r)?' <span class="muted" style="font-size:11px">(Sent Early)</span>':''}${window.SalaryQR?SalaryQR.inlineWarn(r.staffId):''}</td><td class="muted">${escapeHtml(r.client)}</td><td class="mono" style="text-align:right">${payAllMoney(r.total)}</td><td class="muted" data-status="${r.staffId}" style="font-size:12px"></td></tr>`).join('');
   $('payAllBody').querySelectorAll('input.payall-cb').forEach(cb=>cb.onchange=payAllRefreshTotals);
   $('payAllMsg').textContent='';$('payAllCancel').textContent='Cancel';
   payAllRefreshTotals();
@@ -2313,7 +2318,7 @@ $('payAllYes').onclick=async()=>{
 };
 function renderLedgerTable(start,end){
   const grand=ledgerRows.reduce((a,r)=>a+r.total,0);$('lgTotal').textContent='₱'+grand.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});$('lgRangeLabel').textContent=start&&end?`${fmtNice(start)} – ${fmtNice(end)}`:'—';
-  $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr${me.role==='admin'&&sentEarlyRec(r)&&!(r.paid&&r.paid.status==='paid')?' style="background:rgba(242,184,75,.07)"':''}><td class="sticky-col"><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
+  $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr${me.role==='admin'&&sentEarlyRec(r)&&!(r.paid&&r.paid.status==='paid')?' style="background:rgba(242,184,75,.07)"':''}><td class="sticky-col">${window.SalaryQR?SalaryQR.nameCell(r.staffId,r.name):`<b>${escapeHtml(r.name)}</b>`}</td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
     +extraCellHtml(r,'completion_bonus')+extraCellHtml(r,'relationship_bonus')+extraCellHtml(r,'meal_allowance')+extraCellHtml(r,'statutory_allowance')+extraCellHtml(r,'workspace_allowance')+extraCellHtml(r,'scope_differential')+extraCellHtml(r,'adhoc_project_fee')+extraCellHtml(r,'incentive_award')+extraCellHtml(r,'reimbursable_expenses')+extraCellHtml(r,'other_fee_items')
     +`<td class="mono" style="color:var(--teal)">${r.addonSubtotal.toFixed(2)}</td>`
     +extraCellHtml(r,'fee_advance')+extraCellHtml(r,'adjustments')
@@ -2321,7 +2326,7 @@ function renderLedgerTable(start,end){
     +`<td class="mono" style="color:var(--gold);font-weight:600">${r.total.toFixed(2)}</td>`
     +sentEarlyCellHtml(r)+paidCellHtml(r)+`</tr>`).join(''):`<tr><td colspan="${me.role==='admin'?28:27}" class="muted">No staff match this filter. Press Run.</td></tr>`;
   if($('lgSentEarlyTh'))$('lgSentEarlyTh').classList.toggle('hide',me.role!=='admin');
-  wirePaidCheckboxes();wireSentEarlyCheckboxes();renderSentEarlyBanner();updatePayAllButton();
+  wirePaidCheckboxes();wireSentEarlyCheckboxes();renderSentEarlyBanner();updatePayAllButton();window.SalaryQR?.afterLedger();
   $('ledgerTable').querySelectorAll('input.ledger-extra').forEach(inp=>{
     const baseline=inp.value;
     inp.onchange=async()=>{
@@ -2642,7 +2647,7 @@ function go(v){
   if(v==='v-corr'){loadCorrections();}
   if(v==='v-ledger'){initLedgerFilters();} if(v==='v-invoice'){initInvoiceFilters();}
   if(v==='v-earning'){initEarningFilters();}
-  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();}
 }
 
 /* clocks + running timers */
@@ -7115,6 +7120,299 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   }
   window.ContractFee={init,wireRoster,fillRoster,_compute:compute,_nightMinutesPerShift:nightMinutesPerShift,_nextAnniversary:nextAnniversary};
   if(document.querySelector('#staffTable [data-mcf-val]'))wireRoster();
+})();
+</script>
+
+<script>
+/* ---------- Salary QR (2026-10-16) ----------
+   Staff: Contractor Profile card "My Salary QR" — one QR per staff, wallet/bank required.
+   First upload is active immediately; every later change is a request an admin must approve.
+   Admin: click a staff name on the Contractor Ledger → pop-up with their QR (+ approve/reject a
+   pending change). Amber warning when the active QR was set after that staff's last PAID
+   confirmation (or no payout has been confirmed since it was set).
+   Backend: private Storage bucket "salary-qr" (files at <staff_id>/<file>.jpg), tables
+   staff_salary_qr / salary_qr_requests (read-only via RLS), RPCs submit_salary_qr,
+   cancel_salary_qr_request, admin_decide_salary_qr, salary_qr_admin_overview. */
+(function(){
+  const BUCKET='salary-qr';
+  const WALLETS=['BPI','GCash','PayMaya','HelloMoney','MariBank','UnionBank','BDO'];
+  let overview={},overviewOk=false,ovSeq=0;
+  const esc=s=>escapeHtml(s==null?'':String(s));
+  const fmtD=iso=>iso?new Date(iso).toLocaleDateString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',year:'numeric'}):'';
+  const money=n=>'₱'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  const css=document.createElement('style');
+  css.textContent=`
+.sqr-card{background:var(--card2);border:1px solid var(--line);border-radius:18px;overflow:hidden;text-align:center;flex:none;max-width:100%}
+.sqr-img{background:#fff;margin:12px;border-radius:12px;padding:8px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.sqr-img img{max-width:100%;max-height:100%;display:block;object-fit:contain}
+.sqr-ph{color:#777;font-size:12px}
+.sqr-nm{padding:9px 12px 13px;border-top:1px solid var(--line)}
+.sqr-nm b{font-family:'Space Grotesk',Inter,sans-serif;font-size:15px;display:block;overflow-wrap:anywhere}
+.sqr-nm span{font-size:11.5px;color:var(--muted)}
+.sqr-drop{width:220px;max-width:100%;aspect-ratio:220/290;border:2px dashed rgba(255,255,255,.18);border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:12.5px;text-align:center;padding:14px;cursor:pointer;flex:none;box-sizing:border-box;overflow:hidden}
+.sqr-drop:hover{border-color:var(--gold)}
+.sqr-drop img{max-width:100%;max-height:220px;border-radius:10px;background:#fff}
+.sqr-name{cursor:pointer;border-bottom:1px dashed var(--gold)}
+.sqr-name:hover{color:var(--gold)}
+.sqr-b{display:inline-block;font-size:10px;font-weight:600;padding:1px 6px;border-radius:6px;margin-left:4px;vertical-align:middle;white-space:nowrap}
+.sqr-none{color:var(--rose);background:rgba(226,104,95,.12)}
+.sqr-warn{color:#F2B84B;background:rgba(242,184,75,.14)}
+.sqr-pend{color:#9fd9ff;background:rgba(91,141,239,.18)}
+.sqr-alert{background:rgba(242,184,75,.12);border:1px solid #F2B84B;color:#F6D58E;border-radius:10px;padding:8px 11px;font-size:12.5px;line-height:1.4}
+.sqr-ov{position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:76;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+.sqr-modal{width:100%;max-width:360px;max-height:calc(100vh - 40px);overflow:auto}
+.sqr-modal.wide{max-width:640px}
+.sqr-pair{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.sqr-pair .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;text-align:center}`;
+  document.head.appendChild(css);
+
+  function errMsg(e){
+    const m=(e&&e.message)||String(e||'');
+    if(e&&(isMissingTableError(e)||e.code==='PGRST202'||/bucket not found/i.test(m)))
+      return 'Salary QR is not set up yet — an admin needs to run the Salary QR SQL in Supabase.';
+    return m;
+  }
+  async function signedUrl(path){
+    const {data,error}=await sb.storage.from(BUCKET).createSignedUrl(path,900);
+    if(error)throw error;return data.signedUrl;
+  }
+  async function safeSigned(path){try{return path?await signedUrl(path):null;}catch(_){return null;}}
+  async function removeFile(path){if(!path)return;try{await sb.storage.from(BUCKET).remove([path]);}catch(_){}}
+  function qrCardHtml(src,name,sub,w){
+    return `<div class="sqr-card" style="width:${w||220}px"><div class="sqr-img">${src?`<img src="${esc(src)}" alt="Salary QR">`:'<div class="sqr-ph">QR image unavailable</div>'}</div><div class="sqr-nm"><b>${esc(name)}</b><span>${esc(sub)}</span></div></div>`;
+  }
+  function walletSelect(id,val){
+    return `<select id="${id}"><option value="">— choose wallet / bank —</option>${WALLETS.map(w=>`<option${w===val?' selected':''}>${w}</option>`).join('')}</select>`;
+  }
+  /* Resize to ≤1200px and re-encode as JPEG on a white background (also strips photo metadata). */
+  async function shrink(file){
+    if(!file||!/^image\//.test(file.type))throw new Error('Please choose an image (PNG or JPG screenshot of your QR).');
+    const url=URL.createObjectURL(file);
+    try{
+      const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Could not read that image. Try a PNG or JPG screenshot.'));i.src=url;});
+      const k=Math.min(1,1200/Math.max(img.naturalWidth||1,img.naturalHeight||1));
+      const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.naturalWidth*k));c.height=Math.max(1,Math.round(img.naturalHeight*k));
+      const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
+      const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.92));
+      if(!blob)throw new Error('Could not process that image.');
+      if(blob.size>3*1024*1024)throw new Error('Image is too large even after resizing.');
+      return blob;
+    }finally{URL.revokeObjectURL(url);}
+  }
+
+  /* ===================== STAFF: Contractor Profile ===================== */
+  async function initProfile(){
+    const box=$('pfQr');if(!box||!me)return;
+    box.innerHTML='<div class="muted">Loading…</div>';
+    let cur=null,last=null;
+    try{
+      const [a,b]=await Promise.all([
+        sb.from('staff_salary_qr').select('*').eq('staff_id',me.id).maybeSingle(),
+        sb.from('salary_qr_requests').select('*').eq('staff_id',me.id).order('created_at',{ascending:false}).limit(1)]);
+      if(a.error)throw a.error;if(b.error)throw b.error;
+      cur=a.data||null;last=(b.data||[])[0]||null;
+    }catch(e){box.innerHTML=`<div class="muted">${esc(errMsg(e))}</div>`;return;}
+    const pending=last&&last.status==='pending'?last:null;
+    const rejected=!pending&&last&&last.status==='rejected'?last:null;
+    const [curSrc,pendSrc]=await Promise.all([safeSigned(cur&&cur.qr_path),safeSigned(pending&&pending.qr_path)]);
+    const name=me.full_name||'';
+    let html='<div class="row" style="gap:18px;align-items:flex-start;flex-wrap:wrap;margin-top:6px">';
+    if(cur){
+      html+=qrCardHtml(curSrc,name,`${cur.wallet} · active since ${fmtD(cur.active_since)}`,220);
+      html+='<div style="flex:1;min-width:220px;display:grid;gap:10px">';
+      if(pending){
+        html+=`<div class="sqr-alert">⏳ <b>Change waiting for admin approval</b> (sent ${esc(fmtD(pending.created_at))}). Your current QR stays active until an admin approves it.</div>
+          <div class="row" style="gap:12px;align-items:flex-start;flex-wrap:wrap">${qrCardHtml(pendSrc,name,pending.wallet+' · requested',150)}</div>
+          <button class="btn btn-ghost" id="sqrCancel">Cancel change request</button>`;
+      }else{
+        if(rejected)html+=`<div class="sqr-alert" style="border-color:var(--rose);background:rgba(226,104,95,.1);color:#f3b3ad">Your QR change sent ${esc(fmtD(rejected.created_at))} was <b>not approved</b>${rejected.decision_note?': '+esc(rejected.decision_note):'.'}</div>`;
+        html+=`<div class="muted" style="font-size:12.5px"><b style="color:var(--ink)">Need to change it?</b> Pick the new wallet / bank and QR image. An admin must approve the change.</div>
+          <div><div class="muted" style="font-size:11.5px;margin-bottom:4px">Wallet / bank (required)</div>${walletSelect('sqrWallet',cur.wallet)}</div>
+          <label class="btn btn-ghost" for="sqrFile" id="sqrPick">Choose new QR image</label>
+          <div id="sqrPreview"></div>
+          <button class="btn btn-gold" id="sqrSubmit" disabled>Request change</button>`;
+      }
+      html+='</div>';
+    }else{
+      html+=`<label class="sqr-drop" for="sqrFile" id="sqrDrop"><div style="font-size:30px">⬆️</div><b style="color:var(--ink)">Upload your salary QR</b>Tap to choose a screenshot of your GCash / PayMaya / bank QR</label>
+        <div style="flex:1;min-width:220px;display:grid;gap:10px">
+          <div><div class="muted" style="font-size:11.5px;margin-bottom:4px">Wallet / bank (required)</div>${walletSelect('sqrWallet','')}</div>
+          <button class="btn btn-gold" id="sqrSubmit" disabled>Save my salary QR</button>
+          <div class="muted" style="font-size:11px;line-height:1.45">One QR per person. Your first QR is used right away; any later change needs admin approval. Only you and admins can see it.</div>
+        </div>`;
+    }
+    html+='</div><input type="file" id="sqrFile" accept="image/*" style="display:none"><div class="muted" id="sqrMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div>';
+    box.innerHTML=html;
+
+    if(pending){$('sqrCancel').onclick=cancelRequest;return;}
+    let file=null;
+    const sub=$('sqrSubmit'),fileIn=$('sqrFile'),wal=$('sqrWallet');
+    const sync=()=>{sub.disabled=!(file&&wal.value);};
+    wal.onchange=sync;
+    fileIn.onchange=()=>{
+      file=fileIn.files&&fileIn.files[0]||null;
+      if(file&&!/^image\//.test(file.type)){alert('Please choose an image (PNG or JPG).');file=null;fileIn.value='';}
+      const u=file?URL.createObjectURL(file):null;
+      if(cur){$('sqrPreview').innerHTML=u?`<div class="row" style="gap:10px;align-items:center"><img src="${u}" style="width:90px;border-radius:8px;background:#fff"><span class="muted" style="font-size:12px">${esc(file.name)}</span></div>`:'';}
+      else{const d=$('sqrDrop');if(u)d.innerHTML=`<img src="${u}" alt="Selected QR"><span>Tap to choose a different image</span>`;}
+      sync();
+    };
+    sub.onclick=()=>submit(file,wal.value,sub);
+  }
+  async function submit(file,wallet,btn){
+    if(!wallet)return alert('Choose your wallet / bank.');
+    if(!file)return alert('Choose your QR image.');
+    const msg=$('sqrMsg');btn.disabled=true;if(msg)msg.textContent='Uploading…';
+    let path=null;
+    try{
+      const blob=await shrink(file);
+      path=`${me.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.jpg`;
+      const up=await sb.storage.from(BUCKET).upload(path,blob,{contentType:'image/jpeg',upsert:false});
+      if(up.error)throw up.error;
+      const {data,error}=await sb.rpc('submit_salary_qr',{p_wallet:wallet,p_path:path});
+      if(error)throw error;
+      path=null;
+      alert(data==='active'?'Your salary QR is saved.':'Sent to admin for approval. Your current QR stays active until it is approved.');
+    }catch(e){
+      await removeFile(path);
+      alert('Could not save your QR: '+errMsg(e));
+    }
+    if(msg)msg.textContent='';
+    initProfile();
+  }
+  async function cancelRequest(){
+    if(!confirm('Cancel your pending QR change? Your current QR stays as is.'))return;
+    const {data,error}=await sb.rpc('cancel_salary_qr_request');
+    if(error)return alert('Could not cancel: '+errMsg(error));
+    await removeFile(data);initProfile();
+  }
+
+  /* ===================== ADMIN: Contractor Ledger ===================== */
+  async function loadOverview(){
+    const seq=++ovSeq;
+    const {data,error}=await sb.rpc('salary_qr_admin_overview');
+    if(seq!==ovSeq)return;
+    if(error){overviewOk=false;overview={};if(!(error.code==='PGRST202'||isMissingTableError(error)))console.warn('salary_qr_admin_overview:',error.message);return;}
+    const o={};(data||[]).forEach(r=>{o[r.staff_id]=r;});overview=o;overviewOk=true;
+  }
+  function changedSincePayout(r){return !!(r&&r.qr_path&&(!r.last_paid_at||new Date(r.active_since)>new Date(r.last_paid_at)));}
+  function warnText(r){
+    return r.last_paid_at
+      ?`QR changed since last payout (last paid ${fmtD(r.last_paid_at)}; QR set ${fmtD(r.active_since)}). Verify with the staff member before sending.`
+      :`New QR — not used for a payout yet (set ${fmtD(r.active_since)}). Verify with the staff member before sending.`;
+  }
+  function badgeHtml(id){
+    if(!overviewOk)return '';
+    const r=overview[id];
+    if(!r||!r.qr_path)return '<span class="sqr-b sqr-none">no QR</span>';
+    let h='<span title="Salary QR on file">💳</span>';
+    if(changedSincePayout(r))h+=`<span class="sqr-b sqr-warn" title="${esc(warnText(r))}">⚠ QR changed</span>`;
+    if(r.pending_id)h+='<span class="sqr-b sqr-pend" title="A QR change is waiting for your approval">🔔 change pending</span>';
+    return h;
+  }
+  function nameCell(staffId,name){
+    if(!me||me.role!=='admin')return `<b>${esc(name)}</b>`;
+    return `<b class="sqr-name" data-sqr-staff="${esc(staffId)}" title="View salary QR">${esc(name)}</b><span data-sqr-badge="${esc(staffId)}">${badgeHtml(staffId)}</span>`;
+  }
+  function decorate(){
+    const t=$('ledgerTable');if(!t)return;
+    t.querySelectorAll('[data-sqr-badge]').forEach(s=>{s.innerHTML=badgeHtml(s.dataset.sqrBadge);});
+    t.querySelectorAll('[data-sqr-staff]').forEach(b=>{b.onclick=()=>openModal(b.dataset.sqrStaff);});
+    const ban=$('lgQrBanner');if(!ban)return;
+    const pend=overviewOk?Object.values(overview).filter(r=>r.pending_id):[];
+    if(!pend.length){ban.classList.add('hide');ban.innerHTML='';return;}
+    const nm=id=>((staffList.find(s=>s.id===id)||{}).full_name||'Staff');
+    ban.innerHTML=`🔔 ${pend.length} salary QR change ${pend.length===1?'request is':'requests are'} waiting for approval: `+
+      pend.map(r=>`<b class="sqr-name" data-sqr-open="${esc(r.staff_id)}">${esc(nm(r.staff_id))}</b>`).join(', ');
+    ban.querySelectorAll('[data-sqr-open]').forEach(b=>{b.onclick=()=>openModal(b.dataset.sqrOpen);});
+    ban.classList.remove('hide');
+  }
+  async function afterLedger(){
+    if(!me||me.role!=='admin')return;
+    decorate();await loadOverview();decorate();
+  }
+  function payWarnHtml(staffId){
+    if(!overviewOk)return '';
+    const r=overview[staffId];
+    if(!r||!r.qr_path)return '<div class="muted" style="margin-top:8px">💳 No salary QR on file for this staff member.</div>';
+    let h='';
+    if(changedSincePayout(r))h+=`<div class="sqr-alert" style="margin-top:8px">⚠ ${esc(warnText(r))}</div>`;
+    if(r.pending_id)h+='<div class="muted" style="margin-top:6px">🔔 A QR change is waiting for approval — the current QR is still the active one.</div>';
+    return h;
+  }
+  function inlineWarn(staffId){
+    const r=overviewOk&&overview[staffId];
+    return r&&changedSincePayout(r)?` <span class="sqr-b sqr-warn" title="${esc(warnText(r))}">⚠ QR changed</span>`:'';
+  }
+  async function download(url,filename){
+    try{
+      const res=await fetch(url);if(!res.ok)throw new Error('HTTP '+res.status);
+      const blob=await res.blob(),a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();
+      setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+    }catch(e){window.open(url,'_blank','noopener');}
+  }
+  async function openModal(staffId){
+    document.querySelectorAll('.sqr-ov').forEach(x=>x.remove());
+    const st=staffList.find(s=>s.id===staffId)||{full_name:'Staff'};
+    const client=(clients.find(c=>c.id===st.client_id)||{}).name||'';
+    const ov=document.createElement('div');ov.className='sqr-ov';
+    ov.innerHTML='<div class="card sqr-modal"><div class="muted">Loading…</div></div>';
+    document.body.appendChild(ov);
+    const close=()=>ov.remove();
+    ov.onclick=e=>{if(e.target===ov)close();};
+    await loadOverview();
+    if(!overviewOk){ov.querySelector('.sqr-modal').innerHTML=`<div class="hdr"><h3 style="font-size:15px">Salary QR</h3><button class="btn btn-ghost" data-close>✕</button></div><div class="muted">Salary QR is not set up yet — run the Salary QR SQL in Supabase.</div>`;ov.querySelector('[data-close]').onclick=close;return;}
+    const r=overview[staffId]||{};
+    const [curSrc,pendSrc]=await Promise.all([safeSigned(r.qr_path),safeSigned(r.pending_path)]);
+    const lr=(typeof ledgerRows!=='undefined'?ledgerRows:[]).find(x=>x.staffId===staffId);
+    const name=st.full_name||'Staff';
+    const m=ov.querySelector('.sqr-modal');
+    if(r.pending_id)m.classList.add('wide');
+    let h=`<div class="hdr" style="margin-bottom:8px"><h3 style="font-size:15px">Salary QR</h3><button class="btn btn-ghost" data-close title="Close">✕</button></div>`;
+    if(!r.qr_path){
+      h+=`<div class="muted" style="padding:20px 0;text-align:center">${esc(name)} hasn't uploaded a salary QR yet.<br><span style="font-size:11.5px">They can add it in their Contractor Profile.</span></div>`;
+    }else{
+      if(changedSincePayout(r))h+=`<div class="sqr-alert" style="margin-bottom:10px">⚠ ${esc(warnText(r))}</div>`;
+      const curCard=qrCardHtml(curSrc,name,[client,r.wallet].filter(Boolean).join(' · '),r.pending_id?240:260);
+      if(r.pending_id){
+        h+=`<div class="sqr-pair"><div><div class="lbl">Current (active)</div>${curCard}</div><div><div class="lbl" style="color:#9fd9ff">🔔 Requested change · ${esc(fmtD(r.pending_created_at))}</div>${qrCardHtml(pendSrc,name,[client,r.pending_wallet].filter(Boolean).join(' · '),240)}</div></div>`;
+      }else{
+        h+=`<div style="display:flex;justify-content:center">${curCard}</div>`;
+      }
+      h+=`<div class="muted" style="font-size:11.5px;text-align:center;margin:10px 0">Active since ${esc(fmtD(r.active_since))}${r.source==='first_upload'?' (first upload)':' (approved change)'}${lr?` · Net payable this cutoff <b class="mono" style="color:var(--gold)">${money(lr.total)}</b>`:''}</div>`;
+      h+=`<div class="row" style="gap:8px"><button class="btn btn-ghost" style="flex:1" data-dl${curSrc?'':' disabled'}>Download</button><button class="btn btn-gold" style="flex:1" data-open${curSrc?'':' disabled'}>Open full size</button></div>`;
+      if(r.pending_id){
+        h+=`<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+          <div class="muted" style="font-size:12px;margin-bottom:6px">Check the new QR with ${esc(name)} (call / chat) before approving. Approving makes it the QR used for payouts.</div>
+          <input id="sqrNote" placeholder="Note to staff (optional, shown if rejected)" maxlength="200">
+          <div class="row" style="gap:8px;margin-top:8px"><button class="btn btn-teal" style="flex:1" data-approve>Approve new QR</button><button class="btn btn-rose" style="flex:1" data-reject>Reject</button></div>
+          <div class="muted" data-msg style="font-size:12px;margin-top:6px;min-height:14px"></div></div>`;
+      }
+    }
+    m.innerHTML=h;
+    m.querySelector('[data-close]').onclick=close;
+    const dl=m.querySelector('[data-dl]'),op=m.querySelector('[data-open]');
+    if(dl&&curSrc)dl.onclick=()=>download(curSrc,`${name} - ${r.wallet} salary QR.jpg`);
+    if(op&&curSrc)op.onclick=()=>window.open(curSrc,'_blank','noopener');
+    const decide=async approve=>{
+      if(approve&&!confirm(`Approve the new ${r.pending_wallet} QR for ${name}? It replaces their current QR for payouts.`))return;
+      if(!approve&&!confirm(`Reject ${name}'s QR change? Their current QR stays active.`))return;
+      m.querySelectorAll('[data-approve],[data-reject]').forEach(b=>b.disabled=true);
+      m.querySelector('[data-msg]').textContent='Saving…';
+      const {data,error}=await sb.rpc('admin_decide_salary_qr',{p_request_id:r.pending_id,p_approve:approve,p_note:($('sqrNote').value||'').trim()||null});
+      if(error){m.querySelector('[data-msg]').textContent='';m.querySelectorAll('[data-approve],[data-reject]').forEach(b=>b.disabled=false);return alert('Could not save: '+errMsg(error));}
+      await removeFile(data&&data.unused_path);
+      await afterLedger();
+      openModal(staffId);
+    };
+    const ap=m.querySelector('[data-approve]'),rj=m.querySelector('[data-reject]');
+    if(ap)ap.onclick=()=>decide(true);
+    if(rj)rj.onclick=()=>decide(false);
+  }
+
+  window.SalaryQR={initProfile,afterLedger,nameCell,payWarnHtml,inlineWarn,openModal,_changedSincePayout:changedSincePayout,_shrink:shrink,_state:()=>({overview,overviewOk})};
 })();
 </script>
 
