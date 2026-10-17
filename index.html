@@ -863,6 +863,9 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 <tr><td><input type="checkbox" id="civAllowanceOn"></td><td><b>Allowance</b><div class="muted" style="font-size:11px">Per staff, per month, prorated to cutoff — auto-calculated, editable per invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civAllowanceRate" style="width:110px" placeholder="$/mo"></td></tr>
 <tr><td><input type="checkbox" id="civHolidayOn"></td><td><b>Holiday Pay</b><div class="muted" style="font-size:11px">Rate per staff — admin types the staff count on the invoice itself, total = count × rate</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civHolidayRate" style="width:110px" placeholder="$/staff"></td></tr>
 </tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px">Invoice Numbering</div><div class="row" style="gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase" id="civStartingNumLbl">Invoice # for the selected pay period</label><input type="number" min="1" step="1" id="civStartingNum" style="width:100%"><div class="muted" style="font-size:11px;margin-top:4px">Goes up by 1 every bi-weekly period after this one.</div></div><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Last invoice issued for this client</label><input type="text" id="civNextNum" disabled style="width:100%"></div></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn btn-ghost" id="civSettingsCancel">Cancel</button><button class="btn btn-gold" id="civSettingsSave">Save Settings</button></div><div class="muted" id="civSettingsMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div></div></div><section id="v-earning" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th>VSPH (Net Amount)</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div><div class="row" style="justify-content:flex-end;margin-top:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px" id="egAggMargin">—</span></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="card"><div class="hdr"><h3 style="font-size:15px">Staff requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances on the Adjustments tab.</div><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+  <!-- PM BULLETIN BOARD (announcements) -->
+  <div id="bbBoard" class="grid" style="gap:16px"></div>
+  <div class="bb-docs-hdr"><h3>📁 Documents &amp; Signatures</h3><span class="muted" style="font-size:12.5px">Contracts, house rules, and anything that needs your signature</span></div>
   <!-- STAFF VIEW -->
   <div id="portalStaffView" class="grid" style="gap:16px">
     <div class="card">
@@ -917,6 +920,9 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     </div>
   </div>
 </section>
+
+    <!-- ---------- ANNUAL PERFORMANCE (staff: coming soon) ---------- -->
+    <section id="v-perf" class="hide grid" style="gap:12px"><div id="prRoot" class="grid" style="gap:12px"></div></section>
 
     <!-- ---------- ADMIN: YTD ATTENDANCE ---------- -->
     <section id="v-ytd" class="hide grid" style="gap:12px">
@@ -2496,6 +2502,7 @@ async function start(){
   setInterval(()=>{ if(me&&document.getElementById('v-dash').classList.contains('hide')===false) renderPayPeriod(); },300000);
   await refreshNotifications();
   setInterval(refreshNotifications,60000);
+  window.Bulletin?.onStart();
 }
 
 /* ---------- in-app notifications bell ---------- */
@@ -2547,10 +2554,10 @@ const PAGES={
   'v-ledger':['🧾 Contractor Ledger','Contractor Ledger','Semi-monthly hours & pay pulled from the time tracker'],
   'v-invoice':['📄 Client Invoice','Client Invoice','Bi-weekly invoice built from the Timesheets Daily Hours Grid, per client'],
   'v-earning':['💰 SMB PH Earning','SMB PH Earning','Admin-only immutable per-semi-monthly-period FX + VSPH/ROI/margin LOCK IN'],
-  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 PHP & PTO Requests','PHP & PTO Requests','Review and approve staff requests'], 'v-portal':['🗂️ Freelancer Hole','Freelancer Hole','Documents, contracts, and signatures'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
+  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 PHP & PTO Requests','PHP & PTO Requests','Review and approve staff requests'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
 };
 let view='v-punch';
-const ADMIN_NAV_DEFAULT=['v-status','v-punch','v-staff','v-policy','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-invoice','v-earning','v-reqadmin','v-portal','v-ytd','v-pto'];
+const ADMIN_NAV_DEFAULT=['v-status','v-punch','v-staff','v-policy','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-invoice','v-earning','v-reqadmin','v-portal','v-perf','v-ytd','v-pto'];
 let adminNavOrder=null, navArranging=false, navArrDraft=null, navFirstBuild=true;
 /* saved order -> valid order: drop unknown/duplicate ids, append any new tabs at the end */
 function normalizeNavOrder(saved){
@@ -2580,7 +2587,7 @@ const ADH_PAGE_MINE=['📊 My Adherence & Breaks','My Adherence & Breaks','Your 
 function adherenceOwnOnly(){ return !!me&&me.role!=='admin'&&!me.can_view_adherence; }
 function buildNav(){
   PAGES['v-adherence']=adherenceOwnOnly()?ADH_PAGE_MINE:ADH_PAGE_TEAM;
-  const staffIds = ['v-punch','v-adherence',...(me.can_view_live_status?['v-status']:[]),'v-ledger','v-req','v-profile','v-portal'];
+  const staffIds = ['v-punch','v-adherence',...(me.can_view_live_status?['v-status']:[]),'v-ledger','v-req','v-profile','v-portal','v-perf'];
   const isAdmin=me.role==='admin';
   const ids = isAdmin ? adminNavIds() : staffIds;
   if(navFirstBuild){ navFirstBuild=false; if(isAdmin) view='v-status'; }
@@ -2589,6 +2596,7 @@ function buildNav(){
   $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   go(view);
+  window.Bulletin?.paintBadge();
 }
 function renderNavArrangeBar(){
   $('navArrangeBtn').classList.toggle('hide',navArranging);
@@ -2647,7 +2655,7 @@ function go(v){
   if(v==='v-corr'){loadCorrections();}
   if(v==='v-ledger'){initLedgerFilters();} if(v==='v-invoice'){initInvoiceFilters();}
   if(v==='v-earning'){initEarningFilters();}
-  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){loadPortal();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();}
 }
 
 /* clocks + running timers */
@@ -7413,6 +7421,424 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   }
 
   window.SalaryQR={initProfile,afterLedger,nameCell,payWarnHtml,inlineWarn,openModal,_changedSincePayout:changedSincePayout,_shrink:shrink,_state:()=>({overview,overviewOk})};
+})();
+</script>
+
+<script>
+/* ---------- PM Bulletin Board + Annual Performance shell (2026-10-17) ----------
+   Bulletin Board (tab v-portal, formerly Freelancer Hole): admins post announcements (category, pin,
+   audience everyone/clients/specific staff, publish/expiry, urgent login pop-up, "Got it" receipts,
+   nudge). Staff see only posts meant for them (RLS), get an unread badge, and pop-ups for urgent or
+   nudged posts until they confirm. The Documents & Signatures section below is unchanged.
+   Backend: tables bulletin_posts / bulletin_reads, RPCs bulletin_can_see, bulletin_mark (SQL 2026-10-17).
+   Annual Performance (tab v-perf): staff see "Coming soon"; admins see the agreed framework,
+   review-type eligibility (6-month rule) and suggested peers. No backend yet. */
+(function(){
+  const CATS=['Announcement','Policy','Schedule','Holiday','Payroll','Reminder','Shout-out'];
+  const CAT_ICON={Announcement:'📣',Policy:'📘',Schedule:'🗓️',Holiday:'🎉',Payroll:'💸',Reminder:'⏰','Shout-out':'🌟'};
+  const CAT_COLOR={Announcement:'var(--gold)',Policy:'#7FA7F5',Schedule:'var(--teal)',Holiday:'#C58CF2',Payroll:'#6FCF97',Reminder:'#F2B84B','Shout-out':'#F28FB1'};
+  let posts=[],reads=[],loadedOk=false,setupMissing=false,filterCat='',adminFilter='live',editingId=null,popupOpen=false,loadSeq=0,pollTimer=null;
+  const esc=s=>escapeHtml(s==null?'':String(s));
+  const isAdm=()=>!!me&&me.role==='admin';
+  const fmtDT=iso=>iso?new Date(iso).toLocaleString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):'';
+  const fmtD=iso=>iso?new Date(iso).toLocaleDateString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',year:'numeric'}):'';
+
+  const css=document.createElement('style');
+  css.textContent=`
+.bb-hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.bb-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.bb-chip{all:unset;cursor:pointer;font-size:12px;padding:5px 11px;border-radius:999px;color:var(--muted);box-shadow:inset 0 0 0 1px var(--line);background:var(--card2)}
+.bb-chip.on{color:#151515;background:var(--gold);box-shadow:none;font-weight:600}
+.bb-list{display:grid;gap:12px}
+.bb-post{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--bbc,var(--gold));border-radius:14px;padding:14px 16px}
+.bb-post.pinned{background:linear-gradient(0deg,rgba(227,166,62,.05),rgba(227,166,62,.05)),var(--card)}
+.bb-post.urgent{border-color:rgba(226,104,95,.55);border-left-color:var(--rose)}
+.bb-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}
+.bb-cat{font-weight:600;color:var(--bbc,var(--gold));text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+.bb-tag{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:6px;white-space:nowrap}
+.bb-t-pin{background:rgba(227,166,62,.16);color:var(--gold)}
+.bb-t-urg{background:rgba(226,104,95,.16);color:var(--rose)}
+.bb-t-new{background:rgba(63,191,174,.16);color:var(--teal)}
+.bb-t-ack{background:rgba(91,141,239,.18);color:#9fd9ff}
+.bb-t-st{background:rgba(107,113,131,.2);color:#b4b9c8}
+.bb-title{font-family:'Space Grotesk',Inter,sans-serif;font-size:16.5px;font-weight:600;margin:6px 0 4px;overflow-wrap:anywhere}
+.bb-body{font-size:13.5px;line-height:1.55;color:#d9d6cc;white-space:pre-wrap;overflow-wrap:anywhere}
+.bb-body a{color:var(--teal)}
+.bb-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--muted)}
+.bb-ok{color:var(--teal);font-weight:600}
+.bb-sec{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:2px 0 -2px}
+.bb-empty{border:1px dashed rgba(255,255,255,.12);border-radius:14px;padding:22px;text-align:center;color:var(--muted);font-size:13px}
+.bb-badge{display:inline-block;min-width:18px;padding:1px 6px;margin-left:6px;border-radius:999px;background:var(--rose);color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:16px;vertical-align:1px}
+.bb-form{display:grid;gap:10px}
+.bb-form textarea{width:100%;min-height:120px;resize:vertical;box-sizing:border-box;font:inherit}
+.bb-form .r{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.bb-form .r>div{flex:1 1 170px}
+.bb-checks{display:flex;gap:16px;flex-wrap:wrap;font-size:13px}
+.bb-checks label{display:flex;align-items:center;gap:7px;margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink);white-space:nowrap}
+.bb-checks input[type=checkbox]{width:auto;flex:none;margin:0;accent-color:var(--gold)}
+.bb-pick{display:flex;gap:6px;flex-wrap:wrap;max-height:160px;overflow:auto;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--card2)}
+.bb-rcpt{margin-top:10px;font-size:12px}
+.bb-rcpt summary{cursor:pointer;color:var(--ink)}
+.bb-rcpt .cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:8px}
+.bb-rcpt .cols>div{background:var(--card2);border-radius:10px;padding:8px 10px}
+.bb-rcpt .cols b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.bb-rcpt .cols span{display:block;color:#cfcbbf;line-height:1.5}
+.bb-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;width:140px;display:inline-block;vertical-align:middle;margin-left:6px}
+.bb-bar i{display:block;height:100%;background:var(--teal)}
+.bb-acts{display:flex;gap:6px;flex-wrap:wrap}
+.bb-acts .btn{padding:6px 10px;font-size:12px}
+.bb-docs-hdr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:6px;padding-top:14px;border-top:1px solid var(--line)}
+.bb-docs-hdr h3{font-size:15px;margin:0}
+.bb-ov{position:fixed;inset:0;background:rgba(6,8,12,.78);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+.bb-modal{width:100%;max-width:560px;max-height:calc(100vh - 40px);overflow:auto}
+@media(max-width:820px){.bb-rcpt .cols{grid-template-columns:1fr}}
+.pr-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.pr-pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:7px;white-space:nowrap}
+.pr-ann{background:rgba(63,191,174,.15);color:var(--teal)}
+.pr-dev{background:rgba(227,166,62,.15);color:var(--gold)}
+.pr-miss{background:rgba(226,104,95,.15);color:var(--rose)}
+.pr-x{background:rgba(91,141,239,.18);color:#9fd9ff}
+.pr-w{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.pr-w>div{background:var(--card2);border-radius:12px;padding:12px}
+.pr-w b{font-family:'IBM Plex Mono';font-size:22px;display:block}
+.pr-w span{font-size:12px;color:var(--muted)}
+.pr-tl{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.pr-tl>div{border-top:3px solid var(--gold);background:var(--card2);border-radius:0 0 10px 10px;padding:9px 10px;font-size:12px;line-height:1.4}
+.pr-tl b{display:block;font-size:12.5px}
+.pr-soon{text-align:center;padding:34px 20px}
+.pr-soon .ic{font-size:44px}
+.pr-soon h3{font-family:'Space Grotesk',Inter,sans-serif;font-size:22px;margin:10px 0 6px}
+.pr-soon ul{display:inline-block;text-align:left;color:#d9d6cc;font-size:13.5px;line-height:1.7;margin:12px 0 0}
+@media(max-width:900px){.pr-kpis,.pr-w{grid-template-columns:repeat(2,minmax(0,1fr))}.pr-tl{grid-template-columns:1fr}}`;
+  document.head.appendChild(css);
+
+  function errMsg(e){
+    const m=(e&&e.message)||String(e||'');
+    if(e&&(isMissingTableError(e)||e.code==='PGRST202'||/bulletin_/.test(m)&&/does not exist|schema cache/i.test(m)))
+      return 'The Bulletin Board is not set up yet — an admin needs to run the Bulletin Board SQL in Supabase.';
+    return m;
+  }
+  function linkify(text){
+    return esc(text).replace(/\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/g,u=>`<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
+  }
+  const now=()=>Date.now();
+  const isLive=p=>!p.archived&&new Date(p.publish_at).getTime()<=now()&&(!p.expires_at||new Date(p.expires_at).getTime()>now());
+  function statusOf(p){
+    if(p.archived) return 'Archived';
+    if(new Date(p.publish_at).getTime()>now()) return 'Scheduled';
+    if(p.expires_at&&new Date(p.expires_at).getTime()<=now()) return 'Expired';
+    return 'Live';
+  }
+  const myRead=id=>reads.find(r=>r.post_id===id&&r.staff_id===me.id);
+  function sortPosts(a){ return a.slice().sort((x,y)=>(y.pinned-x.pinned)||(new Date(y.publish_at)-new Date(x.publish_at))); }
+  /* staff (non-admin, active) who are in a post's audience */
+  function audienceStaff(p){
+    return (staffList||[]).filter(s=>s.active&&s.role!=='admin'&&(p.audience==='all'||
+      (p.audience==='client'&&s.client_id!=null&&(p.audience_ids||[]).includes(String(s.client_id)))||
+      (p.audience==='staff'&&(p.audience_ids||[]).includes(String(s.id)))));
+  }
+  function audienceLabel(p){
+    if(p.audience==='all') return 'Everyone';
+    const ids=p.audience_ids||[];
+    if(p.audience==='client') return 'Clients: '+ids.map(id=>(clients.find(c=>String(c.id)===id)||{}).name||'(removed client)').join(', ');
+    const names=ids.map(id=>(staffList.find(s=>String(s.id)===id)||{}).full_name||'(removed)');
+    return 'Staff: '+(names.length>3?names.slice(0,3).join(', ')+' +'+(names.length-3):names.join(', '));
+  }
+
+  async function fetchAll(){
+    const seq=++loadSeq;
+    const [pr,rr]=await Promise.all([
+      sb.from('bulletin_posts').select('*').order('publish_at',{ascending:false}).range(0,999),
+      isAdm()?sb.from('bulletin_reads').select('*').range(0,9999):sb.from('bulletin_reads').select('*').eq('staff_id',me.id).range(0,1999)
+    ]);
+    if(seq!==loadSeq) return false;
+    const err=pr.error||rr.error;
+    if(err){ loadedOk=false; setupMissing=/not set up/.test(errMsg(err)); throw err; }
+    posts=pr.data||[]; reads=rr.data||[]; loadedOk=true; setupMissing=false;
+    return true;
+  }
+  function unreadCount(){
+    if(!loadedOk||isAdm()) return 0;
+    return posts.filter(p=>isLive(p)&&!myRead(p.id)).length;
+  }
+  function paintBadge(){
+    const b=document.querySelector('#nav button[data-v="v-portal"]'); if(!b) return;
+    let s=b.querySelector('.bb-badge'); const n=unreadCount();
+    if(!n){ if(s) s.remove(); return; }
+    if(!s){ s=document.createElement('span'); s.className='bb-badge'; b.appendChild(s); }
+    s.textContent=n>99?'99+':String(n);
+  }
+  async function mark(ids,ack){
+    if(!ids.length) return;
+    const {error}=await sb.rpc('bulletin_mark',{p_post_ids:ids,p_ack:!!ack});
+    if(error) throw error;
+    const t=new Date().toISOString();
+    ids.forEach(id=>{ let r=myRead(id); if(!r){ r={post_id:id,staff_id:me.id,read_at:t,acked_at:null}; reads.push(r); } if(ack&&!r.acked_at) r.acked_at=t; });
+  }
+
+  function postCard(p,opt){
+    const o=opt||{}; const r=o.admin?null:myRead(p.id);
+    const tags=[];
+    if(p.pinned) tags.push('<span class="bb-tag bb-t-pin">📌 Pinned</span>');
+    if(p.urgent) tags.push('<span class="bb-tag bb-t-urg">Urgent</span>');
+    if(o.isNew) tags.push('<span class="bb-tag bb-t-new">New</span>');
+    if(p.require_ack) tags.push('<span class="bb-tag bb-t-ack">Needs “Got it”</span>');
+    if(o.admin) tags.push(`<span class="bb-tag bb-t-st">${statusOf(p)}</span>`);
+    let foot='';
+    if(o.admin){ foot=o.adminFoot||''; }
+    else if(p.require_ack){
+      foot=r&&r.acked_at?`<span class="bb-ok">✓ You confirmed ${esc(fmtDT(r.acked_at))}</span>`:`<span>Please confirm you’ve read this.</span><button class="btn btn-gold" data-bb-ack="${esc(p.id)}">👍 Got it</button>`;
+    }
+    const meta=[`Posted ${esc(fmtDT(p.publish_at))}`+(p.created_by_name?` · ${esc(p.created_by_name)}`:''),p.expires_at?`Shows until ${esc(fmtDT(p.expires_at))}`:''].filter(Boolean).join(' · ');
+    return `<div class="bb-post${p.pinned?' pinned':''}${p.urgent?' urgent':''}" style="--bbc:${CAT_COLOR[p.category]||'var(--gold)'}" data-bb-post="${esc(p.id)}">
+      <div class="bb-top"><span class="bb-cat">${CAT_ICON[p.category]||'📣'} ${esc(p.category)}</span>${tags.join('')}</div>
+      <div class="bb-title">${esc(p.title)}</div>
+      ${p.body?`<div class="bb-body">${linkify(p.body)}</div>`:''}
+      <div class="bb-foot"><span>${meta}${o.admin?' · '+esc(audienceLabel(p)):''}</span>${o.admin?'':''}</div>
+      ${foot?`<div class="bb-foot" style="margin-top:8px">${foot}</div>`:''}
+    </div>`;
+  }
+
+  /* ---------------- STAFF VIEW ---------------- */
+  function renderStaff(newIds){
+    const host=$('bbBoard'); if(!host) return;
+    const live=sortPosts(posts.filter(isLive));
+    const cats=CATS.filter(c=>live.some(p=>p.category===c));
+    if(filterCat&&!cats.includes(filterCat)) filterCat='';
+    const shown=live.filter(p=>!filterCat||p.category===filterCat);
+    const pinned=shown.filter(p=>p.pinned), rest=shown.filter(p=>!p.pinned);
+    const pendingAck=live.filter(p=>p.require_ack&&!(myRead(p.id)||{}).acked_at).length;
+    host.innerHTML=`<div class="card"><div class="bb-hdr"><div><h3 style="font-size:15px">📌 PM Bulletin Board</h3><div class="muted" style="font-size:12.5px;margin-top:3px">Announcements from your project manager. ${pendingAck?`<b style="color:var(--gold)">${pendingAck} post${pendingAck>1?'s need':' needs'} your “Got it”.</b>`:'You’re all caught up.'}</div></div></div>
+      ${cats.length>1?`<div class="bb-chips"><button class="bb-chip${filterCat?'':' on'}" data-bb-cat="">All (${live.length})</button>${cats.map(c=>`<button class="bb-chip${filterCat===c?' on':''}" data-bb-cat="${esc(c)}">${CAT_ICON[c]} ${esc(c)}</button>`).join('')}</div>`:''}</div>
+      ${!live.length?'<div class="bb-empty">No announcements right now. New posts from your PM will show up here.</div>':''}
+      ${pinned.length?`<div class="bb-sec">Pinned</div><div class="bb-list">${pinned.map(p=>postCard(p,{isNew:newIds.has(p.id)})).join('')}</div>`:''}
+      ${rest.length?`${pinned.length?'<div class="bb-sec">Latest</div>':''}<div class="bb-list">${rest.map(p=>postCard(p,{isNew:newIds.has(p.id)})).join('')}</div>`:''}`;
+    host.querySelectorAll('[data-bb-cat]').forEach(b=>b.onclick=()=>{ filterCat=b.dataset.bbCat; renderStaff(newIds); });
+    host.querySelectorAll('[data-bb-ack]').forEach(b=>b.onclick=async()=>{
+      b.disabled=true;
+      try{ await mark([b.dataset.bbAck],true); renderStaff(newIds); paintBadge(); }
+      catch(e){ b.disabled=false; alert('Could not save: '+errMsg(e)); }
+    });
+  }
+
+  /* ---------------- ADMIN VIEW ---------------- */
+  function toLocalInput(iso){
+    if(!iso) return ''; const d=new Date(iso); const z=n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
+  }
+  function pickHtml(kind,selected){
+    const sel=new Set(selected||[]);
+    if(kind==='client') return clients.map(c=>`<label class="staff-chip"><input type="checkbox" data-bb-aud value="${esc(String(c.id))}" ${sel.has(String(c.id))?'checked':''}> ${esc(c.name)}</label>`).join('')||'<span class="muted">No clients.</span>';
+    if(kind==='staff') return (staffList||[]).filter(s=>s.active&&s.role!=='admin').map(s=>`<label class="staff-chip"><input type="checkbox" data-bb-aud value="${esc(String(s.id))}" ${sel.has(String(s.id))?'checked':''}> ${esc(s.full_name)}</label>`).join('')||'<span class="muted">No active staff.</span>';
+    return '';
+  }
+  function composerHtml(p){
+    const e=p||{category:'Announcement',audience:'all',audience_ids:[]};
+    return `<div class="card" id="bbComposer"><div class="hdr"><h3 style="font-size:15px">${p?'✏️ Edit post':'＋ New post'}</h3></div>
+    <div class="bb-form">
+      <div class="r"><div style="flex:3 1 280px"><label>Title</label><input id="bbTitle" maxlength="160" value="${esc(e.title||'')}" placeholder="e.g. Holiday schedule for Nov 1–2"></div>
+        <div style="flex:1 1 170px"><label>Category</label><select id="bbCat">${CATS.map(c=>`<option${c===e.category?' selected':''}>${esc(c)}</option>`).join('')}</select></div></div>
+      <div><label>Message</label><textarea id="bbBody" maxlength="8000" placeholder="Write the announcement. Links are clickable.">${esc(e.body||'')}</textarea></div>
+      <div class="r"><div><label>Who sees it</label><select id="bbAud"><option value="all"${e.audience==='all'?' selected':''}>Everyone</option><option value="client"${e.audience==='client'?' selected':''}>Staff of specific clients</option><option value="staff"${e.audience==='staff'?' selected':''}>Specific staff</option></select></div>
+        <div><label>Publish at (blank = now)</label><input type="datetime-local" id="bbPub" value="${esc(p?toLocalInput(e.publish_at):'')}"></div>
+        <div><label>Hide after (optional)</label><input type="datetime-local" id="bbExp" value="${esc(toLocalInput(e.expires_at))}"></div></div>
+      <div id="bbPickWrap" class="${e.audience==='all'?'hide':''}"><div class="bb-pick" id="bbPick">${pickHtml(e.audience,e.audience_ids)}</div></div>
+      <div class="bb-checks"><label><input type="checkbox" id="bbPin" ${e.pinned?'checked':''}> 📌 Pin to top</label>
+        <label><input type="checkbox" id="bbAck" ${e.require_ack?'checked':''}> 👍 Staff must tap “Got it”</label>
+        <label><input type="checkbox" id="bbUrg" ${e.urgent?'checked':''}> 🚨 Urgent — pop-up until confirmed</label>
+        ${p?'<label><input type="checkbox" id="bbReset"> 🔁 Big change — ask everyone to confirm again</label>':''}</div>
+      <div class="row" style="gap:8px;align-items:center"><button class="btn btn-gold" id="bbSave">${p?'Save changes':'Publish'}</button>${p?'<button class="btn btn-ghost" id="bbCancel">Cancel</button>':''}<span class="muted" id="bbMsg" style="font-size:12px"></span></div>
+    </div></div>`;
+  }
+  function wireComposer(){
+    $('bbAud').onchange=()=>{ const v=$('bbAud').value; $('bbPickWrap').classList.toggle('hide',v==='all'); $('bbPick').innerHTML=pickHtml(v,[]); };
+    if($('bbCancel')) $('bbCancel').onclick=()=>{ editingId=null; renderAdmin(); };
+    $('bbSave').onclick=savePost;
+  }
+  async function savePost(){
+    const msg=$('bbMsg'), btn=$('bbSave');
+    const title=$('bbTitle').value.trim(), body=$('bbBody').value.replace(/\s+$/,''), aud=$('bbAud').value;
+    const ids=aud==='all'?[]:[...document.querySelectorAll('#bbPick [data-bb-aud]:checked')].map(x=>x.value);
+    const pubV=$('bbPub').value, expV=$('bbExp').value;
+    const pub=pubV?new Date(pubV):null, exp=expV?new Date(expV):null;
+    if(!title) return msg.textContent='Add a title.';
+    if(aud!=='all'&&!ids.length) return msg.textContent=aud==='client'?'Pick at least one client.':'Pick at least one staff member.';
+    if(pub&&isNaN(pub)) return msg.textContent='Publish date is not valid.';
+    if(exp&&isNaN(exp)) return msg.textContent='Hide-after date is not valid.';
+    const pubEff=pub||(editingId?new Date((posts.find(x=>x.id===editingId)||{}).publish_at||Date.now()):new Date());
+    if(exp&&exp<=pubEff) return msg.textContent='“Hide after” must be later than the publish time.';
+    const orig=editingId?posts.find(x=>x.id===editingId):null;
+    const row={title,body,category:$('bbCat').value,audience:aud,audience_ids:ids,pinned:$('bbPin').checked,require_ack:$('bbAck').checked,urgent:$('bbUrg').checked};
+    /* when editing, only send dates the admin actually changed (inputs are minute-precision) */
+    if(!orig||expV!==toLocalInput(orig.expires_at)) row.expires_at=exp?exp.toISOString():null;
+    if(!orig) row.publish_at=(pub||new Date()).toISOString(); else if(pubV&&pubV!==toLocalInput(orig.publish_at)) row.publish_at=pub.toISOString();
+    btn.disabled=true; msg.textContent='Saving…';
+    try{
+      if(editingId){
+        const {error}=await sb.from('bulletin_posts').update(row).eq('id',editingId); if(error) throw error;
+        if($('bbReset')&&$('bbReset').checked){ const {error:e2}=await sb.from('bulletin_reads').delete().eq('post_id',editingId); if(e2) throw e2; }
+      }else{
+        row.created_by=me.id; row.created_by_name=me.full_name;
+        const {error}=await sb.from('bulletin_posts').insert(row); if(error) throw error;
+      }
+      editingId=null; await load();
+    }catch(e){ btn.disabled=false; msg.textContent='Could not save: '+errMsg(e); }
+  }
+  function receiptsHtml(p){
+    const aud=audienceStaff(p), rs=new Map(reads.filter(r=>r.post_id===p.id).map(r=>[String(r.staff_id),r]));
+    const acked=aud.filter(s=>(rs.get(String(s.id))||{}).acked_at), seen=aud.filter(s=>rs.get(String(s.id))&&!rs.get(String(s.id)).acked_at), notSeen=aud.filter(s=>!rs.get(String(s.id)));
+    const n=aud.length, done=p.require_ack?acked.length:acked.length+seen.length, pct=n?Math.round(done/n*100):0;
+    const list=(arr,withT)=>arr.length?arr.map(s=>`<span>${esc(s.full_name)}${withT?` <span class="muted" style="display:inline">· ${esc(fmtD((rs.get(String(s.id))||{}).acked_at))}</span>`:''}</span>`).join(''):'<span class="muted">—</span>';
+    const summary=p.require_ack?`Got it <b>${acked.length}/${n}</b> · seen ${acked.length+seen.length}/${n}`:`Seen <b>${acked.length+seen.length}/${n}</b>`;
+    return {pending:p.require_ack?n-acked.length:notSeen.length,html:`<details class="bb-rcpt"><summary>${summary}<span class="bb-bar"><i style="width:${pct}%"></i></span></summary><div class="cols">
+      <div><b style="color:var(--rose)">Not seen yet (${notSeen.length})</b>${list(notSeen)}</div>
+      <div><b style="color:var(--gold)">${p.require_ack?'Seen, no “Got it”':'Seen'} (${seen.length})</b>${list(seen)}</div>
+      <div><b style="color:var(--teal)">${p.require_ack?'Got it':'Confirmed'} (${acked.length})</b>${list(acked,true)}</div></div></details>`};
+  }
+  function renderAdmin(){
+    const host=$('bbBoard'); if(!host) return;
+    const editing=editingId?posts.find(p=>p.id===editingId):null;
+    const counts={live:0,scheduled:0,expired:0,archived:0}; posts.forEach(p=>counts[statusOf(p).toLowerCase()]++);
+    let list=sortPosts(posts.filter(p=>adminFilter==='all'||statusOf(p).toLowerCase()===adminFilter));
+    host.innerHTML=composerHtml(editing)+`<div class="card"><div class="hdr"><h3 style="font-size:15px">Posts</h3><select id="bbAdmFilter" style="width:auto">${['live','scheduled','expired','archived','all'].map(k=>`<option value="${k}"${adminFilter===k?' selected':''}>${k[0].toUpperCase()+k.slice(1)}${k!=='all'?` (${counts[k]})`:` (${posts.length})`}</option>`).join('')}</select></div>
+      <div class="muted" style="font-size:12px;margin-bottom:10px">Staff only see Live posts meant for them. Receipts count active staff (not admins) in the post’s audience. <b>Nudge</b> makes the post pop up again for everyone who hasn’t confirmed.</div>
+      <div class="bb-list" id="bbAdmList">${list.length?'':'<div class="bb-empty">No posts here yet.</div>'}</div></div>`;
+    wireComposer();
+    $('bbAdmFilter').onchange=()=>{ adminFilter=$('bbAdmFilter').value; renderAdmin(); };
+    $('bbAdmList').insertAdjacentHTML('beforeend',list.map(p=>{
+      const rc=receiptsHtml(p), st=statusOf(p);
+      const acts=`<div class="bb-acts"><button class="btn btn-ghost" data-bb-edit="${esc(p.id)}">Edit</button><button class="btn btn-ghost" data-bb-pin="${esc(p.id)}">${p.pinned?'Unpin':'Pin'}</button>${st==='Live'&&rc.pending>0?`<button class="btn btn-ghost" data-bb-nudge="${esc(p.id)}" title="Pop this post up again for the ${rc.pending} who haven’t confirmed">🔔 Nudge ${rc.pending}</button>`:''}<button class="btn btn-ghost" data-bb-arch="${esc(p.id)}">${p.archived?'Restore':'Archive'}</button><button class="btn btn-rose" data-bb-del="${esc(p.id)}">Delete</button></div>`;
+      const nud=p.nudged_at?`<span class="muted">Last nudged ${esc(fmtDT(p.nudged_at))}</span>`:'';
+      return postCard(p,{admin:true,adminFoot:`<div style="flex:1 1 260px">${rc.html}</div><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">${acts}${nud}</div>`});
+    }).join(''));
+    const upd=async(id,patch)=>{ const {error}=await sb.from('bulletin_posts').update(patch).eq('id',id); if(error) return alert('Could not save: '+errMsg(error)); await load(); };
+    host.querySelectorAll('[data-bb-edit]').forEach(b=>b.onclick=()=>{ editingId=b.dataset.bbEdit; renderAdmin(); $('bbComposer').scrollIntoView({behavior:'smooth',block:'start'}); });
+    host.querySelectorAll('[data-bb-pin]').forEach(b=>b.onclick=()=>{ const p=posts.find(x=>x.id===b.dataset.bbPin); upd(p.id,{pinned:!p.pinned}); });
+    host.querySelectorAll('[data-bb-arch]').forEach(b=>b.onclick=()=>{ const p=posts.find(x=>x.id===b.dataset.bbArch); upd(p.id,{archived:!p.archived}); });
+    host.querySelectorAll('[data-bb-nudge]').forEach(b=>b.onclick=()=>{ if(confirm('Pop this post up again for everyone who hasn’t confirmed it?')) upd(b.dataset.bbNudge,{nudged_at:new Date().toISOString()}); });
+    host.querySelectorAll('[data-bb-del]').forEach(b=>b.onclick=async()=>{
+      const p=posts.find(x=>x.id===b.dataset.bbDel);
+      if(!confirm(`Delete “${p.title}” and all its read receipts for good? (Archive keeps it.)`)) return;
+      const {error}=await sb.from('bulletin_posts').delete().eq('id',p.id); if(error) return alert('Could not delete: '+errMsg(error));
+      if(editingId===p.id) editingId=null; await load();
+    });
+  }
+
+  /* ---------------- POP-UP (urgent / nudged) ---------------- */
+  function popupQueue(){
+    if(!loadedOk||isAdm()) return [];
+    return sortPosts(posts.filter(p=>isLive(p)&&(p.urgent||p.nudged_at)).filter(p=>{ const r=myRead(p.id); return p.require_ack?!(r&&r.acked_at):!r; }));
+  }
+  function showPopup(){
+    if(popupOpen) return; const q=popupQueue(); if(!q.length) return;
+    const p=q[0]; popupOpen=true;
+    const ov=document.createElement('div'); ov.className='bb-ov'; ov.id='bbPopup';
+    ov.innerHTML=`<div class="bb-modal card" style="background:var(--card2)"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 6px 2px">📌 From your PM${q.length>1?` · 1 of ${q.length}`:''}</div>${postCard(p,{})}<div class="row" style="justify-content:flex-end;margin-top:10px;gap:8px"><span class="muted" id="bbPopMsg" style="font-size:12px"></span><button class="btn btn-gold" id="bbPopOk">👍 Got it</button></div></div>`;
+    document.body.appendChild(ov);
+    const inner=ov.querySelector('[data-bb-ack]'); if(inner) inner.closest('.bb-foot').remove();
+    $('bbPopOk').onclick=async()=>{
+      $('bbPopOk').disabled=true;
+      try{ await mark([p.id],p.require_ack); ov.remove(); popupOpen=false; paintBadge(); if(view==='v-portal') renderStaff(new Set()); showPopup(); }
+      catch(e){ $('bbPopOk').disabled=false; $('bbPopMsg').textContent='Could not save: '+errMsg(e); }
+    };
+  }
+
+  /* ---------------- ENTRY POINTS ---------------- */
+  async function load(){
+    const host=$('bbBoard'); if(!host||!me) return;
+    if(!loadedOk) host.innerHTML='<div class="card"><div class="muted">Loading bulletin board…</div></div>';
+    try{ if(await fetchAll()===false) return; }
+    catch(e){ host.innerHTML=`<div class="card"><h3 style="font-size:15px">📌 PM Bulletin Board</h3><div class="note" style="margin-top:8px">${esc(errMsg(e))}</div></div>`; return; }
+    if(isAdm()){ renderAdmin(); return; }
+    const unseen=posts.filter(p=>isLive(p)&&!myRead(p.id)).map(p=>p.id);
+    renderStaff(new Set(unseen));
+    if(unseen.length){ try{ await mark(unseen,false); }catch(e){ console.warn('bulletin_mark failed',e); } }
+    paintBadge();
+  }
+  async function refresh(){
+    try{ await fetchAll(); }catch(e){ if(!setupMissing) console.warn('bulletin refresh failed',e); return; }
+    paintBadge(); showPopup();
+  }
+  async function onStart(){
+    if(!me||isAdm()) return;
+    await refresh();
+    if(!pollTimer) pollTimer=setInterval(()=>{ if(me&&!isAdm()&&!document.hidden) refresh(); },300000);
+  }
+  window.Bulletin={load,paintBadge,onStart,refresh,_state:()=>({posts,reads,loadedOk,setupMissing}),_audienceStaff:audienceStaff,_popupQueue:popupQueue};
+})();
+
+(function(){
+  /* ---------------- ANNUAL PERFORMANCE (shell) ---------------- */
+  const TENURE_MONTHS=6;
+  const esc=s=>escapeHtml(s==null?'':String(s));
+  function cycle(){ const y=Number(new Date().toLocaleString('en-CA',{timeZone:'Asia/Manila',year:'numeric'})); return {year:y,asOf:`${y}-11-30`}; }
+  function monthsBetween(fromIso,toIso){
+    const a=new Date(fromIso+'T00:00:00Z'), b=new Date(toIso+'T00:00:00Z');
+    let m=(b.getUTCFullYear()-a.getUTCFullYear())*12+(b.getUTCMonth()-a.getUTCMonth());
+    const lastDay=new Date(Date.UTC(b.getUTCFullYear(),b.getUTCMonth()+1,0)).getUTCDate();
+    if(b.getUTCDate()<a.getUTCDate()&&b.getUTCDate()<lastDay) m--;
+    return m;
+  }
+  const fmtD=iso=>iso?new Date(iso+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric',year:'numeric'}):'';
+  function roster(){
+    const c=cycle();
+    const list=(staffList||[]).filter(s=>s.active&&s.role!=='admin').map(s=>{
+      const hire=s.hire_date?String(s.hire_date).slice(0,10):null;
+      const months=hire?monthsBetween(hire,c.asOf):null;
+      const client=(clients.find(x=>x.id===s.client_id)||{}).name||'— No client —';
+      return {s,hire,months,client,type:hire==null?'missing':(months>=TENURE_MONTHS?'annual':'dev')};
+    });
+    list.sort((a,b)=>a.client.localeCompare(b.client)||((a.hire||'9999')<(b.hire||'9999')?-1:(a.hire||'9999')>(b.hire||'9999')?1:0)||a.s.full_name.localeCompare(b.s.full_name));
+    return list;
+  }
+  /* Up to 3 peers each; same client first, then cross-client; nobody reviews more than 4 people. */
+  function suggestPeers(list){
+    const load=new Map(list.map(r=>[r.s.id,0])), out=new Map();
+    list.forEach(r=>{
+      const pick=[];
+      const pool=(same)=>list.filter(x=>x.s.id!==r.s.id&&!pick.includes(x)&&(load.get(x.s.id)<4)&&((x.s.client_id===r.s.client_id&&r.s.client_id!=null)===same))
+        .sort((a,b)=>load.get(a.s.id)-load.get(b.s.id)||((a.hire||'9999')<(b.hire||'9999')?-1:1));
+      for(const x of pool(true)){ if(pick.length>=3) break; pick.push(x); }
+      const sameN=pick.length;
+      for(const x of pool(false)){ if(pick.length>=3) break; pick.push(x); }
+      pick.forEach(x=>load.set(x.s.id,load.get(x.s.id)+1));
+      out.set(r.s.id,{peers:pick,cross:pick.length-sameN});
+    });
+    return out;
+  }
+  function staffHtml(){
+    return `<div class="card pr-soon"><div class="ic">🌱</div><h3>Annual Performance — coming soon</h3>
+      <div class="muted" style="font-size:13.5px;max-width:560px;margin:0 auto">We’re building a fair, three-way review so your growth is seen from every side — and so contract fee increases are tied to clear, shared standards.</div>
+      <ul><li>📝 <b>Self review</b> — your own take on your year and goals</li><li>🤝 <b>Peer feedback</b> — anonymous input from teammates</li><li>🧭 <b>PM review</b> — your project manager’s assessment and a 1-on-1</li><li>📅 <b>Reliability</b> — attendance counted automatically (approved PTO and PCH never count against you)</li><li>🎯 <b>Mid-year check-in</b> — goals only, no score</li></ul>
+      <div class="muted" style="font-size:12px;margin-top:14px">You’ll get a Bulletin Board post when the first review window opens.</div></div>`;
+  }
+  function adminHtml(){
+    const c=cycle(), list=roster(), peers=suggestPeers(list);
+    const nAnn=list.filter(r=>r.type==='annual').length, nDev=list.filter(r=>r.type==='dev').length, nMiss=list.filter(r=>r.type==='missing').length;
+    const short=list.filter(r=>peers.get(r.s.id).peers.length<3).length;
+    const rows=list.map(r=>{
+      const pr=peers.get(r.s.id);
+      const pill=r.type==='annual'?'<span class="pr-pill pr-ann">Annual appraisal</span>':r.type==='dev'?'<span class="pr-pill pr-dev">Development only</span>':'<span class="pr-pill pr-miss">Hire date missing</span>';
+      const peerTxt=pr.peers.length?pr.peers.map(x=>esc(x.s.full_name)+(x.s.client_id!==r.s.client_id?' <span class="pr-pill pr-x">other client</span>':'')).join(', '):'<span class="muted">—</span>';
+      const warn=pr.peers.length<3?' <span class="pr-pill pr-miss">under 3 → peer weight moves to admin</span>':'';
+      return `<tr><td>${esc(r.s.full_name)}</td><td>${esc(r.client)}</td><td>${r.hire?esc(fmtD(r.hire)):'<span class="muted">—</span>'}</td><td class="mono">${r.months==null?'—':Math.max(r.months,0)+' mo'}</td><td>${pill}</td><td style="min-width:260px">${peerTxt}${warn}</td></tr>`;
+    }).join('');
+    return `<div class="note">🚧 <b>In development.</b> Staff currently see a “Coming soon” page on this tab. Nothing here is saved or shown to staff yet — it’s a working preview so we can refine the review while the Bulletin Board is live.</div>
+    <div class="card"><div class="hdr"><h3 style="font-size:15px">Agreed framework — ${c.year} cycle</h3></div>
+      <div class="pr-w"><div><b>50%</b><span>Admin / PM review</span></div><div><b>20%</b><span>Peer feedback (needs 3+ responses, else moves to Admin)</span></div><div><b>10%</b><span>Self review</span></div><div><b>20%</b><span>Reliability (attendance, auto-calculated)</span></div></div>
+      <div class="bb-sec" style="margin:16px 0 8px">Company-wide timeline</div>
+      <div class="pr-tl"><div><b>Mid-year check-in</b>Goals only, no score</div><div><b>Nov</b>Self + peer reviews</div><div><b>Nov–Dec</b>Admin reviews + 1-on-1s</div><div><b>Dec</b>7-day acknowledge / reconsideration</div><div><b>First Jan cutoff</b>New contract fees take effect</div></div>
+      <div class="muted" style="font-size:12px;margin-top:12px;line-height:1.5">Rules locked so far: one company-wide cycle · fees never go down · staff with under ${TENURE_MONTHS} months by ${esc(fmtD(c.asOf))} get a development-only review (no raise this cycle) · peers picked by the system from the same client, you approve · Year End Bonus stays separate from performance. <b>Still open:</b> raise % bands and annual budget cap.</div></div>
+    <div class="pr-kpis"><div class="stat"><div class="k">Active staff</div><div class="v">${list.length}</div></div><div class="stat"><div class="k">Annual appraisal</div><div class="v" style="color:var(--teal)">${nAnn}</div></div><div class="stat"><div class="k">Development only</div><div class="v" style="color:var(--gold)">${nDev}</div></div><div class="stat"><div class="k">Needs attention</div><div class="v" style="color:var(--rose)">${nMiss+short}</div></div></div>
+    <div class="card"><div class="hdr"><h3 style="font-size:15px">Review type &amp; suggested peers</h3></div>
+      <div class="muted" style="font-size:12px;margin-bottom:8px">Tenure is measured on ${esc(fmtD(c.asOf))} (end of the review window). Suggested peers: up to 3 from the same client first, then other clients; nobody reviews more than 4 people. Suggestions only — peer approval comes in the next build.</div>
+      <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Client</th><th>Hire date</th><th>Tenure</th><th>Review type</th><th>Suggested peers</th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="muted">No active staff.</td></tr>'}</tbody></table></div></div>`;
+  }
+  function init(){
+    const host=$('prRoot'); if(!host||!me) return;
+    host.innerHTML=me.role==='admin'?adminHtml():staffHtml();
+  }
+  window.PerfReview={init,_roster:roster,_suggestPeers:suggestPeers,_monthsBetween:monthsBetween};
 })();
 </script>
 
