@@ -7860,7 +7860,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
    Admin: YTD tab ranking chart + pill per staff + excuse dates + preview card.
    Staff: Contractor Profile card, only when admin turns staff view ON (DB-enforced). */
 (function(){
-  const REL_LATE_GRACE_MIN=5, REL_MIN_TRACKED=40;
+  const REL_LATE_GRACE_MIN=5, REL_MIN_TRACKED=30;
   const REL_W={att:.60,punct:.25,brk:.15};
   const REL_ATT_PTS=[[80,1],[85,2],[90,3],[95,4],[98,5]];          // % → score (higher is better)
   const REL_LATE_PTS=[[0.5,5],[1,4],[2,3],[4,2],[8,1]];             // late log-ins per 20 tracked days
