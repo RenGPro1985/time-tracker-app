@@ -1013,6 +1013,11 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <table><thead><tr><th>Status</th><th>Billable</th><th>Allowance per instance (minutes)</th><th>Notes</th></tr></thead><tbody id="policyTable"></tbody></table>
         <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>, but only for time inside your shift window — time logged before your shift starts or after it ends is automatically non-billable. Select <b>Overtime</b> to bill time outside the shift window; Overtime has no cap and is always fully billable. Overtime started <b>before</b> your shift switches to Working automatically at your shift start. On top of that, minutes spent on a normal activity beyond its allowance are deducted from billable time (Overtime is never capped) — <b>this is checked per instance (each time you use that activity), not summed across the shift.</b> 15min Break allows up to 2 instances per shift (two uses less than 1hr apart count as one instance), 30min and 60min Break allow 1 instance per shift; any use beyond that limit is entirely non-billable. Personal, Bio and H2O Break have no instance limit. Set an allowance to 0 to never deduct.</div>
       </div>
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Activities by client</h3><button class="btn btn-gold" id="saveClientActs">Save client activities</button></div>
+        <div class="muted" style="font-size:12.5px;margin-bottom:10px">Turn a break off and staff assigned to that client won't see it on their Activity screen. Working, Bio Break, H2O Break, Meeting/Coaching and Overtime are always on. Staff with no client see everything.</div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Client</th><th style="text-align:center">Staff</th><th style="text-align:center">15min Break</th><th style="text-align:center">30min Break</th><th style="text-align:center">60min Break</th><th style="text-align:center">Personal Break</th></tr></thead><tbody id="clientActsTable"></tbody></table></div>
+        <div class="note" style="margin-top:12px">Changes apply to the <b>next</b> activity switch — a break already running keeps going until the staff member switches. Past timesheets and reports still show old entries. A client with 60min Break turned off can't have the "Unpaid 60m break" flag.</div>
+      </div>
     </section>
   </main>
 </div>
@@ -1062,6 +1067,9 @@ const SERVER_URL        = "https://time-tracker-app-95fe.onrender.com";        /
 
 const ACTIVITIES = ['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','H2O Break','Meeting/Coaching','Overtime'];const OVERTIME = 'Overtime';
 const NON_BILLABLE = ['60min Break'];
+const CLIENT_TOGGLE_ACTS=['15min Break','30min Break','60min Break','Personal Break'];
+function clientOffActs(clientId){return clientId?((clientActOff[clientId])||[]):[];}
+function myActivities(){const off=clientOffActs(me&&me.client_id);return ACTIVITIES.filter(a=>!off.includes(a));}
 /* Per-instance break policy (2026-09-22, applies from Sep 16, 2026 onward — everything here
    is calculated live from raw entries, so this takes effect automatically for any shift
    viewed/exported from that date forward, no backfill needed): the allowance caps each USE
@@ -1121,7 +1129,7 @@ const PH = 'Asia/Manila';
 const CONFIGURED = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SERVER_URL.startsWith('http');
 const sb = CONFIGURED ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 const $ = id => document.getElementById(id);
-let me=null, clients=[], staffList=[], smbRates={}, allowance={}, unpaidBreakClients=new Set(), curShift=null, curEntry=null, tickBase=0, sheetRows=[], sheetDetail=[];
+let me=null, clients=[], staffList=[], smbRates={}, allowance={}, unpaidBreakClients=new Set(), clientActOff={}, curShift=null, curEntry=null, tickBase=0, sheetRows=[], sheetDetail=[];
 
 /* ---------- secure Slack notifications (webhook URLs stay on Render) ---------- */
 const slackWarned=new Set();
@@ -2518,6 +2526,8 @@ async function start(){
   allowance=st?.value||{};
   const {data:ub}=await sb.from('settings').select('*').eq('key','unpaid_break_clients').maybeSingle();
   unpaidBreakClients=new Set((ub?.value?.ids)||[]);
+  const {data:ca}=await sb.from('settings').select('*').eq('key','client_activity_rules').maybeSingle();
+  clientActOff=(ca?.value?.disabled)||{};
   if(me.role==='admin'){const {data:sl}=await sb.from('staff').select('*').order('full_name'); staffList=sl||[]; await loadSmbRates();}
   else{staffList=[me];}
 
@@ -2714,7 +2724,7 @@ function setActTimer(name,digits){ const n=$('actName'), el=$('actTimer'); if(di
    4. PUNCH CLOCK (staff)
    ============================================================ */
 function renderActs(){
-  $('actGrid').innerHTML=ACTIVITIES.map(a=>{
+  $('actGrid').innerHTML=myActivities().map(a=>{
     const bill=!NON_BILLABLE.includes(a);
     return `<div class="act ${curEntry&&curEntry.activity===a?'on':''}" data-a="${a}">
       <div class="n">${a}</div>
@@ -2851,6 +2861,7 @@ function otAutoNotice(msg){
 async function switchActivity(act){
   if(!curShift) return alert('Press LOGIN first — activities only run inside a shift.');
   if(curEntry&&curEntry.activity===act) return;
+  if(clientOffActs(me&&me.client_id).includes(act)) return alert(act+' is turned off for your client.');
   if(switchBusy) return; // ignore a double-click/rapid re-tap while the previous switch is still in flight
   switchBusy=true;
   try{
@@ -2898,7 +2909,7 @@ async function renderToday(){
   $('sBill').textContent=hm(s.billable);$('sNon').textContent=hm(s.nonbillable);$('sTot').textContent=hm(s.total);
   const pct=s.total?Math.round(s.billable/s.total*100):0;
   $('sPct').textContent=s.total?pct+'%':'—';$('sBar').style.width=pct+'%';
-  $('breaks').innerHTML=['15min Break','30min Break','60min Break','Personal Break'].map(b=>{
+  $('breaks').innerHTML=['15min Break','30min Break','60min Break','Personal Break'].filter(b=>!clientOffActs(me&&me.client_id).includes(b)).map(b=>{
     const used=Math.round(s.per[b]||0),cap=Number(allowance[b]||0),w=cap?Math.min(100,used/cap*100):0,isOver=(s.overByAct[b]||0)>0;
     return `<div style="margin-bottom:10px"><div class="row" style="justify-content:space-between;font-size:12.5px"><span>${b}</span>
     <span class="mono muted">${used} / ${cap||'∞'} min</span></div>
@@ -3430,6 +3441,8 @@ $('saveClientTable').onclick=async()=>{
     };
   }).filter(Boolean);
   if(rows.some(r=>r.__invalid)){$('saveClientTable').disabled=false;$('clientSaveMsg').textContent='';return alert('Client name can\'t be blank.');}
+  const badUnpaid=rows.filter(r=>r.unpaid&&clientOffActs(r.id).includes('60min Break'));
+  if(badUnpaid.length){$('saveClientTable').disabled=false;$('clientSaveMsg').textContent='';return alert('"Unpaid 60m break" can\'t be ticked for '+badUnpaid.map(r=>r.name).join(', ')+' because 60min Break is turned off for that client (Rules → Activities by client).');}
   try{
     for(const r of rows){
       const {error}=await sb.from('clients').update({name:r.name,timezone:r.timezone,shift_start:r.shift_start,shift_end:r.shift_end,workdays:r.workdays}).eq('id',r.id);
@@ -4350,6 +4363,26 @@ function renderPolicy(){
     const {error}=await sb.from('settings').upsert({key:'break_allowance_minutes',value:v});
     if(error)return alert(error.message);
     allowance=v;renderPolicy();renderActs();alert('Saved.');
+  };
+  renderClientActs();
+}
+function renderClientActs(){
+  const tb=$('clientActsTable'); if(!tb) return;
+  const counts={};(staffList||[]).forEach(p=>{if(p.active!==false&&p.role!=='admin'&&p.client_id)counts[p.client_id]=(counts[p.client_id]||0)+1;});
+  tb.innerHTML=(clients||[]).map(c=>{const off=clientOffActs(c.id);
+    return `<tr><td><b>${escapeHtml(c.name||'')}</b></td><td class="muted" style="text-align:center">${counts[c.id]||0}</td>`+
+      CLIENT_TOGGLE_ACTS.map(a=>`<td style="text-align:center"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" data-cact="${c.id}" data-act="${a}" ${off.includes(a)?'':'checked'} style="width:auto"><span class="muted" style="font-size:11.5px">${off.includes(a)?'Off':'On'}</span></label></td>`).join('')+`</tr>`;}).join('')
+    +`<tr><td class="muted"><i>No client assigned</i></td><td class="muted" style="text-align:center">—</td><td colspan="4" class="muted" style="text-align:center;font-size:12px">All activities shown</td></tr>`;
+  tb.querySelectorAll('[data-cact]').forEach(i=>i.onchange=()=>{i.nextElementSibling.textContent=i.checked?'On':'Off';});
+  $('saveClientActs').onclick=async()=>{
+    const dis={};tb.querySelectorAll('[data-cact]').forEach(i=>{if(!i.checked)(dis[i.dataset.cact]=dis[i.dataset.cact]||[]).push(i.dataset.act);});
+    const clash=(clients||[]).filter(c=>unpaidBreakClients.has(c.id)&&(dis[c.id]||[]).includes('60min Break'));
+    if(clash.length)return alert('60min Break can\'t be turned off for '+clash.map(c=>c.name).join(', ')+' while "Unpaid 60m break" is ticked. Untick it in Staff & Clients first.');
+    $('saveClientActs').disabled=true;
+    const {error}=await sb.from('settings').upsert({key:'client_activity_rules',value:{disabled:dis}});
+    $('saveClientActs').disabled=false;
+    if(error)return alert(error.message);
+    clientActOff=dis;renderClientActs();renderActs();alert('Saved.');
   };
 }
 
