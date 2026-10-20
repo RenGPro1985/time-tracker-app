@@ -320,6 +320,10 @@ button.btn{padding:7px 12px;font-size:12px}
 @media(max-width:820px){.ytd-table{min-width:975px}}
 @media(max-width:560px){.ytd-table th:nth-child(1),.ytd-table td:nth-child(1){width:230px}}
 
+.roster-scroll{max-height:62vh;overflow:auto;border:1px solid var(--line);border-radius:12px}
+.roster-scroll thead th{position:sticky;top:0;z-index:3;background:var(--card2,#151a26);box-shadow:inset 0 -1px 0 var(--line)}
+.roster-scroll tbody td:first-child,.roster-scroll thead th:first-child{position:sticky;left:0;background:var(--card);z-index:2}
+.roster-scroll thead th:first-child{z-index:4;background:var(--card2,#151a26)}
 </style>
 </head>
 <body>
@@ -630,6 +634,7 @@ button.btn{padding:7px 12px;font-size:12px}
 
     <!-- ---------- ADMIN: STAFF & CLIENTS ---------- -->
     <section id="v-staff" class="hide grid" style="gap:16px">
+      <div class="row" id="scSubStaff" style="gap:6px;flex-wrap:wrap"><button class="btn btn-gold" onclick="go('v-staff')">👥 Staff &amp; Clients</button><button class="btn btn-ghost" onclick="go('v-policy')">⚙️ Rules</button></div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Staff roster</h3>
           <div class="row" style="gap:8px">
@@ -665,7 +670,7 @@ button.btn{padding:7px 12px;font-size:12px}
             <div class="mono" id="addPwVal" style="font-size:18px;margin-top:6px;color:var(--teal)"></div>
           </div>
         </div>
-        <table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Term / Resignation</th><th>Tenure</th><th>Client</th><th>Monthly rate</th><th title="Calculated as (Monthly rate / 22) / 8">PHP Rate</th><th title="Hourly rate in US dollars">USD Rate</th><th title="Hourly rate in US dollars the client pays SMB for this person">SMB Rate</th><th title="What a full standard month pays: contract fee + estimated night differential + monthly benefits. Same total the staff sees on My Contract Fee. Hover a value for the breakdown.">Monthly Contract Fee</th><th title="Unticking removes them from Timesheets, the Contractor Ledger, and SMB Benefits staff pickers without deleting their account or history.">Active</th><th></th></tr></thead><tbody id="staffTable"></tbody></table>
+        <div class="roster-scroll"><table><thead><tr><th>Name</th><th>Username</th><th>Hire date</th><th>Term / Resignation</th><th>Tenure</th><th>Client</th><th>Monthly rate</th><th title="Calculated as (Monthly rate / 22) / 8">PHP Rate</th><th title="Hourly rate in US dollars">USD Rate</th><th title="Hourly rate in US dollars the client pays SMB for this person">SMB Rate</th><th title="What a full standard month pays: contract fee + estimated night differential + monthly benefits. Same total the staff sees on My Contract Fee. Hover a value for the breakdown.">Monthly Contract Fee</th><th title="Unticking removes them from Timesheets, the Contractor Ledger, and SMB Benefits staff pickers without deleting their account or history.">Active</th><th></th></tr></thead><tbody id="staffTable"></tbody></table></div>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Bulk add staff</h3><button class="btn btn-ghost" id="toggleBulk">Open</button></div>
@@ -1009,6 +1014,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 
     <!-- ---------- ADMIN: POLICY ---------- -->
     <section id="v-policy" class="hide grid" style="gap:16px">
+      <div class="row" id="scSubRules" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-staff')">👥 Staff &amp; Clients</button><button class="btn btn-gold" onclick="go('v-policy')">⚙️ Rules</button></div>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Activity &amp; billing rules</h3><button class="btn btn-gold" id="savePolicy">Save allowances</button></div>
         <table><thead><tr><th>Status</th><th>Billable</th><th>Allowance per instance (minutes)</th><th>Notes</th></tr></thead><tbody id="policyTable"></tbody></table>
         <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>, but only for time inside your shift window — time logged before your shift starts or after it ends is automatically non-billable. Select <b>Overtime</b> to bill time outside the shift window; Overtime has no cap and is always fully billable. Overtime started <b>before</b> your shift switches to Working automatically at your shift start. On top of that, minutes spent on a normal activity beyond its allowance are deducted from billable time (Overtime is never capped) — <b>this is checked per instance (each time you use that activity), not summed across the shift.</b> 15min Break allows up to 2 instances per shift (two uses less than 1hr apart count as one instance), 30min and 60min Break allow 1 instance per shift; any use beyond that limit is entirely non-billable. Personal, Bio and H2O Break have no instance limit. Set an allowance to 0 to never deduct.</div>
@@ -2589,7 +2595,7 @@ document.addEventListener('click',e=>{ if(!$('notifPanel').contains(e.target)&&e
 const PAGES={
   'v-punch' :['🕒 Time Tracker','Time Tracker','Your shift, activities and totals'],
   'v-status':['📡 Live Status','Live Status','Who is on shift right now'],
-  'v-staff' :['👥 Staff & Clients','Staff & Clients','Add or remove staff, manage client shifts'],
+  'v-staff' :['👥 Staff & Clients','Staff & Clients','Add or remove staff, manage client shifts · Rules tab for activity & billing rules'],
   'v-benefits':['🎁 SMB Benefits','SMB Benefits','Nominate standing allowance & bonus rules — amount, payout window, and eligible staff'],
   'v-adjustments':['➕ PHP Adjustments','PHP Adjustments','Five adjustment rules + the integrated Fee Advance ledger'],
   'v-sheets':['📄 Admin Timesheets (BW)','Admin Timesheets (BW)','Filter by pay period and export'],
@@ -2598,10 +2604,10 @@ const PAGES={
   'v-ledger':['🧾 Contractor Ledger','Contractor Ledger','Semi-monthly hours & pay pulled from the time tracker'],
   'v-invoice':['📄 Client Invoice','Client Invoice','Bi-weekly invoice built from the Timesheets Daily Hours Grid, per client'],
   'v-earning':['💰 SMB PH Earning','SMB PH Earning','Admin-only immutable per-semi-monthly-period FX + VSPH/ROI/margin LOCK IN'],
-  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 PHP & PTO Requests','PHP & PTO Requests','Review and approve staff requests'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-eod':['📝 EOD & Weekly','EOD & Weekly Reports','Daily EOD and Friday weekly report — only you and Rendy can see them'], 'v-rewards':['🎟️ Rewards (Shadow)','Rewards (Shadow)','Tokens each agent would earn — admins only, nothing is paid out yet'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
+  'v-policy':['⚙️ Rules','Staff & Clients · Rules','Billable rules, break allowances and activities by client'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 PHP & PTO Requests','PHP & PTO Requests','Review and approve staff requests'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-eod':['📝 EOD & Weekly','EOD & Weekly Reports','Daily EOD and Friday weekly report — only you and Rendy can see them'], 'v-rewards':['🎟️ Rewards (Shadow)','Rewards (Shadow)','Tokens each agent would earn — admins only, nothing is paid out yet'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
 };
 let view='v-punch';
-const ADMIN_NAV_DEFAULT=['v-rewards','v-status','v-punch','v-eod','v-staff','v-policy','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-invoice','v-earning','v-reqadmin','v-portal','v-perf','v-ytd','v-pto'];
+const ADMIN_NAV_DEFAULT=['v-rewards','v-status','v-punch','v-eod','v-staff','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-invoice','v-earning','v-reqadmin','v-portal','v-perf','v-ytd','v-pto'];
 let adminNavOrder=null, navArranging=false, navArrDraft=null, navFirstBuild=true;
 /* saved order -> valid order: drop unknown/duplicate ids, append any new tabs at the end */
 function normalizeNavOrder(saved){
@@ -2638,7 +2644,7 @@ function buildNav(){
   if(navFirstBuild){ navFirstBuild=false; if(isAdmin) view='v-status'; }
   $('navArrange').classList.toggle('hide',!isAdmin);
   navArranging=false; navArrDraft=null; renderNavArrangeBar();
-  $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view?'on':''}">${PAGES[id][0]}</button>`).join('');
+  $('nav').innerHTML = ids.map(id=>`<button data-v="${id}" class="${id===view||(view==='v-policy'&&id==='v-staff')?'on':''}">${PAGES[id][0]}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   go(view);
   window.Bulletin?.paintBadge();
@@ -2690,7 +2696,7 @@ function go(v){
   Object.keys(PAGES).forEach(id=>{const el=$(id); if(el) el.classList.add('hide');});
   $(v).classList.remove('hide');
   $('pageTitle').textContent=PAGES[v][1]; $('pageSub').textContent=PAGES[v][2];
-  $('nav').querySelectorAll('button').forEach(b=>b.className=(b.dataset.v===v?'on':''));
+  $('nav').querySelectorAll('button').forEach(b=>b.className=(b.dataset.v===v||(v==='v-policy'&&b.dataset.v==='v-staff')?'on':''));
   if(v==='v-status'){initFilters();loadRoster();}
   if(v==='v-staff'){renderStaffAdmin();}
   if(v==='v-benefits'){renderBenefits();}
@@ -8396,7 +8402,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
 /* ============================================================================
    EOD & Weekly Reports (tab v-eod) — Rendy 2026-10-19
    Staff: daily EOD (numbers per client, goal this week, highlights, lowlights,
-   blockers, optional task list/link, not-feeling-well flag), weekly report due
+   blockers, optional task list/link, required mood of the day), weekly report due
    Friday end of shift, personal log. Only the staff member + admins can read.
    Admin: board (staff x day), per-client digest, report tokens (SHADOW), settings.
    All writes go through eod_* server functions. Logout gate + 15-min reminder.
@@ -8414,6 +8420,10 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   const isAdmin=()=>me&&me.role==='admin';
   const clientName=id=>((clients||[]).find(c=>c.id===id)||{}).name||'—';
   const staffName=id=>((staffList||[]).find(s=>s.id===id)||{}).full_name||'—';
+  const MOODS=[['great','🤩','Great'],['good','🙂','Good'],['okay','😐','Okay'],['rough','😓','Rough'],['sick','🤒','Not well']];
+  const moodOf=k=>MOODS.find(m=>m[0]===k);
+  const moodEmo=k=>{const m=moodOf(k); return m?m[1]:'';};
+  const moodLow=k=>k==='rough'||k==='sick';
   const errMsg=e=>String(e&&e.message||e||'').replace(/^EOD_REQUIRED:\s*/,'');
 
   /* ---------- styles ---------- */
@@ -8442,6 +8452,13 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   .eod-ov .card{width:100%;max-width:720px;max-height:calc(100vh - 40px);overflow:auto;margin:auto}
   .eod-banner{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:79;background:var(--card2);border:1px solid var(--gold);border-radius:14px;padding:12px 16px;display:flex;gap:14px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:92vw}
   .eod-log tr{cursor:pointer}.eod-log tr:hover td{background:rgba(255,255,255,.03)}
+  .eod-mood{display:flex;gap:8px;flex-wrap:wrap}
+  .eod-mood button{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:64px;padding:8px 10px;border-radius:12px;box-shadow:inset 0 0 0 1px var(--line);font-size:11.5px;color:var(--muted)}
+  .eod-mood button span{font-size:22px;line-height:1}
+  .eod-mood button.on{box-shadow:inset 0 0 0 2px var(--gold);background:rgba(227,166,62,.12);color:var(--ink);font-weight:600}
+  .eod-mood button[disabled]{cursor:default;opacity:.7}
+  .eod-cell.low{box-shadow:0 0 0 2px var(--rose)}.eod-cell.low.unread{box-shadow:0 0 0 2px var(--rose),0 0 0 4px var(--gold)}
+  .eod-strip{display:flex;gap:3px;flex-wrap:wrap;font-size:16px;line-height:1}.eod-strip i{font-style:normal;width:22px;text-align:center}
   .eod-dig h4{margin:14px 0 6px;font-size:13px}.eod-dig .it{font-size:12.5px;line-height:1.5;margin:3px 0}
   `;
   function injectCss(){ if(document.getElementById('eodCss')) return; const s=document.createElement('style'); s.id='eodCss'; s.textContent=css; document.head.appendChild(s); }
@@ -8521,6 +8538,10 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
           <div class="note" style="margin-top:10px;font-size:12.5px">${ctxNote}</div>
           ${r.emergency_reason?`<div class="note" style="margin-top:8px;border-color:var(--rose);font-size:12.5px">Emergency log out: “${esc(r.emergency_reason)}” — this EOD counts as Late.</div>`:''}
           ${locked?'<div class="note" style="margin-top:8px;border-color:var(--slate);font-size:12.5px">Locked — EODs can be edited up to 12 hours after logout.</div>':''}
+          <div class="eod-sec gl"><label>💬 How was today? <span class="eod-hint">required — only Rendy sees this</span></label>
+            <div class="eod-mood">${MOODS.map(([k,e,l])=>`<button type="button" data-mood="${k}" class="${r.mood===k?'on':''}" ${dis}><span>${e}</span>${l}</button>`).join('')}</div>
+            <input id="eodMoodNote" style="margin-top:8px" maxlength="200" placeholder="Why? (optional, one line)" value="${esc(r.mood_note||'')}" ${dis}>
+            ${r.mood==='sick'&&!locked?'<div class="muted" style="font-size:12px;margin-top:6px">Pagaling ka! If you need a day off, file a leave under Request.</div>':''}</div>
           ${mets.length?`<div class="eod-sec bl"><label>📊 Today’s numbers <span class="eod-hint">type n/a if none</span></label>
             <div class="eod-nums">${mets.map(m=>`<div><span>${esc(m)}</span><input data-num="${esc(m)}" value="${esc((r.numbers||{})[m]||'')}" maxlength="40" ${dis}></div>`).join('')}</div></div>`:''}
           <div class="eod-sec gl"><label>🎯 Goal this week <span class="eod-hint">set it once, it carries all week</span></label>
@@ -8531,8 +8552,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
           <div class="eod-sec"><label>✨ Highlights <span class="eod-hint">wins, good moments, stories — English or Taglish</span></label>
             <textarea id="eodHi" rows="4" maxlength="4000" ${dis}>${esc(r.highlights||'')}</textarea></div>
           <div class="eod-sec lo"><label>🌧️ Lowlights <span class="eod-hint">what didn’t go well, at work or in life</span></label>
-            <textarea id="eodLo" rows="3" maxlength="4000" ${dis}>${esc(r.lowlights||'')}</textarea>
-            <label class="row" style="gap:8px;margin-top:8px;font-weight:400;font-size:12.5px;cursor:pointer;align-items:center"><input type="checkbox" id="eodSick" style="width:auto" ${r.not_well?'checked':''} ${dis}> 🤒 I’m not feeling well <span class="muted">(Rendy gets flagged — file a leave under Request if you need a day off)</span></label></div>
+            <textarea id="eodLo" rows="3" maxlength="4000" ${dis}>${esc(r.lowlights||'')}</textarea></div>
           <div class="eod-sec bl"><label>🚧 Blockers <span class="eod-hint">who do you need help from? Leave blank if none</span></label>
             <textarea id="eodBl" rows="2" maxlength="4000" ${dis}>${esc(r.blockers||'')}</textarea></div>
           <div class="eod-sec tk"><label>📋 What I worked on <span class="eod-hint">optional — one task per line</span></label>
@@ -8570,7 +8590,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const g=document.querySelector('#eodForm [data-goal].on');
     return {report_date:E.state.ctx.date, shift_id:E.state.ctx.shift?E.state.ctx.shift.id:null, numbers:nums,
       goal_status:g?g.dataset.goal:null, highlights:$('eodHi').value, lowlights:$('eodLo').value, blockers:$('eodBl').value,
-      tasks:$('eodTk').value, link:$('eodLink').value, not_well:$('eodSick').checked};
+      tasks:$('eodTk').value, link:$('eodLink').value, mood:(document.querySelector('#eodForm [data-mood].on')||{dataset:{}}).dataset.mood||null, mood_note:$('eodMoodNote').value};
   }
   async function saveReport(submit){
     const p=collectForm(); p.submit=!!submit;
@@ -8587,12 +8607,14 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const msg=(s,color)=>{const m=$('eodMsg'); if(m){m.textContent=s; m.style.color=color||'';}};
     const autosave=()=>{ if(submitted) return; clearTimeout(t); t=setTimeout(async()=>{ if(busy) return; busy=true; try{ await saveReport(false); msg('Draft saved '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})); }catch(e){ msg('Could not autosave: '+errMsg(e),'var(--rose)'); } finally{busy=false;} },1800); };
     root.querySelectorAll('#eodForm textarea, #eodForm [data-num], #eodLink').forEach(el=>el.addEventListener('input',autosave));
-    $('eodSick').onchange=autosave;
+    $('eodMoodNote').addEventListener('input',autosave);
+    root.querySelectorAll('#eodForm [data-mood]').forEach(b=>b.onclick=()=>{ root.querySelectorAll('#eodForm [data-mood]').forEach(x=>x.classList.remove('on')); b.classList.add('on'); autosave(); });
     root.querySelectorAll('#eodForm [data-goal]').forEach(b=>b.onclick=()=>{ const on=b.classList.contains('on'); root.querySelectorAll('#eodForm [data-goal]').forEach(x=>x.classList.remove('on')); if(!on) b.classList.add('on'); autosave(); });
     $('eodGoal').onchange=async()=>{ try{ const {data,error}=await sb.rpc('eod_set_goal',{p_week_start:E.state.week,p_goal:$('eodGoal').value}); if(error) throw error; E.state.goal=data&&data.goal?data:null; msg('Goal saved for the week.'); }catch(e){ msg('Could not save goal: '+errMsg(e),'var(--rose)'); } };
     const d=$('eodDraft'); if(d) d.onclick=async()=>{ try{ await saveReport(false); msg('Draft saved.'); }catch(e){ msg(errMsg(e),'var(--rose)'); } };
     $('eodSubmit').onclick=async()=>{
       const b=$('eodSubmit'); b.disabled=true; clearTimeout(t);
+      if(!document.querySelector('#eodForm [data-mood].on')){ msg('Please pick how your day was (💬 How was today?).','var(--rose)'); b.disabled=false; return; }
       try{ if($('eodGoal').value.trim()!==(E.state.goal?E.state.goal.goal:'')) await $('eodGoal').onchange();
         await saveReport(true); E.hideBanner(); msg(submitted?'Changes saved.':'EOD sent. Salamat! 🙌','var(--teal)'); setTimeout(()=>renderStaff(root),900); }
       catch(e){ msg(errMsg(e),'var(--rose)'); b.disabled=false; }
@@ -8672,14 +8694,14 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const body=$('eodLogBody'); if(!body) return;
     q=(q||'').toLowerCase().trim();
     const rows=logRows().filter(x=>!q||JSON.stringify(x.r).toLowerCase().includes(q));
-    body.innerHTML=rows.map((x,i)=>`<tr data-i="${i}"><td>${x.kind==='weekly'?'Wk '+fmtShort(x.date):fmtShort(x.date)}</td><td>${x.kind==='weekly'?'Weekly':'EOD'}</td><td>${statusChipFor(x.r)}</td><td style="font-size:12px">${x.r.starred?'⭐ ':''}${x.r.admin_comment?'💬 ':''}${x.r.not_well?'🤒 ':''}${x.r.admin_read_at?'<span class="muted">✓ Read</span>':''}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">No reports yet.</td></tr>';
+    body.innerHTML=rows.map((x,i)=>`<tr data-i="${i}"><td>${x.kind==='weekly'?'Wk '+fmtShort(x.date):fmtShort(x.date)}</td><td>${x.kind==='weekly'?'Weekly':'EOD'}</td><td>${statusChipFor(x.r)}</td><td style="font-size:12px">${x.r.starred?'⭐ ':''}${x.r.admin_comment?'💬 ':''}${x.r.mood?moodEmo(x.r.mood)+' ':''}${x.r.admin_read_at?'<span class="muted">✓ Read</span>':''}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">No reports yet.</td></tr>';
     body.querySelectorAll('tr[data-i]').forEach(tr=>tr.onclick=()=>{ const x=rows[+tr.dataset.i]; openViewer(x.kind,x.r); });
   }
   function reportHtml(kind,r,withName){
     const sec=(t,v,color)=>v?`<div class="eod-sec ${color||''}" style="margin-top:12px"><label>${t}</label><div style="font-size:13px;line-height:1.55">${nl(v)}</div></div>`:'';
     const nums=Object.entries((kind==='eod'?r.numbers:r.totals)||{});
     return `${withName?`<div style="font-weight:600;margin-bottom:4px">${esc(staffName(r.staff_id))} · ${esc(clientName(r.client_id))}</div>`:''}
-      <div class="row" style="gap:6px;flex-wrap:wrap">${statusChipFor(r)}${r.not_well?'<span class="eod-chip miss">🤒 Not feeling well</span>':''}${r.goal_status?`<span class="eod-chip">${{on_track:'Goal: on track',at_risk:'Goal: at risk',done:'Goal: done'}[r.goal_status]}</span>`:''}${r.goal_result?`<span class="eod-chip">Goal ${r.goal_result}</span>`:''}${r.submitted_at?`<span class="muted" style="font-size:12px">Sent ${fmtTs(r.submitted_at)}</span>`:''}</div>
+      <div class="row" style="gap:6px;flex-wrap:wrap">${statusChipFor(r)}${r.mood?`<span class="eod-chip ${moodLow(r.mood)?'miss':''}">${moodEmo(r.mood)} ${esc(moodOf(r.mood)[2])}${r.mood_note?' — '+esc(r.mood_note):''}</span>`:''}${r.goal_status?`<span class="eod-chip">${{on_track:'Goal: on track',at_risk:'Goal: at risk',done:'Goal: done'}[r.goal_status]}</span>`:''}${r.goal_result?`<span class="eod-chip">Goal ${r.goal_result}</span>`:''}${r.submitted_at?`<span class="muted" style="font-size:12px">Sent ${fmtTs(r.submitted_at)}</span>`:''}</div>
       ${r.emergency_reason?`<div class="note" style="margin-top:10px;border-color:var(--rose);font-size:12.5px">Emergency log out ${fmtTs(r.emergency_at)}: “${esc(r.emergency_reason)}”</div>`:''}
       ${nums.length?`<div class="eod-nums" style="margin-top:12px">${nums.map(([k,v])=>`<div class="stat" style="padding:10px"><div class="k">${esc(k)}</div><div class="v" style="font-size:18px">${esc(v)}</div></div>`).join('')}</div>`:''}
       ${sec('✨ Highlights',r.highlights)}${sec('🌧️ Lowlights',r.lowlights,'lo')}${sec('🚧 Blockers',r.blockers,'bl')}${sec('📋 What I worked on',r.tasks,'tk')}
@@ -8695,6 +8717,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const adm=isAdmin();
     const ov=overlay(`<div class="hdr" style="display:flex;justify-content:space-between;align-items:center"><h3 style="font-size:15px">${title}</h3><button class="btn btn-ghost" data-x>Close</button></div>
       <div style="margin-top:10px">${reportHtml(kind,r,adm)}</div>
+      ${adm?`<div style="margin-top:14px"><label style="font-size:12px;color:var(--muted)">Mood · last 4 weeks</label><div class="eod-strip" id="eodStrip"><span class="muted" style="font-size:12px">Loading…</span></div></div>`:''}
       ${adm?`<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px"><label style="font-size:12px;color:var(--muted)">Reply to ${esc(staffName(r.staff_id))} (they see this in their log)</label>
         <textarea id="eodCmt" rows="3" maxlength="2000">${esc(r.admin_comment||'')}</textarea>
         <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-gold" data-a="comment">Save reply</button><button class="btn btn-ghost" data-a="${r.starred?'unstar':'star'}">${r.starred?'☆ Remove star':'⭐ Star (+3 shadow)'}</button><button class="btn btn-ghost" data-a="${r.admin_read_at?'unread':'read'}">${r.admin_read_at?'Mark unread':'✓ Mark read'}</button><span class="eod-msg muted" id="eodCmtMsg"></span></div></div>`
@@ -8702,10 +8725,21 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     ov.querySelector('[data-x]').onclick=()=>ov.remove();
     if(adm){
       if(!r.admin_read_at&&r.status==='submitted') review(kind,r,'read').catch(()=>{});
+      moodStrip(r.staff_id).catch(()=>{ const el=$('eodStrip'); if(el) el.innerHTML='<span class="muted" style="font-size:12px">Could not load.</span>'; });
       ov.querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{
         try{ await review(kind,r,b.dataset.a,$('eodCmt').value); ov.remove(); }catch(e){ $('eodCmtMsg').textContent=errMsg(e); $('eodCmtMsg').style.color='var(--rose)'; }
       });
     }
+  }
+  async function moodStrip(staffId){
+    const today=phDate(new Date()), from=addDays(today,-27);
+    const {data,error}=await sb.from('eod_reports').select('report_date,mood,mood_note').eq('staff_id',staffId).gte('report_date',from).order('report_date');
+    if(error) throw error;
+    const el=$('eodStrip'); if(!el) return;
+    const rows=(data||[]).filter(x=>x.mood);
+    el.innerHTML=rows.length?rows.map(x=>`<i title="${esc(fmtDate(x.report_date)+' · '+moodOf(x.mood)[2]+(x.mood_note?' — '+x.mood_note:''))}">${moodEmo(x.mood)}</i>`).join('')
+      +`<span class="muted" style="font-size:11px;align-self:center;margin-left:6px">${fmtShort(rows[0].report_date)} → ${fmtShort(rows[rows.length-1].report_date)} · hover for date</span>`
+      :'<span class="muted" style="font-size:12px">No moods yet.</span>';
   }
   async function review(kind,r,action,comment){
     const {data,error}=await sb.rpc('eod_admin_review',{p_kind:kind,p_id:r.id,p_action:action,p_comment:comment||null});
@@ -8768,8 +8802,9 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const staff=adminStaff(), ids=new Set(staff.map(s=>s.id));
     const reps=E.adm.reports.filter(r=>ids.has(r.staff_id)), sent=reps.filter(r=>r.status==='submitted');
     const unread=sent.filter(r=>!r.admin_read_at).length+E.adm.weeklies.filter(w=>ids.has(w.staff_id)&&w.status==='submitted'&&!w.admin_read_at).length;
-    const sick=sent.filter(r=>r.not_well).length, blk=sent.filter(r=>r.blockers).length;
-    $('eodAStat').innerHTML=`<span class="eod-chip ok">${sent.length} EODs sent</span><span class="eod-chip late">${sent.filter(r=>!r.on_time).length} late</span><span class="eod-chip ${unread?'late':''}">${unread} unread</span><span class="eod-chip ${sick?'miss':''}">🤒 ${sick} not feeling well</span><span class="eod-chip">🚧 ${blk} with blockers</span>`;
+    const blk=sent.filter(r=>r.blockers).length, low=sent.filter(r=>moodLow(r.mood)).length;
+    const mix=MOODS.map(([k,e])=>[e,sent.filter(r=>r.mood===k).length]).filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ');
+    $('eodAStat').innerHTML=`<span class="eod-chip ok">${sent.length} EODs sent</span><span class="eod-chip late">${sent.filter(r=>!r.on_time).length} late</span><span class="eod-chip ${unread?'late':''}">${unread} unread</span><span class="eod-chip">Mood: ${mix||'—'}</span><span class="eod-chip ${low?'miss':''}">😓🤒 ${low} rough / not well</span><span class="eod-chip">🚧 ${blk} with blockers</span>`;
     const t=E.adm.tab;
     if(t==='board') paintBoard(body,staff);
     else if(t==='digest') paintDigest(body,staff);
@@ -8793,11 +8828,11 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
         const w=E.adm.weeklies.find(x=>x.staff_id===s.id), g=E.adm.goals.find(x=>x.staff_id===s.id);
         return head+`<tr><td>${esc(s.full_name)}</td>${cols.map(d=>{const r=E.adm.reports.find(x=>x.staff_id===s.id&&x.report_date===d); const c=cellFor(r);
           if(!c) return `<td class="muted">${d<today?'—':''}</td>`;
-          return `<td><button class="eod-cell eod-chip ${c.cls} ${r.status==='submitted'&&!r.admin_read_at?'unread':''}" data-id="${r.id}">${c.t}${r.not_well?' 🤒':''}${r.starred?' ⭐':''}${r.blockers?' 🚧':''}${r.admin_comment?' 💬':''}</button></td>`;}).join('')}
+          return `<td><button class="eod-cell eod-chip ${c.cls} ${r.status==='submitted'&&!r.admin_read_at?'unread':''} ${r.status==='submitted'&&moodLow(r.mood)?'low':''}" data-id="${r.id}" title="${r.mood_note?esc(r.mood_note):''}">${c.t}${r.mood?' '+moodEmo(r.mood):''}${r.starred?' ⭐':''}${r.blockers?' 🚧':''}${r.admin_comment?' 💬':''}</button></td>`;}).join('')}
           <td>${w?`<button class="eod-cell eod-chip ${w.status==='submitted'?(w.on_time?'ok':'late'):''} ${w.status==='submitted'&&!w.admin_read_at?'unread':''}" data-wid="${w.id}">${w.status==='submitted'?(w.on_time?'✓':'Late'):'Draft'}${w.starred?' ⭐':''}</button>`:'<span class="muted">—</span>'}</td>
           <td style="text-align:left;font-size:12px;max-width:260px">${g?esc(g.goal):'<span class="muted">—</span>'}</td></tr>`;}).join('')||`<tr><td colspan="${cols.length+3}" class="muted">No staff.</td></tr>`}
       </tbody></table></div>
-      <div class="muted" style="font-size:11.5px;margin-top:10px">Gold ring = not read yet. 🤒 not feeling well · 🚧 has blockers · ⭐ starred · 💬 you replied · ⚡ Out = emergency log out, EOD not sent yet. Click any cell to open the report.</div>`;
+      <div class="muted" style="font-size:11.5px;margin-top:10px">Gold ring = not read yet · red ring = 😓 Rough or 🤒 Not well (check these first). Mood: 🤩 Great 🙂 Good 😐 Okay 😓 Rough 🤒 Not well · 🚧 has blockers · ⭐ starred · 💬 you replied · ⚡ Out = emergency log out, EOD not sent yet. Click any cell to open the report.</div>`;
     body.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>openViewer('eod',E.adm.reports.find(r=>r.id===b.dataset.id)));
     body.querySelectorAll('[data-wid]').forEach(b=>b.onclick=()=>openViewer('weekly',E.adm.weeklies.find(r=>r.id===b.dataset.wid)));
   }
