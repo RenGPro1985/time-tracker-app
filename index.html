@@ -634,7 +634,7 @@ button.btn{padding:7px 12px;font-size:12px}
 
     <!-- ---------- ADMIN: STAFF & CLIENTS ---------- -->
     <section id="v-staff" class="hide grid" style="gap:16px">
-      <div class="row" id="scSubStaff" style="gap:6px;flex-wrap:wrap"><button class="btn btn-gold" onclick="go('v-staff')">👥 Staff &amp; Clients</button><button class="btn btn-ghost" onclick="go('v-policy')">⚙️ Rules</button><button class="btn btn-ghost" onclick="go('v-pto')">🏖️ PTO Credits</button></div>
+      <div class="row" id="scSubStaff" style="gap:6px;flex-wrap:wrap"><button class="btn btn-gold" onclick="go('v-staff')">👥 Staff &amp; Clients</button><button class="btn btn-ghost" onclick="go('v-policy')">⚙️ Rules</button><button class="btn btn-ghost" onclick="go('v-pto')">🏖️ PTO Credits</button><button class="btn btn-ghost" onclick="go('v-files')">📎 Files</button></div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Staff roster</h3>
           <div class="row" style="gap:8px">
@@ -979,7 +979,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 
     <!-- ---------- ADMIN: PTO CREDITS ---------- -->
     <section id="v-pto" class="hide grid" style="gap:12px">
-      <div class="row" id="scSubPto" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-staff')">👥 Staff &amp; Clients</button><button class="btn btn-ghost" onclick="go('v-policy')">⚙️ Rules</button><button class="btn btn-gold" onclick="go('v-pto')">🏖️ PTO Credits</button></div>
+      <div class="row" id="scSubPto" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-staff')">👥 Staff &amp; Clients</button><button class="btn btn-ghost" onclick="go('v-policy')">⚙️ Rules</button><button class="btn btn-gold" onclick="go('v-pto')">🏖️ PTO Credits</button><button class="btn btn-ghost" onclick="go('v-files')">📎 Files</button></div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">PTO Credits</h3><div class="row" style="gap:7px;flex-wrap:wrap;align-items:center"><label for="ptoYear" style="margin:0">Year</label><select id="ptoYear" style="width:auto;min-width:92px"></select><label for="ptoClientFilter" style="margin:0">Client</label><select id="ptoClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select><button class="btn btn-ghost" id="ptoExport">Export CSV</button><button class="btn btn-gold" id="ptoRefresh">Refresh</button></div></div>
         <div class="note" style="margin-bottom:9px">PTO starts after the 1-year anniversary, then +0.5 credit on every monthly anniversary date. Each weekday of an approved PTO request uses 1 credit, and pending requests are already taken out of Available. A year's credits expire after the last day of February the next year (Jan–Feb leave uses last year's credits first). Requests are whole days only, and staff can't submit more than they have available. Opening balances: earned is recalculated from the rule; used comes from the old tracker as of Oct 8, 2026.</div>
@@ -1018,8 +1018,41 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     </section>
 
     <!-- ---------- ADMIN: POLICY ---------- -->
+    <section id="v-files" class="hide grid" style="gap:16px">
+      <div class="row" id="scSubFiles" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-staff')">👥 Staff &amp; Clients</button><button class="btn btn-ghost" onclick="go('v-policy')">⚙️ Rules</button><button class="btn btn-ghost" onclick="go('v-pto')">🏖️ PTO Credits</button><button class="btn btn-gold" onclick="go('v-files')">📎 Files</button></div>
+      <div class="grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat"><div class="k">Files in view</div><div class="v" id="rfaStatFiles">—</div></div>
+        <div class="stat"><div class="k">🩺 Medcerts</div><div class="v" id="rfaStatMed">—</div></div>
+        <div class="stat"><div class="k">🧾 Receipts</div><div class="v" id="rfaStatRec">—</div><div class="muted" style="font-size:11.5px" id="rfaStatRecAmt"></div></div>
+        <div class="stat" style="border:1px solid rgba(226,104,95,.35)"><div class="k">Sick days with no medcert (this year)</div><div class="v" style="color:var(--rose)" id="rfaStatNo">—</div></div>
+      </div>
+      <div class="card hide" id="rfaUpPanel"><div class="hdr"><h3 style="font-size:15px">＋ Upload a file for a staff member</h3><span class="muted" style="font-size:12px">e.g. a medcert they sent you on Viber · the staff member will see it in their My files</span></div>
+        <div class="row" style="align-items:flex-end;flex-wrap:wrap;gap:10px">
+          <div style="flex:0 0 200px"><label>Staff</label><select id="rfaUpStaff"></select></div>
+          <div style="flex:0 0 170px"><label>Type</label><select id="rfaUpKind"><option value="medcert">🩺 Medcert</option><option value="receipt">🧾 Receipt</option><option value="other">📄 Other document</option></select></div>
+          <div style="flex:1;min-width:240px" id="rfaUpLinkWrap"><label>For which request</label><select id="rfaUpLink"></select></div>
+          <div style="flex:1;min-width:240px"><label>File(s) · photo or PDF, max 10 MB</label><input type="file" id="rfaUpFile" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif"></div>
+          <button class="btn btn-gold" id="rfaUpGo">Upload</button><button class="btn btn-ghost" id="rfaUpCancel">Cancel</button>
+        </div><div class="muted" id="rfaUpMsg" style="font-size:12px;margin-top:8px;min-height:16px"></div></div>
+      <div class="grid" style="grid-template-columns:minmax(300px,1fr) 2.8fr;align-items:start">
+        <div class="card"><div class="hdr"><h3 style="font-size:15px">🤒 Sick days with no medcert</h3></div>
+          <div class="muted" style="font-size:12px;margin-bottom:8px">Whole year. Not a penalty — sick days are unpaid either way. This is for client documentation. A row drops off once a medcert is attached.</div>
+          <div style="max-height:62vh;overflow:auto"><table><thead><tr><th>Staff</th><th>Sick dates</th><th>Ago</th><th></th></tr></thead><tbody id="rfaNoCert"></tbody></table></div></div>
+        <div class="card"><div class="hdr"><h3 style="font-size:15px">All staff files</h3><div class="row" style="gap:8px"><button class="btn btn-ghost" id="rfaUpBtn">＋ Upload for staff</button><button class="btn btn-gold" id="rfaZip" disabled>⬇ Download selected (0) as .zip</button></div></div>
+          <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <select id="rfaStaff" style="width:auto"></select><select id="rfaClient" style="width:auto"></select>
+            <select id="rfaKind" style="width:auto"><option value="">All types</option><option value="medcert">🩺 Medcerts</option><option value="receipt">🧾 Receipts</option><option value="eod">📝 EOD attachments</option><option value="other">📄 Other</option></select>
+            <span class="muted" style="font-size:12px">Uploaded</span><input type="date" id="rfaFrom" style="width:auto"><span class="muted">–</span><input type="date" id="rfaTo" style="width:auto">
+            <input id="rfaSearch" placeholder="🔎 Search file name, staff or reason…" style="flex:1;min-width:200px"><button class="btn btn-ghost" id="rfaReload" title="Reload">↻</button>
+          </div>
+          <div class="muted" id="rfaMsg" style="font-size:12px;min-height:16px;margin-bottom:6px"></div>
+          <div class="rfa-scroll"><table><thead><tr><th style="width:28px"><input type="checkbox" id="rfaAll" style="width:auto" title="Select all in view"></th><th>Uploaded</th><th>Staff</th><th>Client</th><th>Type</th><th>File</th><th>Linked to</th><th>Status</th><th></th></tr></thead><tbody id="rfaTable"></tbody></table></div>
+          <div class="row muted" style="justify-content:space-between;font-size:11.5px;margin-top:8px;flex-wrap:wrap"><span>Newest first · click a staff name to filter to them · client = current assignment</span><span>🔒 Admin only · files are kept forever, never deleted</span></div>
+        </div>
+      </div>
+    </section>
     <section id="v-policy" class="hide grid" style="gap:16px">
-      <div class="row" id="scSubRules" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-staff')">👥 Staff &amp; Clients</button><button class="btn btn-gold" onclick="go('v-policy')">⚙️ Rules</button><button class="btn btn-ghost" onclick="go('v-pto')">🏖️ PTO Credits</button></div>
+      <div class="row" id="scSubRules" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-staff')">👥 Staff &amp; Clients</button><button class="btn btn-gold" onclick="go('v-policy')">⚙️ Rules</button><button class="btn btn-ghost" onclick="go('v-pto')">🏖️ PTO Credits</button><button class="btn btn-ghost" onclick="go('v-files')">📎 Files</button></div>
       <div class="card"><div class="hdr"><h3 style="font-size:15px">Activity &amp; billing rules</h3><button class="btn btn-gold" id="savePolicy">Save allowances</button></div>
         <table><thead><tr><th>Status</th><th>Billable</th><th>Allowance per instance (minutes)</th><th>Notes</th></tr></thead><tbody id="policyTable"></tbody></table>
         <div class="note" style="margin-top:14px"><b>How pay is computed:</b> every activity is billable except <b>60min Break</b>, but only for time inside your shift window — time logged before your shift starts or after it ends is automatically non-billable. Select <b>Overtime</b> to bill time outside the shift window; Overtime has no cap and is always fully billable. Overtime started <b>before</b> your shift switches to Working automatically at your shift start. On top of that, minutes spent on a normal activity beyond its allowance are deducted from billable time (Overtime is never capped) — <b>this is checked per instance (each time you use that activity), not summed across the shift.</b> 15min Break allows up to 2 instances per shift (two uses less than 1hr apart count as one instance), 30min and 60min Break allow 1 instance per shift; any use beyond that limit is entirely non-billable. Personal, Bio and H2O Break have no instance limit. Set an allowance to 0 to never deduct.</div>
@@ -2618,11 +2651,12 @@ const PAGES={
   'v-ledger':['🧾 Contractor Ledger','Contractor Ledger','Semi-monthly hours & pay pulled from the time tracker'],
   'v-invoice':['📄 Client Invoice','Client Invoice','Bi-weekly invoice built from the Timesheets Daily Hours Grid, per client'],
   'v-earning':['💰 SMB PH Earning','SMB PH Earning','Admin-only immutable per-semi-monthly-period FX + VSPH/ROI/margin LOCK IN'],
+  'v-files':['📎 Files','Staff & Clients · Files','Every staff medcert, receipt and EOD attachment — filter, open, zip-download, or upload on their behalf'],
   'v-policy':['⚙️ Rules','Staff & Clients · Rules','Billable rules, break allowances and activities by client'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 PHP & PTO Requests','PHP & PTO Requests','Review and approve staff requests'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-eod':['📝 EOD & Weekly','EOD & Weekly Reports','Daily EOD and Friday weekly report — only you and Rendy can see them'], 'v-rewards':['🎟️ Rewards (Shadow)','Rewards (Shadow)','Tokens each agent would earn — admins only, nothing is paid out yet'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','Staff & Clients · PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
 };
 let view='v-punch';
 /* sub-tab groups (Rendy 2026-10-19): Rules + PTO Credits live in Staff & Clients; payroll tabs live under Contractor Ledger ("Payroll") for admins */
-function navParentOf(v){ if(v==='v-policy'||v==='v-pto')return 'v-staff'; if(me?.role==='admin'&&(v==='v-sheets'||v==='v-invoice'||v==='v-earning'))return 'v-ledger'; return v; }
+function navParentOf(v){ if(v==='v-policy'||v==='v-pto'||v==='v-files')return 'v-staff'; if(me?.role==='admin'&&(v==='v-sheets'||v==='v-invoice'||v==='v-earning'))return 'v-ledger'; return v; }
 const ADMIN_NAV_DEFAULT=['v-rewards','v-status','v-punch','v-eod','v-staff','v-benefits','v-adjustments','v-adherence','v-corr','v-ledger','v-reqadmin','v-portal','v-perf','v-ytd'];
 let adminNavOrder=null, navArranging=false, navArrDraft=null, navFirstBuild=true;
 /* saved order -> valid order: drop unknown/duplicate ids, append any new tabs at the end */
@@ -2708,7 +2742,7 @@ $('navArrDone').onclick=async()=>{
   finally{ btn.disabled=false; }
 };
 function go(v){
-  if((v==='v-ytd'||v==='v-pto'||v==='v-rewards')&&me?.role!=='admin')v='v-punch';
+  if((v==='v-ytd'||v==='v-pto'||v==='v-rewards'||v==='v-files')&&me?.role!=='admin')v='v-punch';
   view=v;
   Object.keys(PAGES).forEach(id=>{const el=$(id); if(el) el.classList.add('hide');});
   $(v).classList.remove('hide');
@@ -2724,6 +2758,7 @@ function go(v){
   if(v==='v-corr'){loadCorrections();}
   if(v==='v-ledger'){initLedgerFilters();} if(v==='v-invoice'){initInvoiceFilters();}
   if(v==='v-earning'){initEarningFilters();}
+  if(v==='v-files'){window.RFA?.load();}
   if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-rewards'){window.RewardsShadow?.init();} if(v==='v-eod'){window.EOD?.init();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();window.Reliability?.initProfile();}
 }
 
@@ -9217,6 +9252,246 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   .rf-reimb-note{display:block;font-size:10.5px;color:var(--teal);margin-top:2px;white-space:nowrap}`;
   RF.initForm(); // the Request form markup already exists when this script runs (end of body)
   const st=document.createElement('style'); st.textContent=css; document.head.appendChild(st);
+})();
+
+</script>
+<script>
+/* ============================================================================
+   Admin 📎 Files (window.RFA) — Rendy 2026-10-20
+   Staff & Clients → Files sub-tab (admin only). Lists every staff file
+   (medcerts, receipts, EOD attachments, admin-added docs) with filters, a
+   "sick days with no medcert" list for the whole year, zip download of
+   selected files, and admin upload on a staff member's behalf
+   (rf_admin_register_file RPC). Read-only otherwise: nothing is ever deleted.
+   ============================================================================ */
+(function(){
+  const RFA={}; window.RFA=RFA;
+  const BUCKET='staff-docs', MAX=10*1024*1024;
+  const OK_MIME=['image/jpeg','image/png','image/webp','image/heic','image/heif','application/pdf'];
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const $id=id=>document.getElementById(id);
+  const KIND={medcert:['🩺 Medcert','rfa-k-med'],receipt:['🧾 Receipt','rfa-k-rec'],eod:['📝 EOD','rfa-k-eod'],other:['📄 Other','rfa-k-eod']};
+  let files=[], reqs={}, eods={}, sel=new Set(), noCert=[], loaded=false, busy=false;
+  const today=()=>phDate(new Date());
+  const yearStart=()=>today().slice(0,4)+'-01-01';
+  const monthStart=()=>today().slice(0,8)+'01';
+  const staffById=id=>(typeof staffList!=='undefined'?staffList:[]).find(s=>s.id===id)||null;
+  const staffName=id=>staffById(id)?.full_name||'(unknown)';
+  const clientName=id=>{ const s=staffById(id); const c=s&&(typeof clients!=='undefined'?clients:[]).find(c=>c.id===s.client_id); return c?c.name:'—'; };
+  const daysAgo=iso=>Math.max(0,Math.round((new Date(today()+'T00:00:00Z')-new Date(iso+'T00:00:00Z'))/86400000));
+  const sickTxt=r=>`Sick ${fmtNice(r.start_date)}${r.end_date&&r.end_date!==r.start_date?' – '+fmtNice(r.end_date):''}`;
+  function rfaMime(file){
+    if(file.type) return file.type;
+    const n=String(file.name||'').toLowerCase();
+    return n.endsWith('.heic')?'image/heic':n.endsWith('.heif')?'image/heif':n.endsWith('.pdf')?'application/pdf':'';
+  }
+  // PHT date (YYYY-MM-DD) → UTC ISO of that PHT midnight
+  const phStartIso=d=>new Date(d+'T00:00:00+08:00').toISOString();
+
+  function rfaInitFilters(){
+    if(RFA._init) return; RFA._init=true;
+    $id('rfaFrom').value=monthStart(); $id('rfaTo').value=today();
+    ['rfaStaff','rfaClient','rfaKind'].forEach(id=>$id(id).onchange=paint);
+    $id('rfaSearch').oninput=paint;
+    ['rfaFrom','rfaTo'].forEach(id=>$id(id).onchange=()=>RFA.load());
+    $id('rfaReload').onclick=()=>RFA.load();
+    $id('rfaZip').onclick=zipSelected;
+    $id('rfaAll').onchange=e=>{ visible().forEach(f=>e.target.checked?sel.add(f.id):sel.delete(f.id)); paint(); };
+    $id('rfaUpBtn').onclick=()=>openUpload({});
+    $id('rfaUpCancel').onclick=()=>$id('rfaUpPanel').classList.add('hide');
+    $id('rfaUpStaff').onchange=()=>{ $id('rfaUpMsg').textContent=''; fillLinks(); };
+    $id('rfaUpKind').onchange=()=>{ $id('rfaUpMsg').textContent=''; fillLinks(); };
+    $id('rfaUpGo').onclick=doUpload;
+  }
+  function fillDropdowns(){
+    const st=(typeof staffList!=='undefined'?staffList:[]).filter(s=>s.role!=='admin').slice().sort((a,b)=>String(a.full_name).localeCompare(b.full_name));
+    const keep=(id,html)=>{ const el=$id(id), v=el.value; el.innerHTML=html; if([...el.options].some(o=>o.value===v)) el.value=v; };
+    keep('rfaStaff','<option value="">All staff</option>'+st.map(s=>`<option value="${s.id}">${esc(s.full_name)}${s.active?'':' (inactive)'}</option>`).join(''));
+    keep('rfaClient','<option value="">All clients</option>'+(typeof clients!=='undefined'?clients:[]).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join(''));
+    keep('rfaUpStaff','<option value="">— pick staff —</option>'+st.filter(s=>s.active).map(s=>`<option value="${s.id}">${esc(s.full_name)}</option>`).join(''));
+  }
+
+  async function inChunks(table,cols,col,ids){
+    const out=[]; ids=[...new Set(ids.filter(Boolean))];
+    for(let i=0;i<ids.length;i+=100){
+      const {data,error}=await sb.from(table).select(cols).in(col,ids.slice(i,i+100));
+      if(error) throw new Error(table+': '+error.message); out.push(...(data||[]));
+    }
+    return out;
+  }
+  RFA.load=async function(){
+    if(!$id('rfaTable')||busy) return; busy=true;
+    rfaInitFilters(); fillDropdowns();
+    $id('rfaMsg').textContent='Loading files…';
+    try{
+      const from=$id('rfaFrom').value||monthStart(), to=$id('rfaTo').value||today();
+      const toNext=new Date(new Date(to+'T00:00:00+08:00').getTime()+86400000).toISOString();
+      const {data,error}=await sb.from('staff_files').select('*').gte('created_at',phStartIso(from)).lt('created_at',toNext).order('created_at',{ascending:false}).range(0,1999);
+      if(error) throw new Error(/staff_files|relation|schema cache/i.test(error.message)?'Files are not set up yet (requests_files SQL).':error.message);
+      files=data||[];
+      // sick days this year (pending/approved) and their medcerts
+      const {data:sick,error:e2}=await sb.from('requests').select('id,staff_id,type,start_date,end_date,status,reason').eq('type','sick_leave').in('status',['pending','approved']).gte('start_date',yearStart()).order('start_date',{ascending:false}).range(0,1999);
+      if(e2) throw new Error(e2.message);
+      const certs=await inChunks('staff_files','request_id','request_id',(sick||[]).map(r=>r.id));
+      const has=new Set(certs.map(c=>c.request_id));
+      noCert=(sick||[]).filter(r=>!has.has(r.id));
+      (sick||[]).forEach(r=>reqs[r.id]=r);
+      const rq=await inChunks('requests','id,staff_id,type,start_date,end_date,amount,status,payout_cutoff,reason','id',files.map(f=>f.request_id));
+      rq.forEach(r=>reqs[r.id]=r);
+      const ed=await inChunks('eod_reports','id,report_date,status,on_time','id',files.map(f=>f.eod_report_id));
+      ed.forEach(r=>eods[r.id]=r);
+      files.forEach(f=>{ if(window.RF&&RF._all) RF._all[f.id]=f; });
+      sel=new Set([...sel].filter(id=>files.some(f=>f.id===id)));
+      loaded=true; $id('rfaMsg').textContent='';
+      if(files.length>=2000) $id('rfaMsg').textContent='Showing the newest 2,000 files — narrow the dates to see older ones.';
+    }catch(e){ $id('rfaMsg').textContent='Could not load files: '+(e.message||e); }
+    finally{ busy=false; paint(); }
+  };
+
+  function linkTxt(f){
+    if(f.request_id){ const r=reqs[f.request_id]; if(!r) return 'Request';
+      return r.type==='sick_leave'?sickTxt(r):r.type==='reimbursement'?`Reimb ₱${Number(r.amount||0).toLocaleString()} · <i>${esc(String(r.reason||'').slice(0,40))}</i>`:esc(r.type); }
+    if(f.eod_report_id){ const e=eods[f.eod_report_id]; return e?'EOD '+fmtNice(e.report_date):'EOD report'; }
+    return 'General document';
+  }
+  function statusPill(f){
+    if(f.request_id){ const r=reqs[f.request_id]; if(!r) return '';
+      if(r.type==='reimbursement'&&r.payout_cutoff&&r.status!=='rejected') return `<span class="pill p-work">${r.status==='paid'?'Paid':'Approved'} → ${fmtNice(r.payout_cutoff)}</span>`;
+      return `<span class="pill ${(typeof STATUS_PILL!=='undefined'&&STATUS_PILL[r.status])||'p-off'}">${esc(r.status)}</span>`; }
+    if(f.eod_report_id){ const e=eods[f.eod_report_id]; if(!e) return '';
+      if(e.status!=='submitted') return '<span class="pill p-off">Draft</span>';
+      return e.on_time?'<span class="pill p-work">On time</span>':'<span class="pill p-bad">Late</span>'; }
+    return '';
+  }
+  function visible(){
+    const s=$id('rfaStaff').value, c=$id('rfaClient').value, k=$id('rfaKind').value, q=$id('rfaSearch').value.trim().toLowerCase();
+    return files.filter(f=>{
+      if(s&&f.staff_id!==s) return false;
+      if(c&&staffById(f.staff_id)?.client_id!==c) return false;
+      if(k&&f.kind!==k) return false;
+      if(q){ const r=reqs[f.request_id]; const hay=[f.file_name,staffName(f.staff_id),r&&r.reason].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
+      return true;
+    });
+  }
+  function paint(){
+    if(!$id('rfaTable')) return;
+    const v=visible();
+    const amt=new Map(); v.forEach(f=>{ const r=reqs[f.request_id]; if(r&&r.type==='reimbursement'&&['approved','paid'].includes(r.status)) amt.set(r.id,Number(r.amount||0)); });
+    const s=$id('rfaStaff').value, c=$id('rfaClient').value;
+    const nc=noCert.filter(r=>(!s||r.staff_id===s)&&(!c||staffById(r.staff_id)?.client_id===c));
+    $id('rfaStatFiles').textContent=v.length;
+    $id('rfaStatMed').textContent=v.filter(f=>f.kind==='medcert').length;
+    $id('rfaStatRec').textContent=v.filter(f=>f.kind==='receipt').length;
+    $id('rfaStatRecAmt').textContent='₱ '+[...amt.values()].reduce((a,b)=>a+b,0).toLocaleString()+' approved';
+    $id('rfaStatNo').textContent=nc.length;
+    $id('rfaNoCert').innerHTML=nc.length?nc.map(r=>{ const d=daysAgo(r.end_date||r.start_date);
+      return `<tr><td><a href="#" data-rfa-staff="${r.staff_id}">${esc(staffName(r.staff_id))}</a><div class="muted" style="font-size:11px">${esc(clientName(r.staff_id))}</div></td>
+        <td style="font-size:12.5px">${esc(sickTxt(r).replace('Sick ',''))}${r.status==='pending'?' <span class="muted" style="font-size:11px">(pending)</span>':''}</td>
+        <td><span class="pill ${d>=7?'p-bad':'p-off'}">${d}d</span></td>
+        <td><a href="#" class="rf-add" data-rfa-attach="${r.id}" data-rfa-st="${r.staff_id}">📎 Attach</a></td></tr>`; }).join('')
+      :`<tr><td colspan="4" class="muted">${loaded?'Every sick day this year has a medcert 🎉':'—'}</td></tr>`;
+    $id('rfaTable').innerHTML=v.length?v.map(f=>{ const [kl,kc]=KIND[f.kind]||KIND.other; const byAdmin=f.uploaded_by&&f.uploaded_by!==f.staff_id;
+      return `<tr><td><input type="checkbox" data-rfa-sel="${f.id}" ${sel.has(f.id)?'checked':''} style="width:auto"></td>
+        <td style="white-space:nowrap">${fmtNice(phDate(new Date(f.created_at)))} <span class="muted" style="font-size:11px">${phTime(new Date(f.created_at))}</span></td>
+        <td style="white-space:nowrap"><a href="#" data-rfa-staff="${f.staff_id}">${esc(staffName(f.staff_id))}</a></td>
+        <td style="white-space:nowrap">${esc(clientName(f.staff_id))}</td>
+        <td><span class="rfa-kind ${kc}">${kl}</span></td>
+        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f.file_name)}">${esc(f.file_name)}${byAdmin?' <span class="muted" style="font-size:10.5px">· added by admin</span>':''}</td>
+        <td style="font-size:12.5px">${linkTxt(f)}</td>
+        <td style="white-space:nowrap">${statusPill(f)}</td>
+        <td style="white-space:nowrap"><a href="#" data-rf-open="${f.id}">Open</a> · <a href="#" data-rf-dl="${f.id}" title="Download original">⬇</a></td></tr>`; }).join('')
+      :`<tr><td colspan="9" class="muted">${loaded?'No files match these filters.':'—'}</td></tr>`;
+    $id('rfaAll').checked=v.length>0&&v.every(f=>sel.has(f.id));
+    $id('rfaZip').textContent=`⬇ Download selected (${sel.size}) as .zip`; $id('rfaZip').disabled=!sel.size;
+    const root=$id('v-files');
+    root.querySelectorAll('[data-rfa-sel]').forEach(cb=>cb.onchange=()=>{ cb.checked?sel.add(cb.dataset.rfaSel):sel.delete(cb.dataset.rfaSel); paint(); });
+    root.querySelectorAll('[data-rfa-staff]').forEach(a=>a.onclick=e=>{ e.preventDefault(); $id('rfaStaff').value=a.dataset.rfaStaff; paint(); });
+    root.querySelectorAll('[data-rfa-attach]').forEach(a=>a.onclick=e=>{ e.preventDefault(); openUpload({staff:a.dataset.rfaSt,kind:'medcert',req:a.dataset.rfaAttach}); });
+    if(window.RF&&RF.wire) RF.wire($id('rfaTable'));
+  }
+
+  /* ---------- zip download (files fetched with the admin's own session) ---------- */
+  function loadScript(src){ return new Promise((res,rej)=>{ const el=document.createElement('script'); el.src=src; el.onload=res; el.onerror=()=>rej(new Error('Could not load the zip library — check your internet and try again.')); document.head.appendChild(el); }); }
+  async function zipSelected(){
+    const pick=files.filter(f=>sel.has(f.id)); if(!pick.length) return;
+    const btn=$id('rfaZip'); btn.disabled=true; const msg=$id('rfaMsg');
+    try{
+      if(!window.JSZip) await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+      const zip=new window.JSZip(), used=new Set(), fails=[];
+      for(let i=0;i<pick.length;i++){
+        const f=pick[i]; msg.textContent=`Zipping ${i+1} of ${pick.length}…`;
+        const {data,error}=await sb.storage.from(BUCKET).download(f.path);
+        if(error||!data){ fails.push(f.file_name); continue; }
+        const safe=s=>String(s).replace(/[\\/:*?"<>|]+/g,'_').trim()||'file';
+        let name=`${safe(staffName(f.staff_id))}/${phDate(new Date(f.created_at))}_${f.kind}_${safe(f.file_name)}`, n=2;
+        while(used.has(name)) name=name.replace(/(\.[^.\/]*)?$/,m=>`_${n++}${m}`); used.add(name);
+        zip.file(name,data);
+      }
+      if(used.size){
+        const blob=await zip.generateAsync({type:'blob'});
+        const s=$id('rfaStaff').value, a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download=`SMB_files_${s?String(staffName(s)).replace(/\W+/g,'_')+'_':''}${today()}.zip`;
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
+      }
+      msg.textContent=fails.length?`Zipped ${used.size}; could not fetch: ${fails.join(', ')}`:`Downloaded ${used.size} file${used.size===1?'':'s'} as a zip.`;
+    }catch(e){ msg.textContent='Zip failed: '+(e.message||e); }
+    finally{ btn.disabled=!sel.size; }
+  }
+
+  /* ---------- admin upload on a staff member's behalf ---------- */
+  function openUpload(o){
+    $id('rfaUpPanel').classList.remove('hide');
+    if(o.staff) $id('rfaUpStaff').value=o.staff;
+    if(o.kind) $id('rfaUpKind').value=o.kind;
+    $id('rfaUpFile').value=''; $id('rfaUpMsg').textContent='';
+    fillLinks(o.req);
+    $id('rfaUpPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  async function fillLinks(preselect){
+    const st=$id('rfaUpStaff').value, k=$id('rfaUpKind').value, box=$id('rfaUpLinkWrap'), el=$id('rfaUpLink');
+    box.classList.toggle('hide',k==='other');
+    if(k==='other'||!st){ el.innerHTML='<option value="">— pick staff first —</option>'; return; }
+    const type=k==='medcert'?'sick_leave':'reimbursement';
+    el.innerHTML='<option value="">Loading…</option>';
+    const {data,error}=await sb.from('requests').select('id,type,start_date,end_date,amount,status,reason').eq('staff_id',st).eq('type',type).neq('status','rejected').order('created_at',{ascending:false}).range(0,49);
+    if(error){ el.innerHTML='<option value="">Could not load requests</option>'; return; }
+    (data||[]).forEach(r=>reqs[r.id]=r);
+    el.innerHTML=(data||[]).length?(data||[]).map(r=>`<option value="${r.id}">${type==='sick_leave'?esc(sickTxt(r)):'₱'+Number(r.amount||0).toLocaleString()+' · '+esc(String(r.reason||'').slice(0,40))} (${esc(r.status)})</option>`).join('')
+      :`<option value="">No ${type==='sick_leave'?'Sick Leave':'Reimbursement'} requests for this staff</option>`;
+    if(preselect&&[...el.options].some(o=>o.value===preselect)) el.value=preselect;
+  }
+  async function doUpload(){
+    const st=$id('rfaUpStaff').value, k=$id('rfaUpKind').value, link=k==='other'?null:$id('rfaUpLink').value, list=[...$id('rfaUpFile').files], msg=$id('rfaUpMsg');
+    if(!st){ msg.textContent='Pick the staff member.'; return; }
+    if(k!=='other'&&!link){ msg.textContent=k==='medcert'?'Pick the Sick Leave request this medcert is for.':'Pick the Reimbursement request this receipt is for.'; return; }
+    if(!list.length){ msg.textContent='Choose a file.'; return; }
+    const btn=$id('rfaUpGo'); btn.disabled=true; const errs=[]; let ok=0;
+    for(const file of list){
+      try{
+        if(file.size>MAX) throw new Error(`${file.name} is larger than 10 MB.`);
+        if(!OK_MIME.includes(rfaMime(file))) throw new Error(`${file.name}: only photos (JPG, PNG, WEBP, HEIC) or PDF.`);
+        msg.textContent=`Uploading ${file.name}…`;
+        const safe=String(file.name||'file').replace(/[^\w.\-]+/g,'_').slice(-80);
+        const path=`${st}/${k}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safe}`;
+        const up=await sb.storage.from(BUCKET).upload(path,file,{contentType:rfaMime(file),upsert:false});
+        if(up.error) throw new Error('Upload failed: '+up.error.message);
+        const {error}=await sb.rpc('rf_admin_register_file',{p_staff:st,p_path:path,p_name:file.name||safe,p_mime:rfaMime(file),p_size:file.size,p_kind:k,p_request_id:link||null});
+        if(error) throw new Error(/rf_admin_register_file|schema cache|function/i.test(error.message)?'Run the files_admin SQL first.':error.message);
+        ok++;
+      }catch(e){ errs.push(e.message||String(e)); }
+    }
+    btn.disabled=false;
+    msg.textContent=(ok?`Attached ${ok} file${ok===1?'':'s'} for ${staffName(st)}. `:'')+(errs.length?'Problems: '+errs.join('; '):'');
+    if(ok){ $id('rfaUpFile').value=''; if(!errs.length) setTimeout(()=>$id('rfaUpPanel').classList.add('hide'),1500); await RFA.load(); }
+  }
+
+  const css=`.rfa-scroll{max-height:62vh;overflow:auto;border:1px solid var(--line);border-radius:12px}
+  .rfa-scroll thead th{position:sticky;top:0;z-index:2;background:var(--card2,#151a26);box-shadow:inset 0 -1px 0 var(--line)}
+  .rfa-kind{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .rfa-k-med{background:rgba(63,191,174,.14);color:var(--teal)}.rfa-k-rec{background:rgba(227,166,62,.14);color:var(--gold)}.rfa-k-eod{background:rgba(107,113,131,.2);color:var(--muted)}
+  #v-files .stat .v{font-size:22px}`;
+  const stl=document.createElement('style'); stl.textContent=css; document.head.appendChild(stl);
 })();
 
 </script>
