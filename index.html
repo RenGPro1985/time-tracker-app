@@ -1019,6 +1019,8 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div class="note" style="margin-top:12px">Changes apply to the <b>next</b> activity switch — a break already running keeps going until the staff member switches. Past timesheets and reports still show old entries. A client with 60min Break turned off can't have the "Unpaid 60m break" flag.</div>
       </div>
     </section>
+    <!-- ---------- EOD & WEEKLY REPORTS ---------- -->
+    <section id="v-eod" class="hide grid" style="gap:12px"><div id="eodRoot"></div></section>
   </main>
 </div>
 <div class="hide" id="ctsOverlay" style="position:fixed;inset:0;background:var(--bg);z-index:65;overflow:auto"><style>
@@ -2596,10 +2598,10 @@ const PAGES={
   'v-ledger':['🧾 Contractor Ledger','Contractor Ledger','Semi-monthly hours & pay pulled from the time tracker'],
   'v-invoice':['📄 Client Invoice','Client Invoice','Bi-weekly invoice built from the Timesheets Daily Hours Grid, per client'],
   'v-earning':['💰 SMB PH Earning','SMB PH Earning','Admin-only immutable per-semi-monthly-period FX + VSPH/ROI/margin LOCK IN'],
-  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 PHP & PTO Requests','PHP & PTO Requests','Review and approve staff requests'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-rewards':['🎟️ Rewards (Shadow)','Rewards (Shadow)','Tokens each agent would earn — admins only, nothing is paid out yet'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
+  'v-policy':['⚙️ Rules','Activity & billing rules','Billable rules and break allowances'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 PHP & PTO Requests','PHP & PTO Requests','Review and approve staff requests'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-eod':['📝 EOD & Weekly','EOD & Weekly Reports','Daily EOD and Friday weekly report — only you and Rendy can see them'], 'v-rewards':['🎟️ Rewards (Shadow)','Rewards (Shadow)','Tokens each agent would earn — admins only, nothing is paid out yet'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
 };
 let view='v-punch';
-const ADMIN_NAV_DEFAULT=['v-rewards','v-status','v-punch','v-staff','v-policy','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-invoice','v-earning','v-reqadmin','v-portal','v-perf','v-ytd','v-pto'];
+const ADMIN_NAV_DEFAULT=['v-rewards','v-status','v-punch','v-eod','v-staff','v-policy','v-benefits','v-adjustments','v-sheets','v-adherence','v-corr','v-ledger','v-invoice','v-earning','v-reqadmin','v-portal','v-perf','v-ytd','v-pto'];
 let adminNavOrder=null, navArranging=false, navArrDraft=null, navFirstBuild=true;
 /* saved order -> valid order: drop unknown/duplicate ids, append any new tabs at the end */
 function normalizeNavOrder(saved){
@@ -2630,7 +2632,7 @@ const ADH_PAGE_MINE=['📊 My Adherence & Breaks','My Adherence & Breaks','Your 
 function adherenceOwnOnly(){ return !!me&&me.role!=='admin'&&!me.can_view_adherence; }
 function buildNav(){
   PAGES['v-adherence']=adherenceOwnOnly()?ADH_PAGE_MINE:ADH_PAGE_TEAM;
-  const staffIds = ['v-punch','v-adherence',...(me.can_view_live_status?['v-status']:[]),'v-ledger','v-req','v-profile','v-portal','v-perf'];
+  const staffIds = ['v-punch','v-eod','v-adherence',...(me.can_view_live_status?['v-status']:[]),'v-ledger','v-req','v-profile','v-portal','v-perf'];
   const isAdmin=me.role==='admin';
   const ids = isAdmin ? adminNavIds() : staffIds;
   if(navFirstBuild){ navFirstBuild=false; if(isAdmin) view='v-status'; }
@@ -2698,7 +2700,7 @@ function go(v){
   if(v==='v-corr'){loadCorrections();}
   if(v==='v-ledger'){initLedgerFilters();} if(v==='v-invoice'){initInvoiceFilters();}
   if(v==='v-earning'){initEarningFilters();}
-  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-rewards'){window.RewardsShadow?.init();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();window.Reliability?.initProfile();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-rewards'){window.RewardsShadow?.init();} if(v==='v-eod'){window.EOD?.init();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();window.Reliability?.initProfile();}
 }
 
 /* clocks + running timers */
@@ -2716,6 +2718,7 @@ function setActTimer(name,digits){ const n=$('actName'), el=$('actTimer'); if(di
     else setActTimer('Timer stopped — pick an activity to resume');
     checkForceLogout();
     checkPreShiftOtSwitch();
+    try{ window.EOD?.tick(now); }catch(_){}
   }
   tickRosterTimes();
 }
@@ -2804,11 +2807,16 @@ $('loginBtn').onclick = async () => {
         curEntry=data.entry||null;
       }
     }else{
-      if(!confirm('End your shift now? This stops all timers.')){$('loginBtn').disabled=false;return;}
       const endedShiftId=curShift.id;
-      // Secure server function: closes open activities + logs out on the SERVER clock.
-      const {error:outErr}=await sb.rpc('punch_logout',{p_shift_id:endedShiftId,p_reason:'manual'});
-      if(outErr) throw outErr;
+      // EOD gate: reminder, or hard block with an emergency exit (eod_emergency_logout logs out itself)
+      const eodGate=window.EOD?await window.EOD.logoutGate(curShift):'ok';
+      if(eodGate==='cancel'){$('loginBtn').disabled=false;return;}
+      if(eodGate!=='emergency'){
+        if(!confirm('End your shift now? This stops all timers.')){$('loginBtn').disabled=false;return;}
+        // Secure server function: closes open activities + logs out on the SERVER clock.
+        const {error:outErr}=await sb.rpc('punch_logout',{p_shift_id:endedShiftId,p_reason:'manual'});
+        if(outErr){ if(String(outErr.message||'').includes('EOD_REQUIRED')){ alert('Please submit your EOD report before logging out.'); go('v-eod'); return; } throw outErr; }
+      }
       syncOverbreakAlerts(endedShiftId); // final catch-up before leaving the shift
       curShift=null;curEntry=null;
     }
@@ -8384,4 +8392,536 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
 })();
 </script>
 
+<script>
+/* ============================================================================
+   EOD & Weekly Reports (tab v-eod) — Rendy 2026-10-19
+   Staff: daily EOD (numbers per client, goal this week, highlights, lowlights,
+   blockers, optional task list/link, not-feeling-well flag), weekly report due
+   Friday end of shift, personal log. Only the staff member + admins can read.
+   Admin: board (staff x day), per-client digest, report tokens (SHADOW), settings.
+   All writes go through eod_* server functions. Logout gate + 15-min reminder.
+   ============================================================================ */
+(function(){
+  const E={state:{}, adm:{tab:'board'}};
+  window.EOD=E;
+  const DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const nl=s=>esc(s).replace(/\n/g,'<br>');
+  const mondayOf=iso=>{const d=new Date(iso+'T00:00:00Z');return addDays(iso,-((d.getUTCDay()+6)%7));};
+  const fmtDate=iso=>{const d=new Date(iso+'T00:00:00Z');return d.toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric'});};
+  const fmtShort=iso=>{const d=new Date(iso+'T00:00:00Z');return d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'});};
+  const fmtTs=ts=>ts?new Date(ts).toLocaleString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' PHT':'';
+  const isAdmin=()=>me&&me.role==='admin';
+  const clientName=id=>((clients||[]).find(c=>c.id===id)||{}).name||'—';
+  const staffName=id=>((staffList||[]).find(s=>s.id===id)||{}).full_name||'—';
+  const errMsg=e=>String(e&&e.message||e||'').replace(/^EOD_REQUIRED:\s*/,'');
+
+  /* ---------- styles ---------- */
+  const css=`
+  .eod-wrap{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;align-items:start}
+  @media(max-width:1000px){.eod-wrap{grid-template-columns:1fr}}
+  .eod-sec{border-left:3px solid var(--teal);padding-left:12px;margin-top:16px}
+  .eod-sec.lo{border-color:var(--rose)}.eod-sec.bl{border-color:var(--gold)}.eod-sec.gl{border-color:#8E7CF0}.eod-sec.tk{border-color:var(--slate)}
+  .eod-sec>label,.eod-wrap label,.eod-ov label{text-transform:none;letter-spacing:0}
+  .eod-sec>label{display:block;font-weight:600;font-size:13px;color:var(--ink);margin-bottom:6px}
+  .eod-hint{color:var(--muted);font-size:11px;font-weight:400;margin-left:6px}
+  .eod-chip{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(107,113,131,.18);color:var(--muted);border:0;cursor:default;font-family:Inter}
+  button.eod-chip{cursor:pointer}
+  .eod-chip.ok{background:rgba(63,191,174,.15);color:var(--teal)}.eod-chip.late{background:rgba(227,166,62,.15);color:var(--gold)}
+  .eod-chip.miss{background:rgba(226,104,95,.15);color:var(--rose)}.eod-chip.on{outline:2px solid currentColor}
+  .eod-nums{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .eod-nums span{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+  .eod-msg{font-size:12px;min-height:16px}
+  .eod-tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .eod-tabs button{all:unset;cursor:pointer;padding:7px 12px;border-radius:9px;font-size:13px;color:var(--muted);box-shadow:inset 0 0 0 1px var(--line)}
+  .eod-tabs button.on{background:var(--gold);color:#151515;font-weight:600}
+  .eod-board td,.eod-board th{text-align:center;padding:8px 6px}.eod-board td:first-child,.eod-board th:first-child{text-align:left}
+  .eod-cell{all:unset;cursor:pointer;display:inline-flex;gap:3px;align-items:center;padding:3px 8px;border-radius:8px;font-size:12px;font-weight:600}
+  .eod-cell.unread{box-shadow:0 0 0 2px var(--gold)}
+  .eod-ov{position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+  .eod-ov .card{width:100%;max-width:720px;max-height:calc(100vh - 40px);overflow:auto;margin:auto}
+  .eod-banner{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:79;background:var(--card2);border:1px solid var(--gold);border-radius:14px;padding:12px 16px;display:flex;gap:14px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:92vw}
+  .eod-log tr{cursor:pointer}.eod-log tr:hover td{background:rgba(255,255,255,.03)}
+  .eod-dig h4{margin:14px 0 6px;font-size:13px}.eod-dig .it{font-size:12.5px;line-height:1.5;margin:3px 0}
+  `;
+  function injectCss(){ if(document.getElementById('eodCss')) return; const s=document.createElement('style'); s.id='eodCss'; s.textContent=css; document.head.appendChild(s); }
+
+  /* ---------- shared data ---------- */
+  async function loadCfg(){
+    const [m,s]=await Promise.all([
+      sb.from('eod_metric_config').select('*'),
+      sb.from('settings').select('value').eq('key','eod_settings').maybeSingle()
+    ]);
+    if(m.error) throw m.error;
+    E.metrics={}; (m.data||[]).forEach(r=>E.metrics[r.client_id]=r.metrics||[]);
+    E.settings=(s.data&&s.data.value)||{hard_block:false,reminder_min:15};
+  }
+  function myMetrics(){ return (E.metrics&&E.metrics[me.client_id])||[]; }
+
+  /* which shift/date the staff member is reporting on */
+  async function resolveContext(){
+    if(curShift&&!curShift.logout_at) return {shift:curShift, date:shiftAnchorDate(curShift), open:true};
+    const {data}=await sb.from('shifts').select('*').eq('staff_id',me.id).order('login_at',{ascending:false}).limit(1);
+    const last=data&&data[0];
+    if(last&&last.logout_at&&Date.now()-new Date(last.logout_at).getTime()<12*3600e3) return {shift:last, date:shiftAnchorDate(last), open:false};
+    return {shift:null, date:phDate(new Date()), open:false};
+  }
+
+  /* ============================== STAFF VIEW ============================== */
+  async function initStaff(root){
+    root.innerHTML='<div class="card muted">Loading your reports…</div>';
+    try{ await loadCfg(); }catch(e){ root.innerHTML=`<div class="card"><b>EOD reports are not set up yet.</b><div class="muted" style="font-size:12px;margin-top:6px">${esc(errMsg(e))} — ask your admin to run the EOD SQL.</div></div>`; return; }
+    const ctx=await resolveContext();
+    const week=mondayOf(ctx.date);
+    const [rep,goal,wk,log,wlog]=await Promise.all([
+      sb.from('eod_reports').select('*').eq('staff_id',me.id).eq('report_date',ctx.date).maybeSingle(),
+      sb.from('eod_weekly_goals').select('*').eq('staff_id',me.id).eq('week_start',week).maybeSingle(),
+      sb.from('eod_reports').select('*').eq('staff_id',me.id).gte('report_date',week).lte('report_date',addDays(week,6)),
+      sb.from('eod_reports').select('*').eq('staff_id',me.id).order('report_date',{ascending:false}).limit(60),
+      sb.from('eod_weekly_reports').select('*').eq('staff_id',me.id).order('week_start',{ascending:false}).limit(12)
+    ]);
+    E.state={ctx,week,report:rep.data||null,goal:goal.data||null,weekReports:wk.data||[],log:log.data||[],wlog:wlog.data||[]};
+    renderStaff(root);
+  }
+
+  function reportLocked(r,ctx){
+    const out=ctx.shift&&ctx.shift.logout_at?new Date(ctx.shift.logout_at).getTime():null;
+    if(out) return Date.now()>out+12*3600e3;
+    return false;
+  }
+
+  function weekChips(){
+    const S=E.state, today=phDate(new Date());
+    return DOW.slice(0,5).map((d,i)=>{
+      const iso=addDays(S.week,i), r=S.weekReports.find(x=>x.report_date===iso);
+      let cls='', t=d;
+      if(r&&r.status==='submitted'){ cls=r.on_time?'ok':'late'; t+=r.on_time?' ✓':' late'; }
+      else if(iso<today) { t+=' —'; }
+      return `<span class="eod-chip ${cls}">${t}</span>`;
+    }).join(' ');
+  }
+
+  function renderStaff(root){
+    const S=E.state, r=S.report||{}, ctx=S.ctx, mets=myMetrics(), locked=reportLocked(r,ctx);
+    const submitted=r.status==='submitted';
+    const c=(clients||[]).find(x=>x.id===me.client_id);
+    const streak=(()=>{let n=0; for(const x of S.log){ if(x.status==='submitted'&&x.on_time) n++; else if(x.status==='submitted') break; } return n;})();
+    const lastComment=S.log.concat(S.wlog).filter(x=>x.admin_comment).sort((a,b)=>String(b.admin_comment_at).localeCompare(String(a.admin_comment_at)))[0];
+    const statusChip=submitted?`<span class="eod-chip ${r.on_time?'ok':'late'}">${r.on_time?'Sent on time':'Sent late'} · ${fmtTs(r.submitted_at)}</span>`:(r.id?'<span class="eod-chip">Draft saved</span>':'<span class="eod-chip">Not started</span>');
+    const ctxNote=ctx.shift?`Shift: login ${fmtTs(ctx.shift.login_at)}${ctx.shift.logout_at?' · logout '+fmtTs(ctx.shift.logout_at):' · <b style="color:var(--teal)">on shift</b>'}`:'No recent shift found — this EOD is for today.';
+    const dis=locked?'disabled':'';
+    root.innerHTML=`
+    <div class="eod-wrap">
+      <div class="grid" style="gap:14px">
+        <div class="card" id="eodForm">
+          <div class="hdr" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <h3 style="font-size:15px">EOD Report · ${fmtDate(ctx.date)}${c?' · '+esc(c.name):''}</h3>
+            <div class="row" style="gap:6px;align-items:center"><span class="eod-chip">🔒 Only Rendy sees this</span>${statusChip}</div>
+          </div>
+          <div class="note" style="margin-top:10px;font-size:12.5px">${ctxNote}</div>
+          ${r.emergency_reason?`<div class="note" style="margin-top:8px;border-color:var(--rose);font-size:12.5px">Emergency log out: “${esc(r.emergency_reason)}” — this EOD counts as Late.</div>`:''}
+          ${locked?'<div class="note" style="margin-top:8px;border-color:var(--slate);font-size:12.5px">Locked — EODs can be edited up to 12 hours after logout.</div>':''}
+          ${mets.length?`<div class="eod-sec bl"><label>📊 Today’s numbers <span class="eod-hint">type n/a if none</span></label>
+            <div class="eod-nums">${mets.map(m=>`<div><span>${esc(m)}</span><input data-num="${esc(m)}" value="${esc((r.numbers||{})[m]||'')}" maxlength="40" ${dis}></div>`).join('')}</div></div>`:''}
+          <div class="eod-sec gl"><label>🎯 Goal this week <span class="eod-hint">set it once, it carries all week</span></label>
+            <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">
+              <input id="eodGoal" style="flex:1;min-width:220px" maxlength="300" placeholder="e.g. Zero pending docs at end of every shift" value="${esc(S.goal?S.goal.goal:'')}" ${dis}>
+              ${['on_track','at_risk','done'].map(g=>`<button type="button" class="eod-chip ${g==='on_track'?'ok':g==='at_risk'?'late':'ok'} ${r.goal_status===g?'on':''}" data-goal="${g}" ${dis}>${g==='on_track'?'On track':g==='at_risk'?'At risk':'Done'}</button>`).join('')}
+            </div></div>
+          <div class="eod-sec"><label>✨ Highlights <span class="eod-hint">wins, good moments, stories — English or Taglish</span></label>
+            <textarea id="eodHi" rows="4" maxlength="4000" ${dis}>${esc(r.highlights||'')}</textarea></div>
+          <div class="eod-sec lo"><label>🌧️ Lowlights <span class="eod-hint">what didn’t go well, at work or in life</span></label>
+            <textarea id="eodLo" rows="3" maxlength="4000" ${dis}>${esc(r.lowlights||'')}</textarea>
+            <label class="row" style="gap:8px;margin-top:8px;font-weight:400;font-size:12.5px;cursor:pointer;align-items:center"><input type="checkbox" id="eodSick" style="width:auto" ${r.not_well?'checked':''} ${dis}> 🤒 I’m not feeling well <span class="muted">(Rendy gets flagged — file a leave under Request if you need a day off)</span></label></div>
+          <div class="eod-sec bl"><label>🚧 Blockers <span class="eod-hint">who do you need help from? Leave blank if none</span></label>
+            <textarea id="eodBl" rows="2" maxlength="4000" ${dis}>${esc(r.blockers||'')}</textarea></div>
+          <div class="eod-sec tk"><label>📋 What I worked on <span class="eod-hint">optional — one task per line</span></label>
+            <textarea id="eodTk" rows="3" maxlength="4000" ${dis}>${esc(r.tasks||'')}</textarea></div>
+          <div style="margin-top:12px"><label style="font-size:12px;color:var(--muted)">🔗 Link (optional)</label><input id="eodLink" maxlength="500" placeholder="Paste a link to a doc or screenshot" value="${esc(r.link||'')}" ${dis}></div>
+          <div class="row" style="margin-top:14px;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <span class="eod-msg muted" id="eodMsg">${locked?'':submitted?'Edits are allowed until 12 hours after logout.':'Autosaves as you type.'}</span>
+            <div class="row" style="gap:8px">${locked?'':(submitted?'<button class="btn btn-gold" id="eodSubmit">Save changes</button>':'<button class="btn btn-ghost" id="eodDraft">Save draft</button><button class="btn btn-gold" id="eodSubmit">Submit EOD</button>')}</div>
+          </div>
+        </div>
+        <div class="card" id="eodWeekly"></div>
+      </div>
+      <div class="grid" style="gap:14px">
+        <div class="card"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">This week</h3>
+          <div style="margin:12px 0;display:flex;gap:6px;flex-wrap:wrap">${weekChips()}</div>
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:8px"><div class="stat" style="padding:12px"><div class="k">On-time streak</div><div class="v">${streak}${streak>=3?' 🔥':''}</div></div>
+          <div class="stat" style="padding:12px"><div class="k">EODs sent (wk)</div><div class="v">${S.weekReports.filter(x=>x.status==='submitted').length}</div></div></div>
+        </div>
+        ${lastComment?`<div class="card"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Rendy replied · ${lastComment.report_date?fmtShort(lastComment.report_date):'Weekly '+fmtShort(lastComment.week_start)}</h3><p style="margin:8px 0 0;line-height:1.5">${nl(lastComment.admin_comment)}</p></div>`:''}
+        <div class="card"><div class="hdr" style="display:flex;justify-content:space-between;align-items:center"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">My report log</h3><button class="btn btn-ghost" id="eodPdf" style="padding:6px 10px">⬇ Export PDF</button></div>
+          <input id="eodSearch" placeholder="🔍 Search my reports" style="margin:10px 0">
+          <div style="max-height:520px;overflow:auto"><table class="eod-log"><thead><tr><th>Date</th><th>Type</th><th>Status</th><th></th></tr></thead><tbody id="eodLogBody"></tbody></table></div>
+        </div>
+      </div>
+    </div>`;
+    wireStaffForm(root, locked, submitted);
+    renderWeekly();
+    renderLog('');
+    $('eodSearch').oninput=e=>renderLog(e.target.value);
+    $('eodPdf').onclick=exportPdf;
+  }
+
+  function collectForm(){
+    const nums={}; document.querySelectorAll('#eodForm [data-num]').forEach(i=>{ if(i.value.trim()) nums[i.dataset.num]=i.value.trim(); });
+    const g=document.querySelector('#eodForm [data-goal].on');
+    return {report_date:E.state.ctx.date, shift_id:E.state.ctx.shift?E.state.ctx.shift.id:null, numbers:nums,
+      goal_status:g?g.dataset.goal:null, highlights:$('eodHi').value, lowlights:$('eodLo').value, blockers:$('eodBl').value,
+      tasks:$('eodTk').value, link:$('eodLink').value, not_well:$('eodSick').checked};
+  }
+  async function saveReport(submit){
+    const p=collectForm(); p.submit=!!submit;
+    const {data,error}=await sb.rpc('eod_save',{p});
+    if(error) throw error;
+    E.state.report=data;
+    const i=E.state.weekReports.findIndex(x=>x.id===data.id); if(i>=0) E.state.weekReports[i]=data; else if(data.report_date>=E.state.week) E.state.weekReports.push(data);
+    const j=E.state.log.findIndex(x=>x.id===data.id); if(j>=0) E.state.log[j]=data; else E.state.log.unshift(data);
+    return data;
+  }
+  function wireStaffForm(root, locked, submitted){
+    if(locked) return;
+    let t=null, busy=false;
+    const msg=(s,color)=>{const m=$('eodMsg'); if(m){m.textContent=s; m.style.color=color||'';}};
+    const autosave=()=>{ if(submitted) return; clearTimeout(t); t=setTimeout(async()=>{ if(busy) return; busy=true; try{ await saveReport(false); msg('Draft saved '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})); }catch(e){ msg('Could not autosave: '+errMsg(e),'var(--rose)'); } finally{busy=false;} },1800); };
+    root.querySelectorAll('#eodForm textarea, #eodForm [data-num], #eodLink').forEach(el=>el.addEventListener('input',autosave));
+    $('eodSick').onchange=autosave;
+    root.querySelectorAll('#eodForm [data-goal]').forEach(b=>b.onclick=()=>{ const on=b.classList.contains('on'); root.querySelectorAll('#eodForm [data-goal]').forEach(x=>x.classList.remove('on')); if(!on) b.classList.add('on'); autosave(); });
+    $('eodGoal').onchange=async()=>{ try{ const {data,error}=await sb.rpc('eod_set_goal',{p_week_start:E.state.week,p_goal:$('eodGoal').value}); if(error) throw error; E.state.goal=data&&data.goal?data:null; msg('Goal saved for the week.'); }catch(e){ msg('Could not save goal: '+errMsg(e),'var(--rose)'); } };
+    const d=$('eodDraft'); if(d) d.onclick=async()=>{ try{ await saveReport(false); msg('Draft saved.'); }catch(e){ msg(errMsg(e),'var(--rose)'); } };
+    $('eodSubmit').onclick=async()=>{
+      const b=$('eodSubmit'); b.disabled=true; clearTimeout(t);
+      try{ if($('eodGoal').value.trim()!==(E.state.goal?E.state.goal.goal:'')) await $('eodGoal').onchange();
+        await saveReport(true); E.hideBanner(); msg(submitted?'Changes saved.':'EOD sent. Salamat! 🙌','var(--teal)'); setTimeout(()=>renderStaff(root),900); }
+      catch(e){ msg(errMsg(e),'var(--rose)'); b.disabled=false; }
+    };
+  }
+
+  /* ---------- weekly ---------- */
+  function sumNumbers(reports){
+    const tot={}, seen={};
+    reports.forEach(r=>Object.entries(r.numbers||{}).forEach(([k,v])=>{ seen[k]=true; const n=parseFloat(String(v).replace(/,/g,'')); if(!isNaN(n)&&/^\s*-?[\d,.]+\s*$/.test(String(v))) tot[k]=(tot[k]||0)+n; }));
+    const out={}; Object.keys(seen).forEach(k=>out[k]=k in tot?String(Math.round(tot[k]*100)/100):'n/a'); return out;
+  }
+  function bullets(reports,field){ return reports.filter(r=>r[field]).map(r=>`• ${DOW[(new Date(r.report_date+'T00:00:00Z').getUTCDay()+6)%7]}: ${r[field].replace(/\s*\n\s*/g,' / ')}`).join('\n'); }
+  async function renderWeekly(){
+    const box=$('eodWeekly'); if(!box) return;
+    const S=E.state, today=phDate(new Date()), thisWeek=mondayOf(today), lastWeek=addDays(thisWeek,-7);
+    const lastW=S.wlog.find(w=>w.week_start===lastWeek);
+    const dowToday=(new Date(today+'T00:00:00Z').getUTCDay()+6)%7;
+    if(!S.wkSel) S.wkSel=(dowToday<=1&&lastW&&lastW.status==='draft')?lastWeek:thisWeek; // Mon/Tue: reopen last week's unfinished draft
+    const wk=S.wkSel, w=S.wlog.find(x=>x.week_start===wk)||null;
+    const {data:reps}=await sb.from('eod_reports').select('*').eq('staff_id',me.id).gte('report_date',wk).lte('report_date',addDays(wk,6)).order('report_date');
+    const sent=(reps||[]).filter(r=>r.status==='submitted');
+    const {data:g}=await sb.from('eod_weekly_goals').select('*').eq('staff_id',me.id).eq('week_start',wk).maybeSingle();
+    const locked=Date.now()>new Date(addDays(wk,9)+'T00:00:00+08:00').getTime();
+    const submitted=w&&w.status==='submitted';
+    const totals=w&&Object.keys(w.totals||{}).length?w.totals:sumNumbers(sent);
+    const pre=(f,fallback)=>w&&w[f]!=null?w[f]:fallback;
+    const dis=locked?'disabled':'';
+    box.innerHTML=`
+      <div class="hdr" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <h3 style="font-size:15px">Weekly Report · ${fmtShort(wk)}–${fmtShort(addDays(wk,4))}</h3>
+        <div class="row" style="gap:6px;align-items:center"><select id="eodWkSel" style="width:auto">${[thisWeek,lastWeek].map(x=>`<option value="${x}" ${x===wk?'selected':''}>${x===thisWeek?'This week':'Last week'}</option>`).join('')}</select>
+        ${submitted?`<span class="eod-chip ${w.on_time?'ok':'late'}">${w.on_time?'Sent on time':'Sent late'}</span>`:'<span class="eod-chip late">Due Fri, end of shift</span>'}</div>
+      </div>
+      <div class="note" style="margin-top:10px;font-size:12.5px">${submitted?'Sent '+fmtTs(w.submitted_at)+'.':`Pre-filled from your ${sent.length} EOD${sent.length===1?'':'s'} this week. Trim it, don’t retype it.`}</div>
+      ${Object.keys(totals).length?`<div class="eod-sec bl"><label>📊 Week’s numbers</label><div class="eod-nums">${Object.entries(totals).map(([k,v])=>`<div><span>${esc(k)}</span><input data-wtot="${esc(k)}" value="${esc(v)}" maxlength="40" ${dis}></div>`).join('')}</div></div>`:''}
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px">
+        <div class="eod-sec"><label>✨ Week’s highlights</label><textarea id="eodWHi" rows="5" ${dis}>${esc(pre('highlights',bullets(sent,'highlights')))}</textarea></div>
+        <div class="eod-sec lo"><label>🌧️ Week’s lowlights</label><textarea id="eodWLo" rows="5" ${dis}>${esc(pre('lowlights',bullets(sent,'lowlights')))}</textarea></div>
+      </div>
+      <div class="eod-sec bl"><label>🚧 Blockers still open</label><textarea id="eodWBl" rows="2" ${dis}>${esc(pre('blockers',bullets(sent,'blockers')))}</textarea></div>
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px">
+        <div class="eod-sec gl"><label>🎯 This week’s goal</label><div class="muted" style="font-size:12.5px;margin-bottom:6px">${g?esc(g.goal):'No goal was set'}</div>
+          <div class="row" style="gap:6px">${['hit','partly','missed'].map(x=>`<button type="button" class="eod-chip ${x==='hit'?'ok':x==='partly'?'late':'miss'} ${w&&w.goal_result===x?'on':''}" data-wgoal="${x}" ${dis}>${x==='hit'?'Hit':x==='partly'?'Partly':'Missed'}</button>`).join('')}</div></div>
+        <div class="eod-sec gl"><label>🎯 Goal for next week</label><input id="eodWNext" maxlength="300" value="${esc(pre('next_goal',''))}" ${dis}></div>
+      </div>
+      <div class="row" style="margin-top:14px;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <span class="eod-msg muted" id="eodWMsg">${locked?'Locked.':''}</span>
+        <div class="row" style="gap:8px">${locked?'':`<button class="btn btn-ghost" id="eodWDraft">Save draft</button><button class="btn btn-gold" id="eodWSubmit">${submitted?'Save changes':'Submit weekly'}</button>`}</div>
+      </div>`;
+    $('eodWkSel').onchange=e=>{ S.wkSel=e.target.value; renderWeekly(); };
+    if(locked) return;
+    box.querySelectorAll('[data-wgoal]').forEach(b=>b.onclick=()=>{ const on=b.classList.contains('on'); box.querySelectorAll('[data-wgoal]').forEach(x=>x.classList.remove('on')); if(!on) b.classList.add('on'); });
+    const save=async submit=>{
+      const t={}; box.querySelectorAll('[data-wtot]').forEach(i=>{ if(i.value.trim()) t[i.dataset.wtot]=i.value.trim(); });
+      const gr=box.querySelector('[data-wgoal].on');
+      const p={week_start:wk,totals:t,highlights:$('eodWHi').value,lowlights:$('eodWLo').value,blockers:$('eodWBl').value,goal_result:gr?gr.dataset.wgoal:null,next_goal:$('eodWNext').value,submit};
+      const {data,error}=await sb.rpc('eod_weekly_save',{p}); if(error) throw error;
+      const i=S.wlog.findIndex(x=>x.id===data.id); if(i>=0) S.wlog[i]=data; else S.wlog.unshift(data);
+      return data;
+    };
+    const m=(s,c)=>{ const x=$('eodWMsg'); x.textContent=s; x.style.color=c||''; };
+    $('eodWDraft').onclick=async()=>{ try{ await save(false); m('Draft saved.'); }catch(e){ m(errMsg(e),'var(--rose)'); } };
+    $('eodWSubmit').onclick=async()=>{ try{ await save(true); m('Weekly report sent. 🙌','var(--teal)'); setTimeout(()=>{renderWeekly(); renderLog($('eodSearch')?$('eodSearch').value:'');},700); }catch(e){ m(errMsg(e),'var(--rose)'); } };
+  }
+
+  /* ---------- log + viewer ---------- */
+  function logRows(){
+    const S=E.state;
+    return S.log.map(r=>({kind:'eod',date:r.report_date,r})).concat(S.wlog.map(w=>({kind:'weekly',date:w.week_start,r:w}))).sort((a,b)=>b.date.localeCompare(a.date)||(a.kind==='weekly'?-1:1));
+  }
+  function statusChipFor(r){
+    if(r.status==='submitted') return `<span class="eod-chip ${r.on_time?'ok':'late'}">${r.on_time?'On time':'Late'}</span>`;
+    return '<span class="eod-chip">Draft</span>';
+  }
+  function renderLog(q){
+    const body=$('eodLogBody'); if(!body) return;
+    q=(q||'').toLowerCase().trim();
+    const rows=logRows().filter(x=>!q||JSON.stringify(x.r).toLowerCase().includes(q));
+    body.innerHTML=rows.map((x,i)=>`<tr data-i="${i}"><td>${x.kind==='weekly'?'Wk '+fmtShort(x.date):fmtShort(x.date)}</td><td>${x.kind==='weekly'?'Weekly':'EOD'}</td><td>${statusChipFor(x.r)}</td><td style="font-size:12px">${x.r.starred?'⭐ ':''}${x.r.admin_comment?'💬 ':''}${x.r.not_well?'🤒 ':''}${x.r.admin_read_at?'<span class="muted">✓ Read</span>':''}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">No reports yet.</td></tr>';
+    body.querySelectorAll('tr[data-i]').forEach(tr=>tr.onclick=()=>{ const x=rows[+tr.dataset.i]; openViewer(x.kind,x.r); });
+  }
+  function reportHtml(kind,r,withName){
+    const sec=(t,v,color)=>v?`<div class="eod-sec ${color||''}" style="margin-top:12px"><label>${t}</label><div style="font-size:13px;line-height:1.55">${nl(v)}</div></div>`:'';
+    const nums=Object.entries((kind==='eod'?r.numbers:r.totals)||{});
+    return `${withName?`<div style="font-weight:600;margin-bottom:4px">${esc(staffName(r.staff_id))} · ${esc(clientName(r.client_id))}</div>`:''}
+      <div class="row" style="gap:6px;flex-wrap:wrap">${statusChipFor(r)}${r.not_well?'<span class="eod-chip miss">🤒 Not feeling well</span>':''}${r.goal_status?`<span class="eod-chip">${{on_track:'Goal: on track',at_risk:'Goal: at risk',done:'Goal: done'}[r.goal_status]}</span>`:''}${r.goal_result?`<span class="eod-chip">Goal ${r.goal_result}</span>`:''}${r.submitted_at?`<span class="muted" style="font-size:12px">Sent ${fmtTs(r.submitted_at)}</span>`:''}</div>
+      ${r.emergency_reason?`<div class="note" style="margin-top:10px;border-color:var(--rose);font-size:12.5px">Emergency log out ${fmtTs(r.emergency_at)}: “${esc(r.emergency_reason)}”</div>`:''}
+      ${nums.length?`<div class="eod-nums" style="margin-top:12px">${nums.map(([k,v])=>`<div class="stat" style="padding:10px"><div class="k">${esc(k)}</div><div class="v" style="font-size:18px">${esc(v)}</div></div>`).join('')}</div>`:''}
+      ${sec('✨ Highlights',r.highlights)}${sec('🌧️ Lowlights',r.lowlights,'lo')}${sec('🚧 Blockers',r.blockers,'bl')}${sec('📋 What I worked on',r.tasks,'tk')}
+      ${kind==='weekly'&&r.next_goal?sec('🎯 Goal for next week',r.next_goal,'gl'):''}
+      ${r.link?`<div style="margin-top:12px;font-size:12.5px">🔗 <a href="${esc(/^https?:\/\//i.test(r.link)?r.link:'https://'+r.link)}" target="_blank" rel="noopener" style="color:var(--teal)">${esc(r.link)}</a></div>`:''}`;
+  }
+  function overlay(inner){
+    const ov=document.createElement('div'); ov.className='eod-ov'; ov.innerHTML=`<div class="card">${inner}</div>`;
+    ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); }); document.body.appendChild(ov); return ov;
+  }
+  function openViewer(kind,r){
+    const title=kind==='weekly'?`Weekly Report · ${fmtShort(r.week_start)}–${fmtShort(addDays(r.week_start,4))}`:`EOD Report · ${fmtDate(r.report_date)}`;
+    const adm=isAdmin();
+    const ov=overlay(`<div class="hdr" style="display:flex;justify-content:space-between;align-items:center"><h3 style="font-size:15px">${title}</h3><button class="btn btn-ghost" data-x>Close</button></div>
+      <div style="margin-top:10px">${reportHtml(kind,r,adm)}</div>
+      ${adm?`<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px"><label style="font-size:12px;color:var(--muted)">Reply to ${esc(staffName(r.staff_id))} (they see this in their log)</label>
+        <textarea id="eodCmt" rows="3" maxlength="2000">${esc(r.admin_comment||'')}</textarea>
+        <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-gold" data-a="comment">Save reply</button><button class="btn btn-ghost" data-a="${r.starred?'unstar':'star'}">${r.starred?'☆ Remove star':'⭐ Star (+3 shadow)'}</button><button class="btn btn-ghost" data-a="${r.admin_read_at?'unread':'read'}">${r.admin_read_at?'Mark unread':'✓ Mark read'}</button><span class="eod-msg muted" id="eodCmtMsg"></span></div></div>`
+      :(r.admin_comment?`<div class="note" style="margin-top:14px"><b>Rendy replied</b> <span class="muted" style="font-size:11px">${fmtTs(r.admin_comment_at)}</span><div style="margin-top:4px">${nl(r.admin_comment)}</div></div>`:'')}`);
+    ov.querySelector('[data-x]').onclick=()=>ov.remove();
+    if(adm){
+      if(!r.admin_read_at&&r.status==='submitted') review(kind,r,'read').catch(()=>{});
+      ov.querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{
+        try{ await review(kind,r,b.dataset.a,$('eodCmt').value); ov.remove(); }catch(e){ $('eodCmtMsg').textContent=errMsg(e); $('eodCmtMsg').style.color='var(--rose)'; }
+      });
+    }
+  }
+  async function review(kind,r,action,comment){
+    const {data,error}=await sb.rpc('eod_admin_review',{p_kind:kind,p_id:r.id,p_action:action,p_comment:comment||null});
+    if(error) throw error;
+    Object.assign(r,data);
+    if(E.adm.rerender) E.adm.rerender();
+    return data;
+  }
+  function exportPdf(){
+    const rows=logRows().filter(x=>x.r.status==='submitted');
+    const w=window.open('','_blank'); if(!w) return alert('Allow pop-ups to export.');
+    const doc=`<html><head><title>${esc(me.full_name)} — Report log</title><style>body{font:13px Inter,Arial,sans-serif;color:#111;margin:28px}h1{font-size:18px}h2{font-size:14px;margin:18px 0 4px;border-bottom:1px solid #ccc;padding-bottom:3px}.s{margin:4px 0}.k{color:#666;font-size:11px;text-transform:uppercase}</style></head><body>
+      <h1>${esc(me.full_name)} — EOD &amp; Weekly log</h1><div class="k">Exported ${new Date().toLocaleString('en-US',{timeZone:'Asia/Manila'})} PHT</div>
+      ${rows.map(x=>{const r=x.r; const nums=Object.entries((x.kind==='eod'?r.numbers:r.totals)||{}).map(([k,v])=>esc(k)+': '+esc(v)).join(' · ');
+        return `<h2>${x.kind==='weekly'?'Weekly · '+fmtShort(r.week_start):'EOD · '+fmtDate(r.report_date)} ${r.on_time?'':'(late)'}</h2>${nums?`<div class="s"><b>${nums}</b></div>`:''}
+        ${['highlights','lowlights','blockers','tasks','next_goal'].filter(f=>r[f]).map(f=>`<div class="s"><span class="k">${f.replace('_',' ')}</span><br>${nl(r[f])}</div>`).join('')}
+        ${r.admin_comment?`<div class="s"><span class="k">Rendy replied</span><br>${nl(r.admin_comment)}</div>`:''}`;}).join('')}
+      <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
+    w.document.open(); w.document.write(doc); w.document.close();
+  }
+
+  /* ============================== ADMIN VIEW ============================== */
+  function adminWeeks(){ const cur=mondayOf(phDate(new Date())); return Array.from({length:10},(_,i)=>addDays(cur,-7*i)); }
+  async function initAdmin(root){
+    root.innerHTML='<div class="card muted">Loading reports…</div>';
+    try{ await loadCfg(); }catch(e){ root.innerHTML=`<div class="card"><b>Run the EOD SQL first.</b><div class="muted" style="font-size:12px;margin-top:6px">${esc(errMsg(e))}</div></div>`; return; }
+    if(!E.adm.week) E.adm.week=adminWeeks()[0];
+    if(E.adm.client==null) E.adm.client='';
+    root.innerHTML=`<div class="card">
+      <div class="hdr" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="eod-tabs">${[['board','📋 Board'],['digest','🧾 Client digest'],['tokens','🎟️ Report tokens (shadow)'],['settings','⚙️ Settings']].map(([k,l])=>`<button data-t="${k}" class="${E.adm.tab===k?'on':''}">${l}</button>`).join('')}</div>
+        <div class="row" style="gap:8px;align-items:center"><select id="eodAWeek" style="width:auto">${adminWeeks().map(w=>`<option value="${w}" ${w===E.adm.week?'selected':''}>Week of ${fmtShort(w)}–${fmtShort(addDays(w,6))}</option>`).join('')}</select>
+        <select id="eodAClient" style="width:auto"><option value="">All clients</option>${(clients||[]).map(c=>`<option value="${c.id}" ${c.id===E.adm.client?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+      </div>
+      <div class="row" style="gap:8px;margin-top:10px;font-size:12px;flex-wrap:wrap" id="eodAStat"></div>
+      <div id="eodABody" style="margin-top:12px"></div></div>`;
+    root.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{ E.adm.tab=b.dataset.t; initAdmin(root); });
+    $('eodAWeek').onchange=e=>{ E.adm.week=e.target.value; loadAdminWeek(); };
+    $('eodAClient').onchange=e=>{ E.adm.client=e.target.value; E.adm.rerender(); };
+    E.adm.rerender=()=>paintAdmin();
+    await loadAdminWeek();
+  }
+  async function loadAdminWeek(){
+    const wk=E.adm.week;
+    const [r,w,g]=await Promise.all([
+      sb.from('eod_reports').select('*').gte('report_date',wk).lte('report_date',addDays(wk,6)),
+      sb.from('eod_weekly_reports').select('*').eq('week_start',wk),
+      sb.from('eod_weekly_goals').select('*').eq('week_start',wk)
+    ]);
+    E.adm.reports=r.data||[]; E.adm.weeklies=w.data||[]; E.adm.goals=g.data||[];
+    E.adm.tokens=null;
+    paintAdmin();
+  }
+  function adminStaff(){
+    return (staffList||[]).filter(s=>s.active&&s.role!=='admin'&&(!E.adm.client||s.client_id===E.adm.client))
+      .sort((a,b)=>clientName(a.client_id).localeCompare(clientName(b.client_id))||String(a.full_name).localeCompare(String(b.full_name)));
+  }
+  function paintAdmin(){
+    const body=$('eodABody'); if(!body) return;
+    const staff=adminStaff(), ids=new Set(staff.map(s=>s.id));
+    const reps=E.adm.reports.filter(r=>ids.has(r.staff_id)), sent=reps.filter(r=>r.status==='submitted');
+    const unread=sent.filter(r=>!r.admin_read_at).length+E.adm.weeklies.filter(w=>ids.has(w.staff_id)&&w.status==='submitted'&&!w.admin_read_at).length;
+    const sick=sent.filter(r=>r.not_well).length, blk=sent.filter(r=>r.blockers).length;
+    $('eodAStat').innerHTML=`<span class="eod-chip ok">${sent.length} EODs sent</span><span class="eod-chip late">${sent.filter(r=>!r.on_time).length} late</span><span class="eod-chip ${unread?'late':''}">${unread} unread</span><span class="eod-chip ${sick?'miss':''}">🤒 ${sick} not feeling well</span><span class="eod-chip">🚧 ${blk} with blockers</span>`;
+    const t=E.adm.tab;
+    if(t==='board') paintBoard(body,staff);
+    else if(t==='digest') paintDigest(body,staff);
+    else if(t==='tokens') paintTokens(body,staff);
+    else paintSettings(body);
+  }
+  function cellFor(r){
+    if(!r) return null;
+    if(r.status!=='submitted') return {cls:'',t:r.emergency_reason?'⚡ Out':'Draft'};
+    return {cls:r.on_time?'ok':'late',t:(r.on_time?'✓':'Late')};
+  }
+  function paintBoard(body,staff){
+    const wk=E.adm.week, today=phDate(new Date());
+    const days=Array.from({length:7},(_,i)=>addDays(wk,i));
+    const showWeekend=E.adm.reports.some(r=>{const d=(new Date(r.report_date+'T00:00:00Z').getUTCDay()+6)%7; return d>=5;});
+    const cols=showWeekend?days:days.slice(0,5);
+    let lastClient=null;
+    body.innerHTML=`<div style="overflow-x:auto"><table class="eod-board"><thead><tr><th>Staff</th>${cols.map(d=>`<th>${DOW[(new Date(d+'T00:00:00Z').getUTCDay()+6)%7]} ${fmtShort(d).split(' ')[1]}</th>`).join('')}<th>Weekly</th><th style="text-align:left">Goal</th></tr></thead><tbody>
+      ${staff.map(s=>{
+        const head=s.client_id!==lastClient?`<tr><td colspan="${cols.length+3}" style="text-align:left;color:var(--gold);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding-top:14px">${esc(clientName(s.client_id))}</td></tr>`:''; lastClient=s.client_id;
+        const w=E.adm.weeklies.find(x=>x.staff_id===s.id), g=E.adm.goals.find(x=>x.staff_id===s.id);
+        return head+`<tr><td>${esc(s.full_name)}</td>${cols.map(d=>{const r=E.adm.reports.find(x=>x.staff_id===s.id&&x.report_date===d); const c=cellFor(r);
+          if(!c) return `<td class="muted">${d<today?'—':''}</td>`;
+          return `<td><button class="eod-cell eod-chip ${c.cls} ${r.status==='submitted'&&!r.admin_read_at?'unread':''}" data-id="${r.id}">${c.t}${r.not_well?' 🤒':''}${r.starred?' ⭐':''}${r.blockers?' 🚧':''}${r.admin_comment?' 💬':''}</button></td>`;}).join('')}
+          <td>${w?`<button class="eod-cell eod-chip ${w.status==='submitted'?(w.on_time?'ok':'late'):''} ${w.status==='submitted'&&!w.admin_read_at?'unread':''}" data-wid="${w.id}">${w.status==='submitted'?(w.on_time?'✓':'Late'):'Draft'}${w.starred?' ⭐':''}</button>`:'<span class="muted">—</span>'}</td>
+          <td style="text-align:left;font-size:12px;max-width:260px">${g?esc(g.goal):'<span class="muted">—</span>'}</td></tr>`;}).join('')||`<tr><td colspan="${cols.length+3}" class="muted">No staff.</td></tr>`}
+      </tbody></table></div>
+      <div class="muted" style="font-size:11.5px;margin-top:10px">Gold ring = not read yet. 🤒 not feeling well · 🚧 has blockers · ⭐ starred · 💬 you replied · ⚡ Out = emergency log out, EOD not sent yet. Click any cell to open the report.</div>`;
+    body.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>openViewer('eod',E.adm.reports.find(r=>r.id===b.dataset.id)));
+    body.querySelectorAll('[data-wid]').forEach(b=>b.onclick=()=>openViewer('weekly',E.adm.weeklies.find(r=>r.id===b.dataset.wid)));
+  }
+  function paintDigest(body,staff){
+    const byClient={};
+    staff.forEach(s=>{ (byClient[s.client_id]=byClient[s.client_id]||[]).push(s); });
+    const blocks=Object.entries(byClient).map(([cid,ss])=>{
+      const reps=E.adm.reports.filter(r=>r.status==='submitted'&&ss.some(s=>s.id===r.staff_id)).sort((a,b)=>a.report_date.localeCompare(b.report_date));
+      const tot=sumNumbers(reps);
+      const lines=f=>reps.filter(r=>r[f]).map(r=>`<div class="it">• <b>${esc(staffName(r.staff_id))}</b> <span class="muted">${fmtShort(r.report_date)}</span> — ${esc(r[f].replace(/\s*\n\s*/g,' / '))}</div>`).join('')||'<div class="it muted">None</div>';
+      return {cid,reps,tot,html:`<div class="card" style="background:var(--card2);margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b style="font-size:14px">${esc(clientName(cid==='null'?null:cid))}</b><span class="muted" style="font-size:12px">${reps.length} EODs from ${ss.length} staff</span></div>
+        ${Object.keys(tot).length?`<div class="eod-nums" style="margin-top:10px">${Object.entries(tot).map(([k,v])=>`<div class="stat" style="padding:10px"><div class="k">${esc(k)} (week)</div><div class="v" style="font-size:18px">${esc(v)}</div></div>`).join('')}</div>`:''}
+        <div class="eod-dig"><h4>✨ Highlights</h4>${lines('highlights')}<h4>🚧 Blockers</h4>${lines('blockers')}<h4>🌧️ Lowlights <span class="muted" style="font-weight:400;font-size:11px">(private — never include in client copy)</span></h4>${lines('lowlights')}</div></div>`};
+    });
+    body.innerHTML=`<div class="row" style="justify-content:flex-end;margin-bottom:10px"><button class="btn btn-ghost" id="eodCopy">📋 Copy client-safe summary</button><span class="eod-msg muted" id="eodCopyMsg" style="margin-left:8px"></span></div>${blocks.map(b=>b.html).join('')||'<div class="muted">No reports this week.</div>'}`;
+    $('eodCopy').onclick=async()=>{
+      const txt=blocks.map(b=>[`${clientName(b.cid==='null'?null:b.cid)} — week of ${fmtShort(E.adm.week)}`,
+        ...Object.entries(b.tot).map(([k,v])=>`${k}: ${v}`),'Highlights:',
+        ...b.reps.filter(r=>r.highlights).map(r=>`- ${staffName(r.staff_id)} (${fmtShort(r.report_date)}): ${r.highlights.replace(/\s*\n\s*/g,' / ')}`),
+        'Blockers:',...(b.reps.filter(r=>r.blockers).map(r=>`- ${staffName(r.staff_id)}: ${r.blockers.replace(/\s*\n\s*/g,' / ')}`)), ''].join('\n')).join('\n');
+      try{ await navigator.clipboard.writeText(txt); $('eodCopyMsg').textContent='Copied (lowlights left out).'; }catch(_){ $('eodCopyMsg').textContent='Copy failed — select the text manually.'; }
+    };
+  }
+  async function paintTokens(body,staff){
+    body.innerHTML='<div class="muted">Loading…</div>';
+    if(!E.adm.tokens){ const {data,error}=await sb.rpc('eod_token_shadow',{p_week_start:E.adm.week}); if(error){ body.innerHTML=`<div class="note" style="border-color:var(--rose)">${esc(errMsg(error))}</div>`; return; } E.adm.tokens=data||[]; }
+    const tk={}; E.adm.tokens.forEach(r=>tk[r.staff_id]=r);
+    const rows=staff.map(s=>({s,t:tk[s.id]||{eod_on_time:0,eod_late:0,weekly_on_time:false,perfect_week:false,stars:0,tokens:0}})).sort((a,b)=>b.t.tokens-a.t.tokens);
+    const total=rows.reduce((a,x)=>a+x.t.tokens,0);
+    body.innerHTML=`<div class="rw-shadow" style="margin-bottom:10px;font-size:12.5px"><b style="color:var(--gold)">SHADOW MODE</b> — staff can't see this and no tokens move. Rules: on-time EOD +1 · on-time weekly +2 · 5 on-time EODs + weekly = +2 bonus · ⭐ +3 (max 2 stars a week). Late or missing = 0.</div>
+      <table><thead><tr><th>Staff</th><th>Client</th><th>On-time EODs</th><th>Late</th><th>Weekly</th><th>5/5 bonus</th><th>⭐</th><th>Tokens</th></tr></thead><tbody>
+      ${rows.map(x=>`<tr><td>${esc(x.s.full_name)}</td><td>${esc(clientName(x.s.client_id))}</td><td>${x.t.eod_on_time}</td><td>${x.t.eod_late}</td><td>${x.t.weekly_on_time?'✓':'—'}</td><td>${x.t.perfect_week?'✓':'—'}</td><td>${x.t.stars}</td><td style="font-family:'IBM Plex Mono';color:var(--gold);font-weight:600">${x.t.tokens}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td colspan="7" style="text-align:right;color:var(--muted)">Total this week (would be paid)</td><td style="font-family:'IBM Plex Mono';color:var(--gold);font-weight:700">${total}</td></tr></tfoot></table>`;
+  }
+  function paintSettings(body){
+    const hb=!!(E.settings&&E.settings.hard_block);
+    body.innerHTML=`<div class="grid" style="grid-template-columns:1fr 1fr;gap:14px">
+      <div class="card" style="background:var(--card2)"><b>🔒 Hard block at Log out</b>
+        <div class="muted" style="font-size:12.5px;margin:6px 0 12px;line-height:1.5">ON: staff cannot log out until today’s EOD is sent. Emergency exit: “Log out anyway” with a reason (power/internet down) — that EOD is marked Late. The 10-hour automatic logout is never blocked.<br>OFF: staff only get a reminder.</div>
+        <div class="row" style="gap:10px;align-items:center"><span class="eod-chip ${hb?'ok':''}">${hb?'ON':'OFF'}</span><button class="btn ${hb?'btn-ghost':'btn-gold'}" id="eodHb">${hb?'Turn OFF':'Turn ON'}</button><span class="eod-msg muted" id="eodHbMsg"></span></div>
+        <div class="muted" style="font-size:11.5px;margin-top:10px">Reminder banner shows ${E.settings.reminder_min||15} minutes before each staff member’s scheduled shift end.</div></div>
+      <div class="card" style="background:var(--card2)"><b>📊 Numbers per client</b><div class="muted" style="font-size:12.5px;margin:6px 0 10px">Comma-separated, up to 8. Staff must fill these in (n/a allowed). Leave blank for none.</div>
+        ${(clients||[]).map(c=>`<div class="row" style="gap:8px;margin-bottom:8px;align-items:center"><span style="flex:0 0 130px;font-size:13px">${esc(c.name)}</span><input data-mc="${c.id}" value="${esc((E.metrics[c.id]||[]).join(', '))}" placeholder="e.g. Loads, Collections"><button class="btn btn-ghost" data-ms="${c.id}" style="padding:7px 10px">Save</button></div>`).join('')}
+        <div class="eod-msg muted" id="eodMcMsg"></div></div></div>`;
+    $('eodHb').onclick=async()=>{ const {data,error}=await sb.rpc('eod_admin_set_settings',{p_hard_block:!hb}); if(error){ $('eodHbMsg').textContent=errMsg(error); return; } E.settings=data; paintSettings(body); };
+    body.querySelectorAll('[data-ms]').forEach(b=>b.onclick=async()=>{
+      const cid=b.dataset.ms, val=body.querySelector(`[data-mc="${cid}"]`).value.split(',').map(x=>x.trim()).filter(Boolean);
+      const {data,error}=await sb.rpc('eod_admin_set_metrics',{p_client_id:cid,p_metrics:val});
+      const m=$('eodMcMsg'); if(error){ m.textContent=errMsg(error); m.style.color='var(--rose)'; return; }
+      E.metrics[cid]=data.metrics; m.style.color='var(--teal)'; m.textContent=`Saved for ${clientName(cid)}.`;
+    });
+  }
+
+  /* ============================== LOGOUT GATE ============================== */
+  async function submittedForShift(shift){
+    const date=shiftAnchorDate(shift);
+    const {data,error}=await sb.from('eod_reports').select('status,emergency_reason,report_date').eq('staff_id',me.id).eq('report_date',date).maybeSingle();
+    if(error) throw error; // EOD SQL not installed → callers fail open (never block)
+    return {date, ok:!!(data&&(data.status==='submitted'||data.emergency_reason))};
+  }
+  /* returns 'ok' (continue normal logout), 'cancel', or 'emergency' (already logged out) */
+  E.logoutGate=async function(shift){
+    if(!shift||!sb) return 'ok';
+    let st, hard=false;
+    try{ st=await submittedForShift(shift); const {data:s}=await sb.from('settings').select('value').eq('key','eod_settings').maybeSingle(); hard=!!(s&&s.value&&s.value.hard_block); }
+    catch(_){ return 'ok'; } // EOD tables not installed yet → never block
+    if(!st||st.ok) return 'ok';
+    return new Promise(resolve=>{
+      const ov=overlay(`<h3 style="font-size:16px">📝 You haven’t sent today’s EOD yet</h3>
+        <div class="muted" style="font-size:13px;margin:8px 0 14px;line-height:1.5">${hard?'Logging out is locked until your EOD is sent. It takes about 2 minutes.':'Please send it before you go — it takes about 2 minutes.'}</div>
+        <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn btn-gold" data-k="write">Write EOD now</button>${hard?'<button class="btn btn-ghost" data-k="em">⚡ Emergency log out</button>':'<button class="btn btn-ghost" data-k="anyway">Log out anyway</button>'}<button class="btn btn-ghost" data-k="cancel">Cancel</button></div>
+        <div id="eodEmBox" class="hide" style="margin-top:14px"><label style="font-size:12px;color:var(--muted)">What happened? (e.g. brownout, internet down)</label><input id="eodEmReason" maxlength="500">
+          <div class="muted" style="font-size:11.5px;margin:6px 0">Send your EOD within 1 hour. It will be marked Late and Rendy sees the reason.</div>
+          <div class="row" style="gap:8px"><button class="btn btn-rose" data-k="emgo">Log out now</button><span class="eod-msg" id="eodEmMsg" style="color:var(--rose)"></span></div></div>`);
+      const done=v=>{ ov.remove(); resolve(v); };
+      ov.addEventListener('click',e=>{ if(e.target===ov) resolve('cancel'); });
+      ov.querySelectorAll('[data-k]').forEach(b=>b.onclick=async()=>{
+        const k=b.dataset.k;
+        if(k==='write'){ done('cancel'); go('v-eod'); }
+        else if(k==='anyway'){ done('ok'); }
+        else if(k==='cancel'){ done('cancel'); }
+        else if(k==='em'){ ov.querySelector('#eodEmBox').classList.remove('hide'); ov.querySelector('#eodEmReason').focus(); }
+        else if(k==='emgo'){
+          b.disabled=true;
+          const {error}=await sb.rpc('eod_emergency_logout',{p_shift_id:shift.id,p_report_date:st.date,p_reason:ov.querySelector('#eodEmReason').value});
+          if(error){ ov.querySelector('#eodEmMsg').textContent=errMsg(error); b.disabled=false; return; }
+          done('emergency');
+        }
+      });
+    });
+  };
+
+  /* ============================== 15-MIN REMINDER ============================== */
+  let lastCheck=0, sentCache={};
+  E.hideBanner=function(){ const b=document.getElementById('eodBanner'); if(b) b.remove(); if(curShift) sentCache[curShift.id]=true; };
+  E.tick=function(now){ tickInner(now).catch(()=>{}); };
+  async function tickInner(now){
+    if(!me||me.role==='admin'||!curShift||curShift.logout_at) return;
+    if(now.getTime()-lastCheck<30000) return; lastCheck=now.getTime();
+    const c=(clients||[]).find(x=>x.id===me.client_id); if(!c) return;
+    const w=shiftWindowFor(c,shiftAnchorDate(curShift,c)); if(!w) return;
+    const mins=(E.settings&&E.settings.reminder_min)||15;
+    const from=w.end.getTime()-mins*60000;
+    if(now.getTime()<from||now.getTime()>w.end.getTime()+3*3600e3) return;
+    const key=curShift.id;
+    if(sentCache[key]||sessionStorage.getItem('eodRemDismiss:'+key)||document.getElementById('eodBanner')) return;
+    try{ const st=await submittedForShift(curShift); if(st.ok){ sentCache[key]=true; return; } }catch(_){ return; }
+    const b=document.createElement('div'); b.id='eodBanner'; b.className='eod-banner';
+    const left=Math.max(0,Math.round((w.end.getTime()-now.getTime())/60000));
+    b.innerHTML=`<div><b>⏰ ${left>0?left+' minutes left in your shift.':'Your shift has ended.'}</b> <span class="muted">Time to send your EOD — about 2 minutes.</span></div><button class="btn btn-gold" data-k="w">Write EOD now</button><button class="btn btn-ghost" data-k="x" title="Hide">✕</button>`;
+    b.querySelector('[data-k="w"]').onclick=()=>{ b.remove(); go('v-eod'); };
+    b.querySelector('[data-k="x"]').onclick=()=>{ sessionStorage.setItem('eodRemDismiss:'+key,'1'); b.remove(); };
+    document.body.appendChild(b);
+  }
+
+  /* ============================== ENTRY ============================== */
+  E.init=async function(){
+    injectCss();
+    const root=document.getElementById('eodRoot'); if(!root) return;
+    try{ if(isAdmin()) await initAdmin(root); else await initStaff(root); }
+    catch(e){ root.innerHTML=`<div class="card"><b>Could not load reports.</b><div class="muted" style="font-size:12px;margin-top:6px">${esc(errMsg(e))}</div></div>`; }
+  };
+  injectCss();
+})();
+
+</script>
 </body></html>
