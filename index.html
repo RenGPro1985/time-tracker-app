@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SMB VS Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 :root{--bg:#0B0D12;--card:#151824;--card2:#1D2130;--gold:#E3A63E;--teal:#3FBFAE;--rose:#E2685F;--slate:#6B7183;--ink:#F3F1E9;--muted:#8B90A0;--line:rgba(255,255,255,.07)}
@@ -4029,8 +4029,8 @@ function adherenceStats(client,ents,shifts,allShs,shiftDateMap,shiftSpanMap,grac
   shifts.forEach(sh=>{
     const login=new Date(sh.login_at), logout=sh.logout_at?new Date(sh.logout_at):new Date();
     loggedIn+=Math.max(0,(logout-login)/60000);
-    // For overnight shifts, compare the login to the closest of the prior/current PH-day window starts.
-    const d=phDate(login), cands=[shiftWindowFor(client,addDays(d,-1)),shiftWindowFor(client,d)].filter(Boolean);
+    // For overnight shifts, compare the login to the closest of the prior/current/next PH-day window starts (next = early login before a midnight start).
+    const d=phDate(login), cands=[shiftWindowFor(client,addDays(d,-1)),shiftWindowFor(client,d),shiftWindowFor(client,addDays(d,1))].filter(Boolean);
     if(!cands.length)return;
     const win=cands.reduce((a,b)=>Math.abs(login-a.start)<=Math.abs(login-b.start)?a:b);
     const lateMin=(login-win.start)/60000;
@@ -8456,7 +8456,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   /* Late check = same method as Adherence (closest of prior/current PH-day shift window), first log-in of each shift date only. */
   function lateMinutesFor(client,loginIso){
     const login=new Date(loginIso),d=phDate(login);
-    const cands=[shiftWindowFor(client,addDays(d,-1)),shiftWindowFor(client,d)].filter(Boolean);
+    const cands=[shiftWindowFor(client,addDays(d,-1)),shiftWindowFor(client,d),shiftWindowFor(client,addDays(d,1))].filter(Boolean);
     if(!cands.length)return null;
     const win=cands.reduce((a,b)=>Math.abs(login-a.start)<=Math.abs(login-b.start)?a:b);
     return (login-win.start)/60000;
@@ -9865,7 +9865,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   const clock=d=>d.toLocaleTimeString('en-US',{timeZone:'Asia/Manila',hour:'numeric',minute:'2-digit'});
   function lateInfo(client,loginIso){
     const login=new Date(loginIso),d=phDate(login);
-    const cands=[shiftWindowFor(client,addDays(d,-1)),shiftWindowFor(client,d)].filter(Boolean);
+    const cands=[shiftWindowFor(client,addDays(d,-1)),shiftWindowFor(client,d),shiftWindowFor(client,addDays(d,1))].filter(Boolean);
     if(!cands.length)return null;
     const win=cands.reduce((a,b)=>Math.abs(login-a.start)<=Math.abs(login-b.start)?a:b);
     return{min:(login-win.start)/60000,start:win.start,login};
