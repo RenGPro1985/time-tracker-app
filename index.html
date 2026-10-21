@@ -345,6 +345,12 @@ button.btn{padding:7px 12px;font-size:12px}
 .roster-scroll thead th{position:sticky;top:0;z-index:3;background:var(--card2,#151a26);box-shadow:inset 0 -1px 0 var(--line)}
 .roster-scroll tbody td:first-child,.roster-scroll thead th:first-child{position:sticky;left:0;background:var(--card);z-index:2}
 .roster-scroll thead th:first-child{z-index:4;background:var(--card2,#151a26)}
+
+.cb-table td,.cb-table th{white-space:nowrap}.cb-table td:last-child{white-space:normal;min-width:220px}
+.cb-pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap}.cb-ok{background:rgba(63,191,174,.15);color:var(--teal)}.cb-no{background:rgba(226,104,95,.15);color:var(--rose)}.cb-rev{background:rgba(227,166,62,.15);color:var(--gold)}
+.cb-tag{font-size:10.5px;padding:1px 6px;border-radius:6px;background:var(--card2);color:var(--muted);margin-left:6px}
+.cb-det td{background:var(--card2);font-size:12px;color:var(--muted);white-space:normal!important;line-height:1.6}.cb-det b{color:var(--ink)}
+@media(max-width:820px){#v-cbonus .grid[style*="repeat(4"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 </style>
 </head>
 <body>
@@ -808,7 +814,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 
     <!-- ---------- ADMIN: TIMESHEETS ---------- -->
     <section id="v-sheets" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_sheets" style="gap:6px;flex-wrap:wrap"><button class="btn btn-gold" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button></div>
+      <div class="row pay-sub hide" id="paySub_sheets" style="gap:6px;flex-wrap:wrap"><button class="btn btn-gold" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Timesheets</h3>
           <div class="row">
@@ -901,15 +907,15 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div class="row" style="gap:8px"><button class="btn btn-gold" id="elOpenBtn" type="button" title="Move a shift's login earlier (e.g. staff couldn't log in on time)">Edit login time</button><select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
         <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_ledger" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-gold" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div id="lgQrBanner" class="hide" style="background:rgba(91,141,239,.12);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div class="sticky-scroll"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_invoice" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-gold" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
+      <div class="row pay-sub hide" id="paySub_ledger" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-gold" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout; the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div id="lgQrBanner" class="hide" style="background:rgba(91,141,239,.12);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div class="sticky-scroll"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px">
+      <div class="row pay-sub hide" id="paySub_invoice" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-gold" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
 <div class="hide" id="civSettingsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60"><div class="card" style="max-width:720px;width:92vw;max-height:88vh;overflow-y:auto"><div class="hdr"><h3 style="font-size:15px" id="civSettingsTitle">Client Invoice Settings</h3><button class="btn btn-ghost" id="civSettingsClose">✕ Close</button></div><div class="muted" style="font-size:12px;margin-bottom:12px">Controls exactly what appears on this client's bi-weekly invoice. Nothing here changes payroll (Contractor Ledger) math.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Task Description</div><input type="text" id="civTaskDescription" placeholder="e.g. Back Office CRM tasks" style="margin-bottom:6px"><div class="muted" style="font-size:11px;margin-bottom:14px">One label for everyone on this client. Rate rows on the invoice come straight from each staff member's live hourly rate \u2014 nothing to configure here for that.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Recurring Pay Items</div><table><tbody>
 <tr><td style="width:26px"><input type="checkbox" id="civInternetOn"></td><td><b>Internet / Fiber Share</b><div class="muted" style="font-size:11px">Flat cost line on every invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civInternetAmt" style="width:110px" placeholder="$/period"></td></tr>
 <tr><td><input type="checkbox" id="civThirteenthOn"></td><td><b>13th Month Pay Portion</b><div class="muted" style="font-size:11px">Per-staff amount for each bi-weekly invoice. New/termed staff: (this amount ÷ 10) \u00d7 days present in the cutoff.</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civThirteenthAmt" style="width:110px" placeholder="$/staff / cutoff"></td></tr>
 <tr><td><input type="checkbox" id="civAllowanceOn"></td><td><b>Allowance</b><div class="muted" style="font-size:11px">Per staff, per month, prorated to cutoff — auto-calculated, editable per invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civAllowanceRate" style="width:110px" placeholder="$/mo"></td></tr>
 <tr><td><input type="checkbox" id="civHolidayOn"></td><td><b>Holiday Pay</b><div class="muted" style="font-size:11px">Rate per staff — admin types the staff count on the invoice itself, total = count × rate</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civHolidayRate" style="width:110px" placeholder="$/staff"></td></tr>
 </tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px">Invoice Numbering</div><div class="row" style="gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase" id="civStartingNumLbl">Invoice # for the selected pay period</label><input type="number" min="1" step="1" id="civStartingNum" style="width:100%"><div class="muted" style="font-size:11px;margin-top:4px">Goes up by 1 every bi-weekly period after this one.</div></div><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Last invoice issued for this client</label><input type="text" id="civNextNum" disabled style="width:100%"></div></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn btn-ghost" id="civSettingsCancel">Cancel</button><button class="btn btn-gold" id="civSettingsSave">Save Settings</button></div><div class="muted" id="civSettingsMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div></div></div><section id="v-earning" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_earning" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-gold" onclick="go('v-earning')">💰 SMB PH Earning</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th>VSPH (Net Amount)</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div><div class="row" style="justify-content:flex-end;margin-top:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px" id="egAggMargin">—</span></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="sick_leave">🤒 Sick Leave</option><option value="reimbursement">🧾 Reimbursement</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div id="rfSickNote" class="hide note" style="margin-top:10px;font-size:12.5px">Sick days are <b>unpaid</b>. This is for your record and for client documentation — the days show as <b>SL</b>.</div><div id="rfPickWrap" class="hide" style="margin-top:10px"><label id="rfPickLbl">Files</label><input type="file" id="rfPick" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%"><div id="rfPickList"></div><div class="muted" style="font-size:11.5px;margin-top:4px">🔒 Only you and Rendy can open your files · photo or PDF · max 10 MB each</div></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="rfMyFilesCard"><div class="hdr"><h3 style="font-size:15px">📎 My files</h3><span class="muted" style="font-size:12px">Medcerts, receipts and EOD attachments · only you and Rendy can open them</span></div><table><thead><tr><th>Uploaded</th><th>File</th><th>For</th><th>Status</th></tr></thead><tbody id="rfMyFiles"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="req-sub" id="reqSubBar"><button class="btn btn-gold" data-req-sub="money">💸 SA/CA Requests<span class="bb-badge hide" id="reqSubCnt_money"></span></button><button class="btn btn-ghost" data-req-sub="leave">🏖️ PTO Requests<span class="bb-badge hide" id="reqSubCnt_leave"></span></button></div><div class="card"><div class="hdr"><h3 style="font-size:15px" id="reqAdminTitle">SA/CA requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></div><div class="card" id="dedAdminCard"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances on the Adjustments tab.</div><div class="sticky-scroll"><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+      <div class="row pay-sub hide" id="paySub_earning" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-gold" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th>VSPH (Net Amount)</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div><div class="row" style="justify-content:flex-end;margin-top:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px" id="egAggMargin">—</span></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="sick_leave">🤒 Sick Leave</option><option value="reimbursement">🧾 Reimbursement</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div id="rfSickNote" class="hide note" style="margin-top:10px;font-size:12.5px">Sick days are <b>unpaid</b>. This is for your record and for client documentation — the days show as <b>SL</b>.</div><div id="rfPickWrap" class="hide" style="margin-top:10px"><label id="rfPickLbl">Files</label><input type="file" id="rfPick" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%"><div id="rfPickList"></div><div class="muted" style="font-size:11.5px;margin-top:4px">🔒 Only you and Rendy can open your files · photo or PDF · max 10 MB each</div></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="rfMyFilesCard"><div class="hdr"><h3 style="font-size:15px">📎 My files</h3><span class="muted" style="font-size:12px">Medcerts, receipts and EOD attachments · only you and Rendy can open them</span></div><table><thead><tr><th>Uploaded</th><th>File</th><th>For</th><th>Status</th></tr></thead><tbody id="rfMyFiles"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="req-sub" id="reqSubBar"><button class="btn btn-gold" data-req-sub="money">💸 SA/CA Requests<span class="bb-badge hide" id="reqSubCnt_money"></span></button><button class="btn btn-ghost" data-req-sub="leave">🏖️ PTO Requests<span class="bb-badge hide" id="reqSubCnt_leave"></span></button></div><div class="card"><div class="hdr"><h3 style="font-size:15px" id="reqAdminTitle">SA/CA requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></div><div class="card" id="dedAdminCard"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances on the Adjustments tab.</div><div class="sticky-scroll"><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></div></section><section id="v-portal" class="hide grid" style="gap:16px">
   <!-- PM BULLETIN BOARD (announcements) -->
   <div id="bbBoard" class="grid" style="gap:16px"></div>
   <div class="bb-docs-hdr"><h3>📁 Documents &amp; Signatures</h3><span class="muted" style="font-size:12.5px">Contracts, house rules, and anything that needs your signature</span></div>
@@ -982,6 +988,42 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card">
         <div style="overflow-x:auto"><table class="rw-table"><thead><tr><th>Agent</th><th>Client</th><th class="c">Shifts</th><th class="c">On time</th><th class="c">No over-break</th><th class="c">Full hours</th><th class="c">Perfect shifts</th><th class="c">Perfect week</th><th class="c">Tokens</th><th class="c">BINGO cards</th></tr></thead><tbody id="rwTable"><tr><td colspan="10" class="muted">Loading…</td></tr></tbody></table></div>
         <div class="muted" id="rwRules" style="font-size:11px;margin-top:8px;line-height:1.5"></div>
+      </div>
+    </section>
+
+    <!-- ---------- ADMIN: COMPLETION BONUS CHECK ---------- -->
+    <section id="v-cbonus" class="hide grid" style="gap:12px">
+      <div class="row pay-sub hide" id="paySub_cbonus" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-gold" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div>
+      <div class="card">
+        <div class="row" style="flex-wrap:wrap;gap:10px;align-items:flex-end">
+          <div><label>Attendance month</label><input type="month" id="cbMonth" style="width:auto"></div>
+          <div><label>Paid on</label><div id="cbPayout" class="mono" style="padding:8px 2px;color:var(--gold);font-weight:700">—</div></div>
+          <div><label>Client</label><select id="cbClient" style="width:auto"></select></div>
+          <div><label>Show</label><select id="cbShow" style="width:auto"><option value="">Everyone</option><option value="eligible">✅ Eligible</option><option value="no">❌ Not eligible</option><option value="review">⚠️ Review</option></select></div>
+          <button class="btn btn-gold" id="cbRun">Run check</button>
+          <button class="btn btn-ghost" id="cbCsv">Download CSV</button>
+        </div>
+        <div class="note" style="margin-top:12px;font-size:12px"><b>Rule:</b> paid on the 15th for the <b>previous calendar month</b>. Eligible only if the staff worked the <b>full calendar month</b> (hired on or before the 1st), had <b>0 lates</b> (first log-in of the shift after shift start — any minute counts) and <b>0 unpaid absences</b>: Planned Absence (PA), Sick Leave (SL) or OUT (scheduled workday with no log-in and no approved leave). PTO and PCH do <b>not</b> break eligibility.</div>
+        <div class="muted" id="cbStatus" role="status" aria-live="polite" style="font-size:12px;margin-top:9px">Pick a month and press Run check.</div>
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">
+        <div class="stat"><div class="k">Active staff checked</div><div class="v" id="cbStatTotal">—</div></div>
+        <div class="stat"><div class="k">✅ Eligible</div><div class="v" style="color:var(--teal)" id="cbStatOk">—</div></div>
+        <div class="stat"><div class="k">❌ Not eligible</div><div class="v" style="color:var(--rose)" id="cbStatNo">—</div></div>
+        <div class="stat"><div class="k">⚠️ Needs review</div><div class="v" style="color:var(--gold)" id="cbStatRev">—</div></div>
+      </div>
+      <div class="card">
+        <div class="hdr"><h3 style="font-size:15px">Staff</h3><div class="row" style="gap:8px;align-items:center"><label for="cbAmount" style="margin:0">Bonus amount (₱)</label><input type="number" id="cbAmount" min="0" step="1" style="width:100px"><button class="btn btn-teal hide" id="cbApproveOpen">Prepare Ledger fill →</button></div></div>
+        <div class="sticky-scroll"><table class="cb-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th style="text-align:center">Workdays</th><th style="text-align:center">Lates</th><th style="text-align:center">PA</th><th style="text-align:center">SL</th><th style="text-align:center">OUT</th><th style="text-align:center">PTO / PCH</th><th>Status</th><th>Why</th></tr></thead><tbody id="cbBody"><tr><td colspan="10" class="muted" style="text-align:center;padding:18px">Press Run check.</td></tr></tbody></table></div>
+        <div class="muted" style="font-size:11.5px;margin-top:8px">Click a name to see the exact late / absence dates. Nothing goes into the Ledger until you approve it below.</div>
+      </div>
+      <div class="card hide" id="cbApprove" style="border-color:rgba(63,191,174,.35)">
+        <div class="hdr"><h3 style="font-size:15px" id="cbPlanTitle">Ledger fill</h3><button class="btn btn-ghost" id="cbApproveCancel">Close</button></div>
+        <div class="muted" style="font-size:12px;margin-bottom:8px">Review each line. ✅ Eligible staff are ticked. ⚠️ Review staff are not — tick them only after you've checked them yourself. Staff who already have a Completion Bonus in the Ledger but aren't eligible are set back to ₱0. PAID payouts are locked.</div>
+        <div class="sticky-scroll"><table><thead><tr><th style="width:34px"></th><th>Staff</th><th>Status</th><th>Now in Ledger</th><th>Will be</th><th>Note</th></tr></thead><tbody id="cbPlanBody"></tbody></table></div>
+        <label class="row" style="gap:8px;align-items:center;margin-top:12px;font-size:13px;cursor:pointer"><input type="checkbox" id="cbConfirm" style="width:auto"> I've reviewed these and approve adding them to the Contractor Ledger.</label>
+        <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn btn-gold" id="cbApproveBtn" disabled>Approve & add to Ledger</button></div>
+        <div id="cbPlanMsg" role="status" aria-live="polite" style="font-size:12.5px;margin-top:8px"></div>
       </div>
     </section>
 
@@ -2671,13 +2713,14 @@ const PAGES={
   'v-corr'  :['✏️ Time Log Corrections','Time Log Corrections','Approve or reject staff correction requests'],
   'v-ledger':['🧾 Contractor Ledger','Contractor Ledger','Semi-monthly hours & pay pulled from the time tracker'],
   'v-invoice':['📄 Client Invoice','Client Invoice','Bi-weekly invoice built from the Timesheets Daily Hours Grid, per client'],
+  'v-cbonus':['🏅 Completion Bonus','Completion Bonus','Previous month: full month, no lates, no unpaid absences — review, then approve into the 15th payout'],
   'v-earning':['💰 SMB PH Earning','SMB PH Earning','Admin-only immutable per-semi-monthly-period FX + VSPH/ROI/margin LOCK IN'],
   'v-files':['📎 Files','Staff & Clients · Files','Every staff medcert, receipt and EOD attachment — filter, open, zip-download, or upload on their behalf'],
   'v-policy':['⚙️ Rules','Staff & Clients · Rules','Billable rules, break allowances and activities by client'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Requests','Requests','Review and approve staff requests — SA/CA and PTO'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-eod':['📝 EOD & Weekly','EOD & Weekly Reports','Daily EOD and Friday weekly report — only you and Rendy can see them'], 'v-rewards':['🎟️ Rewards (Shadow)','Rewards (Shadow)','Tokens each agent would earn — admins only, nothing is paid out yet'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','Staff & Clients · PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
 };
 let view='v-punch';
 /* sub-tab groups (Rendy 2026-10-19): Rules + PTO Credits live in Staff & Clients; payroll tabs live under Contractor Ledger ("Payroll") for admins */
-function navParentOf(v){ if(v==='v-policy'||v==='v-pto'||v==='v-files')return 'v-staff'; if(me?.role==='admin'&&(v==='v-sheets'||v==='v-invoice'||v==='v-earning'))return 'v-ledger'; return v; }
+function navParentOf(v){ if(v==='v-policy'||v==='v-pto'||v==='v-files')return 'v-staff'; if(me?.role==='admin'&&(v==='v-sheets'||v==='v-invoice'||v==='v-earning'||v==='v-cbonus'))return 'v-ledger'; return v; }
 const ADMIN_NAV_DEFAULT=['v-rewards','v-status','v-punch','v-eod','v-staff','v-benefits','v-adjustments','v-adherence','v-corr','v-ledger','v-reqadmin','v-portal','v-perf','v-ytd'];
 let adminNavOrder=null, navArranging=false, navArrDraft=null, navFirstBuild=true;
 /* saved order -> valid order: drop unknown/duplicate ids, append any new tabs at the end */
@@ -2763,7 +2806,7 @@ $('navArrDone').onclick=async()=>{
   finally{ btn.disabled=false; }
 };
 function go(v){
-  if((v==='v-ytd'||v==='v-pto'||v==='v-rewards'||v==='v-files')&&me?.role!=='admin')v='v-punch';
+  if((v==='v-ytd'||v==='v-pto'||v==='v-rewards'||v==='v-files'||v==='v-cbonus')&&me?.role!=='admin')v='v-punch';
   view=v;
   Object.keys(PAGES).forEach(id=>{const el=$(id); if(el) el.classList.add('hide');});
   $(v).classList.remove('hide');
@@ -2779,6 +2822,7 @@ function go(v){
   if(v==='v-corr'){loadCorrections();}
   if(v==='v-ledger'){initLedgerFilters();} if(v==='v-invoice'){initInvoiceFilters();}
   if(v==='v-earning'){initEarningFilters();}
+  if(v==='v-cbonus'){window.CompletionBonus?.init();}
   if(v==='v-files'){window.RFA?.load();}
   if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-rewards'){window.RewardsShadow?.init();} if(v==='v-eod'){window.EOD?.init();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();window.Reliability?.initProfile();}
 }
@@ -6786,7 +6830,7 @@ async function downloadClientTimesheetXlsx(){
     }
     ytdRun();
   }
-  window.YTDAttendanceMath={addMonths:ytdAddMonths,parseWorkdays:ytdParseWorkdays,ratesForDate:ytdRatesForDate,defaultPeriods:ytdDefaultPeriods,effectivePay:ytdGetEffectivePay,bonus:ytdBonus,absenceDeduction:ytdAbsenceDeduction,lessAbsences:ytdLessAbsences,rangeForYear:ytdRangeForYear,computeRows:ytdComputeRows,filterByClient:ytdFilterRowsByClient,autoStart:YTD_AUTO_START,applyClientFilter:ytdApplyClientFilter};
+  window.YTDAttendanceMath={addMonths:ytdAddMonths,parseWorkdays:ytdParseWorkdays,ratesForDate:ytdRatesForDate,defaultPeriods:ytdDefaultPeriods,effectivePay:ytdGetEffectivePay,bonus:ytdBonus,absenceDeduction:ytdAbsenceDeduction,lessAbsences:ytdLessAbsences,rangeForYear:ytdRangeForYear,computeRows:ytdComputeRows,loadAttendance:ytdLoadAttendance,filterByClient:ytdFilterRowsByClient,autoStart:YTD_AUTO_START,applyClientFilter:ytdApplyClientFilter};
   window.initYtdAttendance=initYtdAttendance;
 })();
 </script>
@@ -9678,4 +9722,209 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
 })();
 
 </script>
+<script>
+/* ===== Completion Bonus check (2026-10-20, Rendy) =====
+   Bonus on the 15th payout covers the PREVIOUS calendar month.
+   Eligible = worked the FULL calendar month (hired on/before the 1st, not terminated before month end)
+   AND 0 lates (first log-in of a shift date after shift start, any minute) AND 0 unpaid absences
+   (Planned Absence, Sick Leave, OUT). PTO/PCH do NOT break eligibility.
+   Read-only until the admin approves; approval writes ledger_extras(completion_bonus) for the 15th cutoff. */
+(function(){
+  'use strict';
+  const DEFAULT_AMOUNT=1000;
+  let cbRows=[],cbMeta=null,cbOpen=new Set(),cbInit=false,cbBusy=false,cbPlan=[];
+  const esc=v=>escapeHtml(String(v??''));
+  const peso=n=>'₱'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+  const dowOf=iso=>new Date(iso+'T00:00:00Z').getUTCDay();
+  const monthName=ym=>{const [y,m]=ym.split('-').map(Number);return new Date(Date.UTC(y,m-1,1)).toLocaleDateString('en-US',{timeZone:'UTC',month:'long',year:'numeric'});};
+  function monthRange(ym){const [y,m]=ym.split('-').map(Number);const last=new Date(Date.UTC(y,m,0)).getUTCDate();return{start:`${ym}-01`,end:`${ym}-${String(last).padStart(2,'0')}`};}
+  function payoutFor(ym){const [y,m]=ym.split('-').map(Number);const d=new Date(Date.UTC(y,m,15));return d.toISOString().slice(0,10);} // 15th of the next month
+  function prevMonth(){const t=phDate(new Date());const [y,m]=t.split('-').map(Number);const d=new Date(Date.UTC(y,m-2,1));return d.toISOString().slice(0,7);}
+  const clock=d=>d.toLocaleTimeString('en-US',{timeZone:'Asia/Manila',hour:'numeric',minute:'2-digit'});
+  function lateInfo(client,loginIso){
+    const login=new Date(loginIso),d=phDate(login);
+    const cands=[shiftWindowFor(client,addDays(d,-1)),shiftWindowFor(client,d)].filter(Boolean);
+    if(!cands.length)return null;
+    const win=cands.reduce((a,b)=>Math.abs(login-a.start)<=Math.abs(login-b.start)?a:b);
+    return{min:(login-win.start)/60000,start:win.start,login};
+  }
+  /* Pure: classify one staff for the month. Exposed for tests. */
+  function classify(staff,client,ym,data,todayIso){
+    const {start,end}=monthRange(ym);
+    const M=window.YTDAttendanceMath, autoStart=M?.autoStart||'2026-09-28';
+    const row=data.row; // ytdComputeRows row for this staff/month
+    const hire=staff.hire_date, term=staff.termination_date;
+    const out={staff,client,hire,lates:[],pa:[],sl:[],out:[],pto:0,pch:0,workdays:0,status:'eligible',why:[],flags:[]};
+    // lates: first log-in per shift date, any minute after shift start
+    const first={};
+    (data.shifts||[]).forEach(sh=>{const d=shiftAnchorDate(sh);if(!d||d<start||d>end)return;if(!first[d]||sh.login_at<first[d])first[d]=sh.login_at;});
+    Object.keys(first).sort().forEach(d=>{const li=lateInfo(client,first[d]);if(li&&li.min>0)out.lates.push({date:d,min:li.min,start:li.start,login:li.login});});
+    const dayTypes=row?.dayTypes||{};
+    Object.keys(dayTypes).sort().forEach(d=>{
+      if(d<start||d>end)return;
+      if(hire&&d<hire)return; if(term&&d>term)return;
+      const t=dayTypes[d];
+      if(t==='planned_absence')out.pa.push(d); else if(t==='sick_leave')out.sl.push(d);
+      else if(t==='pto')out.pto++; else if(t==='pch')out.pch++;
+    });
+    out.out=(row?.outDates||[]).filter(d=>d>=start&&d<=end);
+    for(let d=start;d<=end;d=addDays(d,1)){const w=dowOf(d);if(w>=1&&w<=5&&(!hire||d>=hire)&&(!term||d<=term))out.workdays++;}
+    const bad=[];
+    if(out.lates.length)bad.push(`${out.lates.length} late${out.lates.length>1?'s':''}`);
+    if(out.pa.length)bad.push(`${out.pa.length} planned absence${out.pa.length>1?'s':''}`);
+    if(out.sl.length)bad.push(`${out.sl.length} sick leave${out.sl.length>1?'s':''}`);
+    if(out.out.length)bad.push(`${out.out.length} OUT (no log-in)`);
+    const fullMonth=!!hire&&hire<=start&&(!term||term>=end);
+    if(hire&&!fullMonth){
+      out.status='no';
+      out.why.push(hire>start?`Not a full calendar month (hired ${fmtNice(hire)})`:`Not a full calendar month (ended ${fmtNice(term)})`);
+    }
+    if(bad.length){out.status='no';out.why.push(...bad);}
+    if(out.status!=='no'){
+      if(!hire){out.status='review';out.why.push('No hire date on file — can\'t confirm a full month');}
+      else if(row?.workdaysUninferable){out.status='review';out.why.push('Client workdays not set — OUT days can\'t be checked');}
+      else if(start<autoStart){out.status='review';out.why.push(`OUT days are only tracked from ${fmtNice(autoStart)} — confirm no absences before that`);}
+    }
+    if(end>=todayIso)out.flags.push('month not finished');
+    if(out.status==='eligible'){const n=[];if(out.pto)n.push('PTO');if(out.pch)n.push('PCH');out.why.push(n.length?`No lates or unpaid absences (${n.join(' & ')} ${n.length>1?'don\'t':'doesn\'t'} count against)`:'No lates, no unpaid absences');}
+    return out;
+  }
+  function filtered(){
+    const fc=$('cbClient').value, fs=$('cbShow').value;
+    return cbRows.filter(r=>(!fc||r.staff.client_id===fc)&&(!fs||r.status===fs));
+  }
+  function pill(s){return s==='eligible'?'<span class="cb-pill cb-ok">✅ Eligible</span>':s==='no'?'<span class="cb-pill cb-no">❌ Not eligible</span>':'<span class="cb-pill cb-rev">⚠️ Review</span>';}
+  function num(n){return `<td class="mono" style="text-align:center;${n?'color:var(--rose);font-weight:700':'color:var(--slate)'}">${n}</td>`;}
+  function render(){
+    const rows=filtered();
+    const c={eligible:0,no:0,review:0};rows.forEach(r=>c[r.status]++);
+    $('cbStatTotal').textContent=rows.length;$('cbStatOk').textContent=c.eligible;$('cbStatNo').textContent=c.no;$('cbStatRev').textContent=c.review;
+    const body=rows.map(r=>{
+      const id=r.staff.id, open=cbOpen.has(id);
+      let html=`<tr class="cb-row" data-cb-open="${esc(id)}" style="cursor:pointer"><td class="sticky-col">${open?'▾':'▸'} ${esc(r.staff.full_name)}${r.hire&&r.hire>cbMeta.start?`<span class="cb-tag">hired ${esc(fmtNice(r.hire))}</span>`:''}</td><td>${esc(r.client?.name||'—')}</td><td class="mono" style="text-align:center">${r.workdays}</td>${num(r.lates.length)}${num(r.pa.length)}${num(r.sl.length)}${num(r.out.length)}<td class="mono" style="text-align:center">${r.pto} / ${r.pch}</td><td>${pill(r.status)}</td><td style="font-size:12px">${esc(r.why.join(' · '))}</td></tr>`;
+      if(open){
+        const parts=[];
+        if(r.lates.length)parts.push('<b>Late:</b> '+r.lates.map(l=>`${esc(fmtNice(l.date))} (shift ${esc(clock(l.start))}, log-in ${esc(clock(l.login))} · ${l.min<1?'<1':Math.round(l.min)} min)`).join(' · '));
+        if(r.pa.length)parts.push('<b>Planned absence:</b> '+r.pa.map(d=>esc(fmtNice(d))).join(', '));
+        if(r.sl.length)parts.push('<b>Sick leave:</b> '+r.sl.map(d=>esc(fmtNice(d))).join(', '));
+        if(r.out.length)parts.push('<b>OUT (no log-in):</b> '+r.out.map(d=>esc(fmtNice(d))).join(', '));
+        if(!parts.length)parts.push('Nothing to show — no lates or unpaid absences this month.');
+        html+=`<tr class="cb-det"><td colspan="10">${parts.join('<br>')}</td></tr>`;
+      }
+      return html;
+    }).join('')||'<tr><td colspan="10" class="muted" style="text-align:center;padding:18px">No staff match these filters.</td></tr>';
+    $('cbBody').innerHTML=body;
+    document.querySelectorAll('[data-cb-open]').forEach(tr=>tr.onclick=()=>{const id=tr.dataset.cbOpen;cbOpen.has(id)?cbOpen.delete(id):cbOpen.add(id);render();});
+  }
+  async function run(){
+    if(cbBusy)return; const ym=$('cbMonth').value; if(!/^\d{4}-\d{2}$/.test(ym))return alert('Pick a month.');
+    const M=window.YTDAttendanceMath; if(!M||!M.loadAttendance){$('cbStatus').textContent='YTD Attendance module not loaded — refresh the page.';return;}
+    cbBusy=true;$('cbRun').disabled=true;$('cbStatus').textContent='Checking…';$('cbApprove').classList.add('hide');cbPlan=[];
+    try{
+      const {start,end}=monthRange(ym), today=phDate(new Date());
+      const people=staffList.filter(s=>s.active&&s.role!=='admin'&&(!s.hire_date||s.hire_date<=end)&&(!s.termination_date||s.termination_date>=start));
+      const clientsById=Object.fromEntries(clients.map(c=>[c.id,c]));
+      const att=await M.loadAttendance(start,end,people);
+      const rows=M.computeRows(people,clientsById,{start,end},att,[],[]);
+      const byStaff={};rows.forEach(r=>byStaff[r.staff.id]=r);
+      const shiftsBy={};(att.shifts||[]).forEach(sh=>(shiftsBy[sh.staff_id]=shiftsBy[sh.staff_id]||[]).push(sh));
+      cbRows=people.map(s=>classify(s,clientsById[s.client_id],ym,{row:byStaff[s.id],shifts:shiftsBy[s.id]||[]},today))
+        .sort((a,b)=>({eligible:0,review:1,no:2}[a.status]-{eligible:0,review:1,no:2}[b.status])||String(a.staff.full_name).localeCompare(String(b.staff.full_name)));
+      const cutoff=payoutFor(ym);
+      cbMeta={ym,start,end,cutoff,finished:end<today};
+      $('cbPayout').textContent=fmtNice(cutoff)+' payout';
+      $('cbStatus').innerHTML=cbMeta.finished?`${esc(monthName(ym))} · ${cbRows.length} active staff checked.`:`<b style="color:var(--gold)">${esc(monthName(ym))} isn't over yet</b> — results so far only. Ledger fill unlocks after the month ends.`;
+      render();
+      $('cbApproveOpen').classList.toggle('hide',!cbMeta.finished);
+    }catch(e){$('cbStatus').textContent='Check failed: '+(e?.message||e);}
+    finally{cbBusy=false;$('cbRun').disabled=false;}
+  }
+  /* ---------- approval: preview → admin ticks → write ---------- */
+  async function openApproval(){
+    if(!cbMeta||!cbMeta.finished)return;
+    const amount=Number($('cbAmount').value);
+    if(!(amount>0))return alert('Enter the Completion Bonus amount.');
+    $('cbApprove').classList.remove('hide');$('cbPlanBody').innerHTML='<tr><td colspan="6" class="muted">Loading current Ledger values…</td></tr>';
+    const ids=cbRows.map(r=>r.staff.id);
+    let extras=[],paid=[];
+    try{[extras,paid]=await Promise.all([fetchLedgerExtras(cbMeta.cutoff,ids),fetchPaidCutoffs(cbMeta.cutoff,ids)]);}
+    catch(e){$('cbPlanBody').innerHTML=`<tr><td colspan="6">Could not read the Ledger: ${esc(e.message)}</td></tr>`;return;}
+    const cur={};extras.filter(x=>x.field_key==='completion_bonus').forEach(x=>cur[x.staff_id]=Number(x.amount));
+    const paidSet=new Set(paid.filter(p=>p.status==='paid').map(p=>p.staff_id));
+    cbPlan=cbRows.map(r=>{
+      const id=r.staff.id,has=Object.prototype.hasOwnProperty.call(cur,id),now=has?cur[id]:null;
+      let target=null,checked=false,note='';
+      if(r.status==='eligible'){target=amount;checked=now!==amount;note=now===amount?'Already in Ledger':'';}
+      else if(r.status==='review'){target=amount;checked=false;note='Tick only if you\'ve confirmed it';if(now===amount)note='Already in Ledger';}
+      else{ if(has&&now>0){target=0;checked=true;note='Not eligible — remove';} else {target=null;note='Not eligible — nothing to add';} }
+      if(paidSet.has(id)){checked=false;note='PAID — locked';}
+      return{r,id,now,has,target,checked,locked:paidSet.has(id),same:target!=null&&has&&now===target};
+    }).filter(p=>p.target!=null||p.has);
+    renderPlan();
+  }
+  function renderPlan(){
+    $('cbPlanTitle').textContent=`Add Completion Bonus to the ${fmtNice(cbMeta.cutoff)} payout (${monthName(cbMeta.ym)} attendance)`;
+    $('cbPlanBody').innerHTML=cbPlan.map((p,i)=>{
+      const dis=p.locked||p.target==null||p.same;
+      return `<tr><td><input type="checkbox" data-cb-plan="${i}" ${p.checked&&!dis?'checked':''} ${dis?'disabled':''}></td><td>${esc(p.r.staff.full_name)}</td><td>${pill(p.r.status)}</td><td class="mono">${p.has?peso(p.now):'— none'}</td><td class="mono" style="font-weight:700">${p.target==null?'—':peso(p.target)}</td><td class="muted" style="font-size:12px">${esc(p.locked?'PAID — locked':p.same?'Already in Ledger':(p.r.status==='review'?'Tick only if you\'ve confirmed it':p.target===0?'Not eligible — remove':''))}</td></tr>`;
+    }).join('')||'<tr><td colspan="6" class="muted">Nothing to add.</td></tr>';
+    document.querySelectorAll('[data-cb-plan]').forEach(el=>el.onchange=()=>{cbPlan[Number(el.dataset.cbPlan)].checked=el.checked;planCount();});
+    $('cbConfirm').checked=false;planCount();$('cbPlanMsg').textContent='';
+  }
+  function planCount(){
+    const n=cbPlan.filter(p=>p.checked&&!p.locked&&p.target!=null&&!p.same).length;
+    $('cbApproveBtn').textContent=`Approve & add ${n} change${n===1?'':'s'} to Ledger`;
+    $('cbApproveBtn').disabled=!n||!$('cbConfirm').checked;
+  }
+  async function approve(){
+    const todo=cbPlan.filter(p=>p.checked&&!p.locked&&p.target!=null&&!p.same);
+    if(!todo.length||!$('cbConfirm').checked)return;
+    $('cbApproveBtn').disabled=true;$('cbPlanMsg').textContent='Saving…';
+    try{
+      // re-check PAID right before writing
+      const paid=await fetchPaidCutoffs(cbMeta.cutoff,todo.map(p=>p.id));
+      const paidSet=new Set(paid.filter(p=>p.status==='paid').map(p=>p.staff_id));
+      const go=todo.filter(p=>!paidSet.has(p.id));
+      const stamp=new Date().toISOString();
+      if(go.length){
+        const {error}=await sb.from('ledger_extras').upsert(go.map(p=>({staff_id:p.id,cutoff_date:cbMeta.cutoff,field_key:'completion_bonus',amount:p.target,updated_by:me.id,updated_at:stamp})),{onConflict:'staff_id,cutoff_date,field_key'});
+        if(error)throw error;
+      }
+      const after=await fetchLedgerExtras(cbMeta.cutoff,go.map(p=>p.id));
+      const got={};after.filter(x=>x.field_key==='completion_bonus').forEach(x=>got[x.staff_id]=Number(x.amount));
+      const bad=go.filter(p=>got[p.id]!==p.target);
+      $('cbPlanMsg').innerHTML=bad.length?`<span style="color:var(--rose)">Saved, but ${bad.length} didn't verify: ${esc(bad.map(p=>p.r.staff.full_name).join(', '))}. Refresh and check the Ledger.</span>`
+        :`<span style="color:var(--teal)">✅ Approved, saved and verified ${go.length} change${go.length===1?'':'s'} for the ${esc(fmtNice(cbMeta.cutoff))} payout.</span>${todo.length>go.length?` Skipped ${todo.length-go.length} (marked PAID meanwhile).`:''} Open Contractor Ledger → that payout to see them.`;
+      const keep=$('cbPlanMsg').innerHTML;
+      await openApproval();
+      $('cbPlanMsg').innerHTML=keep;
+    }catch(e){$('cbPlanMsg').innerHTML=`<span style="color:var(--rose)">Save failed: ${esc(e.message||e)}</span>`;$('cbApproveBtn').disabled=false;}
+  }
+  function csv(){
+    if(!cbRows.length||!cbMeta)return alert('Press Run check first.');
+    const q=v=>{const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+    const lines=[['Staff','Client','Hire date','Workdays','Lates','Late dates','PA','SL','OUT','OUT dates','PTO','PCH','Status','Why'].join(',')];
+    filtered().forEach(r=>lines.push([r.staff.full_name,r.client?.name||'',r.hire||'',r.workdays,r.lates.length,r.lates.map(l=>l.date).join(' '),r.pa.length,r.sl.length,r.out.length,r.out.join(' '),r.pto,r.pch,{eligible:'Eligible',no:'Not eligible',review:'Review'}[r.status],r.why.join('; ')].map(q).join(',')));
+    const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`completion-bonus-${cbMeta.ym}.csv`;a.click();URL.revokeObjectURL(a.href);
+  }
+  function init(){
+    if(me?.role!=='admin')return;
+    if(!cbInit){
+      $('cbMonth').value=prevMonth();
+      $('cbAmount').value=DEFAULT_AMOUNT;
+      $('cbRun').onclick=run;$('cbCsv').onclick=csv;
+      $('cbClient').onchange=()=>cbRows.length&&render();$('cbShow').onchange=()=>cbRows.length&&render();
+      $('cbMonth').onchange=()=>{$('cbPayout').textContent=fmtNice(payoutFor($('cbMonth').value))+' payout';};
+      $('cbApproveOpen').onclick=openApproval;$('cbConfirm').onchange=planCount;$('cbApproveBtn').onclick=approve;
+      $('cbApproveCancel').onclick=()=>{$('cbApprove').classList.add('hide');cbPlan=[];};
+      cbInit=true;
+    }
+    const oldC=$('cbClient').value;fill('cbClient','All clients',clients.map(c=>[c.id,c.name]));if([...$('cbClient').options].some(o=>o.value===oldC))$('cbClient').value=oldC;
+    $('cbPayout').textContent=fmtNice(payoutFor($('cbMonth').value))+' payout';
+  }
+  window.CompletionBonus={init,run,_classify:classify,_payoutFor:payoutFor,_monthRange:monthRange};
+})();
+</script>
+
 </body></html>
