@@ -536,8 +536,18 @@ button.btn{padding:7px 12px;font-size:12px}
     </div>
     <div id="corrReviewOriginal" class="note" style="margin-top:12px"></div>
     <div id="corrReviewImpact" class="note" style="margin-top:10px"></div>
+    <div id="corrReviewProof" class="note" style="margin-top:10px;font-size:12.5px"></div>
+    <div style="margin-top:12px"><label>Whose error was it? (required to apply — drives the report and Perfect Shift)</label><div class="cr-causes" id="corrReviewCause"></div></div>
     <div style="margin-top:12px"><label>Admin reason (required; visible to staff)</label><textarea id="corrReviewReason" maxlength="1000" rows="3" placeholder="Explain the correction or rejection."></textarea></div>
     <div class="row" style="margin-top:12px"><button class="btn btn-teal" id="corrReviewApprove">Apply correction</button><button class="btn btn-rose" id="corrReviewReject">Reject</button><span class="muted" id="corrReviewMsg" style="font-size:12px"></span></div>
+  </div>
+</div>
+
+<div id="crHistOverlay" style="display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:72;align-items:center;justify-content:center;padding:20px;overflow:auto">
+  <div class="card" style="width:100%;max-width:1000px;margin:auto;max-height:calc(100vh - 40px);overflow:auto">
+    <div class="hdr"><h3 style="font-size:15px" id="crHistTitle">Correction history</h3><button class="btn btn-ghost" id="crHistClose">Close</button></div>
+    <div class="muted" style="font-size:12px;margin-bottom:8px">Approved requests can be (re)classified here — for example older requests that show as Unclassified. <span id="crHistMsg" style="color:var(--teal)"></span></div>
+    <div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Shift date</th><th>What happened</th><th>Request</th><th>Proof</th><th>Status</th><th>Counted as</th></tr></thead><tbody id="crHistBody"></tbody></table></div>
   </div>
 </div>
 
@@ -611,10 +621,13 @@ button.btn{padding:7px 12px;font-size:12px}
             <div style="flex:0 0 170px"><label>Shift date</label><input type="date" id="corrDate"></div>
             <div style="flex:1;min-width:240px"><label>Recorded activity to correct</label><select id="corrEntry"><option value="">Choose a shift date first</option></select></div>
           </div>
-          <div class="row" style="align-items:flex-end;margin-top:10px">
-            <div style="flex:1;min-width:260px"><label>What needs fixing?</label><input id="corrMsg" maxlength="1000" placeholder="e.g. This was a duplicate 60-minute break; I returned at 1:30 PM."></div>
-            <button class="btn btn-gold" id="corrBtn">Send request</button>
-          </div>
+          <div style="margin-top:10px"><label>What happened? (required)</label><div class="cr-reasons" id="corrReasons"></div></div>
+          <div style="margin-top:10px"><label>Details (required)</label><input id="corrMsg" maxlength="1000" placeholder="e.g. I came back from lunch at 2:00 PM but forgot to click Working."></div>
+          <div style="margin-top:10px"><label id="corrProofLbl">Proof screenshot</label>
+            <input type="file" id="corrProof" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%">
+            <div id="corrProofList"></div>
+            <div class="muted" style="font-size:11.5px;margin-top:4px">Up to 3 photos or screenshots · JPG/PNG/PDF · max 10 MB each · 🔒 only you and Rendy can open them. Required for "App / page error" and "Internet or power outage".</div></div>
+          <div class="row" style="margin-top:12px;align-items:center"><button class="btn btn-gold" id="corrBtn">Send request</button></div>
           <div class="muted" style="font-size:11.5px;margin-top:8px">You may use any break type more than once. Break minutes accumulate; a correction is only for an incorrect recorded entry.</div>
           <div id="myCorrections" style="margin-top:14px"></div>
         </div>
@@ -949,10 +962,22 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 
     <!-- ---------- ADMIN: CORRECTIONS ---------- -->
     <section id="v-corr" class="hide grid" style="gap:16px">
-      <div class="card"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
+      <div class="cr-sub" id="corrSubBar"><button class="btn btn-gold" data-corr-sub="list">📋 Requests</button><button class="btn btn-ghost" data-corr-sub="report">📊 Report</button></div>
+      <div class="card" id="corrListCard"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
         <div class="row" style="gap:8px"><button class="btn btn-gold" id="elOpenBtn" type="button" title="Move a shift's login earlier (e.g. staff couldn't log in on time)">Edit login time</button><select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
-        <table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>Request</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></section><section id="v-ledger" class="hide grid" style="gap:16px">
+        <div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>What happened</th><th>Request</th><th>Proof</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></div>
+      <div class="card hide" id="corrReportCard"><div class="hdr"><h3 style="font-size:15px">📊 Correction Report</h3><div class="row" style="gap:8px"><select id="crRange" style="width:auto"><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="month">This month</option><option value="lastmonth">Last month</option><option value="year">This year</option></select><select id="crClient" style="width:auto"></select><button class="btn btn-ghost" id="crCsv">Download CSV</button></div></div>
+        <div class="muted" id="crStatus" style="font-size:12px;margin-bottom:10px"></div>
+        <div class="cr-kpis" id="crKpis"></div>
+        <div class="cr-two"><div><label>Who requests the most (sorted by staff errors) · click a name for full history</label>
+          <div class="sticky-scroll"><table><thead><tr><th>Staff</th><th>Breakdown</th><th>Total</th><th>Staff error</th><th>App issue</th><th>Rejected</th><th>Flag</th></tr></thead><tbody id="crPeople"></tbody></table></div>
+          <div class="cr-legend"><span><i class="cr-se"></i>Staff error</span><span><i class="cr-ap"></i>App issue</span><span><i class="cr-out"></i>Outside cause</span><span><i class="cr-un"></i>Unclassified</span><span><i class="cr-pe"></i>Pending</span><span><i class="cr-rj"></i>Rejected</span></div>
+          <div class="cr-legend">Flag (staff errors in the last 30 days): 🔴 Pattern 4+ · 🟡 Watch 2–3 · 🟢 OK 0–1</div></div>
+          <div><label id="crChartTitle">Requests per week</label><div class="cr-chart" id="crChart"></div><div class="cr-chart-x" id="crChartX"></div>
+          <div class="cr-legend"><span><i class="cr-se"></i>Staff error</span><span><i class="cr-ap"></i>App issue</span><span><i class="cr-rj"></i>Other / pending / rejected</span></div>
+          <label style="margin-top:16px">Most common reasons</label><table><tbody id="crReasons"></tbody></table></div></div>
+      </div></section><section id="v-ledger" class="hide grid" style="gap:16px">
       <div class="row pay-sub hide" id="paySub_ledger" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-gold" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout and is added only by approving it in Payroll → 🏅 Completion Bonus (highlighted in gold when paid); the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div id="lgQrBanner" class="hide" style="background:rgba(91,141,239,.12);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div class="sticky-scroll"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px">
       <div class="row pay-sub hide" id="paySub_invoice" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-gold" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
 <div class="hide" id="civSettingsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60"><div class="card" style="max-width:720px;width:92vw;max-height:88vh;overflow-y:auto"><div class="hdr"><h3 style="font-size:15px" id="civSettingsTitle">Client Invoice Settings</h3><button class="btn btn-ghost" id="civSettingsClose">✕ Close</button></div><div class="muted" style="font-size:12px;margin-bottom:12px">Controls exactly what appears on this client's bi-weekly invoice. Nothing here changes payroll (Contractor Ledger) math.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Task Description</div><input type="text" id="civTaskDescription" placeholder="e.g. Back Office CRM tasks" style="margin-bottom:6px"><div class="muted" style="font-size:11px;margin-bottom:14px">One label for everyone on this client. Rate rows on the invoice come straight from each staff member's live hourly rate \u2014 nothing to configure here for that.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Recurring Pay Items</div><table><tbody>
@@ -1150,7 +1175,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div class="card"><div class="hdr"><h3 style="font-size:15px">All staff files</h3><div class="row" style="gap:8px"><button class="btn btn-ghost" id="rfaUpBtn">＋ Upload for staff</button><button class="btn btn-gold" id="rfaZip" disabled>⬇ Download selected (0) as .zip</button></div></div>
           <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
             <select id="rfaStaff" style="width:auto"></select><select id="rfaClient" style="width:auto"></select>
-            <select id="rfaKind" style="width:auto"><option value="">All types</option><option value="medcert">🩺 Medcerts</option><option value="receipt">🧾 Receipts</option><option value="eod">📝 EOD attachments</option><option value="other">📄 Other</option></select>
+            <select id="rfaKind" style="width:auto"><option value="">All types</option><option value="medcert">🩺 Medcerts</option><option value="receipt">🧾 Receipts</option><option value="eod">📝 EOD attachments</option><option value="correction">✏️ Correction proof</option><option value="other">📄 Other</option></select>
             <span class="muted" style="font-size:12px">Uploaded</span><input type="date" id="rfaFrom" style="width:auto"><span class="muted">–</span><input type="date" id="rfaTo" style="width:auto">
             <input id="rfaSearch" placeholder="🔎 Search file name, staff or reason…" style="flex:1;min-width:200px"><button class="btn btn-ghost" id="rfaReload" title="Reload">↻</button>
           </div>
@@ -3332,6 +3357,7 @@ $('corrBtn').onclick = async () => {
   $('corrMsg').value=''; $('corrEntry').value=''; await renderMyCorrections(); alert('Sent to your admin for review.');
 };
 async function renderMyCorrections(){
+  if(window.CORR)return CORR.renderMine();
   const {data,error}=await sb.from('corrections').select('*').eq('staff_id',me.id).order('created_at',{ascending:false}).limit(10);
   if(error){console.warn('corrections:',error.message);return;}
   $('myCorrections').innerHTML=(data||[]).length? `<table><thead><tr><th>Shift date</th><th>Request</th><th>Status</th><th>Admin outcome</th></tr></thead><tbody>`+
@@ -4400,6 +4426,7 @@ let correctionRows=[], correctionReview=null;
 const CORRECTION_ACTIVITIES=['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','H2O Break','Meeting/Coaching','Overtime'];
 function correctionStatus(c){return c.status==='approved'?'Approved — '+(c.admin_note||'applied'):c.status==='rejected'?'Rejected — '+(c.admin_note||'no reason recorded'):'Pending review';}
 async function loadCorrections(){
+  if(window.CORR)return CORR.loadAdmin();
   $('corrFilter').onchange=loadCorrections;
   let q=sb.from('corrections').select('*').order('created_at',{ascending:false}).limit(200);
   if($('corrFilter').value==='pending')q=q.eq('status','pending');
@@ -4494,6 +4521,7 @@ if($('elOpenBtn')){
   $('elSave').onclick=saveEditLogin;
 }
 function closeCorrectionReview(){correctionReview=null;$('corrReviewOverlay').style.display='none';}
+const BREAK_ACTIVITIES=['15min Break','30min Break','60min Break','Personal Break','Bio Break','H2O Break'];
 function correctionBreakTotal(entries){return entries.filter(e=>BREAK_ACTIVITIES.includes(e.activity)).reduce((n,e)=>n+minutesOf(e),0);}
 function roundedCorrectionDateTimeToIso(value){
   if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value||''))return null;
@@ -4533,6 +4561,7 @@ async function openCorrectionReview(id){
   if(corr.entry_id){const linked=(entries||[]).find(e=>e.id===corr.entry_id);if(linked&&!options.some(e=>e.id===linked.id))options.unshift(linked);}
   if(!options.length){$('corrReviewMsg').textContent='No closed entry was found for this request. Reject it and ask staff to submit a new linked correction.';return;}
   correctionReview={corr,options,shiftsById,allEntries:entries||[]};
+  if(window.CORR)CORR.reviewExtras(corr);
   $('corrReviewEntry').innerHTML=options.map(e=>`<option value="${e.id}"${e.id===corr.entry_id?' selected':''}>${escapeHtml(entryLabel(e))}</option>`).join('');
   $('corrReviewActivity').innerHTML=CORRECTION_ACTIVITIES.map(a=>`<option value="${a}">${a}</option>`).join('');
   $('corrReviewSplitActivity').innerHTML=CORRECTION_ACTIVITIES.map(a=>`<option value="${a}">${a}</option>`).join('');
@@ -4632,6 +4661,8 @@ async function applyCorrectionResolution(status){
   }else{
     const action=$('corrReviewAction').value;
     if(!action)return alert('Choose a correction resolution.');
+    const cause=window.CORR?CORR.pickedCause():'';
+    if(window.CORR&&!cause){$('corrReviewMsg').textContent='';return alert('Choose whose error it was: Staff error, App / system issue or Outside cause.');}
     const args={p_correction_id:corr.id,p_entry_id:entry,p_action:action,p_reason:reason,p_new_ended_at:null,p_new_activity:null,p_split_at:null,p_split_activity:null};
     if(action==='change_start'){
       if(!$('corrReviewStart').value)return alert('Enter the correct start time.');
@@ -4659,6 +4690,10 @@ async function applyCorrectionResolution(status){
       args.p_split_activity=$('corrReviewSplitActivity').value;
       const original=correctionReview.options.find(e=>e.id===entry);
       if(!args.p_split_at||!original||new Date(args.p_split_at)<=new Date(original.started_at)||new Date(args.p_split_at)>=new Date(original.ended_at))return alert('Split time must be inside the recorded activity.');
+    }
+    if(cause){
+      const {data:cd,error:ce}=await sb.from('corrections').update({cause}).eq('id',corr.id).eq('status','pending').select('id');
+      if(ce||!cd?.length){$('corrReviewMsg').textContent=(ce&&ce.message)||'This correction was already reviewed.';return;}
     }
     const {error}=await sb.rpc('resolve_time_correction',args);
     if(error){$('corrReviewMsg').textContent=error.message;return;}
@@ -8423,7 +8458,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       ['Perfect weeks',finished?`${pw}/${rwRows.length}`:'in progress',''],
       ['Avg per agent',rwRows.length?(tot/rwRows.length).toFixed(1):'—','']
     ].map(([k,v,c])=>`<div class="stat"><div class="k">${k}</div><div class="v" style="${c?'color:'+c:''}">${v}</div></div>`).join('');
-    $('rwRules').innerHTML=`Per shift: On time +${rwCfg.on_time} (first log-in ≤ ${rwCfg.late_grace_min} min after shift start) · No over-break +${rwCfg.no_overbreak} (under ${rwCfg.over_grace_min} min over in total, no extra break uses) · Full hours +${rwCfg.full_hours} (≥ ${hm(Number(rwCfg.full_hours_min)-Number(rwCfg.full_hours_grace_min))} regular billable, Overtime excluded, and logged out by themselves) · Perfect shift +${rwCfg.perfect_shift} (all three) = ${per} max per shift, cap ${rwCfg.daily_cap}/day. Perfect week +${rwCfg.perfect_week}: every Mon–Fri is a perfect shift, PTO/PCH or an excused date. 5 tokens = 1 BINGO card. No deductions; a later time correction only adds or reverses the difference. Click a name to see each shift.`;
+    $('rwRules').innerHTML=`Per shift: On time +${rwCfg.on_time} (first log-in ≤ ${rwCfg.late_grace_min} min after shift start) · No over-break +${rwCfg.no_overbreak} (under ${rwCfg.over_grace_min} min over in total, no extra break uses) · Full hours +${rwCfg.full_hours} (≥ ${hm(Number(rwCfg.full_hours_min)-Number(rwCfg.full_hours_grace_min))} regular billable, Overtime excluded, and logged out by themselves) · Perfect shift +${rwCfg.perfect_shift} (all three) = ${per} max per shift, cap ${rwCfg.daily_cap}/day. Perfect week +${rwCfg.perfect_week}: every Mon–Fri is a perfect shift, PTO/PCH or an excused date. 5 tokens = 1 BINGO card. No deductions; a later time correction only adds or reverses the difference. A time correction the admin marks <b>Staff error</b> cancels that day's Perfect shift (and so the Perfect week). Click a name to see each shift.`;
     render();
   }
   function cell(x,n){return n?`<span class="${x===n?'rw-ok':x?'':'rw-no'}">${x}/${n}</span>`:'<span class="rw-dim">—</span>';}
@@ -8442,6 +8477,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     if(!d.no_overbreak){ const det=Object.entries(d.over_detail||{}).filter(([a,m])=>m>=0.5).map(([a,m])=>`${a} +${Math.round(m)}m`).join(', ')||(Number(d.over_min)>0?'under 1 min':''); out.push('Over-break'+(det?': '+det:'')+(d.inst_violation?' · extra uses: '+d.inst_violation:'')); }
     if(!d.full_hours) out.push(d.full_hours_note||`Only ${hmm(d.regular_min)} regular billable`);
     else if(d.full_hours_note) out.push(d.full_hours_note);
+    if(d.on_time&&d.no_overbreak&&d.full_hours&&!d.perfect) out.push('✏️ Staff-error time correction — no Perfect shift');
     return out.join(' · ')||'Perfect';
   }
   function render(){
@@ -9643,7 +9679,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     remember(data); RF.mine=data||[];
     const forTxt=f=>{ if(f.request_id){ const r=RF._reqs[f.request_id]; if(!r) return 'Request';
         return r.type==='sick_leave'?`Sick ${fmtNice(r.start_date)}${r.end_date!==r.start_date?' – '+fmtNice(r.end_date):''}`:`Reimb. ₱${Number(r.amount||0).toLocaleString()}`; }
-      return f.kind==='eod'?'EOD report':'Other'; };
+      return f.kind==='eod'?'EOD report':f.kind==='correction'?'Time correction':'Other'; };
     const stTxt=f=>{ const r=f.request_id&&RF._reqs[f.request_id]; if(!r) return '<span class="pill p-off">Saved</span>';
       if(r.type==='reimbursement'&&r.payout_cutoff) return `<span class="pill p-work">Approved · ${fmtNice(r.payout_cutoff)} payout</span>`;
       return `<span class="pill ${STATUS_PILL[r.status]||'p-off'}">${esc(r.status)}</span>`; };
@@ -9696,7 +9732,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   const OK_MIME=['image/jpeg','image/png','image/webp','image/heic','image/heif','application/pdf'];
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const $id=id=>document.getElementById(id);
-  const KIND={medcert:['🩺 Medcert','rfa-k-med'],receipt:['🧾 Receipt','rfa-k-rec'],eod:['📝 EOD','rfa-k-eod'],other:['📄 Other','rfa-k-eod']};
+  const KIND={medcert:['🩺 Medcert','rfa-k-med'],receipt:['🧾 Receipt','rfa-k-rec'],eod:['📝 EOD','rfa-k-eod'],correction:['✏️ Correction proof','rfa-k-eod'],other:['📄 Other','rfa-k-eod']};
   let files=[], reqs={}, eods={}, sel=new Set(), noCert=[], loaded=false, busy=false;
   const today=()=>phDate(new Date());
   const yearStart=()=>today().slice(0,4)+'-01-01';
@@ -10125,6 +10161,345 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     $('cbPayout').textContent=fmtNice(payoutFor($('cbMonth').value))+' payout';
   }
   window.CompletionBonus={init,run,_classify:classify,_payoutFor:payoutFor,_monthRange:monthRange};
+})();
+</script>
+
+<script>
+/* ============================================================================
+   Time Log Corrections upgrade (window.CORR) — Rendy 2026-10-21
+   Staff: "What happened?" reason + up to 3 proof files (bucket staff-docs, kind
+   'correction', rf_register_correction_file RPC). Admin: required cause on approve
+   (staff_error / app_issue / outside), proof in the review box, 📊 Report sub-tab
+   (per-staff counts, flags, weekly chart, reasons, CSV, history + reclassify).
+   Rewards: an approved Staff-error correction voids that day's Perfect Shift (SQL).
+   ============================================================================ */
+(function(){
+  const CORR={}; window.CORR=CORR;
+  const BUCKET='staff-docs', MAX_FILES=3;
+  const REASONS=[['forgot_logout','Forgot to log out'],['forgot_switch','Forgot to switch activity'],['wrong_click','Clicked the wrong activity'],['app_error','App / page error'],['outage','Internet or power outage'],['other','Other']];
+  const PROOF_REQUIRED=new Set(['app_error','outage']);
+  const CAUSES=[['staff_error','🔴 Staff error','Counts toward the negligence report and voids that day\'s Perfect Shift'],['app_issue','🔵 App / system issue','No penalty — goes on our list of app bugs to fix'],['outside','🟢 Outside cause','Outage, client or schedule issue — no penalty']];
+  const reasonLabel=c=>(REASONS.find(r=>r[0]===c)||[null,c?c:'—'])[1];
+  const causeLabel=c=>c==='staff_error'?'Staff error':c==='app_issue'?'App / system issue':c==='outside'?'Outside cause':'Unclassified';
+  const causePill=c=>c==='staff_error'?'cr-p-se':c==='app_issue'?'cr-p-ap':c==='outside'?'cr-p-out':'cr-p-un';
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const $id=id=>document.getElementById(id);
+  CORR.REASONS=REASONS; CORR.reasonLabel=reasonLabel; CORR.causeLabel=causeLabel;
+
+  /* ---------- styles ---------- */
+  const css=`#myCorrections{max-height:240px}
+.cr-reasons{display:flex;gap:8px;flex-wrap:wrap}
+.cr-reasons button{background:var(--card2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:7px 11px;font-size:12.5px;cursor:pointer;font-family:Inter}
+.cr-reasons button.on{border-color:var(--gold);background:rgba(227,166,62,.14);color:var(--gold)}
+.cr-causes{display:flex;gap:8px;flex-wrap:wrap}
+.cr-causes label{display:flex;gap:7px;align-items:flex-start;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12.5px;cursor:pointer;flex:1;min-width:180px;text-transform:none;letter-spacing:0;color:var(--ink)}
+.cr-causes label.on{border-color:var(--gold);background:rgba(227,166,62,.12)}
+.cr-causes input{width:auto;margin-top:2px}.cr-causes small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.cr-pill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600;white-space:nowrap}
+.cr-p-se{background:rgba(226,104,95,.18);color:#ff9a92}.cr-p-ap{background:rgba(91,141,239,.18);color:#8fb2ff}
+.cr-p-out{background:rgba(63,191,174,.18);color:#6fe0cf}.cr-p-un{background:rgba(107,113,131,.2);color:var(--muted)}
+.cr-sub{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:2px}
+.cr-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.cr-kpi{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:11px}
+.cr-kpi .k{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px}.cr-kpi .v{font-size:22px;font-weight:700;margin-top:3px}
+.cr-kpi .s{color:var(--muted);font-size:11px}
+.cr-two{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px}
+.cr-stack{display:flex;height:16px;border-radius:4px;overflow:hidden;background:var(--card2);min-width:4px}
+.cr-stack i{display:block;height:100%}
+.cr-se{background:#E2685F}.cr-ap{background:#5B8DEF}.cr-out{background:#3FBFAE}.cr-rj{background:#5d6577}.cr-pe{background:#E3A63E}.cr-un{background:#3a4050}
+.cr-flag-red{background:rgba(226,104,95,.18);color:#ff9a92}.cr-flag-amb{background:rgba(227,166,62,.18);color:var(--gold)}.cr-flag-ok{background:rgba(63,191,174,.16);color:#6fe0cf}
+.cr-chart{display:flex;align-items:flex-end;gap:6px;height:130px;border-bottom:1px solid var(--line);padding-top:6px}
+.cr-chart>div{flex:1;display:flex;flex-direction:column-reverse;min-width:0;height:100%}
+.cr-chart>div i{display:block;width:100%}
+.cr-chart-x{display:flex;gap:6px}.cr-chart-x div{flex:1;text-align:center;color:var(--muted);font-size:10.5px;padding-top:4px;min-width:0;overflow:hidden;white-space:nowrap}
+.cr-legend{color:var(--muted);font-size:11.5px;margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.cr-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.cr-name{color:var(--ink);text-decoration:underline dotted;cursor:pointer;background:none;border:0;padding:0;font:inherit;font-weight:600}
+.cr-thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.cr-thumbs a{display:block;width:120px;height:84px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--card2)}
+.cr-thumbs img{width:100%;height:100%;object-fit:cover}
+@media(max-width:900px){.cr-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.cr-two{grid-template-columns:1fr}}`;
+  const st=document.createElement('style'); st.textContent=css; document.head.appendChild(st);
+
+  /* ---------- proof files ---------- */
+  CORR.byCorr={};
+  CORR.loadFiles=async function(ids){
+    CORR.byCorr={}; ids=(ids||[]).filter(Boolean); if(!ids.length) return;
+    for(let i=0;i<ids.length;i+=100){
+      const {data,error}=await sb.from('staff_files').select('*').in('correction_id',ids.slice(i,i+100)).order('created_at');
+      if(error){ console.warn('correction files:',error.message); return; }
+      (data||[]).forEach(f=>{ (CORR.byCorr[f.correction_id]=CORR.byCorr[f.correction_id]||[]).push(f); if(window.RF&&RF._all) RF._all[f.id]=f; });
+    }
+  };
+  CORR.uploadProof=async function(file,corrId){
+    if(!window.RF) throw new Error('File upload is not available.');
+    const bad=RF.checkFile(file); if(bad) throw new Error(bad);
+    const safe=String(file.name||'file').replace(/[^\w.\-]+/g,'_').slice(-80);
+    const path=`${me.id}/correction/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safe}`;
+    const mime=file.type||(/\.pdf$/i.test(file.name)?'application/pdf':/\.heic$/i.test(file.name)?'image/heic':/\.heif$/i.test(file.name)?'image/heif':'');
+    const up=await sb.storage.from(BUCKET).upload(path,file,{contentType:mime,upsert:false});
+    if(up.error) throw new Error('Upload failed: '+up.error.message);
+    const {data,error}=await sb.rpc('rf_register_correction_file',{p_path:path,p_name:file.name||safe,p_mime:mime,p_size:file.size,p_correction_id:corrId});
+    if(error) throw new Error(error.message);
+    return data;
+  };
+  async function uploadAll(files,corrId){
+    const errs=[]; let ok=0;
+    for(const f of files){ try{ await CORR.uploadProof(f,corrId); ok++; }catch(e){ errs.push(`${f.name}: ${e.message}`); } }
+    return {ok,errs};
+  }
+  const chips=(fs,dl)=>window.RF&&fs&&fs.length?RF.chips(fs,{download:dl}):'';
+
+  /* ---------- STAFF: form ---------- */
+  let pickedReason='', pickedFiles=[];
+  function paintPicked(){
+    const box=$id('corrProofList'); if(!box) return;
+    box.innerHTML=pickedFiles.map((f,i)=>`<span class="rf-chip">🖼️ ${esc(f.name.length>28?f.name.slice(0,26)+'…':f.name)} <a href="#" data-cr-rm="${i}" title="Remove">✕</a></span>`).join('');
+    box.querySelectorAll('[data-cr-rm]').forEach(a=>a.onclick=e=>{e.preventDefault();pickedFiles.splice(Number(a.dataset.crRm),1);paintPicked();});
+    const lbl=$id('corrProofLbl'); if(lbl) lbl.innerHTML=PROOF_REQUIRED.has(pickedReason)?'Proof screenshot <b style="color:var(--rose)">(required for this reason)</b>':'Proof screenshot <span class="muted">(optional — helps your admin approve faster)</span>';
+  }
+  CORR.initStaffForm=function(){
+    const wrap=$id('corrReasons'); if(!wrap||wrap.dataset.ready) return; wrap.dataset.ready='1';
+    wrap.innerHTML=REASONS.map(([k,l])=>`<button type="button" data-cr-reason="${k}">${l}</button>`).join('');
+    wrap.querySelectorAll('[data-cr-reason]').forEach(b=>b.onclick=()=>{pickedReason=b.dataset.crReason;wrap.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));paintPicked();});
+    const inp=$id('corrProof'); if(window.RF) inp.accept=RF.ACCEPT;
+    inp.onchange=()=>{
+      const add=[...inp.files]; inp.value='';
+      for(const f of add){
+        const bad=window.RF?RF.checkFile(f):''; if(bad){alert(bad);continue;}
+        if(pickedFiles.length>=MAX_FILES){alert(`At most ${MAX_FILES} files per correction.`);break;}
+        pickedFiles.push(f);
+      }
+      paintPicked();
+    };
+    const btn=$id('corrBtn'); btn.onclick=CORR.submit;
+    paintPicked();
+  };
+  CORR.submit=async function(){
+    const btn=$id('corrBtn');
+    const date=$id('corrDate').value, entryId=$id('corrEntry').value, msg=$id('corrMsg').value.trim();
+    const entry=(typeof correctionDateEntries!=='undefined'?correctionDateEntries:[]).find(e=>e.id===entryId);
+    if(!date) return alert('Choose the shift date.');
+    if(!entry) return alert('Select the recorded activity that needs correction. Running activities cannot be corrected.');
+    if(!pickedReason) return alert('Choose what happened.');
+    if(!msg) return alert('Describe what needs fixing (for example the real time you came back).');
+    if(PROOF_REQUIRED.has(pickedReason)&&!pickedFiles.length) return alert('Please attach a screenshot as proof for "'+reasonLabel(pickedReason)+'".');
+    btn.disabled=true; const old=btn.textContent; btn.textContent='Sending…';
+    try{
+      const {data,error}=await sb.from('corrections').insert({staff_id:me.id,shift_id:entry.shift_id,entry_id:entry.id,target_date:date,message:msg,reason_code:pickedReason}).select('id').single();
+      if(error) return alert(error.message);
+      let note='Sent to your admin for review.';
+      if(pickedFiles.length){
+        const r=await uploadAll(pickedFiles,data.id);
+        if(r.errs.length) note=`Your request was sent, but ${r.errs.length} file(s) did not upload:\n${r.errs.join('\n')}\n\nUse "📎 Add proof" on the request below to try again.`;
+      }
+      $id('corrMsg').value=''; $id('corrEntry').value=''; pickedFiles=[]; pickedReason='';
+      $id('corrReasons').querySelectorAll('button').forEach(x=>x.classList.remove('on')); paintPicked();
+      await CORR.renderMine(); alert(note);
+    } finally { btn.disabled=false; btn.textContent=old; }
+  };
+
+  /* ---------- STAFF: my corrections ---------- */
+  CORR.renderMine=async function(){
+    CORR.initStaffForm();
+    const box=$id('myCorrections'); if(!box) return;
+    const {data,error}=await sb.from('corrections').select('*').eq('staff_id',me.id).order('created_at',{ascending:false}).limit(30);
+    if(error){ console.warn('corrections:',error.message); return; }
+    const rows=data||[];
+    await CORR.loadFiles(rows.map(c=>c.id));
+    const monthStart=phDate(new Date()).slice(0,8)+'01';
+    const thisMonth=rows.filter(c=>phDate(new Date(c.created_at))>=monthStart);
+    const se=thisMonth.filter(c=>c.status==='approved'&&c.cause==='staff_error').length;
+    const head=`<div class="muted" style="font-size:12px;margin-bottom:8px">My corrections this month: <b style="color:var(--ink)">${thisMonth.length}</b> · counted as staff error: <b style="color:${se?'#ff9a92':'var(--ink)'}">${se}</b> <span class="muted">— a staff-error correction cancels that day's Perfect Shift reward</span></div>`;
+    box.innerHTML=rows.length?head+`<div style="overflow-x:auto"><table><thead><tr><th>Shift date</th><th>What happened</th><th>Request</th><th>Proof</th><th>Status</th><th>Counted as</th><th>Admin outcome</th></tr></thead><tbody>`+
+      rows.map(c=>{const fs=CORR.byCorr[c.id]||[];
+        const add=c.status==='pending'&&fs.length<MAX_FILES?`<button class="btn btn-ghost" style="padding:3px 8px;font-size:11.5px" data-cr-add="${c.id}">📎 Add proof</button>`:'';
+        return `<tr><td class="mono">${esc(c.target_date||'—')}</td><td>${esc(reasonLabel(c.reason_code))}</td><td>${esc(c.message)}</td><td>${chips(fs,false)}${add}</td>
+        <td><span class="pill ${c.status==='approved'?'p-work':c.status==='rejected'?'p-bad':'p-break'}"><span class="dot"></span>${esc(c.status)}</span></td>
+        <td>${c.status==='approved'?`<span class="cr-pill ${causePill(c.cause)}">${causeLabel(c.cause)}</span>`:'—'}</td><td>${esc(c.admin_note||'—')}</td></tr>`;}).join('')+`</tbody></table></div>`
+      : `<div class="muted" style="font-size:12.5px">No requests yet.</div>`;
+    if(window.RF) RF.wire(box);
+    box.querySelectorAll('[data-cr-add]').forEach(b=>b.onclick=()=>{
+      const inp=document.createElement('input'); inp.type='file'; inp.multiple=true; if(window.RF) inp.accept=RF.ACCEPT;
+      inp.onchange=async()=>{
+        const have=(CORR.byCorr[b.dataset.crAdd]||[]).length, files=[...inp.files].slice(0,MAX_FILES-have);
+        if(!files.length) return;
+        b.disabled=true; b.textContent='Uploading…';
+        const r=await uploadAll(files,b.dataset.crAdd);
+        if(r.errs.length) alert('Some files did not upload:\n'+r.errs.join('\n'));
+        await CORR.renderMine();
+      };
+      inp.click();
+    });
+  };
+
+  /* ---------- ADMIN: requests list ---------- */
+  CORR.loadAdmin=async function(){
+    CORR.initAdminTabs();
+    $id('corrFilter').onchange=CORR.loadAdmin;
+    let q=sb.from('corrections').select('*').order('created_at',{ascending:false}).limit(200);
+    if($id('corrFilter').value==='pending') q=q.eq('status','pending');
+    const {data,error}=await q;
+    if(error){ $id('corrTable').innerHTML=`<tr><td colspan="8" class="muted">${esc(error.message)}</td></tr>`; return; }
+    correctionRows=data||[];
+    await CORR.loadFiles(correctionRows.map(c=>c.id));
+    $id('corrTable').innerHTML=correctionRows.length?correctionRows.map(c=>{
+      const s=staffList.find(x=>x.id===c.staff_id), fs=CORR.byCorr[c.id]||[];
+      const need=PROOF_REQUIRED.has(c.reason_code)&&!fs.length;
+      return `<tr><td class="mono">${phDate(new Date(c.created_at))}</td><td>${s?esc(s.full_name):'—'}</td><td class="mono">${esc(c.target_date||'—')}</td>
+        <td>${esc(reasonLabel(c.reason_code))}</td><td>${esc(c.message)}</td><td>${chips(fs,true)||(need?'<span class="cr-pill cr-p-se">No proof</span>':'<span class="muted">—</span>')}</td>
+        <td>${esc(correctionStatus(c))}${c.status==='approved'?` <span class="cr-pill ${causePill(c.cause)}">${causeLabel(c.cause)}</span>`:''}</td>
+        <td style="text-align:right">${c.status==='pending'?`<button class="btn btn-teal" data-review="${c.id}">Review</button>`:''}</td></tr>`;
+    }).join(''):`<tr><td colspan="8" class="muted">Nothing here.</td></tr>`;
+    if(window.RF) RF.wire($id('corrTable'));
+    $id('corrTable').querySelectorAll('[data-review]').forEach(b=>b.onclick=()=>openCorrectionReview(b.dataset.review));
+  };
+
+  /* ---------- ADMIN: review box extras ---------- */
+  CORR.reviewExtras=async function(corr){
+    const box=$id('corrReviewProof'), cz=$id('corrReviewCause');
+    cz.innerHTML=CAUSES.map(([k,l,h])=>`<label><input type="radio" name="corrCause" value="${k}"><span>${l}<small>${esc(h)}</small></span></label>`).join('');
+    cz.querySelectorAll('input').forEach(i=>i.onchange=()=>cz.querySelectorAll('label').forEach(l=>l.classList.toggle('on',l.contains(i)&&i.checked)));
+    const fs=CORR.byCorr[corr.id]||[];
+    const said=`Staff said: <b>${esc(reasonLabel(corr.reason_code))}</b>`;
+    if(!fs.length){ box.innerHTML=said+' · <span class="muted">No proof attached</span>'+(PROOF_REQUIRED.has(corr.reason_code)?' <span class="cr-pill cr-p-se">proof expected for this reason</span>':''); return; }
+    box.innerHTML=said+` · Proof (${fs.length}): ${chips(fs,true)}<div class="cr-thumbs" id="corrReviewThumbs"></div>`;
+    if(window.RF) RF.wire(box);
+    const th=$id('corrReviewThumbs');
+    for(const f of fs){
+      if(!/^image\/(png|jpe?g|webp|gif)$/i.test(f.mime||'')) continue;
+      try{ const {data,error}=await sb.storage.from(BUCKET).createSignedUrl(f.path,900); if(error) continue;
+        const a=document.createElement('a'); a.href='#'; a.title='Open full size'; a.onclick=e=>{e.preventDefault(); if(window.RF) RF.open(f.id,false);};
+        a.innerHTML=`<img alt="${esc(f.file_name)}" src="${esc(data.signedUrl)}">`; th.appendChild(a);
+      }catch(e){}
+    }
+  };
+  CORR.pickedCause=()=>{ const i=document.querySelector('input[name="corrCause"]:checked'); return i?i.value:''; };
+
+  /* ---------- ADMIN: sub-tabs ---------- */
+  CORR.initAdminTabs=function(){
+    const bar=$id('corrSubBar'); if(!bar||bar.dataset.ready) return; bar.dataset.ready='1';
+    bar.querySelectorAll('[data-corr-sub]').forEach(b=>b.onclick=()=>{
+      const rep=b.dataset.corrSub==='report';
+      bar.querySelectorAll('[data-corr-sub]').forEach(x=>{x.classList.toggle('btn-gold',x===b);x.classList.toggle('btn-ghost',x!==b);});
+      $id('corrListCard').classList.toggle('hide',rep); $id('corrReportCard').classList.toggle('hide',!rep);
+      if(rep) CORR.runReport();
+    });
+    const pc=$id('crClient'); pc.innerHTML='<option value="">All clients</option>'+(clients||[]).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    ['crRange','crClient'].forEach(id=>$id(id).onchange=CORR.runReport);
+    $id('crCsv').onclick=CORR.csv;
+  };
+
+  /* ---------- ADMIN: report (pure math is exported for tests) ---------- */
+  function crAddDays(iso,n){const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
+  function rangeFor(key,today){
+    const y=today.slice(0,4), m=today.slice(5,7);
+    if(key==='90') return {from:crAddDays(today,-89),to:today,label:'Last 90 days'};
+    if(key==='month') return {from:`${y}-${m}-01`,to:today,label:'This month'};
+    if(key==='lastmonth'){ const d=new Date(Date.UTC(+y,+m-2,1)); const e=new Date(Date.UTC(+y,+m-1,0)); return {from:d.toISOString().slice(0,10),to:e.toISOString().slice(0,10),label:'Last month'}; }
+    if(key==='year') return {from:`${y}-01-01`,to:today,label:'This year'};
+    return {from:crAddDays(today,-29),to:today,label:'Last 30 days'};
+  }
+  function flagFor(n){ return n>=4?['Pattern','cr-flag-red']:n>=2?['Watch','cr-flag-amb']:['OK','cr-flag-ok']; }
+  function bucketOf(c){ if(c.status==='rejected') return 'rj'; if(c.status==='pending') return 'pe';
+    return c.cause==='staff_error'?'se':c.cause==='app_issue'?'ap':c.cause==='outside'?'out':'un'; }
+  CORR.compute=function(rows,staff,opts){
+    const {from,to,today,client}=opts;
+    const sOk=s=>s&&(!client||s.client_id===client);
+    const byId=Object.fromEntries((staff||[]).map(s=>[s.id,s]));
+    const dayOf=c=>phDate(new Date(c.created_at));
+    const inR=(rows||[]).filter(c=>sOk(byId[c.staff_id])&&dayOf(c)>=from&&dayOf(c)<=to);
+    const last30From=crAddDays(today,-29);
+    const k={total:inR.length,se:0,ap:0,out:0,rj:0,pe:0,un:0};
+    inR.forEach(c=>k[bucketOf(c)]++);
+    const approved=k.se+k.ap+k.out+k.un;
+    const voided=new Set(inR.filter(c=>bucketOf(c)==='se').map(c=>c.staff_id+'|'+c.target_date)).size;
+    const per={};
+    inR.forEach(c=>{const p=per[c.staff_id]=per[c.staff_id]||{staffId:c.staff_id,name:(byId[c.staff_id]||{}).full_name||'—',total:0,se:0,ap:0,out:0,rj:0,pe:0,un:0,se30:0};p.total++;p[bucketOf(c)]++;});
+    (rows||[]).forEach(c=>{ if(per[c.staff_id]&&bucketOf(c)==='se'&&dayOf(c)>=last30From&&dayOf(c)<=today) per[c.staff_id].se30++; });
+    const people=Object.values(per).map(p=>Object.assign(p,{flag:flagFor(p.se30)})).sort((a,b)=>b.se-a.se||b.total-a.total||a.name.localeCompare(b.name));
+    /* time buckets: weeks (Mon start) up to ~16 weeks, otherwise months */
+    const spanDays=Math.round((new Date(to)-new Date(from))/864e5)+1, monthly=spanDays>112;
+    const keyOf=iso=>{ if(monthly) return iso.slice(0,7)+'-01'; const d=new Date(iso+'T00:00:00Z'); const dow=(d.getUTCDay()+6)%7; return crAddDays(iso,-dow); };
+    const buckets=[]; const seen=new Set();
+    for(let d=from; d<=to; d=crAddDays(d,1)){ const kk=keyOf(d); if(!seen.has(kk)){seen.add(kk);buckets.push({key:kk,se:0,ap:0,other:0});} }
+    const bmap=Object.fromEntries(buckets.map(b=>[b.key,b]));
+    inR.forEach(c=>{ const b=bmap[keyOf(dayOf(c))]; if(!b) return; const t=bucketOf(c); if(t==='se') b.se++; else if(t==='ap') b.ap++; else b.other++; });
+    const reasons={}; inR.forEach(c=>{ const r=c.reason_code||'(not given)'; reasons[r]=(reasons[r]||0)+1; });
+    return {kpi:k,approved,voided,people,buckets,monthly,reasons:Object.entries(reasons).sort((a,b)=>b[1]-a[1]),rows:inR};
+  };
+  let lastModel=null, reportGen=0;
+  CORR.runReport=async function(){
+    const my=++reportGen;
+    const today=phDate(new Date()), r=rangeFor($id('crRange').value,today);
+    const fetchFrom=r.from<crAddDays(today,-29)?r.from:crAddDays(today,-29);
+    $id('crStatus').textContent='Loading…';
+    let rows;
+    try{
+      rows=await pagedSelect(()=>sb.from('corrections').select('id,staff_id,target_date,reason_code,cause,status,message,admin_note,created_at').gte('created_at',new Date(fetchFrom+'T00:00:00+08:00').toISOString()).order('created_at',{ascending:false}));
+    }catch(e){ $id('crStatus').textContent='Could not load: '+e.message; return; }
+    if(my!==reportGen) return;
+    const m=CORR.compute(rows,staffList,{from:r.from,to:r.to,today,client:$id('crClient').value});
+    m.label=r.label; m.from=r.from; m.to=r.to; m.allRows=rows; lastModel=m;
+    $id('crStatus').textContent=`${r.label} · ${fmtNice(r.from)} – ${fmtNice(r.to)} · by request date · flags always use the last 30 days`;
+    const k=m.kpi, pct=m.approved?Math.round(k.se/m.approved*100):0;
+    $id('crKpis').innerHTML=[
+      ['Requests',k.total,`${k.pe} pending`,''],
+      ['Staff error',k.se,`${pct}% of approved`,'#ff9a92'],
+      ['App / system issue',k.ap,'bugs for us to fix','#8fb2ff'],
+      ['Outside cause',k.out,k.un?`+ ${k.un} older approved, unclassified`:'outage / client',''],
+      ['Rejected',k.rj,'not valid / no proof',''],
+      ['Perfect shifts voided',m.voided,'staff-error days','var(--gold)']
+    ].map(([a,b,c,col])=>`<div class="cr-kpi"><div class="k">${a}</div><div class="v"${col?` style="color:${col}"`:''}>${b}</div><div class="s">${esc(c)}</div></div>`).join('');
+    const max=Math.max(1,...m.people.map(p=>p.total));
+    const seg=(p,key,cls)=>p[key]?`<i class="${cls}" style="width:${p[key]/p.total*100}%" title="${p[key]}"></i>`:'';
+    $id('crPeople').innerHTML=m.people.length?m.people.map(p=>`<tr><td><button class="cr-name" data-cr-hist="${p.staffId}">${esc(p.name)}</button></td>
+      <td style="min-width:160px"><div class="cr-stack" style="width:${Math.max(6,p.total/max*100)}%">${seg(p,'se','cr-se')}${seg(p,'ap','cr-ap')}${seg(p,'out','cr-out')}${seg(p,'un','cr-un')}${seg(p,'pe','cr-pe')}${seg(p,'rj','cr-rj')}</div></td>
+      <td class="mono">${p.total}</td><td class="mono" style="color:${p.se?'#ff9a92':'inherit'}">${p.se}</td><td class="mono">${p.ap}</td><td class="mono">${p.rj}</td>
+      <td><span class="cr-pill ${p.flag[1]}" title="${p.se30} staff error(s) in the last 30 days">${p.flag[0]}</span></td></tr>`).join('')
+      :'<tr><td colspan="7" class="muted">No correction requests in this period. 🎉</td></tr>';
+    $id('crPeople').querySelectorAll('[data-cr-hist]').forEach(b=>b.onclick=()=>CORR.history(b.dataset.crHist));
+    const bmax=Math.max(1,...m.buckets.map(b=>b.se+b.ap+b.other));
+    const h=n=>`${n/bmax*100}%`;
+    $id('crChart').innerHTML=m.buckets.map(b=>`<div title="${b.se} staff error · ${b.ap} app issue · ${b.other} other">${b.se?`<i class="cr-se" style="height:${h(b.se)}"></i>`:''}${b.ap?`<i class="cr-ap" style="height:${h(b.ap)}"></i>`:''}${b.other?`<i class="cr-rj" style="height:${h(b.other)}"></i>`:''}</div>`).join('');
+    const xl=iso=>m.monthly?new Date(iso+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',month:'short'}):new Date(iso+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'});
+    $id('crChartX').innerHTML=m.buckets.map(b=>`<div>${xl(b.key)}</div>`).join('');
+    $id('crChartTitle').textContent=m.monthly?'Requests per month':'Requests per week (week starting)';
+    $id('crReasons').innerHTML=m.reasons.length?m.reasons.map(([r,n])=>`<tr><td>${esc(r==='(not given)'?'Not given (older requests)':reasonLabel(r))}</td><td class="mono" style="text-align:right">${n}</td></tr>`).join(''):'<tr><td class="muted">—</td></tr>';
+  };
+  CORR.csv=function(){
+    if(!lastModel) return;
+    const L=[['Staff','Total','Staff error','App issue','Outside cause','Unclassified','Pending','Rejected','Staff errors last 30 days','Flag']];
+    lastModel.people.forEach(p=>L.push([p.name,p.total,p.se,p.ap,p.out,p.un,p.pe,p.rj,p.se30,p.flag[0]]));
+    L.push([]); L.push(['Requested','Staff','Shift date','What happened','Request','Status','Counted as','Admin note']);
+    lastModel.rows.forEach(c=>L.push([phDate(new Date(c.created_at)),(staffList.find(s=>s.id===c.staff_id)||{}).full_name||'',c.target_date||'',reasonLabel(c.reason_code),c.message||'',c.status,c.status==='approved'?causeLabel(c.cause):'',c.admin_note||'']));
+    const csv=L.map(r=>r.map(v=>{v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}).join(',')).join('\n');
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`correction-report-${lastModel.from}_${lastModel.to}.csv`; a.click();
+  };
+  CORR.history=async function(staffId){
+    const s=staffList.find(x=>x.id===staffId)||{full_name:'Staff'};
+    const ov=$id('crHistOverlay'); ov.style.display='flex';
+    $id('crHistTitle').textContent=`${s.full_name} — correction history`;
+    $id('crHistBody').innerHTML='<tr><td colspan="7" class="muted">Loading…</td></tr>';
+    const {data,error}=await sb.from('corrections').select('*').eq('staff_id',staffId).order('created_at',{ascending:false}).limit(300);
+    if(error){ $id('crHistBody').innerHTML=`<tr><td colspan="7" class="muted">${esc(error.message)}</td></tr>`; return; }
+    await CORR.loadFiles((data||[]).map(c=>c.id));
+    $id('crHistBody').innerHTML=(data||[]).map(c=>`<tr><td class="mono">${phDate(new Date(c.created_at))}</td><td class="mono">${esc(c.target_date||'—')}</td><td>${esc(reasonLabel(c.reason_code))}</td><td>${esc(c.message)}</td><td>${chips(CORR.byCorr[c.id],true)||'<span class="muted">—</span>'}</td>
+      <td>${esc(c.status)}${c.admin_note?`<div class="muted" style="font-size:11.5px">${esc(c.admin_note)}</div>`:''}</td>
+      <td>${c.status==='approved'?`<select data-cr-cause="${c.id}" style="width:auto;padding:4px 6px;font-size:12px"><option value=""${!c.cause?' selected':''}>Unclassified</option>${CAUSES.map(([k,l])=>`<option value="${k}"${c.cause===k?' selected':''}>${l}</option>`).join('')}</select>`:'—'}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No requests.</td></tr>';
+    if(window.RF) RF.wire($id('crHistBody'));
+    $id('crHistBody').querySelectorAll('[data-cr-cause]').forEach(sel=>sel.onchange=async()=>{
+      if(!sel.value){ alert('Pick Staff error, App / system issue or Outside cause.'); return; }
+      sel.disabled=true;
+      const {error}=await sb.from('corrections').update({cause:sel.value}).eq('id',sel.dataset.crCause).eq('status','approved');
+      sel.disabled=false;
+      if(error){ alert(error.message); return; }
+      $id('crHistMsg').textContent='Saved. Rewards update on the next nightly run (last 14 days).';
+      CORR.runReport();
+    });
+  };
+  document.addEventListener('click',e=>{ if(e.target&&e.target.id==='crHistOverlay'||e.target&&e.target.id==='crHistClose'){ $id('crHistOverlay').style.display='none'; $id('crHistMsg').textContent=''; } });
+  CORR._rangeFor=rangeFor; CORR._flagFor=flagFor;
 })();
 </script>
 
