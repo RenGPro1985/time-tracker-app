@@ -7669,6 +7669,36 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
 .bb-ov{position:fixed;inset:0;background:rgba(6,8,12,.78);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
 .bb-modal{width:100%;max-width:560px;max-height:calc(100vh - 40px);overflow:auto}
 @media(max-width:820px){.bb-rcpt .cols{grid-template-columns:1fr}}
+.bbm{padding:12px 14px}
+.bbm-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.bbm-h h3{font-size:13.5px;margin:0}
+.bbm-new{font-size:10.5px;font-weight:700;background:var(--rose);color:#fff;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.bbm-open{all:unset;margin-left:auto;font-size:11.5px;color:var(--gold);cursor:pointer;white-space:nowrap}
+.bbm-it{display:grid;grid-template-columns:8px 1fr auto;gap:9px;align-items:start;padding:8px 6px;border-top:1px solid var(--line);cursor:pointer}
+.bbm-it:first-of-type{border-top:0}
+.bbm-it .d{width:8px;height:8px;border-radius:50%;margin-top:5px;background:var(--teal)}
+.bbm-it.read .d{background:transparent;box-shadow:inset 0 0 0 1px var(--slate,#6B7183)}
+.bbm-it .c{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:700}
+.bbm-it .c .bb-tag{margin-left:4px;letter-spacing:0;text-transform:none}
+.bbm-it b{display:block;font-size:12.5px;font-weight:600;margin-top:1px;overflow-wrap:anywhere}
+.bbm-it.read b{color:var(--muted);font-weight:500}
+.bbm-it small{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.bbm-it.urg{background:rgba(226,104,95,.09);border-radius:8px;border-top-color:transparent}
+.bbm-body{display:none;margin:5px 0 0;font-size:12px;line-height:1.5;color:#d9d6cc;white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
+.bbm-body a{color:var(--teal)}
+.bbm-it.open .bbm-body{display:block}
+.bbm-ack{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;font-size:11px;color:var(--gold)}
+.bbm-ack .btn{padding:4px 10px;font-size:11.5px}
+.bbm-ok{font-size:11px;color:var(--teal);margin-top:5px}
+.bbm-f{font-size:10.5px;color:var(--muted);text-align:center;padding-top:7px;border-top:1px solid var(--line)}
+.bbm-empty{font-size:12px;color:var(--muted);padding:8px 2px}
+.bbm-strip-h{display:flex;align-items:center;gap:8px;cursor:pointer}
+.bbm-strip-h b{font-size:13px}
+.bbm-strip-h .m{font-size:12px;color:var(--muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bbm-strip-h .v{font-size:11.5px;color:var(--gold);white-space:nowrap}
+.bbm-strip .bbm-list{margin-top:8px}
+#bbMiniStrip{display:none}
+@media(max-width:820px){#bbMini{display:none!important}#bbMiniStrip:not(.hide){display:block}}
 .pr-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .pr-pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:7px;white-space:nowrap}
 .pr-ann{background:rgba(63,191,174,.15);color:var(--teal)}
@@ -7738,7 +7768,70 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     if(!loadedOk||isAdm()) return 0;
     return posts.filter(p=>isLive(p)&&!myRead(p.id)).length;
   }
+  /* ---------------- TIME TRACKER MINI PANEL (staff only, 2026-10-20) ----------------
+     Right column of v-punch: latest 5 live posts, urgent first then newest. Phone (<=820px): a
+     one-line strip above the timer that expands. Opening a post marks it read; Got it acks it.
+     Staff layout: Break usage today moves to the bottom of the left column; Today and This pay
+     period stay on the right under the panel. Admin Time Tracker layout is untouched. */
+  const MINI_N=5; const miniOpen=new Set(); let stripOpen=false;
+  function ago(iso){
+    const m=Math.max(0,Math.round((now()-new Date(iso).getTime())/60000));
+    if(m<60) return (m||1)+'m'; const h=Math.round(m/60); if(h<24) return h+'h';
+    const d=Math.round(h/24); return d<7?d+'d':fmtD(iso).replace(/, \d{4}$/,'');
+  }
+  function miniPosts(){
+    return posts.filter(isLive).sort((x,y)=>(!!y.urgent-!!x.urgent)||(new Date(y.publish_at)-new Date(x.publish_at))).slice(0,MINI_N);
+  }
+  function miniItem(p){
+    const r=myRead(p.id), open=miniOpen.has(p.id), col=CAT_COLOR[p.category]||'var(--gold)';
+    const needAck=p.require_ack&&!(r&&r.acked_at);
+    return `<div class="bbm-it${r?' read':''}${p.urgent?' urg':''}${open?' open':''}" data-bbm="${esc(p.id)}"><span class="d"></span><div>
+      <div class="c" style="color:${p.urgent?'var(--rose)':col}">${CAT_ICON[p.category]||'📣'} ${p.urgent?'Urgent':esc(p.category)}${p.pinned?'<span class="bb-tag bb-t-pin">📌</span>':''}</div>
+      <b>${esc(p.title)}</b>${p.body?`<div class="bbm-body">${linkify(p.body)}</div>`:''}
+      ${needAck?`<div class="bbm-ack"><span>Needs your “Got it”</span><button class="btn btn-gold" data-bbm-ack="${esc(p.id)}">👍 Got it</button></div>`:(p.require_ack&&open?'<div class="bbm-ok">✓ Confirmed</div>':'')}
+    </div><small>${ago(p.publish_at)}</small></div>`;
+  }
+  function miniList(list){
+    if(!list.length) return '<div class="bbm-empty">No announcements right now.</div>';
+    return `<div class="bbm-list">${list.map(miniItem).join('')}</div><div class="bbm-f">Latest ${MINI_N} · urgent first · tap a post to read it</div>`;
+  }
+  function setupMiniLayout(){
+    const sec=$('v-punch'); if(!sec||$('bbMini')) return;
+    const L=sec.children[0], R=sec.children[1]; const brk=$('breaks')?.closest('.card');
+    if(!L||!R) return;
+    if(brk) L.appendChild(brk);
+    const box=document.createElement('div'); box.className='card bbm hide'; box.id='bbMini'; R.insertBefore(box,R.firstChild);
+    const strip=document.createElement('div'); strip.className='card bbm bbm-strip hide'; strip.id='bbMiniStrip'; L.insertBefore(strip,L.firstChild);
+  }
+  function bindMini(host){
+    host.querySelectorAll('[data-bbm-open]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); go('v-portal'); });
+    host.querySelectorAll('[data-bbm-ack]').forEach(b=>b.onclick=async e=>{
+      e.stopPropagation(); b.disabled=true;
+      try{ await mark([b.dataset.bbmAck],true); paintBadge(); }
+      catch(err){ b.disabled=false; alert('Could not save: '+errMsg(err)); }
+    });
+    host.querySelectorAll('[data-bbm]').forEach(el=>el.onclick=async e=>{
+      if(e.target.closest('a,button')) return;
+      const id=el.dataset.bbm; if(miniOpen.has(id)) miniOpen.delete(id); else miniOpen.add(id);
+      renderMini();
+      if(!myRead(id)){ try{ await mark([id],false); paintBadge(); }catch(err){ console.warn('bulletin_mark failed',err); } }
+    });
+    host.querySelectorAll('[data-bbm-strip]').forEach(el=>el.onclick=e=>{ if(e.target.closest('[data-bbm-open]')) return; stripOpen=!stripOpen; renderMini(); });
+  }
+  function renderMini(){
+    const box=$('bbMini'), strip=$('bbMiniStrip'); if(!box||!strip) return;
+    if(!me||isAdm()||!loadedOk){ box.classList.add('hide'); strip.classList.add('hide'); return; }
+    const list=miniPosts(), n=unreadCount();
+    const badge=n?`<span class="bbm-new">${n} new</span>`:'';
+    box.innerHTML=`<div class="bbm-h"><h3>📌 PM Bulletin Board</h3>${badge}<button class="bbm-open" data-bbm-open>Open full board →</button></div>${miniList(list)}`;
+    const top=list[0];
+    strip.innerHTML=`<div class="bbm-strip-h" data-bbm-strip><span style="font-size:15px">📌</span><b>Bulletin</b>${badge}<span class="m">${top?esc(top.title):'No announcements right now'}</span><span class="v">${stripOpen?'Hide ▴':'View ▾'}</span></div>
+      ${stripOpen?miniList(list)+'<div style="text-align:center;margin-top:6px"><button class="bbm-open" style="margin:0" data-bbm-open>Open full board →</button></div>':''}`;
+    box.classList.remove('hide'); strip.classList.remove('hide');
+    bindMini(box); bindMini(strip);
+  }
   function paintBadge(){
+    renderMini();
     const b=document.querySelector('#nav button[data-v="v-portal"]'); if(!b) return;
     let s=b.querySelector('.bb-badge'); const n=unreadCount();
     if(!n){ if(s) s.remove(); return; }
@@ -7938,10 +8031,11 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   }
   async function onStart(){
     if(!me||isAdm()) return;
+    setupMiniLayout();
     await refresh();
     if(!pollTimer) pollTimer=setInterval(()=>{ if(me&&!isAdm()&&!document.hidden) refresh(); },300000);
   }
-  window.Bulletin={load,paintBadge,onStart,refresh,_state:()=>({posts,reads,loadedOk,setupMissing}),_audienceStaff:audienceStaff,_popupQueue:popupQueue};
+  window.Bulletin={load,paintBadge,onStart,refresh,_miniPosts:miniPosts,_state:()=>({posts,reads,loadedOk,setupMissing}),_audienceStaff:audienceStaff,_popupQueue:popupQueue};
 })();
 
 (function(){
