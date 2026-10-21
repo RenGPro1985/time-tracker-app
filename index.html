@@ -356,6 +356,25 @@ button.btn{padding:7px 12px;font-size:12px}
 .cb-tag{font-size:10.5px;padding:1px 6px;border-radius:6px;background:var(--card2);color:var(--muted);margin-left:6px}
 .cb-det td{background:var(--card2);font-size:12px;color:var(--muted);white-space:normal!important;line-height:1.6}.cb-det b{color:var(--ink)}
 @media(max-width:820px){#v-cbonus .grid[style*="repeat(4"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+/* Fee Advances chart (Rendy 2026-10-21) */
+.fa-chart{display:flex;flex-direction:column;gap:9px;max-height:380px;overflow-y:auto;padding-right:4px}
+.fa-row{display:grid;grid-template-columns:200px 1fr 200px;gap:12px;align-items:center;cursor:pointer;padding:4px 6px;border-radius:10px}
+.fa-row:hover{background:rgba(255,255,255,.03)}
+.fa-name{font-size:13px;line-height:1.25}.fa-name small{display:block;color:var(--muted);font-size:11px}
+.fa-bar{display:flex;height:22px;border-radius:7px;overflow:hidden;background:#0E111A;box-shadow:inset 0 0 0 1px var(--line)}
+.fa-paid{background:var(--teal);opacity:.85;display:flex;align-items:center;padding-left:6px;font-size:10.5px;color:#0B0D12;font-weight:700;white-space:nowrap;overflow:hidden}
+.fa-waived{background:#5a6072}
+.fa-seg{background:var(--gold);border-left:2px solid #0E111A;display:flex;align-items:center;justify-content:center;font-size:10px;color:#151515;font-weight:700;overflow:hidden}
+.fa-seg.next{background:#f2c26b}
+.fa-left{font-size:12.5px;text-align:right;line-height:1.25}.fa-left b{font-size:15px;font-family:'IBM Plex Mono',monospace}
+.fa-left small{display:block;color:var(--muted);font-size:11px}
+.fa-legend{display:flex;gap:16px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.fa-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+.fa-axis{display:grid;grid-template-columns:200px 1fr 200px;gap:12px;font-size:10.5px;color:var(--muted);padding:0 6px;margin-bottom:6px}
+.badge-left{display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(227,166,62,.14);color:var(--gold);font-size:11.5px;font-weight:700}
+.badge-left.one{background:rgba(63,191,174,.15);color:var(--teal)}
+.fa-hl td{background:rgba(242,194,107,.07)}
 </style>
 </head>
 <body>
@@ -757,8 +776,9 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       </div>
     </section>
 
-    <!-- ---------- ADMIN: ADJUSTMENTS + FEE ADVANCE ---------- -->
+    <!-- ---------- ADMIN: ADJUSTMENTS (sub-tab 1 of PHP Adjustments) ---------- -->
     <section id="v-adjustments" class="hide grid" style="gap:16px">
+      <div class="row pay-sub hide" id="paySub_adjustments" style="gap:6px;flex-wrap:wrap"><button class="btn btn-gold" onclick="go('v-adjustments')">➕ Adjustments (5 slots)</button><button class="btn btn-ghost" onclick="go('v-feeadv')">💳 Fee Advances</button></div>
       <div class="card" style="padding:14px">
         <div class="hdr" style="margin-bottom:6px"><h3 style="font-size:14px">Adjustments (5 slots)</h3>
           <div class="row" style="gap:8px"><button class="btn btn-teal" id="saveAdjustments">Save changes</button></div>
@@ -772,15 +792,50 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         </div>
         <div style="overflow-x:auto"><table><thead><tr><th style="width:16%">Label</th><th style="width:10%">Amount (₱)</th><th style="width:30%">Timing</th><th style="width:30%">Staff</th><th style="width:8%">Status</th></tr></thead><tbody id="adjustmentsTable"></tbody></table></div>
       </div>
+    </section>
 
+    <!-- ---------- ADMIN: FEE ADVANCES (sub-tab of PHP Adjustments, Rendy 2026-10-21) ---------- -->
+    <section id="v-feeadv" class="hide grid" style="gap:14px">
+      <div class="row pay-sub hide" id="paySub_feeadv" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-adjustments')">➕ Adjustments (5 slots)</button><button class="btn btn-gold" onclick="go('v-feeadv')">💳 Fee Advances</button></div>
       <div class="card" style="padding:14px">
-        <div class="hdr" style="margin-bottom:6px"><h3 style="font-size:14px">Fee Advance</h3></div>
+        <div class="hdr" style="margin-bottom:8px"><h3 style="font-size:14px">Filters</h3><button class="btn btn-gold" id="advOpenForm">+ Log manual advance</button></div>
+        <div class="row fa-filters" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:0 0 190px"><label>Staff</label><select id="advFStaff"><option value="">All staff</option></select></div>
+          <div style="flex:0 0 160px"><label>Type</label><select id="advFType"><option value="">All types</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div>
+          <div style="flex:0 0 160px"><label>Source</label><select id="advFSource"><option value="">All sources</option><option value="staff_request">Staff request</option><option value="admin_manual">Admin manual</option></select></div>
+          <div style="flex:0 0 140px"><label title="Paid/Unpaid reflects the advance's remaining balance, not any single installment's status">Status</label><select id="advFStatus"><option value="unpaid" selected>Unpaid</option><option value="paid">Paid</option><option value="">All</option></select></div>
+          <button class="btn btn-ghost" id="advFReset">Reset</button>
+          <span class="muted" id="advFCount" style="font-size:12px;margin-left:auto;align-self:center"></span>
+        </div>
+        <div class="muted" style="font-size:11px;margin-top:8px">Filters apply instantly. Every visit opens on <b>Unpaid</b>. The chart, totals and table all follow the same filters.</div>
+      </div>
+      <div class="card" style="padding:14px">
+        <div class="hdr" style="margin-bottom:8px"><h3 style="font-size:14px">Active advances — cutoffs left until paid up</h3>
+          <div class="fa-legend"><span><i style="background:var(--teal)"></i>Repaid</span><span><i style="background:#f2c26b"></i>Next cutoff</span><span><i style="background:var(--gold)"></i>Remaining cutoffs (1 block = 1 payout)</span></div></div>
+        <div class="fa-axis"><span>Staff · type</span><span>Advance amount (full bar = 100%)</span><span style="text-align:right">Left to go</span></div>
+        <div class="fa-chart" id="advChart"></div>
+        <div class="muted" style="font-size:11px;margin-top:8px">Sorted by fewest cutoffs left first. Only unpaid (active) advances are charted, even when Status = All. Click a bar to open its repayment schedule.</div>
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat"><div class="k">Total advanced</div><div class="v" style="color:var(--gold)" id="advTotalAdvanced">—</div></div>
+        <div class="stat"><div class="k">Total repaid</div><div class="v" style="color:var(--teal)" id="advRepaid">—</div></div>
+        <div class="stat"><div class="k">Outstanding balance</div><div class="v" id="advOutstanding">—</div></div>
+        <div class="stat"><div class="k" id="advNextCutoffLabel" title="Sum of the scheduled deductions falling on the earliest upcoming cutoff among the filtered advances">Next cutoff deductions</div><div class="v" id="advNextCutoffTotal">—</div></div>
+      </div>
+      <div class="card" style="padding:14px">
+        <div class="hdr" style="margin-bottom:6px"><h3 style="font-size:14px">Advances</h3></div>
         <div class="muted" style="font-size:11px;margin-bottom:10px;line-height:1.4">
           Integrates the existing Salary/Cash Advance request flow (Requests tab → SA/CA Requests) — approving a staff request there
-          still builds its repayment schedule exactly as before. Use the form below only for advances issued directly by an admin
-          (never through a staff request). Every repayment shown here becomes "deducted" only when that staff member's cutoff is
-          marked PAID on the Contractor Ledger — there is no independent "mark deducted" action anymore.
+          still builds its repayment schedule exactly as before. "+ Log manual advance" is only for advances issued directly by an admin.
+          A repayment becomes "deducted" only when that staff member's cutoff is marked PAID on the Contractor Ledger.
         </div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Staff</th><th>Client</th><th>Type / source</th><th class="num">Advance</th><th class="num">Repaid</th><th class="num">Balance</th><th class="num">Per cutoff</th><th>Next deduction</th><th>Cutoffs left</th><th>Paid up by</th><th>Status</th><th></th></tr></thead><tbody id="advTable"></tbody></table></div>
+        <div class="muted" style="font-size:11px;margin-top:8px">Unpaid includes partially repaid advances. "View" opens the repayment schedule and running-balance history. Only confirmed repayments (deductions applied via a PAID cutoff) reduce the balance; the final deduction never exceeds the remaining amount. Client = the staff member's current client.</div>
+      </div>
+      <div class="hide" id="advFormOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:50">
+        <div class="card" style="max-width:860px;width:94vw;max-height:90vh;overflow:auto">
+          <div class="hdr" style="margin-bottom:6px"><h3 style="font-size:15px">Log manual advance</h3><button class="btn btn-ghost" id="advCloseForm">✕ Close</button></div>
+          <div class="muted" style="font-size:11px;margin-bottom:10px">Only for advances issued directly by an admin (never through a staff request).</div>
         <div class="row" style="align-items:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:10px">
           <div style="flex:0 0 190px"><label>Staff</label><select id="advStaff"></select></div>
           <div style="flex:0 0 150px"><label>Type</label><select id="advType"><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div>
@@ -799,21 +854,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
           <button class="btn btn-gold" id="advCreate">Log manual advance</button>
           <span class="muted" id="advCreateMsg" style="font-size:12px"></span>
         </div>
-        <div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
-          <div style="flex:0 0 170px"><label>Staff</label><select id="advFStaff"><option value="">All staff</option></select></div>
-          <div style="flex:0 0 150px"><label>Type</label><select id="advFType"><option value="">All types</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div>
-          <div style="flex:0 0 150px"><label>Source</label><select id="advFSource"><option value="">All sources</option><option value="staff_request">Staff request</option><option value="admin_manual">Admin manual</option></select></div>
-          <div style="flex:0 0 130px"><label title="Paid/Unpaid reflects the advance's remaining balance, not any single installment's status">Status</label><select id="advFStatus"><option value="">All</option><option value="unpaid">Unpaid</option><option value="paid">Paid</option></select></div>
-          <button class="btn btn-ghost" id="advFRun">Filter</button>
         </div>
-        <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:10px">
-          <div class="stat"><div class="k">Total advanced</div><div class="v" style="color:var(--gold)" id="advTotalAdvanced">—</div></div>
-          <div class="stat"><div class="k">Total repaid</div><div class="v" style="color:var(--teal)" id="advRepaid">—</div></div>
-          <div class="stat"><div class="k">Outstanding balance</div><div class="v" id="advOutstanding">—</div></div>
-          <div class="stat"><div class="k" title="Sum of the scheduled deductions falling on the earliest upcoming cutoff among the filtered advances">Next cutoff deductions</div><div class="v" id="advNextCutoffTotal">—</div></div>
-        </div>
-        <div style="overflow-x:auto"><table><thead><tr><th>Staff</th><th>Type / source</th><th class="num">Advance</th><th class="num">Repaid</th><th class="num">Balance</th><th class="num">Per cutoff</th><th>Next deduction</th><th>Status</th><th></th></tr></thead><tbody id="advTable"></tbody></table></div>
-        <div class="muted" style="font-size:11px;margin-top:8px">Unpaid includes partially repaid advances. "View" opens the repayment schedule and running-balance history. Only confirmed repayments (deductions applied via a PAID cutoff) reduce the balance; the final deduction never exceeds the remaining amount.</div>
       </div>
     </section>
 
@@ -920,7 +961,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 <tr><td><input type="checkbox" id="civAllowanceOn"></td><td><b>Allowance</b><div class="muted" style="font-size:11px">Per staff, per month, prorated to cutoff — auto-calculated, editable per invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civAllowanceRate" style="width:110px" placeholder="$/mo"></td></tr>
 <tr><td><input type="checkbox" id="civHolidayOn"></td><td><b>Holiday Pay</b><div class="muted" style="font-size:11px">Rate per staff — admin types the staff count on the invoice itself, total = count × rate</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civHolidayRate" style="width:110px" placeholder="$/staff"></td></tr>
 </tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px">Invoice Numbering</div><div class="row" style="gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase" id="civStartingNumLbl">Invoice # for the selected pay period</label><input type="number" min="1" step="1" id="civStartingNum" style="width:100%"><div class="muted" style="font-size:11px;margin-top:4px">Goes up by 1 every bi-weekly period after this one.</div></div><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Last invoice issued for this client</label><input type="text" id="civNextNum" disabled style="width:100%"></div></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn btn-ghost" id="civSettingsCancel">Cancel</button><button class="btn btn-gold" id="civSettingsSave">Save Settings</button></div><div class="muted" id="civSettingsMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div></div></div><section id="v-earning" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_earning" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-gold" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th>VSPH (Net Amount)</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div><div class="row" style="justify-content:flex-end;margin-top:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px" id="egAggMargin">—</span></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="sick_leave">🤒 Sick Leave</option><option value="reimbursement">🧾 Reimbursement</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div id="rfSickNote" class="hide note" style="margin-top:10px;font-size:12.5px">Sick days are <b>unpaid</b>. This is for your record and for client documentation — the days show as <b>SL</b>.</div><div id="rfPickWrap" class="hide" style="margin-top:10px"><label id="rfPickLbl">Files</label><input type="file" id="rfPick" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%"><div id="rfPickList"></div><div class="muted" style="font-size:11.5px;margin-top:4px">🔒 Only you and Rendy can open your files · photo or PDF · max 10 MB each</div></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="rfMyFilesCard"><div class="hdr"><h3 style="font-size:15px">📎 My files</h3><span class="muted" style="font-size:12px">Medcerts, receipts and EOD attachments · only you and Rendy can open them</span></div><table><thead><tr><th>Uploaded</th><th>File</th><th>For</th><th>Status</th></tr></thead><tbody id="rfMyFiles"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="req-sub" id="reqSubBar"><button class="btn btn-gold" data-req-sub="money">💸 SA/CA Requests<span class="bb-badge hide" id="reqSubCnt_money"></span></button><button class="btn btn-ghost" data-req-sub="leave">🏖️ PTO Requests<span class="bb-badge hide" id="reqSubCnt_leave"></span></button></div><div class="card"><div class="hdr"><h3 style="font-size:15px" id="reqAdminTitle">SA/CA requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></div><div class="card" id="dedAdminCard"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances on the Adjustments tab.</div><div class="sticky-scroll"><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+      <div class="row pay-sub hide" id="paySub_earning" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-gold" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th>VSPH (Net Amount)</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div><div class="row" style="justify-content:flex-end;margin-top:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px" id="egAggMargin">—</span></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="sick_leave">🤒 Sick Leave</option><option value="reimbursement">🧾 Reimbursement</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div id="rfSickNote" class="hide note" style="margin-top:10px;font-size:12.5px">Sick days are <b>unpaid</b>. This is for your record and for client documentation — the days show as <b>SL</b>.</div><div id="rfPickWrap" class="hide" style="margin-top:10px"><label id="rfPickLbl">Files</label><input type="file" id="rfPick" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%"><div id="rfPickList"></div><div class="muted" style="font-size:11.5px;margin-top:4px">🔒 Only you and Rendy can open your files · photo or PDF · max 10 MB each</div></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="rfMyFilesCard"><div class="hdr"><h3 style="font-size:15px">📎 My files</h3><span class="muted" style="font-size:12px">Medcerts, receipts and EOD attachments · only you and Rendy can open them</span></div><table><thead><tr><th>Uploaded</th><th>File</th><th>For</th><th>Status</th></tr></thead><tbody id="rfMyFiles"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="req-sub" id="reqSubBar"><button class="btn btn-gold" data-req-sub="money">💸 SA/CA Requests<span class="bb-badge hide" id="reqSubCnt_money"></span></button><button class="btn btn-ghost" data-req-sub="leave">🏖️ PTO Requests<span class="bb-badge hide" id="reqSubCnt_leave"></span></button></div><div class="card"><div class="hdr"><h3 style="font-size:15px" id="reqAdminTitle">SA/CA requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></div><div class="card" id="dedAdminCard"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances under PHP Adjustments → 💳 Fee Advances.</div><div class="sticky-scroll"><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></div></section><section id="v-portal" class="hide grid" style="gap:16px">
   <!-- PM BULLETIN BOARD (announcements) -->
   <div id="bbBoard" class="grid" style="gap:16px"></div>
   <div class="bb-docs-hdr"><h3>📁 Documents &amp; Signatures</h3><span class="muted" style="font-size:12.5px">Contracts, house rules, and anything that needs your signature</span></div>
@@ -1937,10 +1978,29 @@ $('saveAdjustments').onclick=async()=>{
    and a filterable read-only history/balance view. There is no "mark deducted" action here
    or anywhere else — a deduction becomes 'deducted' only via confirm_cutoff_paid. ---------- */
 let advRequestsRaw=[],advDeductionsByRequest={},advOpenViewId=null;
+let advComputed=[];
+const advPeso=n=>'₱'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const advStaffName=id=>{const s=staffList.find(x=>x.id===id);return s?s.full_name:'—';};
+const advClientName=staffId=>{const s=staffList.find(x=>x.id===staffId);const c=s&&clients.find(x=>x.id===s.client_id);return c?c.name:'—';};
+/* Fills the manual-form staff list and the Staff filter. The filter KEEPS its current
+   selection — the old version rebuilt it before reading it, which silently reset the
+   Staff filter to "All staff" on every Filter click (Rendy 2026-10-21). */
 function advFillStaffSelects(){
   const opts=staffList.filter(s=>s.active).map(s=>[s.id,s.full_name]);
-  if($('advStaff'))$('advStaff').innerHTML=opts.map(p=>`<option value="${p[0]}">${escapeHtml(p[1])}</option>`).join('');
-  if($('advFStaff'))fill('advFStaff','All staff',opts);
+  if($('advStaff')){const keep=$('advStaff').value;$('advStaff').innerHTML=opts.map(p=>`<option value="${p[0]}">${escapeHtml(p[1])}</option>`).join('');if(keep&&opts.some(p=>p[0]===keep))$('advStaff').value=keep;}
+  if($('advFStaff')){
+    const keep=$('advFStaff').value;
+    // filter list = active staff + anyone (incl. inactive) who has an advance on record
+    const ids=new Set(opts.map(p=>p[0])); advRequestsRaw.forEach(r=>ids.add(r.staff_id));
+    const fopts=[...ids].map(id=>[id,advStaffName(id)]).sort((x,y)=>x[1].localeCompare(y[1]));
+    fill('advFStaff','All staff',fopts);
+    if(keep&&ids.has(keep))$('advFStaff').value=keep;
+  }
+}
+function advResetFilters(statusOnly){
+  if(!$('advFStatus'))return;
+  if(!statusOnly){$('advFStaff').value='';$('advFType').value='';$('advFSource').value='';}
+  $('advFStatus').value='unpaid'; advOpenViewId=null;
 }
 async function fetchAdvanceRequestsById(ids){
   if(!ids.length) return {};
@@ -1950,16 +2010,14 @@ async function fetchAdvanceRequestsById(ids){
 /* Request-first: an advance (Salary/Cash Advance) is the unit of record, not any one
    installment. A fully opening-repaid advance schedules ZERO advance_deductions rows
    (create_manual_advance skips the schedule when nothing remains) — a deduction-row-first
-   view would make that advance invisible entirely, which is the bug this rewrite fixes.
-   Every approved/paid advance request appears here even with no deduction rows at all. */
+   view would make that advance invisible entirely. Every approved/paid advance request
+   appears here even with no deduction rows at all.
+   Loads ALL advances once; the Staff/Type/Source/Status filters then re-render instantly
+   in memory (advRenderFeeAdvances) — no Filter button, no refetch per change. */
 async function loadFeeAdvancePanel(){
   if(!$('advTable'))return;
-  advFillStaffSelects();
-  let q=sb.from('requests').select('id,staff_id,type,reason,source,amount,opening_repaid_amount,issued_date,status,created_at')
+  const q=sb.from('requests').select('id,staff_id,type,reason,source,amount,opening_repaid_amount,issued_date,status,created_at')
     .in('type',['salary_advance','cash_advance']).in('status',['approved','paid']).order('created_at',{ascending:false});
-  const fStaff=$('advFStaff').value; if(fStaff)q=q.eq('staff_id',fStaff);
-  const fType=$('advFType').value; if(fType)q=q.eq('type',fType);
-  const fSource=$('advFSource').value; if(fSource)q=q.eq('source',fSource);
   let advRequestsPageErr=null, advDeductionsPageErr=null;
   advRequestsRaw=[];
   try{
@@ -1993,21 +2051,23 @@ async function loadFeeAdvancePanel(){
       }
     }catch(e){ advDeductionsPageErr=e.message; }
   }
+  advFillStaffSelects();
   let advBanner=$('advLoadBanner');
   if(!advBanner){ advBanner=document.createElement('div'); advBanner.id='advLoadBanner'; advBanner.className='note'; advBanner.style.marginBottom='10px'; const t=$('advTable').closest('table'); if(t) t.insertAdjacentElement('beforebegin',advBanner); }
   if(advRequestsPageErr||advDeductionsPageErr){
+    advComputed=[];
     advBanner.classList.remove('hide');
     advBanner.innerHTML='<b>Could not load Fee Advance data — showing nothing rather than a wrong or partial balance.</b><br>'+escapeHtml(advRequestsPageErr||advDeductionsPageErr);
-    $('advTable').innerHTML='<tr><td colspan="9" class="muted">Load failed — see the message above.</td></tr>';
+    $('advTable').innerHTML='<tr><td colspan="12" class="muted">Load failed — see the message above.</td></tr>';
+    if($('advChart')) $('advChart').innerHTML='<div class="muted" style="padding:10px">Load failed — see the message below.</div>';
+    if($('advFCount')) $('advFCount').textContent='';
     ['advTotalAdvanced','advRepaid','advOutstanding','advNextCutoffTotal'].forEach(id=>{ if($(id)) $(id).textContent='—'; });
     return;
   }
   advBanner.classList.add('hide'); advBanner.innerHTML='';
-  const staffName=id=>{const s=staffList.find(x=>x.id===id);return s?s.full_name:'—';};
-  const todayIso=phDate(new Date());
-  // Per-request computed stats: advance_total, opening_repaid, repaid_from_deductions,
-  // repaid_total, scheduled remaining, balance, per_cutoff, next_deduction, status.
-  const computed=advRequestsRaw.map(r=>{
+  // Per-request computed stats (unchanged math): advance_total, opening_repaid,
+  // repaid_from_deductions, waived, repaid_total, scheduled remaining, balance, next, status.
+  advComputed=advRequestsRaw.map(r=>{
     const deds=advDeductionsByRequest[r.id]||[];
     const opening=Number(r.opening_repaid_amount||0);
     const repaidFromDeds=deds.filter(d=>d.status==='deducted').reduce((a,d)=>a+Number(d.amount||0),0);
@@ -2018,23 +2078,63 @@ async function loadFeeAdvancePanel(){
     const balance=Math.max(0,advanceTotal-repaidTotal-waived);
     const next=scheduled[0]||null;
     const statusKey=balance<=0.01?'paid':'unpaid';
-    return {req:r,deds,opening,repaidFromDeds,waived,repaidTotal,advanceTotal,balance,next,scheduled,statusKey};
+    const cutoffsLeft=statusKey==='paid'?0:scheduled.length;
+    // Paid up by = last scheduled cutoff while unpaid; once paid, the last deducted cutoff.
+    const doneDeds=deds.filter(d=>d.status!=='scheduled').map(d=>d.cutoff_date).sort();
+    const paidUpBy=statusKey==='paid'?(doneDeds[doneDeds.length-1]||r.issued_date||null):(scheduled.length?scheduled[scheduled.length-1].cutoff_date:null);
+    return {req:r,deds,opening,repaidFromDeds,waived,repaidTotal,advanceTotal,balance,next,scheduled,statusKey,cutoffsLeft,paidUpBy};
   });
-  const fStatus=$('advFStatus').value;
-  const rows=computed.filter(c=>!fStatus||c.statusKey===fStatus);
+  if(advOpenViewId&&!advComputed.some(c=>c.req.id===advOpenViewId)) advOpenViewId=null;
+  advRenderFeeAdvances();
+}
+function advRenderFeeAdvances(){
+  if(!$('advTable'))return;
+  const fStaff=$('advFStaff').value, fType=$('advFType').value, fSource=$('advFSource').value, fStatus=$('advFStatus').value;
+  const base=advComputed.filter(c=>(!fStaff||c.req.staff_id===fStaff)&&(!fType||c.req.type===fType)&&(!fSource||(c.req.source||'staff_request')===fSource));
+  const rows=base.filter(c=>!fStatus||c.statusKey===fStatus);
+  if($('advFCount')) $('advFCount').textContent=`Showing ${rows.length} of ${advComputed.length} advance${advComputed.length===1?'':'s'}`;
+
+  // ---- bar chart: unpaid (active) advances only, following Staff/Type/Source ----
+  const active=base.filter(c=>c.statusKey==='unpaid').sort((a,b)=>{
+    const al=a.cutoffsLeft||999, bl=b.cutoffsLeft||999; return al-bl||b.balance-a.balance;});
+  if($('advChart')) $('advChart').innerHTML=active.length?active.map(c=>{
+    const r=c.req, tot=c.advanceTotal>0?c.advanceTotal:1;
+    const pp=Math.min(100,c.repaidTotal/tot*100), wp=Math.min(100-pp,c.waived/tot*100);
+    let used=pp+wp, segs='';
+    c.scheduled.forEach((d,k)=>{
+      const last=k===c.scheduled.length-1;
+      let w=Number(d.amount||0)/tot*100; if(last) w=Math.max(0,100-used); used+=w;
+      segs+=`<div class="fa-seg ${k===0?'next':''}" style="width:${w.toFixed(3)}%" title="${fmtNice(d.cutoff_date)} · ${advPeso(d.amount)}">${w>6?(k+1):''}</div>`;
+    });
+    const right=c.cutoffsLeft
+      ?`<b>${c.cutoffsLeft}</b> cutoff${c.cutoffsLeft>1?'s':''} left · ${advPeso(c.balance)}<small>paid up ${fmtNice(c.paidUpBy)}</small>`
+      :`<b style="color:var(--red,#e5484d)">⚠</b> no schedule · ${advPeso(c.balance)}<small>balance has no scheduled cutoffs</small>`;
+    return `<div class="fa-row" data-req="${r.id}" title="Click to open the repayment schedule"><div class="fa-name"><b>${escapeHtml(advStaffName(r.staff_id))}</b><small>${TYPE_LABEL[r.type]||'—'} · ${escapeHtml(advClientName(r.staff_id))}</small></div>
+      <div class="fa-bar">${pp>0?`<div class="fa-paid" style="width:${pp.toFixed(3)}%">${pp>14?advPeso(c.repaidTotal):''}</div>`:''}${wp>0?`<div class="fa-waived" style="width:${wp.toFixed(3)}%" title="Waived ${advPeso(c.waived)}"></div>`:''}${segs}</div>
+      <div class="fa-left">${right}</div></div>`;
+  }).join(''):'<div class="muted" style="padding:10px">No active advances match these filters.</div>';
+  if($('advChart')) $('advChart').querySelectorAll('.fa-row').forEach(el=>el.onclick=()=>{
+    advOpenViewId=el.dataset.req;
+    const c=advComputed.find(x=>x.req.id===advOpenViewId);
+    if(c&&$('advFStatus').value&&$('advFStatus').value!==c.statusKey) $('advFStatus').value='';
+    advRenderFeeAdvances();
+    const tr=document.querySelector(`#advTable tr[data-req="${advOpenViewId}"]`); if(tr) tr.scrollIntoView({behavior:'smooth',block:'center'});
+  });
+
+  // ---- stats ----
   const totalAdvanced=rows.reduce((a,c)=>a+c.advanceTotal,0);
   const totalRepaid=rows.reduce((a,c)=>a+c.repaidTotal,0);
   const outstandingBalance=rows.reduce((a,c)=>a+c.balance,0);
-  // "Next cutoff deductions" = sum of scheduled amounts landing on the single earliest
-  // upcoming cutoff date found among the filtered rows (matches the mockup's single figure,
-  // not a per-row sum of arbitrary future cutoffs).
   const upcomingDates=rows.map(c=>c.next&&c.next.cutoff_date).filter(Boolean).sort();
   const nextCutoffDate=upcomingDates[0]||null;
   const nextCutoffTotal=nextCutoffDate?rows.reduce((a,c)=>a+c.scheduled.filter(d=>d.cutoff_date===nextCutoffDate).reduce((x,d)=>x+Number(d.amount||0),0),0):0;
-  $('advTotalAdvanced').textContent='₱'+totalAdvanced.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-  $('advRepaid').textContent='₱'+totalRepaid.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-  $('advOutstanding').textContent='₱'+outstandingBalance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-  $('advNextCutoffTotal').textContent='₱'+nextCutoffTotal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  $('advTotalAdvanced').textContent=advPeso(totalAdvanced);
+  $('advRepaid').textContent=advPeso(totalRepaid);
+  $('advOutstanding').textContent=advPeso(outstandingBalance);
+  $('advNextCutoffTotal').textContent=advPeso(nextCutoffTotal);
+  if($('advNextCutoffLabel')) $('advNextCutoffLabel').textContent=nextCutoffDate?`Next cutoff deductions (${fmtNice(nextCutoffDate)})`:'Next cutoff deductions';
+
+  // ---- table ----
   $('advTable').innerHTML=rows.length?rows.map(c=>{
     const r=c.req;
     const sourceLabel=(r.source||'staff_request')==='admin_manual'?'Manual':'Request';
@@ -2042,13 +2142,12 @@ async function loadFeeAdvancePanel(){
     const nextDate=c.next?fmtNice(c.next.cutoff_date):'—';
     const pillCls=c.statusKey==='paid'?'p-work':'p-break';
     const pillLabel=c.statusKey==='paid'?'Paid':'Unpaid';
+    const leftCell=c.statusKey==='paid'?'<span class="muted">—</span>':c.cutoffsLeft?`<span class="badge-left ${c.cutoffsLeft===1?'one':''}">${c.cutoffsLeft} left</span>`:'<span class="badge-left" title="Unpaid balance with no scheduled cutoffs">⚠ none</span>';
     const isOpen=advOpenViewId===r.id;
     let historyHtml='';
     if(isOpen){
-      // Running-balance history: opening-repaid line (if any) first, then every
-      // deduction row oldest-first. A 'scheduled' line does not reduce the balance
-      // (it hasn't been paid yet); 'deducted'/'waived' lines do — this reads top-to-
-      // bottom like a real repayment ledger.
+      // Running-balance history: opening-repaid line first, then every deduction row
+      // oldest-first. 'scheduled' lines don't reduce the balance; 'deducted'/'waived' do.
       const allDeds=c.deds.slice().sort((a,b)=>a.cutoff_date<b.cutoff_date?-1:1);
       let bal=c.advanceTotal;
       const ordered=[];
@@ -2056,32 +2155,40 @@ async function loadFeeAdvancePanel(){
       allDeds.forEach(d=>ordered.push({label:d.status==='scheduled'?'Scheduled':d.status==='deducted'?'Deducted':'Waived',date:d.cutoff_date,amount:Number(d.amount||0),status:d.status}));
       const historyRows=ordered.map(line=>{
         if(line.status!=='scheduled')bal-=line.amount;
-        const balanceAfter=bal;
-        return `<tr><td>${line.date?fmtNice(line.date):'—'}</td><td>${escapeHtml(line.label)}</td><td class="num mono">₱${line.amount.toLocaleString()}</td><td class="num mono">₱${balanceAfter.toLocaleString()}</td></tr>`;
+        return `<tr><td>${line.date?fmtNice(line.date):'—'}</td><td>${escapeHtml(line.label)}</td><td class="num mono">₱${line.amount.toLocaleString()}</td><td class="num mono">₱${bal.toLocaleString()}</td></tr>`;
       }).join('');
-      historyHtml=`<tr><td colspan="9" style="padding:0"><div class="history" style="padding:10px 16px;background:rgba(255,255,255,.02)">
+      historyHtml=`<tr><td colspan="12" style="padding:0"><div class="history" style="padding:10px 16px;background:rgba(255,255,255,.02)">
         <div class="small" style="margin-bottom:6px">Repayment schedule &amp; running balance for ${escapeHtml(r.reason||TYPE_LABEL[r.type]||'this advance')}</div>
         <table style="width:100%"><thead><tr><th>Date</th><th>Line</th><th class="num">Amount</th><th class="num">Balance after</th></tr></thead>
         <tbody>${historyRows||'<tr><td colspan="4" class="muted">No repayment lines recorded yet.</td></tr>'}</tbody></table>
         </div></td></tr>`;
     }
-    return `<tr><td><b>${escapeHtml(staffName(r.staff_id))}</b></td>
+    return `<tr data-req="${r.id}" class="${isOpen?'fa-hl':''}"><td><b>${escapeHtml(advStaffName(r.staff_id))}</b></td>
+      <td>${escapeHtml(advClientName(r.staff_id))}</td>
       <td>${TYPE_LABEL[r.type]||'—'}<br><span class="small muted">${sourceLabel}</span></td>
       <td class="num mono">₱${c.advanceTotal.toLocaleString()}</td>
       <td class="num mono">₱${c.repaidTotal.toLocaleString()}</td>
       <td class="num mono">₱${c.balance.toLocaleString()}</td>
       <td class="num mono">${perCutoff!==null?'₱'+perCutoff.toLocaleString():'—'}</td>
       <td>${nextDate}</td>
+      <td>${leftCell}</td>
+      <td>${c.paidUpBy?fmtNice(c.paidUpBy):'—'}</td>
       <td><span class="pill ${pillCls}"><span class="dot"></span>${pillLabel}</span></td>
       <td><a href="#" class="adv-view" data-req="${r.id}" style="color:var(--teal);text-decoration:none">${isOpen?'Hide':'View'}</a></td></tr>${historyHtml}`;
-  }).join(''):`<tr><td colspan="9" class="muted">No advances match this filter.</td></tr>`;
+  }).join(''):`<tr><td colspan="12" class="muted">No advances match these filters.</td></tr>`;
   $('advTable').querySelectorAll('a.adv-view').forEach(a=>a.onclick=(e)=>{
     e.preventDefault();
     advOpenViewId=advOpenViewId===a.dataset.req?null:a.dataset.req;
-    loadFeeAdvancePanel();
+    advRenderFeeAdvances();
   });
 }
-if($('advFRun'))$('advFRun').onclick=loadFeeAdvancePanel;
+['advFStaff','advFType','advFSource','advFStatus'].forEach(id=>{ if($(id)) $(id).onchange=()=>{advOpenViewId=null;advRenderFeeAdvances();}; });
+if($('advFReset'))$('advFReset').onclick=()=>{advResetFilters(false);advRenderFeeAdvances();};
+function advOpenForm(){ advFillStaffSelects(); $('advFormOverlay').classList.remove('hide'); }
+function advCloseForm(){ if($('advFormOverlay')) $('advFormOverlay').classList.add('hide'); }
+if($('advOpenForm'))$('advOpenForm').onclick=advOpenForm;
+if($('advCloseForm'))$('advCloseForm').onclick=advCloseForm;
+if($('advFormOverlay'))$('advFormOverlay').addEventListener('click',e=>{ if(e.target===$('advFormOverlay')) advCloseForm(); });
 if($('advCreate'))$('advCreate').onclick=async()=>{
   const staffId=$('advStaff').value,type=$('advType').value,amount=Number($('advAmount').value||0);
   const cutoffs=Number($('advCutoffs').value||0),opening=Number($('advOpening').value||0),reason=$('advReason').value.trim();
@@ -2099,7 +2206,7 @@ if($('advCreate'))$('advCreate').onclick=async()=>{
       p_staff_id:staffId,p_type:type,p_amount:amount,p_cutoffs:cutoffs,p_opening_repaid:opening,p_reason:reason,
       p_issued_date:issuedDate,p_first_cutoff:firstCutoff,p_per_cutoff_amount:perCutoff,p_frequency:frequency});
     if(error) throw new Error(isMissingTableError(error)?'This database hasn\'t run the Adjustments migration yet — ask an admin to run it in the Supabase SQL Editor.':error.message);
-    $('advCreateMsg').textContent='Manual advance logged and scheduled.';
+    $('advCreateMsg').textContent='Manual advance logged and scheduled.'; setTimeout(advCloseForm,1200);
     $('advAmount').value='';$('advCutoffs').value='1';$('advOpening').value='0';$('advReason').value='';
     $('advIssuedDate').value='';$('advFirstCutoff').value='';$('advPerCutoff').value='';$('advFrequency').value='each_cutoff';
     await loadFeeAdvancePanel();
@@ -2718,7 +2825,8 @@ const PAGES={
   'v-status':['📡 Live Status','Live Status','Who is on shift right now'],
   'v-staff' :['👥 Staff & Clients','Staff & Clients','Add or remove staff, manage client shifts · Rules tab for activity & billing rules'],
   'v-benefits':['🎁 SMB Benefits','SMB Benefits','Nominate standing allowance & bonus rules — amount, payout window, and eligible staff'],
-  'v-adjustments':['➕ PHP Adjustments','PHP Adjustments','Five adjustment rules + the integrated Fee Advance ledger'],
+  'v-adjustments':['➕ PHP Adjustments','PHP Adjustments','Five adjustment rules · Fee Advances is the next sub-tab'],
+  'v-feeadv':['💳 Fee Advances','PHP Adjustments · Fee Advances','Salary & cash advances — who still owes, and how many cutoffs until paid up'],
   'v-sheets':['📄 Admin Timesheets (BW)','Admin Timesheets (BW)','Filter by pay period and export'],
   'v-adherence':['📊 Adherence & Breaks','Adherence & Breaks','Break usage, overages, and late log-ins — filter by staff, client, and date'],
   'v-corr'  :['✏️ Time Log Corrections','Time Log Corrections','Approve or reject staff correction requests'],
@@ -2731,7 +2839,7 @@ const PAGES={
 };
 let view='v-punch';
 /* sub-tab groups (Rendy 2026-10-19): Rules + PTO Credits live in Staff & Clients; payroll tabs live under Contractor Ledger ("Payroll") for admins */
-function navParentOf(v){ if(v==='v-policy'||v==='v-pto'||v==='v-files')return 'v-staff'; if(me?.role==='admin'&&(v==='v-sheets'||v==='v-invoice'||v==='v-earning'||v==='v-cbonus'))return 'v-ledger'; return v; }
+function navParentOf(v){ if(v==='v-policy'||v==='v-pto'||v==='v-files')return 'v-staff'; if(v==='v-feeadv')return 'v-adjustments'; if(me?.role==='admin'&&(v==='v-sheets'||v==='v-invoice'||v==='v-earning'||v==='v-cbonus'))return 'v-ledger'; return v; }
 const ADMIN_NAV_DEFAULT=['v-rewards','v-status','v-punch','v-eod','v-staff','v-benefits','v-adjustments','v-adherence','v-corr','v-ledger','v-reqadmin','v-portal','v-perf','v-ytd'];
 let adminNavOrder=null, navArranging=false, navArrDraft=null, navFirstBuild=true;
 /* saved order -> valid order: drop unknown/duplicate ids, append any new tabs at the end */
@@ -2817,7 +2925,7 @@ $('navArrDone').onclick=async()=>{
   finally{ btn.disabled=false; }
 };
 function go(v){
-  if((v==='v-ytd'||v==='v-pto'||v==='v-rewards'||v==='v-files'||v==='v-cbonus')&&me?.role!=='admin')v='v-punch';
+  if((v==='v-ytd'||v==='v-pto'||v==='v-rewards'||v==='v-files'||v==='v-cbonus'||v==='v-feeadv')&&me?.role!=='admin')v='v-punch';
   view=v;
   Object.keys(PAGES).forEach(id=>{const el=$(id); if(el) el.classList.add('hide');});
   $(v).classList.remove('hide');
@@ -2827,7 +2935,8 @@ function go(v){
   if(v==='v-status'){initFilters();loadRoster();}
   if(v==='v-staff'){renderStaffAdmin();}
   if(v==='v-benefits'){renderBenefits();}
-  if(v==='v-adjustments'){renderAdjustments();loadFeeAdvancePanel();}
+  if(v==='v-adjustments'){renderAdjustments();}
+  if(v==='v-feeadv'){advResetFilters(true);loadFeeAdvancePanel();}
   if(v==='v-sheets'){initSheetFilters();}
   if(v==='v-adherence'){initAdherenceFilters();} 
   if(v==='v-corr'){loadCorrections();}
