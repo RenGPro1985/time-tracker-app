@@ -2270,7 +2270,9 @@ function initLedgerFilters(){
 }
 function refreshLedgerStaff(){
   const old=$('lgStaff').value,fc=$('lgClient').value;
-  fill('lgStaff','All staff',staffList.filter(s=>s.active&&(!fc||s.client_id===fc)).map(s=>[s.id,s.full_name]));
+  const inC=s=>!fc||s.client_id===fc;
+  fill('lgStaff','All staff',staffList.filter(s=>s.active&&inC(s)).map(s=>[s.id,s.full_name])
+    .concat(staffList.filter(s=>!s.active&&s.role!=='admin'&&inC(s)).map(s=>[s.id,s.full_name+' (inactive)'])));
   if([...$('lgStaff').options].some(o=>o.value===old))$('lgStaff').value=old;
 }
 function refreshLedgerPeriods(){const list=periodList('semi');$('lgPeriod').innerHTML=list.map(p=>`<option value="${p.start}|${p.end}">${fmtNice(p.start)} – ${fmtNice(p.end)}</option>`).join('');}
@@ -2365,11 +2367,33 @@ function sortStaffByClientTenure(list){
       ||String(a.id||'').localeCompare(String(b.id||''));
   });
 }
+/* Fix 3 helpers — pure, unit-tested (fix3/t_roster.js). */
+function ledgerRosterCandidate(s,start){
+  if(s.active)return true;
+  if(s.role==='admin')return false;
+  return !s.termination_date||s.termination_date>=start;
+}
+function ledgerKeepInactive(s,start,end,c){
+  if(s.active)return true;
+  if(s.termination_date&&s.termination_date>=start&&s.termination_date<=end)return true; // left during this period
+  const id=s.id;
+  if(c.ledgerDetailRows.some(r=>r.staffId===id))return true;
+  if((c.leavesByStaff[id]||[]).length)return true;
+  if((c.extrasRaw||[]).some(e=>e.staff_id===id&&e.field_key!=='sent_early'&&Number(e.amount)))return true;
+  if(Number(c.advanceByStaff[id]||0))return true;
+  if(Number(c.adjustmentsByStaff[id]||0))return true;
+  if(c.paidByStaff[id])return true;
+  if(Number((c.reimbByStaff||{})[id]||0))return true;
+  return false;
+}
 async function runLedger(){
   const [start,end]=$('lgPeriod').value.split('|');if(!start||!end)return alert('Pick a pay period.');
   const guardRun=LedgerLoadGuard.begin();
   const fc=$('lgClient').value,fs=$('lgStaff').value;
-  const people=sortStaffByClientTenure(staffList.filter(s=>s.active&&(!fc||s.client_id===fc)&&(!fs||s.id===fs)));
+  /* Fix 3 (2026-10-21): deactivated / terminated staff stay on the Ledger for their final
+     period. Candidates = active staff + inactive staff whose term date is on/after the period
+     start (or blank). Inactive candidates are dropped below only if nothing is owed. */
+  let people=sortStaffByClientTenure(staffList.filter(s=>(ledgerRosterCandidate(s,start)||(fs&&s.id===fs&&s.role!=='admin'))&&(!fc||s.client_id===fc)&&(!fs||s.id===fs)));
   const ids=people.map(s=>s.id);
   const [ents,shifts]=await Promise.all([fetchEntriesRange(start,end,ids),fetchShiftsRange(start,end,ids)]);
   const sdm=buildShiftDateMap(shifts),nightWins=nightWindowsForRange(start,end);ledgerDetailRows=[];
@@ -2409,6 +2433,7 @@ async function runLedger(){
   sentEarlyByStaff={};extrasRaw.forEach(e=>{if(e.field_key==='sent_early')sentEarlyByStaff[e.staff_id]=e;});
   LedgerLoadGuard.end(guardRun);
   if(guardRun!==LedgerLoadGuard.run)return; // a newer Run started — let it render
+  people=people.filter(staff=>ledgerKeepInactive(staff,start,end,{ledgerDetailRows,leavesByStaff,extrasRaw,advanceByStaff,adjustmentsByStaff,paidByStaff,reimbByStaff}));
   ledgerRows=people.map(staff=>computeLedgerRowPure(staff,{clients,ledgerDetailRows,leavesByStaff,extrasByStaff,rulesByField,advanceByStaff,adjustmentsByStaff,paidByStaff,cutoffIso,phase,reimbByStaff}));
   renderLedgerTable(start,end);
 }
@@ -2622,9 +2647,14 @@ function renderLedgerLoadBanner(){
   b.style.display='';
   b.innerHTML='<b style="color:var(--rose)">⚠ Some payroll data didn\'t load — amounts below may be wrong and PAID is blocked.</b> Press <b>Run</b> again. If it keeps failing, check your internet or Supabase status.<br><span class="muted" style="font-size:12px">'+LedgerLoadGuard.errors.map(escapeHtml).join(' · ')+'</span>';
 }
+function ledgerInactiveTag(id){
+  const s=staffList.find(x=>x.id===id);
+  if(!s||s.active)return '';
+  return ` <span class="pill p-off" style="font-size:10.5px" title="Deactivated — shown because this is their final pay period"><span class="dot"></span>Inactive${s.termination_date?' · last day '+escapeHtml(fmtNice(s.termination_date)):''}</span>`;
+}
 function renderLedgerTable(start,end){
   const grand=ledgerRows.reduce((a,r)=>a+r.total,0);$('lgTotal').textContent='₱'+grand.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});$('lgRangeLabel').textContent=start&&end?`${fmtNice(start)} – ${fmtNice(end)}`:'—';
-  $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr${me.role==='admin'&&sentEarlyRec(r)&&!(r.paid&&r.paid.status==='paid')?' style="background:rgba(242,184,75,.07)"':''}><td class="sticky-col">${window.SalaryQR?SalaryQR.nameCell(r.staffId,r.name):`<b>${escapeHtml(r.name)}</b>`}</td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
+  $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr${me.role==='admin'&&sentEarlyRec(r)&&!(r.paid&&r.paid.status==='paid')?' style="background:rgba(242,184,75,.07)"':''}><td class="sticky-col">${window.SalaryQR?SalaryQR.nameCell(r.staffId,r.name):`<b>${escapeHtml(r.name)}</b>`}${ledgerInactiveTag(r.staffId)}</td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
     +extraCellHtml(r,'completion_bonus')+extraCellHtml(r,'relationship_bonus')+extraCellHtml(r,'meal_allowance')+extraCellHtml(r,'statutory_allowance')+extraCellHtml(r,'workspace_allowance')+extraCellHtml(r,'scope_differential')+extraCellHtml(r,'adhoc_project_fee')+extraCellHtml(r,'incentive_award')+extraCellHtml(r,'reimbursable_expenses')+extraCellHtml(r,'other_fee_items')
     +`<td class="mono" style="color:var(--teal)">${r.addonSubtotal.toFixed(2)}</td>`
     +extraCellHtml(r,'fee_advance')+extraCellHtml(r,'adjustments')
@@ -3638,6 +3668,17 @@ $('saveStaffTable').onclick=async()=>{
     $('staffSaveMsg').textContent='';
     $('saveStaffTable').disabled=false;
     return alert(`Term/resignation date cannot be before the hire date for ${invalidTerm.full_name}.`);
+  }
+  /* Fix 3: a deactivated staff member must have a Term / resignation date, so their final
+     pay period and Client Invoice days are computed correctly. */
+  const noTerm=staffList.filter(s=>{
+    const act=document.querySelector(`[data-active="${s.id}"]`);
+    if(!act||act.checked||s.role==='admin')return false;
+    return !(document.querySelector(`[data-term="${s.id}"]`)?.value);
+  });
+  if(noTerm.length){
+    $('staffSaveMsg').textContent='';$('saveStaffTable').disabled=false;
+    return alert('Set a Term / resignation date before deactivating:\n'+noTerm.map(s=>s.full_name).join('\n')+'\n\nTheir final pay period is calculated up to that date.');
   }
   const rows=staffList.map(s=>{
     const hireEl=document.querySelector(`[data-hire="${s.id}"]`);
