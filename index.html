@@ -1725,7 +1725,7 @@ const BENEFIT_RULE_FIELDS=[
 let benefitRules=[];
 async function fetchBenefitRules(){
   const {data,error}=await sb.rpc('visible_benefit_rules');
-  if(error){ if(!isMissingTableError(error)) console.warn('benefit_rules:',error.message); return []; }
+  if(error){ if(!isMissingTableError(error)) console.warn('benefit_rules:',error.message); LedgerLoadGuard.fail('SMB Benefits rules',error.message); return []; }
   return data||[];
 }
 /* Returns the amount this field pays a given staff member on this payout phase, from active
@@ -2219,26 +2219,29 @@ async function fetchLedgerExtras(cutoffIso,staffIds){
   let q=sb.from('ledger_extras').select('*').eq('cutoff_date',cutoffIso);
   q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
   const {data,error}=await q.range(0,4999);
-  if(error){ if(!isMissingTableError(error)) console.warn('ledger_extras:',error.message); return []; }
+  if(error){ if(!isMissingTableError(error)) console.warn('ledger_extras:',error.message); LedgerLoadGuard.fail('bonuses & allowances (ledger_extras)',error.message); return []; }
+  ledgerCheckTrunc('bonuses & allowances (ledger_extras)',data,1000);
   return data||[];
 }
 async function fetchScheduledAdvances(cutoffIso,staffIds){
   let q=sb.from('advance_deductions').select('*').eq('cutoff_date',cutoffIso).neq('status','waived');
   q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
   const {data,error}=await q.range(0,4999);
-  if(error){ console.warn('advance_deductions:',error.message); return []; }
+  if(error){ console.warn('advance_deductions:',error.message); LedgerLoadGuard.fail('fee advance deductions',error.message); return []; }
+  ledgerCheckTrunc('fee advance deductions',data,1000);
   return data||[];
 }
 async function fetchAdjustmentsForCutoff(cutoffIso,staffIds){
   const {data,error}=await sb.rpc('adjustments_for_cutoff',{p_cutoff_date:cutoffIso,p_staff_ids:staffIds&&staffIds.length?staffIds:null});
-  if(error){ if(!isMissingTableError(error)) console.warn('adjustments_for_cutoff:',error.message); return []; }
+  if(error){ if(!isMissingTableError(error)) console.warn('adjustments_for_cutoff:',error.message); LedgerLoadGuard.fail('PHP adjustments',error.message); return []; }
   return data||[];
 }
 async function fetchPaidCutoffs(cutoffIso,staffIds){
   let q=sb.from('paid_cutoffs').select('*').eq('cutoff_date',cutoffIso);
   q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
   const {data,error}=await q.range(0,4999);
-  if(error){ if(!isMissingTableError(error)) console.warn('paid_cutoffs:',error.message); return []; }
+  if(error){ if(!isMissingTableError(error)) console.warn('paid_cutoffs:',error.message); LedgerLoadGuard.fail('PAID status (paid_cutoffs)',error.message); return []; }
+  ledgerCheckTrunc('PAID status (paid_cutoffs)',data,1000);
   return data||[];
 }
 async function saveLedgerExtra(staffId,cutoffIso,fieldKey,amount,inputEl){
@@ -2364,6 +2367,7 @@ function sortStaffByClientTenure(list){
 }
 async function runLedger(){
   const [start,end]=$('lgPeriod').value.split('|');if(!start||!end)return alert('Pick a pay period.');
+  const guardRun=LedgerLoadGuard.begin();
   const fc=$('lgClient').value,fs=$('lgStaff').value;
   const people=sortStaffByClientTenure(staffList.filter(s=>s.active&&(!fc||s.client_id===fc)&&(!fs||s.id===fs)));
   const ids=people.map(s=>s.id);
@@ -2389,7 +2393,7 @@ async function runLedger(){
   const [extrasRaw,advancesRaw,rulesRaw,adjustmentsRaw,paidRaw]=await Promise.all([
     fetchLedgerExtras(cutoffIso,ids),fetchScheduledAdvances(cutoffIso,ids),fetchBenefitRules(),
     fetchAdjustmentsForCutoff(cutoffIso,ids),fetchPaidCutoffs(cutoffIso,ids)]);
-  let reimbByStaff={}; try{ reimbByStaff=window.RF?await RF.reimbForCutoff(cutoffIso,ids):{}; }catch(e){ alert(e.message+' — Ledger shown WITHOUT approved reimbursements.'); }
+  let reimbByStaff={}; try{ reimbByStaff=window.RF?await RF.reimbForCutoff(cutoffIso,ids):{}; }catch(e){ LedgerLoadGuard.fail('approved reimbursements',e.message); }
   const extrasByStaff={};extrasRaw.forEach(e=>{(extrasByStaff[e.staff_id]=extrasByStaff[e.staff_id]||{})[e.field_key]=Number(e.amount);});
   const advanceByStaff={};advancesRaw.forEach(d=>{advanceByStaff[d.staff_id]=(advanceByStaff[d.staff_id]||0)+Number(d.amount||0);});
   const rulesByField={};rulesRaw.forEach(r=>{(rulesByField[r.field_key]=rulesByField[r.field_key]||[]).push(r);});
@@ -2403,6 +2407,8 @@ async function runLedger(){
   /* Sent Early: admin-only reminder stored as ledger_extras field_key='sent_early' (1=ticked, 0=unticked).
      Not in LEDGER_EXTRA_FIELDS, so it never enters any subtotal, Net Amount Payable, Earning or PAID snapshot. */
   sentEarlyByStaff={};extrasRaw.forEach(e=>{if(e.field_key==='sent_early')sentEarlyByStaff[e.staff_id]=e;});
+  LedgerLoadGuard.end(guardRun);
+  if(guardRun!==LedgerLoadGuard.run)return; // a newer Run started — let it render
   ledgerRows=people.map(staff=>computeLedgerRowPure(staff,{clients,ledgerDetailRows,leavesByStaff,extrasByStaff,rulesByField,advanceByStaff,adjustmentsByStaff,paidByStaff,cutoffIso,phase,reimbByStaff}));
   renderLedgerTable(start,end);
 }
@@ -2462,6 +2468,9 @@ function paidCellHtml(r){
   if(isFuture){
     return `<td><label class="row" style="gap:5px;font-size:12px;align-items:center" title="A future cutoff cannot be marked paid yet."><input type="checkbox" disabled> Paid</label></td>`;
   }
+  if(!LedgerLoadGuard.ok()){
+    return `<td><label class="row" style="gap:5px;font-size:12px;align-items:center;color:var(--rose)" title="Some payroll data failed to load — press Run again before marking PAID."><input type="checkbox" disabled class="paid-blocked"> ⚠ Reload</label></td>`;
+  }
   return `<td><label class="row" style="gap:5px;font-size:12px;align-items:center"><input type="checkbox" class="paid-cb" data-staff="${r.staffId}" data-cutoff="${r.cutoffIso}"> Paid</label></td>`;
 }
 let sentEarlyByStaff={};
@@ -2518,6 +2527,7 @@ $('payConfirmCancel').onclick=closePayConfirm;
 $('payConfirmOverlay').onclick=e=>{if(e.target===$('payConfirmOverlay'))closePayConfirm();};
 $('payConfirmYes').onclick=async()=>{
   if(!payConfirmTarget)return closePayConfirm();
+  if(!LedgerLoadGuard.ok()){closePayConfirm();alert('Some payroll data failed to load, so PAID is blocked. Press Run again, then mark PAID.');return;}
   $('payConfirmYes').disabled=true;$('payConfirmMsg').textContent='Confirming…';
   try{
     const {error}=await sb.rpc('confirm_cutoff_paid',{
@@ -2534,6 +2544,7 @@ $('payConfirmYes').onclick=async()=>{
    + snapshot, called one row at a time so a failure on one staff never affects the others. ---------- */
 function payAllEligibleRows(){
   if(!me||me.role!=='admin')return [];
+  if(!LedgerLoadGuard.ok())return [];
   const todayIso=phDate(new Date());
   return ledgerRows.filter(r=>!r.paid&&!(r.cutoffIso>todayIso));
 }
@@ -2546,7 +2557,7 @@ function updatePayAllButton(){
   b.classList.toggle('hide',!ledgerRows.length);
   b.disabled=!n||payAllBusy;
   b.textContent=n?`Mark all as paid (${n})`:'Mark all as paid';
-  b.title=n?'Mark every unpaid staff row currently shown as PAID':(ledgerRows.length&&ledgerRows[0].cutoffIso>phDate(new Date())?'This cutoff is in the future and cannot be marked paid yet.':'Everyone shown is already paid.');
+  b.title=!LedgerLoadGuard.ok()?'Some payroll data failed to load — press Run again before marking PAID.':n?'Mark every unpaid staff row currently shown as PAID':(ledgerRows.length&&ledgerRows[0].cutoffIso>phDate(new Date())?'This cutoff is in the future and cannot be marked paid yet.':'Everyone shown is already paid.');
 }
 function payAllRefreshTotals(){
   const boxes=[...$('payAllBody').querySelectorAll('input.payall-cb:not(:disabled)')];
@@ -2559,6 +2570,7 @@ function payAllRefreshTotals(){
 }
 function openPayAll(){
   const rows=payAllEligibleRows();
+  if(!LedgerLoadGuard.ok()){alert('Some payroll data failed to load, so PAID is blocked. Press Run again, then mark PAID.');return;}
   if(!rows.length){alert('There are no unpaid rows to mark in this view.');return;}
   const r0=rows[0];
   const sentEarly=rows.filter(r=>sentEarlyRec(r)).length;
@@ -2578,6 +2590,7 @@ $('payAllYes').onclick=async()=>{
   const picked=[...$('payAllBody').querySelectorAll('input.payall-cb:checked:not(:disabled)')];
   const rows=picked.map(b=>ledgerRows.find(r=>r.staffId===b.dataset.staff&&r.cutoffIso===b.dataset.cutoff)).filter(r=>r&&!r.paid);
   if(!rows.length)return;
+  if(!LedgerLoadGuard.ok()){alert('Some payroll data failed to load, so PAID is blocked. Close this, press Run again, then mark PAID.');return;}
   const total=rows.reduce((a,r)=>a+r.total,0);
   if(!confirm(`Mark ${rows.length} staff as PAID for a total of ${payAllMoney(total)}? This cannot be undone.`))return;
   payAllBusy=true;$('payAllYes').disabled=true;$('payAllCancel').disabled=true;
@@ -2598,6 +2611,17 @@ $('payAllYes').onclick=async()=>{
   $('payAllCancel').textContent='Close';
   await runLedger();
 };
+function renderLedgerLoadBanner(){
+  const tbl=$('ledgerTable');if(!tbl)return;
+  let b=$('lgLoadErrBanner');
+  if(!b){const anchor=tbl.closest('.sticky-scroll')||tbl.closest('table');if(!anchor||!anchor.parentNode)return;
+    b=document.createElement('div');b.id='lgLoadErrBanner';b.setAttribute('role','alert');
+    b.style.cssText='margin:8px 0;padding:10px 14px;border-radius:10px;border:1px solid var(--rose);background:rgba(244,63,94,.10);color:var(--text,inherit);font-size:13px;line-height:1.45';
+    anchor.parentNode.insertBefore(b,anchor);}
+  if(LedgerLoadGuard.ok()){b.style.display='none';b.innerHTML='';return;}
+  b.style.display='';
+  b.innerHTML='<b style="color:var(--rose)">⚠ Some payroll data didn\'t load — amounts below may be wrong and PAID is blocked.</b> Press <b>Run</b> again. If it keeps failing, check your internet or Supabase status.<br><span class="muted" style="font-size:12px">'+LedgerLoadGuard.errors.map(escapeHtml).join(' · ')+'</span>';
+}
 function renderLedgerTable(start,end){
   const grand=ledgerRows.reduce((a,r)=>a+r.total,0);$('lgTotal').textContent='₱'+grand.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});$('lgRangeLabel').textContent=start&&end?`${fmtNice(start)} – ${fmtNice(end)}`:'—';
   $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr${me.role==='admin'&&sentEarlyRec(r)&&!(r.paid&&r.paid.status==='paid')?' style="background:rgba(242,184,75,.07)"':''}><td class="sticky-col">${window.SalaryQR?SalaryQR.nameCell(r.staffId,r.name):`<b>${escapeHtml(r.name)}</b>`}</td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
@@ -2608,7 +2632,7 @@ function renderLedgerTable(start,end){
     +`<td class="mono" style="color:var(--gold);font-weight:600">${r.total.toFixed(2)}</td>`
     +sentEarlyCellHtml(r)+paidCellHtml(r)+`</tr>`).join(''):`<tr><td colspan="${me.role==='admin'?28:27}" class="muted">No staff match this filter. Press Run.</td></tr>`;
   if($('lgSentEarlyTh'))$('lgSentEarlyTh').classList.toggle('hide',me.role!=='admin');
-  wirePaidCheckboxes();wireSentEarlyCheckboxes();renderSentEarlyBanner();updatePayAllButton();window.SalaryQR?.afterLedger();
+  wirePaidCheckboxes();wireSentEarlyCheckboxes();renderSentEarlyBanner();renderLedgerLoadBanner();updatePayAllButton();window.SalaryQR?.afterLedger();
   $('ledgerTable').querySelectorAll('input.ledger-extra').forEach(inp=>{
     const baseline=inp.value;
     inp.onchange=async()=>{
@@ -3744,11 +3768,22 @@ function currentRange(){
    days, staff members or clients then showed 0:00 with no error anywhere. pagedSelect
    pulls every page, and callers now push the staff filter into the query itself. */
 const PAGE_SIZE=1000;
+/* ---------- Ledger load guard (audit fix 2026-10-21): any failed or possibly-incomplete read
+   during a Ledger run is recorded here, and PAID / Mark all as paid stay blocked until a
+   clean re-run. Loaders still return what they have (so other tabs behave as before), but a
+   network blip can no longer turn a deduction into ₱0 and get locked in by PAID. ---------- */
+const LedgerLoadGuard={run:0,errors:[],active:false,
+  begin(){this.run++;this.errors=[];this.active=true;return this.run;},
+  end(run){if(run===this.run)this.active=false;},
+  fail(what,msg){const t=String(what)+': '+String(msg||'failed');if(!this.errors.includes(t))this.errors.push(t);console.warn('[load guard]',t);},
+  ok(){return this.errors.length===0;}};
+function ledgerCheckTrunc(what,rows,limit){ if((rows||[]).length>=limit) LedgerLoadGuard.fail(what,`returned ${rows.length} rows (limit) — list may be incomplete`); }
 async function pagedSelect(build){
   const out=[];let from=0;
   for(let guard=0;guard<50;guard++){
     const {data,error}=await build().range(from,from+PAGE_SIZE-1);
-    if(error){console.warn('pagedSelect:',error.message);break;}
+    if(error){console.warn('pagedSelect:',error.message);if(LedgerLoadGuard.active)LedgerLoadGuard.fail('time records',error.message);break;}
+    if(guard===49&&(data||[]).length>=PAGE_SIZE&&LedgerLoadGuard.active)LedgerLoadGuard.fail('time records','more than 50,000 rows — list may be incomplete');
     const rows=data||[];out.push(...rows);
     if(rows.length<PAGE_SIZE)break;
     from+=PAGE_SIZE;
@@ -4240,7 +4275,8 @@ async function fetchLeaveDays(startIso,endIso,staffIds){
   let q=sb.from('leave_days').select('*').gte('date',startIso).lte('date',endIso);
   q=applyStaffFilter(q,staffIds&&staffIds.length?staffIds:null);
   const {data,error}=await q.range(0,4999);
-  if(error){ if(!isMissingTableError(error)) console.warn('leave_days:',error.message); return []; }
+  if(error){ if(!isMissingTableError(error)) console.warn('leave_days:',error.message); LedgerLoadGuard.fail('PTO / PCH days (leave_days)',error.message); return []; }
+  ledgerCheckTrunc('PTO / PCH days (leave_days)',data,1000);
   return data||[];
 }
 async function renderSheetGrid(){
