@@ -245,10 +245,18 @@ button.btn{padding:7px 12px;font-size:12px}
 @media(max-width:900px){.pto-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.pf-pto-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.pto-kpis,.pto-mini{grid-template-columns:repeat(2,minmax(0,1fr))}.pf-facts{grid-template-columns:1fr}.pf-pto-grid{grid-template-columns:1fr}}
 /* YTD Attendance: compact payroll-style table and rate editor */
-.ytd-summary{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:10px}
+.eg-tiles{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:10px;margin:2px 0 12px}
+.eg-tiles .stat{min-width:0;padding:12px 14px}
+.eg-tiles .stat .v{font-size:21px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eg-tiles .sub{color:var(--muted);font-size:11px;margin-top:5px;line-height:1.45}
+th.eg-new,td.eg-new{background:rgba(242,184,75,.07)}
+@media(max-width:820px){.eg-tiles{grid-template-columns:repeat(2,minmax(140px,1fr))}}
+.c13-btn{background:none;border:0;padding:0;color:var(--gold);font:inherit;cursor:pointer;text-decoration:underline dotted}
+.c13-sub{display:block;margin-top:3px;font-size:10.5px;color:var(--muted);white-space:normal}
+.ytd-summary{display:grid;grid-template-columns:repeat(6,minmax(140px,1fr));gap:10px}
 .ytd-summary .stat{min-width:0}
 .ytd-table-wrap{overflow-x:auto;width:100%;max-width:100%;min-width:0;contain:inline-size}
-.ytd-table{min-width:1215px;table-layout:fixed;font-variant-numeric:tabular-nums}
+.ytd-table{min-width:1365px;table-layout:fixed;font-variant-numeric:tabular-nums}
 .ytd-table th,.ytd-table td{white-space:nowrap;vertical-align:top}
 .ytd-table th:nth-child(1),.ytd-table td:nth-child(1){width:360px}
 .ytd-table th:nth-child(2),.ytd-table td:nth-child(2){width:110px}
@@ -256,8 +264,9 @@ button.btn{padding:7px 12px;font-size:12px}
 .ytd-table th:nth-child(4),.ytd-table th:nth-child(5),.ytd-table th:nth-child(6),.ytd-table th:nth-child(7),
 .ytd-table td:nth-child(4),.ytd-table td:nth-child(5),.ytd-table td:nth-child(6),.ytd-table td:nth-child(7){width:54px;text-align:center}
 .ytd-table th:nth-child(8),.ytd-table td:nth-child(8){width:150px}
-.ytd-table th:nth-child(9),.ytd-table td:nth-child(9){width:135px}
-.ytd-table th:nth-child(10),.ytd-table td:nth-child(10){width:140px}
+.ytd-table th:nth-child(9),.ytd-table td:nth-child(9){width:150px}
+.ytd-table th:nth-child(10),.ytd-table td:nth-child(10){width:135px}
+.ytd-table th:nth-child(11),.ytd-table td:nth-child(11){width:140px}
 .ytd-less-ded{display:block;margin-top:3px;font-size:11px;color:var(--rose)}
 .ytd-table td.ytd-staff-cell{white-space:normal}
 .ytd-rate-details{margin-top:7px;max-width:340px}
@@ -979,7 +988,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
           <div class="cr-legend"><span><i class="cr-se"></i>Staff error</span><span><i class="cr-ap"></i>App issue</span><span><i class="cr-rj"></i>Other / pending / rejected</span></div>
           <label style="margin-top:16px">Most common reasons</label><table><tbody id="crReasons"></tbody></table></div></div>
       </div></section><section id="v-ledger" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_ledger" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-gold" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout and is added only by approving it in Payroll → 🏅 Completion Bonus (highlighted in gold when paid); the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><div style="text-align:right;margin-left:auto"><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span><div id="lgHours" style="margin-top:4px"></div></div></div><div id="lgQrBanner" class="hide" style="background:rgba(91,141,239,.12);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div class="sticky-scroll"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px">
+      <div class="row pay-sub hide" id="paySub_ledger" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-gold" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="align-items:flex-start;gap:18px;margin-bottom:8px;flex-wrap:nowrap"><div id="lgTotBox" style="flex:0 0 auto;min-width:260px;background:rgba(242,184,75,.08);border:1px solid rgba(242,184,75,.45);border-radius:12px;padding:10px 14px"><div class="muted" style="font-size:12px">Period total</div><b class="mono" style="color:var(--gold);font-size:22px" id="lgTotal">₱0.00</b><div id="lgHours" style="margin-top:6px"></div></div><span class="muted" style="font-size:12px;flex:1;min-width:0">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout and is added only by approving it in Payroll → 🏅 Completion Bonus (highlighted in gold when paid); the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span></div><div id="lgQrBanner" class="hide" style="background:rgba(91,141,239,.12);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div class="sticky-scroll"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px">
       <div class="row pay-sub hide" id="paySub_invoice" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-gold" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
 <div class="hide" id="civSettingsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60"><div class="card" style="max-width:720px;width:92vw;max-height:88vh;overflow-y:auto"><div class="hdr"><h3 style="font-size:15px" id="civSettingsTitle">Client Invoice Settings</h3><button class="btn btn-ghost" id="civSettingsClose">✕ Close</button></div><div class="muted" style="font-size:12px;margin-bottom:12px">Controls exactly what appears on this client's bi-weekly invoice. Nothing here changes payroll (Contractor Ledger) math.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Task Description</div><input type="text" id="civTaskDescription" placeholder="e.g. Back Office CRM tasks" style="margin-bottom:6px"><div class="muted" style="font-size:11px;margin-bottom:14px">One label for everyone on this client. Rate rows on the invoice come straight from each staff member's live hourly rate \u2014 nothing to configure here for that.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Recurring Pay Items</div><table><tbody>
 <tr><td style="width:26px"><input type="checkbox" id="civInternetOn"></td><td><b>Internet / Fiber Share</b><div class="muted" style="font-size:11px">Flat cost line on every invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civInternetAmt" style="width:110px" placeholder="$/period"></td></tr>
@@ -987,7 +996,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 <tr><td><input type="checkbox" id="civAllowanceOn"></td><td><b>Allowance</b><div class="muted" style="font-size:11px">Per staff, per month, prorated to cutoff — auto-calculated, editable per invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civAllowanceRate" style="width:110px" placeholder="$/mo"></td></tr>
 <tr><td><input type="checkbox" id="civHolidayOn"></td><td><b>Holiday Pay</b><div class="muted" style="font-size:11px">Rate per staff — admin types the staff count on the invoice itself, total = count × rate</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civHolidayRate" style="width:110px" placeholder="$/staff"></td></tr>
 </tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px">Invoice Numbering</div><div class="row" style="gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase" id="civStartingNumLbl">Invoice # for the selected pay period</label><input type="number" min="1" step="1" id="civStartingNum" style="width:100%"><div class="muted" style="font-size:11px;margin-top:4px">Goes up by 1 every bi-weekly period after this one.</div></div><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Last invoice issued for this client</label><input type="text" id="civNextNum" disabled style="width:100%"></div></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn btn-ghost" id="civSettingsCancel">Cancel</button><button class="btn btn-gold" id="civSettingsSave">Save Settings</button></div><div class="muted" id="civSettingsMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div></div></div><section id="v-earning" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_earning" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-gold" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th>VSPH (Net Amount)</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div><div class="row" style="justify-content:flex-end;margin-top:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px" id="egAggMargin">—</span></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="sick_leave">🤒 Sick Leave</option><option value="reimbursement">🧾 Reimbursement</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div id="rfSickNote" class="hide note" style="margin-top:10px;font-size:12.5px">Sick days are <b>unpaid</b>. This is for your record and for client documentation — the days show as <b>SL</b>.</div><div id="rfPickWrap" class="hide" style="margin-top:10px"><label id="rfPickLbl">Files</label><input type="file" id="rfPick" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%"><div id="rfPickList"></div><div class="muted" style="font-size:11.5px;margin-top:4px">🔒 Only you and Rendy can open your files · photo or PDF · max 10 MB each</div></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="rfMyFilesCard"><div class="hdr"><h3 style="font-size:15px">📎 My files</h3><span class="muted" style="font-size:12px">Medcerts, receipts and EOD attachments · only you and Rendy can open them</span></div><table><thead><tr><th>Uploaded</th><th>File</th><th>For</th><th>Status</th></tr></thead><tbody id="rfMyFiles"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="req-sub" id="reqSubBar"><button class="btn btn-gold" data-req-sub="money">💸 SA/CA Requests<span class="bb-badge hide" id="reqSubCnt_money"></span></button><button class="btn btn-ghost" data-req-sub="leave">🏖️ PTO Requests<span class="bb-badge hide" id="reqSubCnt_leave"></span></button></div><div class="card"><div class="hdr"><h3 style="font-size:15px" id="reqAdminTitle">SA/CA requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></div><div class="card" id="dedAdminCard"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances under PHP Adjustments → 💳 Fee Advances.</div><div class="sticky-scroll"><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+      <div class="row pay-sub hide" id="paySub_earning" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-gold" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div id="egTilesSlot"></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egAggMargin" class="eg-tiles"><span class="muted" style="font-size:12px">—</span></div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th title="Hours × USD rate × FX">Hourly VSPH</th><th class="eg-new" title="Client-invoice staff allowance, split by days across the bi-weekly invoices that overlap this period, each at that invoice's cutoff FX (₱60 if no FX saved). 13th month is not included here — see YTD &amp; YEB.">Allowance<br><span style="font-weight:400;font-size:10.5px">split by days</span></th><th class="eg-new">VSPH Total</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="sick_leave">🤒 Sick Leave</option><option value="reimbursement">🧾 Reimbursement</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div id="rfSickNote" class="hide note" style="margin-top:10px;font-size:12.5px">Sick days are <b>unpaid</b>. This is for your record and for client documentation — the days show as <b>SL</b>.</div><div id="rfPickWrap" class="hide" style="margin-top:10px"><label id="rfPickLbl">Files</label><input type="file" id="rfPick" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%"><div id="rfPickList"></div><div class="muted" style="font-size:11.5px;margin-top:4px">🔒 Only you and Rendy can open your files · photo or PDF · max 10 MB each</div></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="rfMyFilesCard"><div class="hdr"><h3 style="font-size:15px">📎 My files</h3><span class="muted" style="font-size:12px">Medcerts, receipts and EOD attachments · only you and Rendy can open them</span></div><table><thead><tr><th>Uploaded</th><th>File</th><th>For</th><th>Status</th></tr></thead><tbody id="rfMyFiles"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="req-sub" id="reqSubBar"><button class="btn btn-gold" data-req-sub="money">💸 SA/CA Requests<span class="bb-badge hide" id="reqSubCnt_money"></span></button><button class="btn btn-ghost" data-req-sub="leave">🏖️ PTO Requests<span class="bb-badge hide" id="reqSubCnt_leave"></span></button></div><div class="card"><div class="hdr"><h3 style="font-size:15px" id="reqAdminTitle">SA/CA requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></div><div class="card" id="dedAdminCard"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances under PHP Adjustments → 💳 Fee Advances.</div><div class="sticky-scroll"><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></div></section><section id="v-portal" class="hide grid" style="gap:16px">
   <!-- PM BULLETIN BOARD (announcements) -->
   <div id="bbBoard" class="grid" style="gap:16px"></div>
   <div class="bb-docs-hdr"><h3>📁 Documents &amp; Signatures</h3><span class="muted" style="font-size:12.5px">Contracts, house rules, and anything that needs your signature</span></div>
@@ -1109,7 +1118,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <div class="ytd-summary" id="ytdSummary"></div>
       </div>
       <div class="card" id="relChartCard" style="display:none"></div>
-      <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Total Working Days = Mon–Fri calendar dates in the selected year (to date for the current year), within each person's employment window. Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus = total basic salary earned this year (by employment days × applicable rate) ÷ 12, per DOLE 13th-month rules. Less Absences = Year End Bonus − (PA + OUT) × daily rate ÷ 12, where daily rate = current monthly rate ÷ 22; PTO/PCH are paid and not deducted.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Total<br>working days</th><th>Days<br>present</th><th>PTO</th><th>PCH</th><th title="Planned Absence + Sick Leave (both unpaid)">PA / SL</th><th>OUT</th><th>Eligible basic<br>earnings</th><th>Year End<br>Bonus</th><th>Less<br>Absences</th></tr></thead><tbody id="ytdTable"><tr><td colspan="10" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Active staff attendance</h3><div class="row" style="gap:7px;align-items:center"><label for="ytdClientFilter" style="margin:0">Client</label><select id="ytdClientFilter" style="width:auto;min-width:150px"><option value="__all__">All clients</option></select></div></div><div class="muted ytd-attendance-help" style="font-size:11px;margin:-5px 0 8px;line-height:1.4">Total Working Days = Mon–Fri calendar dates in the selected year (to date for the current year), within each person's employment window. Days Present = distinct dates with any shift login or timesheet entry, even if no payable hours result. Admin-enter historical counts through Sep 27, 2026; automatic counts start Sep 28. OUT stays separate: scheduled day with zero payable hours and no PTO/PCH/PA marker. Year End Bonus = total basic salary earned this year (by employment days × applicable rate) ÷ 12, per DOLE 13th-month rules. Less Absences = Year End Bonus − (PA + OUT) × daily rate ÷ 12, where daily rate = current monthly rate ÷ 22; PTO/PCH are paid and not deducted.</div><div class="ytd-table-wrap"><table class="ytd-table freeze-table"><thead><tr><th class="sticky-col">Staff / Rate periods</th><th>Total<br>working days</th><th>Days<br>present</th><th>PTO</th><th>PCH</th><th title="Planned Absence + Sick Leave (both unpaid)">PA / SL</th><th>OUT</th><th>Eligible basic<br>earnings</th><th title="13th month billed on client invoices (counted as collected once the invoice period ends), each converted at that invoice's cutoff FX; ₱60 when no FX is saved. Jan 1 (or hire date) – Aug 18, 2026 is ASSUMED collected at the current client rate.">Collected<br>13th month</th><th>Year End<br>Bonus</th><th>Less<br>Absences</th></tr></thead><tbody id="ytdTable"><tr><td colspan="11" class="muted">Run the report to load attendance.</td></tr></tbody></table></div></div>
     </section>
 
     <!-- ---------- ADMIN: PTO CREDITS ---------- -->
@@ -1355,6 +1364,14 @@ async function sendSlackNotice(path,body){
 function notifyActivity(entryId){
   sendSlackNotice('/api/slack/activity',{entry_id:entryId}).catch(e=>showSlackWarning('activity:'+entryId,'Activity saved, but the SMB general Slack notice failed: '+e.message));
 }
+function notifyLogin(shiftId){
+  if(!shiftId) return;
+  sendSlackNotice('/api/slack/login',{shift_id:shiftId}).catch(e=>showSlackWarning('login:'+shiftId,'You are logged in, but the SMB General log-in notice failed: '+e.message));
+}
+function notifyLogout(shiftId){
+  if(!shiftId) return;
+  sendSlackNotice('/api/slack/logout',{shift_id:shiftId}).catch(e=>showSlackWarning('logout:'+shiftId,'You are logged out, but the SMB General log-out notice failed: '+e.message));
+}
 function notifyForceLogout(shiftId){
   sendSlackNotice('/api/slack/force-logout',{shift_id:shiftId}).catch(e=>showSlackWarning('forcelogout:'+shiftId,'Force logout saved, but the Slack alert failed: '+e.message));
 }
@@ -1374,7 +1391,25 @@ function phParts(d){const f=new Intl.DateTimeFormat('en-CA',{timeZone:PH,year:'n
 function phDate(d){const p=phParts(d);return `${p.year}-${p.month}-${p.day}`;}
 function phTime(d){const p=phParts(d);return `${p.hour}:${p.minute}`;}
 function phClock(d){const p=phParts(d);return `${p.hour}:${p.minute}:${p.second}`;}
-function tzClock(d,tz){try{return new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);}catch(e){return '--:--:--';}} function shiftWindowFor(client,dateIso){ if(!client||!client.shift_start||!client.shift_end) return null; const pad=t=>t.length===5?t+':00':t; const start=new Date(dateIso+'T'+pad(client.shift_start)+'+08:00'); let end=new Date(dateIso+'T'+pad(client.shift_end)+'+08:00'); if(end<=start) end=new Date(end.getTime()+86400000); return {start,end}; }
+function tzClock(d,tz){try{return new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);}catch(e){return '--:--:--';}} 
+/* ---------- Auto-DST for US Eastern clients [Rendy, 2026-10-22] ----------
+   Saved client shift times are the US SUMMER-time (EDT) PHT values (e.g. 20:00).
+   When US clocks fall back (first Sunday of Nov → second Sunday of Mar) the same US
+   start time lands 1 hour later in PHT, so the window moves +1h automatically
+   (20:00 → 21:00, 21:00 → 22:00). Applies only to shift dates on/after DST_AUTO_FROM,
+   so every pay period before it is calculated exactly as before. */
+const CLIENT_US_TZ='America/New_York', DST_REF_DATE='2026-10-01', DST_AUTO_FROM='2026-10-01';
+function usTzOffsetMin(at){
+  const p={};new Intl.DateTimeFormat('en-US',{timeZone:CLIENT_US_TZ,hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(at).forEach(x=>p[x.type]=x.value);
+  return Math.round((Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second)-at.getTime())/60000);
+}
+const DST_REF_OFFSET=usTzOffsetMin(new Date(DST_REF_DATE+'T12:00:00Z'));
+function dstShiftMinutes(dateIso,startInstant){ return dateIso<DST_AUTO_FROM?0:DST_REF_OFFSET-usTzOffsetMin(startInstant); }
+function shiftWindowFor(client,dateIso){ if(!client||!client.shift_start||!client.shift_end) return null; const pad=t=>t.length===5?t+':00':t; let start=new Date(dateIso+'T'+pad(client.shift_start)+'+08:00'); let end=new Date(dateIso+'T'+pad(client.shift_end)+'+08:00'); if(end<=start) end=new Date(end.getTime()+86400000); const dm=dstShiftMinutes(dateIso,start); if(dm){ start=new Date(start.getTime()+dm*60000); end=new Date(end.getTime()+dm*60000); } return {start,end}; }
+/* Effective PHT shift times for a date (default today) — use for labels/estimates, never the raw saved times. */
+function shiftTimesFor(client,dateIso){ if(!client||!client.shift_start||!client.shift_end) return null; const w=shiftWindowFor(client,dateIso||phDate(new Date())); return w?{start:phTime(w.start),end:phTime(w.end),shifted:dstShiftMinutes(dateIso||phDate(new Date()),new Date(w.start.getTime()))!==0}:null; }
+function shiftLabelFor(client,sep){ const t=shiftTimesFor(client); return t?`${t.start}${sep==null?' – ':sep}${t.end}`:''; }
+
 
 /* ---------- early-login guard (staff may log in up to 60min before shift start; pay still counts only inside the shift window) ---------- */
 const EARLY_LOGIN_GRACE_MIN=60;
@@ -2684,9 +2719,9 @@ function ledgerInactiveTag(id){
   return ` <span class="pill p-off" style="font-size:10.5px" title="Deactivated — shown because this is their final pay period"><span class="dot"></span>Inactive${s.termination_date?' · last day '+escapeHtml(fmtNice(s.termination_date)):''}</span>`;
 }
 function renderLedgerTable(start,end){
-  {const reg=ledgerRows.reduce((a,r)=>a+(Number(r.regularHrs)||0),0),ot=ledgerRows.reduce((a,r)=>a+(Number(r.otHrs)||0),0),n=new Set(ledgerRows.map(r=>r.staffId)).size,f2=v=>v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  {const reg=ledgerRows.reduce((a,r)=>a+(Number(r.regularHrs)||0),0),nd=ledgerRows.reduce((a,r)=>a+(Number(r.nightHrs)||0),0),ndPay=ledgerRows.reduce((a,r)=>a+(Number(r.nightPremium)||0),0),ot=ledgerRows.reduce((a,r)=>a+(Number(r.otHrs)||0),0),n=new Set(ledgerRows.map(r=>r.staffId)).size,f2=v=>v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
    /* Same hours formula as SMB PH Earning (regularHrs+otHrs). Night-diff hours are a subset, PCH/PTO is paid in days. */
-   const lh=$('lgHours'); if(lh) lh.innerHTML=`<span class="muted" style="font-size:12px">Total hours: <b class="mono" style="color:var(--ink);font-size:15px">${f2(reg+ot)}</b></span><div class="muted" style="font-size:11px">Contracted ${f2(reg)} + Extended ${f2(ot)} · ${n} staff</div>`;}
+   const lh=$('lgHours'); if(lh) lh.innerHTML=`<div style="display:flex;gap:18px;flex-wrap:wrap"><div><div class="muted" style="font-size:11px">Total Billable Hours</div><b class="mono" style="color:var(--ink);font-size:16px">${f2(reg+ot)}</b></div><div title="Extended-Hours Fee Differential (Night Diff) hours, 10PM–6AM PHT. Already inside Total Billable Hours — not extra hours."><div class="muted" style="font-size:11px">ND Total (hrs)</div><b class="mono" style="color:#9B7EDE;font-size:16px">${f2(nd)}</b><div class="muted" style="font-size:11px">₱${f2(ndPay)} ND pay</div></div></div><div class="muted" style="font-size:11px;margin-top:4px">Contracted ${f2(reg)} + Extended ${f2(ot)} · ${n} staff · ND is part of billable hours</div>`;}
   const grand=ledgerRows.reduce((a,r)=>a+r.total,0);$('lgTotal').textContent='₱'+grand.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});$('lgRangeLabel').textContent=start&&end?`${fmtNice(start)} – ${fmtNice(end)}`:'—';
   $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr${me.role==='admin'&&sentEarlyRec(r)&&!(r.paid&&r.paid.status==='paid')?' style="background:rgba(242,184,75,.07)"':''}><td class="sticky-col">${window.SalaryQR?SalaryQR.nameCell(r.staffId,r.name):`<b>${escapeHtml(r.name)}</b>`}${ledgerInactiveTag(r.staffId)}${ncTag(r.staffId)}</td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
     +extraCellHtml(r,'completion_bonus')+extraCellHtml(r,'relationship_bonus')+extraCellHtml(r,'meal_allowance')+extraCellHtml(r,'statutory_allowance')+extraCellHtml(r,'workspace_allowance')+extraCellHtml(r,'scope_differential')+extraCellHtml(r,'adhoc_project_fee')+extraCellHtml(r,'incentive_award')+extraCellHtml(r,'reimbursable_expenses')+extraCellHtml(r,'other_fee_items')
@@ -3113,7 +3148,7 @@ function renderActs(){
 async function loadPunch(){
   const c=clients.find(c=>c.id===me.client_id);
   $('pcWho').innerHTML=`${me.full_name} • Client: <b style="color:var(--ink)">${c?c.name:'— not assigned —'}</b>${c?'':' <span style="color:var(--rose)">Billable hours cannot be computed — no client is assigned to your account. Contact your admin.</span>'}`;
-  $('pcShift').textContent=c?`Shift ${c.shift_start.slice(0,5)} – ${c.shift_end.slice(0,5)} PHT (${c.workdays})`:'';
+  $('pcShift').textContent=c?`Shift ${shiftLabelFor(c)} PHT (${c.workdays})`:'';
   const {data:open}=await sb.from('shifts').select('*').eq('staff_id',me.id).is('logout_at',null).order('login_at',{ascending:false}).limit(1);
   curShift=open&&open[0]?open[0]:null;
   curEntry=null;
@@ -3179,6 +3214,7 @@ $('loginBtn').onclick = async () => {
         if(error) throw error;
         curShift=data.shift;
         curEntry=data.entry||null;
+        notifyLogin(curShift&&curShift.id); // server posts once per shift (server clock); failure never blocks the login
       }
     }else{
       const endedShiftId=curShift.id;
@@ -3192,6 +3228,7 @@ $('loginBtn').onclick = async () => {
         if(outErr){ if(String(outErr.message||'').includes('EOD_REQUIRED')){ alert('Please submit your EOD report before logging out.'); go('v-eod'); return; } throw outErr; }
       }
       syncOverbreakAlerts(endedShiftId); // final catch-up before leaving the shift
+      notifyLogout(endedShiftId); // SMB General log-out notice (server checks it was a manual log-out)
       curShift=null;curEntry=null;
     }
     paintShiftState(); await renderToday(); await renderPayPeriod();
@@ -3529,7 +3566,7 @@ async function loadRoster(){
   // not just a snapshot from the last poll.
   $('roster').innerHTML=rows.length?rows.map(r=>`<tr><td><b>${escapeHtml(r.s.full_name)}</b></td>
    <td class="muted">${r.c?escapeHtml(r.c.name):'—'}</td>
-   <td class="mono">${r.c?r.c.shift_start.slice(0,5)+' – '+r.c.shift_end.slice(0,5):'—'}</td>
+   <td class="mono">${r.c?shiftLabelFor(r.c):'—'}</td>
    <td>${pill(r.status)}</td><td>${r.act}</td>
    <td class="mono"${r.startedAt?` data-started="${r.startedAt}"`:''}>${r.startedAt?hms((new Date()-new Date(r.startedAt))/1000):(r.status.startsWith('On Leave')?'All day':'—')}</td>
    <td>${admin&&r.shiftId?`<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" data-force-logout="${r.shiftId}" data-staff-name="${escapeHtml(r.s.full_name)}">Force Logout</button>`:''}</td></tr>`).join('')
@@ -3725,7 +3762,7 @@ function renderStaffAdmin(){
   $('clientTable').innerHTML=clients.map(c=>`<tr>
     <td><input data-cname="${c.id}" value="${escapeHtml(c.name)}" style="width:140px"></td>
     <td><input data-ctz="${c.id}" value="${escapeHtml(c.timezone)}" style="width:150px"></td>
-    <td class="row" style="gap:4px"><input type="time" data-cstart="${c.id}" value="${c.shift_start.slice(0,5)}" style="width:auto"><span class="muted">–</span><input type="time" data-cend="${c.id}" value="${c.shift_end.slice(0,5)}" style="width:auto"></td>
+    <td class="row" style="gap:4px"><input type="time" data-cstart="${c.id}" value="${c.shift_start.slice(0,5)}" style="width:auto"><span class="muted">–</span><input type="time" data-cend="${c.id}" value="${c.shift_end.slice(0,5)}" style="width:auto">${(()=>{const t=shiftTimesFor(c);return t&&t.shifted?`<span class="muted" style="font-size:10.5px;white-space:nowrap" title="Saved times are US summer-time values. US winter time is on, so the app runs this shift 1 hour later automatically. Do not edit these for DST.">🕐 now ${t.start}–${t.end} (US winter, auto)</span>`:'';})()}</td>
     <td><input data-cdays="${c.id}" value="${escapeHtml(c.workdays)}" style="width:100px"></td>
     <td style="text-align:center"><input type="checkbox" data-cunpaid="${c.id}" ${unpaidBreakClients.has(c.id)?'checked':''} style="width:auto"></td>
     <td class="mono">${staffList.filter(s=>s.client_id===c.id&&s.active).length}</td>
@@ -3970,7 +4007,7 @@ async function runSheet(){
     // period (not just the over-allowance portion) — floored at 0 defensively.
     const actualWorking=Math.max(0,bill-personalMinutes-bioMinutes);
     sheetRows.push({staffId:s.id,name:s.full_name,client:(clients.find(c=>c.id===s.client_id)||{}).name||'—',days:Object.keys(byDay).length,bill,non,overBreak,personalCount,personalMinutes,bioCount,bioMinutes,actualWorking,total:bill+non,
-      clientName:sc?sc.name:null,window:sc?`${sc.shift_start.slice(0,5)}–${sc.shift_end.slice(0,5)} PHT`:null});
+      clientName:sc?sc.name:null,window:sc?`${shiftLabelFor(sc,'–')} PHT`:null});
   });
   renderSheetWarnings();
   $('sheetTable').innerHTML=sheetRows.length?sheetRows.map(r=>`<tr data-fin-row="${r.staffId}"><td><b>${escapeHtml(r.name)}</b>${ncTag(r.staffId)}</td>
@@ -5848,6 +5885,7 @@ let egPendingLock = null; // the IMMUTABLE snapshot captured when the confirm
                            // switched periods while the dialog was open.
 
 function initEarningFilters() {
+  { const slot = $('egTilesSlot'), t = $('egAggMargin'); if (slot && t && t.parentNode !== slot) slot.appendChild(t); }
   const list = periodList('semi', 24);
   $('egPeriod').innerHTML = list.map(p => `<option value="${p.start}|${p.end}">${fmtNice(p.start)} \u2013 ${fmtNice(p.end)} (cutoff ${EarningsLoader.payoutCutoffFor(p.end)})</option>`).join('');
   $('egPeriod').onchange = runEarningPreview;
@@ -5864,19 +5902,71 @@ function marginColor(value) {
     ? 'inherit' : Number(value) < 50 ? '#ff8080' : '#4ade80';
 }
 function periodTotalsHtml(rows) {
-  let hours = 0, payable = 0, vsph = 0, roi = 0, anyMissing = false;
+  let hours = 0, payable = 0, vsph = 0, roi = 0, hourly = 0, allow = 0, anyMissing = false, n = 0;
   rows.forEach(r => {
     if (r.row.missing) { anyMissing = true; return; }
-    hours += r.row.hours; payable += r.row.payable; vsph += r.row.vsph; roi += r.row.roi;
+    n++; hours += r.row.hours; payable += r.row.payable; vsph += r.row.vsph; roi += r.row.roi;
+    hourly += Number.isFinite(r.row.hourlyVsph) ? r.row.hourlyVsph : r.row.vsph;
+    allow += Number(r.row.allowance || 0);
   });
   const agg = EarningsLoader.weightedMargin(rows.map(r => r.row));
-  const fmt = n => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `Total hours: <b class="mono">${hours.toFixed(2)}</b> &middot; `
-    + `Total Staff Earning: <b class="mono">\u20b1${fmt(payable)}</b> &middot; `
-    + `Total VSPH: <b class="mono">\u20b1${fmt(vsph)}</b> &middot; `
-    + `Total ROI: <b class="mono" style="color:${roi < 0 ? 'var(--rose)' : 'var(--teal)'}">\u20b1${fmt(roi)}</b> &middot; `
-    + `Weighted margin (\u03a3ROI/\u03a3VSPH): <b class="mono" style="color:${marginColor(agg.weighted)}">${agg.weighted === null ? '\u2014' : agg.weighted.toFixed(4) + '%'}</b>`
-    + (anyMissing ? ' <span style="color:var(--rose)">(totals exclude staff with missing data)</span>' : '');
+  const fmt = v => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const tile = (k, v, sub, style) => `<div class="stat"${style ? ` style="${style}"` : ''}><div class="k">${k}</div><div class="v mono">${v}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+  return tile('Total hours', hours.toFixed(2), `${n} staff`)
+    + tile('Total Staff Earning', '\u20b1' + fmt(payable), 'Ledger Net Payable + Adjustments Subtotal')
+    + tile('Total VSPH', '\u20b1' + fmt(vsph), `Hourly \u20b1${fmt(hourly)}<br>+ Allowance \u20b1${fmt(allow)}<br><span style="opacity:.75">13th month not included \u2192 see YTD &amp; YEB</span>`, 'border-color:rgba(242,184,75,.45)')
+    + tile('Total ROI', `<span style="color:${roi < 0 ? 'var(--rose)' : 'var(--teal)'}">\u20b1${fmt(roi)}</span>`, 'VSPH \u2212 Staff Earning')
+    + tile('Weighted margin', `<span style="color:${marginColor(agg.weighted)}">${agg.weighted === null ? '\u2014' : agg.weighted.toFixed(4) + '%'}</span>`, '\u03a3ROI / \u03a3VSPH' + (anyMissing ? ' <span style="color:var(--rose)">(totals exclude staff with missing data)</span>' : ''));
+}
+
+/* ---- Client-invoice staff allowance for SMB PH Earning [Rendy, 2026-10-22] ----
+   Invoices are bi-weekly (Wed–Tue); Earning periods are semi-monthly. Each Earning period
+   takes each overlapping invoice's allowance × (days of that invoice inside the period ÷ 14),
+   converted at the FX saved for the payout cutoff that contains the invoice END date
+   (fallback ₱60 per $1 when none is saved). Per staff on the invoice = client allowance rate
+   (or the invoice's allowance override ÷ active staff on that invoice). 13th month is NOT here. */
+const EG_FX_FALLBACK = 60;
+async function egAllowanceForPeriod(relevant, start, end) {
+  const out = {};
+  const firstInv = biweeklyPeriod(start), lastInv = biweeklyPeriod(end);
+  const invs = [];
+  for (let p = firstInv; p.start <= lastInv.start; p = biweeklyPeriod(addDays(p.end, 1))) invs.push(p);
+  const [setRes, invRes, fxRes] = await Promise.all([
+    sb.from('client_invoice_settings').select('*'),
+    sb.from('client_invoices').select('*').gte('period_start', firstInv.start).lte('period_start', lastInv.start),
+    sb.from('fx_rates').select('*'),
+  ]);
+  if (setRes.error && !isMissingTableError(setRes.error)) throw new Error('client_invoice_settings: ' + setRes.error.message);
+  if (invRes.error && !isMissingTableError(invRes.error)) throw new Error('client_invoices: ' + invRes.error.message);
+  if (fxRes.error) throw new Error('fx_rates: ' + fxRes.error.message);
+  const settingsBy = {}; (setRes.data || []).forEach(r => settingsBy[r.client_id] = r);
+  const invBy = {}; (invRes.data || []).forEach(r => invBy[`${r.client_id}|${r.period_start}|${r.period_end}`] = r);
+  const fxBy = {}; (fxRes.data || []).forEach(r => fxBy[r.cutoff_date] = Number(r.rate));
+  const roster = staffList || [];
+  relevant.forEach(staff => {
+    const st = settingsBy[staff.client_id];
+    const parts = []; let php = 0;
+    if (st && st.allowance_on && staff.active) {
+      invs.forEach(p => {
+        if (civEmploymentDays(staff, p.start, p.end) <= 0) return;
+        const lo = p.start > start ? p.start : start, hi = p.end < end ? p.end : end;
+        const days = civCalendarDays(lo, hi); if (days <= 0) return;
+        const inv = invBy[`${staff.client_id}|${p.start}|${p.end}`];
+        let perStaff = Number(st.allowance_rate || 0);
+        if (inv && inv.allowance_override !== null && inv.allowance_override !== undefined) {
+          const cnt = roster.filter(x => x.client_id === staff.client_id && x.active && civEmploymentDays(x, p.start, p.end) > 0).length || 1;
+          perStaff = Number(inv.allowance_override) / cnt;
+        }
+        const cutoff = nextCutoffOnOrAfter(p.end), saved = fxBy[cutoff];
+        const fx = Number.isFinite(saved) && saved > 0 ? saved : EG_FX_FALLBACK;
+        const usd = perStaff * days / 14, amt = usd * fx;
+        php += amt;
+        parts.push(`Invoice ${fmtNice(p.start)}\u2013${fmtNice(p.end)}: ${days}/14 days \u00d7 $${perStaff.toFixed(2)} = $${usd.toFixed(2)} \u00d7 FX ${fx}${Number.isFinite(saved) && saved > 0 ? ` (${cutoff} cutoff)` : ' (default \u2014 no FX saved)'} = \u20b1${amt.toFixed(2)}`);
+      });
+    }
+    out[staff.id] = { php: Math.round(php * 100) / 100, detail: parts.join('\n') };
+  });
+  return out;
 }
 
 function sortEarningRows(rows) {
@@ -5913,17 +6003,19 @@ function renderEarningRows(rows) {
   $('egTable').innerHTML = rows.length ? rows.map(r => {
     if (r.row.missing) {
       return `<tr><td class="sticky-col"><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td>
-        <td class="num mono" colspan="6" title="Missing ${escapeHtml(r.row.reason)} — cannot compute, never shown as 0">\u2014 missing ${escapeHtml(r.row.reason)}</td></tr>`;
+        <td class="num mono" colspan="8" title="Missing ${escapeHtml(r.row.reason)} — cannot compute, never shown as 0">\u2014 missing ${escapeHtml(r.row.reason)}</td></tr>`;
     }
     const f = r.row;
     const usdCell = f.rateMissing ? '<span title="No USD rate configured — safe because hours are 0">\u2014</span>' : f.usdRate.toFixed(2);
     return `<tr><td class="sticky-col"><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td>
       <td class="num mono">${f.hours.toFixed(2)}</td><td class="num mono">${usdCell}</td>
       <td class="num mono">${f.payable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-      <td class="num mono">${f.vsph.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      <td class="num mono">${(Number.isFinite(f.hourlyVsph) ? f.hourlyVsph : f.vsph).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      <td class="num mono eg-new" title="${escapeHtml(f.allowanceDetail || (Number.isFinite(f.hourlyVsph) ? 'No client-invoice allowance for this staff member in this period' : 'Locked before allowance was tracked'))}">${Number(f.allowance) ? Number(f.allowance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '\u2014'}</td>
+      <td class="num mono eg-new"><b>${f.vsph.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td>
       <td class="num mono" style="color:${f.roi < 0 ? 'var(--rose)' : 'var(--teal)'}">${f.roi.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       <td class="num mono" style="color:${marginColor(f.margin)}">${f.margin === null ? '\u2014' : f.margin.toFixed(2) + '%'}</td></tr>`;
-  }).join('') : `<tr><td colspan="8" class="muted">No relevant staff for this period.</td></tr>`;
+  }).join('') : `<tr><td colspan="10" class="muted">No relevant staff for this period.</td></tr>`;
   $('egAggMargin').innerHTML = periodTotalsHtml(rows);
 }
 
@@ -5932,7 +6024,9 @@ function renderEarningLocked(snap) {
   // staffList/clients names or the live-recomputed rate.
   const rows = (snap.rows || []).map(r => ({
     staffId: r.staff_id, name: r.name, client: r.client,
-    row: { missing: false, hours: r.hours, usdRate: r.usd_rate, fx: r.fx, payable: r.payable, vsph: r.vsph, roi: r.roi, margin: r.margin },
+    row: { missing: false, hours: r.hours, usdRate: r.usd_rate, fx: r.fx, payable: r.payable, vsph: r.vsph, roi: r.roi, margin: r.margin,
+      hourlyVsph: Number.isFinite(Number(r.hourly_vsph)) && r.hourly_vsph !== null && r.hourly_vsph !== undefined ? Number(r.hourly_vsph) : undefined,
+      allowance: r.allowance !== null && r.allowance !== undefined ? Number(r.allowance) : 0 },
   }));
   renderEarningRows(rows);
   $('egLockBtn').disabled = true;
@@ -5984,6 +6078,8 @@ async function runEarningPreview() {
     if (myGen !== egGen) return;
     const payableRows = await computeLedgerRowsForPeriod(relevant, start, end);
     if (myGen !== egGen) return;
+    const allowanceByStaff = await egAllowanceForPeriod(relevant, start, end);
+    if (myGen !== egGen) return;
     const payableByStaff = {}; const hoursByStaff = {};
     /* Staff Earning = Ledger Net Amount Payable + Adjustments Subtotal (Fee Advance +
        Adjustments), i.e. the true earning before deductions [Rendy, 2026-10-08]. */
@@ -5993,6 +6089,12 @@ async function runEarningPreview() {
       const usdRate = Number(staff.usd_hourly_rate || 0);
       const payable = payableByStaff[staff.id];
       const fin = EarningsLoader.computeEarningsRow({ hours, usdRate, fx, payable });
+      if (!fin.missing) {
+        const al = allowanceByStaff[staff.id] || { php: 0, detail: '' };
+        fin.hourlyVsph = fin.vsph; fin.allowance = al.php; fin.allowanceDetail = al.detail;
+        fin.vsph = fin.hourlyVsph + al.php; fin.roi = fin.vsph - fin.payable;
+        fin.margin = fin.vsph === 0 ? null : (fin.roi / fin.vsph) * 100;
+      }
       return { staffId: staff.id, hireDate: staff.hire_date, name: staff.full_name, client: (clients.find(c => c.id === staff.client_id) || {}).name || '\u2014', row: fin };
     });
     renderEarningRows(egRows);
@@ -6796,6 +6898,105 @@ async function downloadClientTimesheetXlsx(){
 
 </script>
 <script>
+/* ===== Collected 13th month (YTD & YEB) [Rendy, 2026-10-22] =====
+   Per staff, per bi-weekly client invoice whose period has ENDED (a sent invoice counts as
+   collected): the 13th-month line the Client Invoice computes for that staff member —
+   full per-staff amount if employed the whole cutoff, else (amount ÷ 10) × days present
+   (days with payable hours, max 10). Invoice per-staff override wins; a legacy invoice-total
+   override is split evenly across that client's staff on the invoice. Converted at the FX
+   saved for the payout cutoff containing the invoice END date, ₱60 if none saved.
+   Before portal invoices (Jan 1 or hire date → Aug 18, 2026) the amount is ASSUMED collected
+   at the current client rate: full per period, partial first period = (amount ÷ 10) × weekdays
+   employed (max 10). Clients without 13th month on their invoice settings = not billed. */
+const C13=(function(){
+  const FX_FALLBACK=60, DIV=10;
+  let byStaff={};
+  const r2=n=>Math.round(n*100)/100;
+  const money=v=>'₱'+Number(v||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const usd=v=>'$'+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  function weekdays(a,b){let n=0;for(let d=a;d<=b;d=addDays(d,1)){const w=new Date(d+'T00:00:00Z').getUTCDay();if(w>=1&&w<=5)n++;}return n;}
+  async function attach(rows,year,range){
+    byStaff={};
+    const yStart=`${year}-01-01`, yEnd=`${year}-12-31`, today=phDate(new Date());
+    const [setRes,invRes,fxRes]=await Promise.all([
+      sb.from('client_invoice_settings').select('*'),
+      sb.from('client_invoices').select('*').gte('period_end',yStart).lte('period_end',yEnd),
+      sb.from('fx_rates').select('*')
+    ]);
+    if(setRes.error&&!isMissingTableError(setRes.error)) throw new Error('client_invoice_settings: '+setRes.error.message);
+    if(invRes.error&&!isMissingTableError(invRes.error)) throw new Error('client_invoices: '+invRes.error.message);
+    if(fxRes.error) throw new Error('fx_rates: '+fxRes.error.message);
+    const settingsBy={};(setRes.data||[]).forEach(r=>settingsBy[r.client_id]=r);
+    const invBy={};(invRes.data||[]).forEach(r=>invBy[`${r.client_id}|${r.period_start}|${r.period_end}`]=r);
+    const fxBy={};(fxRes.data||[]).forEach(r=>fxBy[r.cutoff_date]=Number(r.rate));
+    // ended invoice periods (portal era) whose END falls in the year
+    const invPeriods=[];
+    for(let p=biweeklyPeriod(BIWEEKLY_ANCHOR);p.end<today&&p.end<=yEnd;p=biweeklyPeriod(addDays(p.end,1))){ if(p.end>=yStart) invPeriods.push(p); }
+    // assumed pre-portal periods (before the anchor) inside the year
+    const assumed=[];
+    if(yStart<BIWEEKLY_ANCHOR){ for(let p=biweeklyPeriod(addDays(BIWEEKLY_ANCHOR,-1));p.end>=yStart;p=biweeklyPeriod(addDays(p.start,-1))) assumed.unshift(p); }
+    rows.forEach(row=>{
+      const s=row.staff, st=settingsBy[s.client_id], clientNm=row.client?.name||'—';
+      const res={total:0,lines:[],billed:!!(st&&st.thirteenth_month_on),client:clientNm,invoices:0,assumed:0};
+      row.c13=res; byStaff[s.id]={row,res};
+      if(!res.billed) return;
+      const base=Number(st.thirteenth_month_amount||0);
+      const fxFor=end=>{const c=nextCutoffOnOrAfter(end),v=fxBy[c];return Number.isFinite(v)&&v>0?{fx:v,src:`FX saved for ${fmtNice(c)} cutoff`}:{fx:FX_FALLBACK,src:'default ₱60 (no FX saved)'};};
+      const hire=ytdLikeIso(s.hire_date)?s.hire_date:null;
+      assumed.forEach(p=>{
+        const lo=[p.start,yStart,hire||p.start].sort().pop(); if(lo>p.end) return;
+        const full=lo===p.start, days=Math.min(DIV,weekdays(lo,p.end)); if(!full&&!days) return;
+        const amtUsd=r2(full?base:base/DIV*days), f={fx:FX_FALLBACK,src:'default ₱60 (assumed)'};
+        res.lines.push({start:p.start,end:p.end,usd:amtUsd,type:full?'Assumed · full':`Assumed · prorated ${days} weekday${days===1?'':'s'}`,fx:f.fx,fxSrc:f.src,php:r2(amtUsd*f.fx),assumed:true});
+        res.assumed++;
+      });
+      invPeriods.forEach(p=>{
+        const empDays=civEmploymentDays(s,p.start,p.end); if(empDays<=0) return;
+        const inv=invBy[`${s.client_id}|${p.start}|${p.end}`];
+        const perOv=inv&&inv.thirteenth_month_per_staff_override!==null&&inv.thirteenth_month_per_staff_override!==undefined;
+        const legacy=!perOv&&inv&&inv.thirteenth_month_override!==null&&inv.thirteenth_month_override!==undefined;
+        const per=perOv?Number(inv.thirteenth_month_per_staff_override):base;
+        let amtUsd,type;
+        if(legacy){
+          const cnt=(staffList||[]).filter(x=>x.client_id===s.client_id&&civEmploymentDays(x,p.start,p.end)>0).length||1;
+          amtUsd=r2(Number(inv.thirteenth_month_override)/cnt); type=`Invoice total override ÷ ${cnt} staff`;
+        }else if(empDays>=civCalendarDays(p.start,p.end)){ amtUsd=r2(per); type='Full'; }
+        else{
+          let present=0; for(let d=p.start;d<=p.end;d=addDays(d,1)) if(Number((row.hoursByDay||{})[d]||0)>0) present++;
+          present=Math.min(DIV,present); amtUsd=r2(per/DIV*present); type=`Prorated · ${present} day${present===1?'':'s'} present × (${usd(per)} ÷ ${DIV})`;
+        }
+        if(!amtUsd) return;
+        const f=fxFor(p.end);
+        res.lines.push({start:p.start,end:p.end,usd:amtUsd,type,fx:f.fx,fxSrc:f.src,php:r2(amtUsd*f.fx),assumed:false});
+        res.invoices++;
+      });
+      res.total=r2(res.lines.reduce((a,l)=>a+l.php,0));
+    });
+  }
+  function ytdLikeIso(v){return /^\d{4}-\d{2}-\d{2}$/.test(String(v||''));}
+  function cellHtml(r){
+    const c=r.c13; if(!c) return '<span class="muted">—</span>';
+    if(c.error) return '<span class="pill p-bad" title="'+escapeHtml(c.error)+'">Could not load</span>';
+    if(!c.billed) return `<span class="muted">—</span><span class="c13-sub">not billed (${escapeHtml(c.client)})</span>`;
+    const bits=[]; if(c.invoices) bits.push(`${c.invoices} invoice${c.invoices===1?'':'s'}`); if(c.assumed) bits.push(`${c.assumed} assumed`);
+    return `<button class="c13-btn mono" data-c13-open="${escapeHtml(r.staff.id)}" title="Open the per-invoice breakdown">${money(c.total)}</button><span class="c13-sub">${bits.join(' + ')||'no ended invoices yet'}</span>`;
+  }
+  function openDetail(staffId){
+    const hit=byStaff[staffId]; if(!hit) return;
+    const {row,res}=hit;
+    let ov=document.getElementById('c13Overlay');
+    if(!ov){ov=document.createElement('div');ov.id='c13Overlay';ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:80;padding:16px';ov.onclick=e=>{if(e.target===ov)ov.remove();};document.body.appendChild(ov);}
+    const trs=res.lines.map(l=>`<tr${l.assumed?' style="opacity:.85"':''}><td>${fmtNice(l.start)} – ${fmtNice(l.end)}</td><td class="muted">${escapeHtml(res.client)}</td><td class="mono" style="text-align:right">${usd(l.usd)}</td><td>${l.assumed?'<span class="pill" style="font-size:10px;padding:2px 8px;background:rgba(242,184,75,.15);color:var(--gold)">Assumed</span> ':''}${escapeHtml(l.type.replace(/^Assumed · /,''))}</td><td class="mono">${l.fx.toFixed(2)}<div class="muted" style="font-size:10.5px;font-family:inherit">${escapeHtml(l.fxSrc)}</div></td><td class="mono" style="text-align:right">${money(l.php)}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">No 13th month collected yet this year.</td></tr>';
+    ov.innerHTML=`<div class="card" style="max-width:900px;width:100%;max-height:86vh;overflow:auto"><div class="hdr"><h3 style="font-size:15px">${escapeHtml(row.staff.full_name)} — Collected 13th month</h3><button class="btn btn-ghost" id="c13Close">✕</button></div>
+      <div class="sticky-scroll"><table><thead><tr><th>Invoice period</th><th>Client</th><th style="text-align:right">13th billed (USD)</th><th>Type</th><th>FX used</th><th style="text-align:right">PHP</th></tr></thead><tbody>${trs}
+      <tr><td colspan="5" style="font-weight:700;color:var(--gold);border-top:1px solid var(--line)">Total collected ${escapeHtml(String(ytdCurrentYearSafe()))}</td><td class="mono" style="text-align:right;font-weight:700;color:var(--gold);border-top:1px solid var(--line)">${money(res.total)}</td></tr></tbody></table></div>
+      <div class="muted" style="font-size:11.5px;margin-top:8px;line-height:1.5">A sent invoice counts as collected; the current invoice counts once its period ends. Assumed rows (Jan 1 or hire date → Aug 18, 2026) use the current client 13th-month rate and ₱60 FX. New or termed staff on real invoices: (rate ÷ 10) × days present, same as the Client Invoice.</div></div>`;
+    document.getElementById('c13Close').onclick=()=>ov.remove();
+  }
+  function ytdCurrentYearSafe(){try{return $('ytdYear').value;}catch(_){return '';}}
+  return {attach,cellHtml,open:openDetail};
+})();
+
 /* YTD Attendance / Year End Bonus (admin-only; see migration delivered with this file). */
 (function(){
   'use strict';
@@ -7059,7 +7260,7 @@ async function downloadClientTimesheetXlsx(){
       const bonus=missingRateDays?null:ytdBonus(eligibleEarnings),absences=totalCounts.pa+totalCounts.out;
       const currentRateRow=perDateRate(employed.valid?employed.end:end),currentMonthlyRate=currentRateRow?Number(currentRateRow.monthly_rate):null;
       const absenceDeduction=currentRateRow?ytdAbsenceDeduction(absences,currentMonthlyRate):null,lessAbsences=ytdLessAbsences(bonus,absenceDeduction);
-      return{staff,client,workingDays:totalWorkingDays,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,pa:totalCounts.pa,sl:autoCounts.sl,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus,absences,currentMonthlyRate,absenceDeduction,lessAbsences,missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate,outDates,dayTypes,employed,recordedDates:recordedDatesByStaff[staff.id]||new Set()};
+      return{staff,client,workingDays:totalWorkingDays,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,pa:totalCounts.pa,sl:autoCounts.sl,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus,absences,currentMonthlyRate,absenceDeduction,lessAbsences,missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate,outDates,dayTypes,employed,hoursByDay,recordedDates:recordedDatesByStaff[staff.id]||new Set()};
     }).sort((a,b)=>{
       const ad=ytdIsIso(a.staff.hire_date)?a.staff.hire_date:'9999-12-31',bd=ytdIsIso(b.staff.hire_date)?b.staff.hire_date:'9999-12-31';
       return ad.localeCompare(bd)||String(a.staff.full_name||'').localeCompare(String(b.staff.full_name||''));
@@ -7068,9 +7269,12 @@ async function downloadClientTimesheetXlsx(){
   function ytdSummaryHtml(rows){
     const totalOut=rows.reduce((n,r)=>n+r.out,0),totalPa=rows.reduce((n,r)=>n+r.pa,0),paid=rows.reduce((n,r)=>n+r.pto+r.pch,0),incomplete=rows.some(r=>r.bonus===null),historyMissing=rows.some(r=>!r.attendanceCountsComplete);
     const lessIncomplete=rows.some(r=>r.lessAbsences===null),less=lessIncomplete?null:rows.reduce((n,r)=>n+r.lessAbsences,0);
+    const c13=rows.reduce((n,r)=>n+Number(r.c13?.total||0),0);
     const bonus=incomplete?null:rows.reduce((n,r)=>n+r.bonus,0),paidValue=historyMissing?`Partial · ${paid}`:String(paid),absenceValue=historyMissing?`Partial · ${totalPa+totalOut}`:String(totalPa+totalOut);
-    const stats=[['Staff shown',String(rows.length)],['Paid leave days',paidValue],['Unpaid absences (PA/SL + OUT)',absenceValue],['Year End Bonus estimate',bonus===null?'Incomplete':ytdMoney(bonus)],['Less Absences total',less===null?'Incomplete':(historyMissing?`Partial · ${ytdMoney(less)}`:ytdMoney(less))]];
-    $('ytdSummary').innerHTML=stats.map(([label,value])=>`<div class="stat"><div class="k">${ytdEscape(label)}</div><div class="v" style="font-size:${(label.includes('Bonus')||label.includes('Less Absences'))?'17px':'20px'}">${ytdEscape(value)}</div></div>`).join('');
+    const stats=[['Staff shown',String(rows.length)],['Paid leave days',paidValue],['Unpaid absences (PA/SL + OUT)',absenceValue],['Collected 13th month',ytdMoney(c13)],['Year End Bonus estimate',bonus===null?'Incomplete':ytdMoney(bonus)],['Less Absences total',less===null?'Incomplete':(historyMissing?`Partial · ${ytdMoney(less)}`:ytdMoney(less))]];
+    const gap=bonus===null?null:c13-bonus;
+    const subFor=label=>label==='Collected 13th month'?`<div class="muted" style="font-size:11px;margin-top:4px;line-height:1.4">13th billed on client invoices at each invoice's FX${gap===null?'':`<br>Collected − estimate: <b style="color:${gap<0?'var(--rose)':'var(--teal)'}">${gap<0?'−':'+'}${ytdMoney(Math.abs(gap))}</b>`}</div>`:'';
+    $('ytdSummary').innerHTML=stats.map(([label,value])=>`<div class="stat"${label==='Collected 13th month'?' style="border-color:rgba(242,184,75,.45)"':''}><div class="k">${ytdEscape(label)}</div><div class="v" style="font-size:${(label.includes('Bonus')||label.includes('Less Absences')||label.includes('13th'))?'17px':'20px'}${label==='Collected 13th month'?';color:var(--gold)':''}">${ytdEscape(value)}</div>${subFor(label)}</div>`).join('');
   }
   function ytdPopulateClientFilter(rows){
     const select=$('ytdClientFilter');if(!select)return;
@@ -7096,11 +7300,12 @@ async function downloadClientTimesheetXlsx(){
     $('ytdTable').innerHTML=rows.length?rows.map(r=>`<tr>
       <td class="sticky-col ytd-staff-cell"><b>${ytdEscape(r.staff.full_name)}</b>${window.Reliability?window.Reliability.pillHtml(r.staff.id):''}${r.missingHireDate?'<div class="pill p-bad" style="margin-top:4px">Hire date needed for OUT</div>':''}${Number(year)<=2026&&!r.attendanceCountsComplete?'<div class="pill p-bad" style="margin-top:4px">Historical counts needed</div>':''}${ytdRenderRates(r.staff,rates,year)}${ytdAttendanceEditorHtml(r.staff,r,year)}</td>
       <td class="mono">${r.workingDays}</td>${YTD_COUNT_FIELDS.map(k=>`<td class="mono" title="${!r.attendanceCountsComplete?`Automatic portion only: ${r.autoCounts[k]}; enter historical counts to complete`:''}">${r.attendanceCountsComplete?r[k]:(r.autoCounts[k]>0?r.autoCounts[k]:'—')}${k==='pa'&&r.sl?`<div class="muted" style="font-size:10.5px" title="Sick Leave days, counted with PA">incl. ${r.sl} SL</div>`:''}</td>`).join('')}
-      <td class="mono">${r.missingRateDays?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.eligibleEarnings)}</td><td class="mono" title="${r.missingRateDays?`${r.missingRateDays} day(s) have no applicable rate period`:''}">${r.bonus===null?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.bonus)}</td><td class="mono" title="${r.lessAbsences===null?'Rate needed':`(PA ${r.pa} + OUT ${r.out}) × ₱${Number(r.currentMonthlyRate).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})} ÷ 22 ÷ 12${r.attendanceCountsComplete?'':' · automatic counts only; enter historical counts to complete'}`}">${r.lessAbsences===null?'<span class="pill p-bad">Rate needed</span>':`<b>${ytdMoney(r.lessAbsences)}</b><span class="ytd-less-ded">− ${ytdMoney(r.absenceDeduction)} (${r.absences} day${r.absences===1?'':'s'}${r.attendanceCountsComplete?'':', partial'})</span>`}</td>
-    </tr>`).join(''):`<tr><td colspan="10" class="muted">No active employees found for this client.</td></tr>`;
+      <td class="mono">${r.missingRateDays?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.eligibleEarnings)}</td><td class="mono">${C13.cellHtml(r)}</td><td class="mono" title="${r.missingRateDays?`${r.missingRateDays} day(s) have no applicable rate period`:''}">${r.bonus===null?'<span class="pill p-bad">Rate needed</span>':ytdMoney(r.bonus)}</td><td class="mono" title="${r.lessAbsences===null?'Rate needed':`(PA ${r.pa} + OUT ${r.out}) × ₱${Number(r.currentMonthlyRate).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})} ÷ 22 ÷ 12${r.attendanceCountsComplete?'':' · automatic counts only; enter historical counts to complete'}`}">${r.lessAbsences===null?'<span class="pill p-bad">Rate needed</span>':`<b>${ytdMoney(r.lessAbsences)}</b><span class="ytd-less-ded">− ${ytdMoney(r.absenceDeduction)} (${r.absences} day${r.absences===1?'':'s'}${r.attendanceCountsComplete?'':', partial'})</span>`}</td>
+    </tr>`).join(''):`<tr><td colspan="11" class="muted">No active employees found for this client.</td></tr>`;
     $('ytdTable').setAttribute('aria-live','polite');
     document.querySelectorAll('[data-ytd-save]').forEach(btn=>btn.onclick=()=>ytdSaveRates(btn.dataset.ytdSave));
     document.querySelectorAll('[data-ytd-count-save]').forEach(btn=>btn.onclick=()=>ytdSaveManualCounts(btn.dataset.ytdCountSave));
+    document.querySelectorAll('[data-c13-open]').forEach(btn=>btn.onclick=()=>C13.open(btn.dataset.c13Open));
     window.Reliability?.bindRows();
   }
   async function ytdRun(){
@@ -7108,7 +7313,7 @@ async function downloadClientTimesheetXlsx(){
     if(ytdBusy)return;ytdBusy=true;
     ytdComputedRows=[];ytdCurrentYear=null;ytdRows=[];
     {const rc=$('relChartCard');if(rc)rc.style.display='none';}
-    $('ytdRun').disabled=true;$('ytdRun').textContent='Loading…';$('ytdTable').innerHTML='<tr><td colspan="10" class="muted">Loading report data…</td></tr>';$('ytdSummary').innerHTML='';
+    $('ytdRun').disabled=true;$('ytdRun').textContent='Loading…';$('ytdTable').innerHTML='<tr><td colspan="11" class="muted">Loading report data…</td></tr>';$('ytdSummary').innerHTML='';
     try{
       const year=ytdSelectedYear(),range=ytdRangeForYear(year),people=staffList.filter(s=>s.active);
       if(!range.end||range.start>range.end)throw new Error('Selected year does not have a reportable date range.');
@@ -7118,6 +7323,7 @@ async function downloadClientTimesheetXlsx(){
       const [attendance,manualCounts]=await Promise.all([ytdLoadAttendance(range.start,range.end,people),ytdFetchManualCounts(people,year)]);
       const clientsById=Object.fromEntries(clients.map(c=>[c.id,c]));
       const rows=ytdComputeRows(people,clientsById,range,attendance,rates,manualCounts);
+      try{await C13.attach(rows,year,range);}catch(c13Err){console.error('Collected 13th',c13Err);rows.forEach(r=>r.c13={total:0,lines:[],error:c13Err.message});}
       try{await window.Reliability?.compute(rows,attendance,range,year);}catch(relErr){console.error('Reliability',relErr);}
       ytdCurrentYear=year;ytdComputedRows=rows;ytdPopulateClientFilter(rows);ytdApplyClientFilter();
       const unknown=rows.filter(r=>r.workdaysUninferable).length,missing=rows.filter(r=>r.missingRateDays).length,noHire=rows.filter(r=>r.missingHireDate).length,historyMissing=rows.filter(r=>!r.attendanceCountsComplete).length;
@@ -7129,7 +7335,7 @@ async function downloadClientTimesheetXlsx(){
       ytdStatus(msg,!!missing||!!historyMissing);
     }catch(e){
       ytdComputedRows=[];ytdCurrentYear=null;ytdRows=[];ytdPopulateClientFilter([]);
-      $('ytdTable').innerHTML='<tr><td colspan="10" class="muted">Report could not be calculated; no partial totals shown.</td></tr>';
+      $('ytdTable').innerHTML='<tr><td colspan="11" class="muted">Report could not be calculated; no partial totals shown.</td></tr>';
       $('ytdSummary').innerHTML='';ytdStatus(`Could not load a complete report: ${e.message}. Check the YTD rate and attendance-count migrations and data permissions, then rerun.`,true);
     }finally{ytdBusy=false;$('ytdRun').disabled=false;$('ytdRun').textContent='Run report';}
   }
@@ -7507,7 +7713,7 @@ async function downloadClientTimesheetXlsx(){
     const ex=extra||{};
     const lines=[],notIn=[];
     lines.push({label:'Total Contract Fee',sub:'22 days × 8 hrs',paid:'both',amount:monthly});
-    const nm=client?nightMinutesPerShift(client.shift_start,client.shift_end):null;
+    const nmT=client?shiftTimesFor(client):null; const nm=nmT?nightMinutesPerShift(nmT.start,nmT.end):null;
     if(nm===null)lines.push({label:'Extended-Hours Fee Differential (Pay)',sub:'no client shift on file',paid:'both',amount:0,muted:true});
     else lines.push({label:'Extended-Hours Fee Differential (Pay)',sub:'est.',paid:'both',amount:Math.round(nm/60*hourly*0.10*DAYS*100)/100});
     const scopeOverride=Number(ex.scope_amount||0)>0;
@@ -7548,7 +7754,7 @@ async function downloadClientTimesheetXlsx(){
     const sub=s=>s?` <span class="muted" style="font-size:12px">(${escapeHtml(s)})</span>`:'';
     const row=(l,amt,chipHtml)=>`<tr${l.muted?' class="muted"':''}><td>${escapeHtml(l.label)}${sub(l.sub)}</td><td>${chipHtml||''}</td><td class="mono" style="text-align:right">${amt}</td></tr>`;
     const sec=t=>`<tr><td colspan="3" style="color:var(--gold);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding-top:14px;border-bottom:none">${t}</td></tr>`;
-    const shift=client&&client.shift_start&&client.shift_end?`${client.shift_start.slice(0,5)} – ${client.shift_end.slice(0,5)} PHT`:null;
+    const shift=client&&client.shift_start&&client.shift_end?`${shiftLabelFor(client)} PHT`:null;
     return `<table style="margin-top:10px"><thead><tr><th>Item</th><th>Paid on</th><th style="text-align:right">Amount</th></tr></thead><tbody>
 ${sec('Every month')}
 ${c.lines.map(l=>row(l,money(l.amount),chip(l.paid))).join('')}
@@ -8158,7 +8364,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   }
   function setupMiniLayout(){
     const sec=$('v-punch'); if(!sec||$('bbMini')) return;
-    const L=sec.children[0], R=sec.children[1]; const brk=$('breaks')?.closest('.card');
+    const cols=[...sec.children].filter(c=>c.id!=='docTodoBanner'); const L=cols[0], R=cols[1]; const brk=$('breaks')?.closest('.card');
     if(!L||!R) return;
     if(brk) L.appendChild(brk);
     const box=document.createElement('div'); box.className='card bbm hide'; box.id='bbMini'; R.insertBefore(box,R.firstChild);
