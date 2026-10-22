@@ -8674,13 +8674,13 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       const autoWd=(emp.valid&&autoFrom!=null)?datesBetween(lo,emp.end).filter(isWeekday).length:0;
       E=autoWd-row.autoCounts.pto-row.autoCounts.pch;PA=row.autoCounts.pa;OUT=row.autoCounts.out;
     }
-    let excusedCount=0;
+    let excusedCount=0,slExcused=0;
     Object.keys(exc).forEach(d=>{
       if(d<range.start||d>range.end||!emp.valid||d<emp.start||d>emp.end||!isWeekday(d))return;
       if(dayTypes[d]==='pto'||dayTypes[d]==='pch')return;
       excusedCount++;
       if(recorded.has(d))return; // present that day: only its late/break is removed
-      if(inAuto(d)){E--; if(outDates.has(d))OUT--; else if(dayTypes[d]==='planned_absence'||dayTypes[d]==='sick_leave')PA--;}
+      if(inAuto(d)){E--; if(outDates.has(d))OUT--; else if(dayTypes[d]==='planned_absence'||dayTypes[d]==='sick_leave'){PA--; if(dayTypes[d]==='sick_leave')slExcused++;}}
       else if(!countsMissing){E--; if(manualOut>0){manualOut--;OUT--;}else if(manualPa>0){manualPa--;PA--;}}
     });
     E=Math.max(0,E);PA=Math.max(0,PA);OUT=Math.max(0,OUT);
@@ -8714,7 +8714,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     });
     return{staffId:staff.id,name:staff.full_name,clientName:client?.name||'Unassigned',year,
       score:c.score,band:band(c.score).name,partial:!!c.partial,countsMissing,missingHireDate:!!row.missingHireDate,
-      attendance:{pct:attPct==null?null:r2(attPct),score:c.att??null,expected:E,present:countsMissing?row.autoCounts.days_present:row.days_present,pto:countsMissing?row.autoCounts.pto:row.pto,pch:countsMissing?row.autoCounts.pch:row.pch,pa:PA,out:OUT,excused:excusedCount},
+      attendance:{pct:attPct==null?null:r2(attPct),score:c.att??null,expected:E,present:countsMissing?row.autoCounts.days_present:row.days_present,pto:countsMissing?row.autoCounts.pto:row.pto,pch:countsMissing?row.autoCounts.pch:row.pch,pa:PA,out:OUT,excused:excusedCount,workingDays:Number(row.workingDays)||0,sl:Math.max(0,Math.min(PA,(Number(row.sl)||0)-slExcused)),from:emp.valid&&emp.start>range.start?emp.start:range.start,to:range.end},
       punctuality:{late,per20:c.latePer20??null,score:c.punct??null},
       breaks:{over,per20:c.overPer20??null,score:c.brk??null},
       trackedDays:trackedDates.length,firstTracked:trackedDates[0]||null,months,computedAt:new Date().toISOString()};
@@ -8902,6 +8902,23 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     },true);
   }
 
+  /* ---------- YTD attendance tiles (2026-10-22) ---------- */
+  function ytdTilesHtml(r){
+    const att=r.attendance||{},has=att.workingDays!=null,sl=has?(att.sl||0):null,pa=has?Math.max(0,(att.pa||0)-(att.sl||0)):(att.pa||0);
+    const sd=iso=>{try{return new Date(iso+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'});}catch(e){return iso;}};
+    const yStart=`${r.year}-01-01`,from=att.from||yStart,to=att.to||(r.computedAt?phDate(new Date(r.computedAt)):'');
+    const t=(k,v,sub,c)=>`<div class="ry-t ry-${c}"><div class="ry-k">${k}</div><div class="ry-v mono">${v}</div><div class="ry-s">${sub}</div></div>`;
+    return `<div class="ry-h"><span>${esc(r.year)} attendance so far</span><span class="muted">${esc(sd(from))}${to?` – ${esc(sd(to))}`:''}</span></div><div class="ry-grid">
+      ${t('Total working days',has?att.workingDays:'—',from>yStart?`Mon–Fri since you started (${esc(sd(from))})`:'Mon–Fri since Jan 1','n')}
+      ${t('Days present',att.present??'—','Days you logged in','g')}
+      ${t('PTO',att.pto??0,'Paid · never counts against you','p')}
+      ${t('PCH',att.pch??0,'Paid holiday · never counts against you','p')}
+      ${t('PA',pa,has?'Planned absence · unpaid':'Planned absence + sick leave · unpaid','w')}
+      ${t('SL',sl==null?'—':sl,'Sick leave · unpaid','w')}
+      ${t('Unplanned absences (OUT)',att.out??0,'No log-in, no leave filed · counts ×2','b')}
+      ${t('Late log-ins · over-break min',`${r.punctuality?.late??0} · ${r.breaks?.over??0}`,r.firstTracked?`Since ${esc(sd(r.firstTracked))} (portal-tracked days)`:'Portal-tracked days','n')}
+    </div>`;
+  }
   /* ---------- the card (staff profile + admin preview) ---------- */
   function cardHtml(r){
     const b=band(r.score),pct=r.score==null?0:Math.max(0,(r.score-1)/4*100);
@@ -8916,7 +8933,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       ${met('Punctuality · 25%',`Late log-ins (over ${REL_LATE_GRACE_MIN} min) per 20 days`,r.punctuality.per20==null?'—':r.punctuality.per20.toFixed(1),r.punctuality.score,sc(r.punctuality.score),r.partial)}
       ${met('Breaks · 15%','Over-break minutes per 20 days',r.breaks.per20==null?'—':`${r.breaks.per20.toFixed(0)} min`,r.breaks.score,sc(r.breaks.score),r.partial)}</div></div>
       ${r.partial?`<div class="note" style="margin-top:10px">Only ${r.trackedDays} day${r.trackedDays===1?'':'s'} tracked so far. Punctuality and breaks start counting once you have ${REL_MIN_TRACKED}, so for now your score is attendance only.</div>`:''}
-      <div class="rel-facts">${fact('Expected days',att.expected)}${fact('Days present',att.present)}${fact('PTO + holidays (never count against you)',att.pto+att.pch)}${fact(`Missed (PA ${att.pa} + OUT ${att.out} counted ×2)`,att.pa+2*att.out)}${fact('Late log-ins · over-break min',`${r.punctuality.late} · ${r.breaks.over}`)}</div>
+      ${ytdTilesHtml(r)}
       <div class="muted" style="font-size:12px;margin-top:12px">Monthly score</div><div class="rel-months">${months}</div>
       <div class="note" style="margin-top:10px">${r.year===2026?'Jan–Sep 27 attendance comes from the old records, so there is no monthly detail for those months (striped). ':''}Late log-ins and breaks only use days the portal tracked${r.firstTracked?` (since ${esc(fmtNice(r.firstTracked))})`:''}. Something wrong, like an outage or typhoon day? Tell your PM; they can excuse the date.${att.excused?` ${att.excused} date${att.excused===1?' is':'s are'} already excused.`:''}</div>
       <details style="margin-top:8px;font-size:12px" class="muted"><summary>How it's calculated</summary><div style="margin-top:6px;line-height:1.5">Attendance = (expected days − PA − 2×OUT) ÷ expected days, where expected = Mon–Fri working days − PTO − holidays − excused days. Late = logged in more than ${REL_LATE_GRACE_MIN} min after shift start. Over-break = minutes over each break's allowance. Score = 60% attendance + 25% punctuality + 15% breaks. Updated ${esc(new Date(r.computedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}))}.</div></details>`;
@@ -8980,6 +8997,11 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   .rel-lbl b{display:block;font-size:13px}.rel-lbl span{font-size:11px;color:var(--muted)}.rel-mtrk{height:9px;background:var(--card2);border-radius:9px;overflow:hidden}.rel-mtrk div{height:100%;background:var(--rc);border-radius:9px}
   .rel-v{text-align:right;font-size:14.5px}.rel-v small{display:block;font-size:10.5px;color:var(--muted)}
   .rel-facts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:12px}
+  .ry-h{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin:14px 0 6px}.ry-h span:first-child{font-weight:600}
+  .ry-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .ry-t{background:var(--card2);border-radius:12px;padding:10px 12px;border-left:3px solid var(--rc);min-width:0}
+  .ry-k{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}.ry-v{font-size:20px;margin-top:3px;color:var(--rc)}.ry-s{font-size:10.5px;color:var(--muted);margin-top:2px;line-height:1.3}
+  .ry-n{--rc:var(--ink);border-left-color:var(--slate)}.ry-g,.ry-p{--rc:var(--teal)}.ry-w{--rc:var(--gold)}.ry-b{--rc:var(--rose)}
   .rel-months{display:grid;grid-template-columns:repeat(12,1fr);gap:5px;height:72px;margin-top:5px}
   .rel-mo{display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;gap:3px;min-width:0}.rel-mo span{font-size:10px;color:var(--muted);text-align:center}
   .rel-mo-bar{background:color-mix(in srgb,var(--rc) 60%,transparent);border-radius:4px 4px 0 0;flex:0 0 auto;max-height:52px}
@@ -9003,7 +9025,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   .rel-you{font-size:10px;font-weight:700;color:var(--bg);background:var(--rc);border-radius:999px;padding:1px 7px;margin-left:6px}
   .rel-next{margin-top:10px;font-size:12px;background:var(--card);border-radius:8px;padding:8px 10px;line-height:1.4}.rel-next b{color:var(--teal)}
   @media(max-width:720px){.rel-pop{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;max-height:85vh;overflow:auto;border-radius:18px 18px 0 0;padding:14px 16px 22px;z-index:90;box-shadow:0 0 0 100vmax rgba(6,8,12,.7)}.rel-pop:before{display:none}.rel-grab{display:block;width:40px;height:4px;border-radius:3px;background:#3a3f52;margin:0 auto 10px}.rel-pop-x{top:14px}}
-  @media(max-width:720px){.rel-wrap{grid-template-columns:1fr}.rel-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-met{grid-template-columns:110px 1fr 64px}.rel-bar{grid-template-columns:28px 100px 1fr 40px 50px;font-size:12px}.rel-two,.rel-grid{grid-template-columns:1fr}.rel-grid{grid-auto-flow:row;grid-template-rows:none!important}}`;
+  @media(max-width:720px){.ry-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-wrap{grid-template-columns:1fr}.rel-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-met{grid-template-columns:110px 1fr 64px}.rel-bar{grid-template-columns:28px 100px 1fr 40px 50px;font-size:12px}.rel-two,.rel-grid{grid-template-columns:1fr}.rel-grid{grid-auto-flow:row;grid-template-rows:none!important}}`;
   document.head.appendChild(css);
 
   window.Reliability={compute,setShown,pillHtml,bindRows,renderChart,initProfile,preview,_interp:interp,_attScore:attScore,_lateScore:lateScore,_brkScore:brkScore,_combine:combine,_byStaff:()=>relByStaff};
