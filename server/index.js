@@ -502,6 +502,121 @@ app.post('/api/slack/force-logout', async (req, res) => {
 });
 
 
+// --- 10. Slack: staff log-in / log-out notices -> SMB general (added 2026-10-22) --
+// Times come from the SERVER-saved shift row (never the browser clock). One post per
+// event: login:<shift_id>, logout:<shift_id> (delivery log dedupes across refreshes).
+// Only staff-initiated (manual) log-outs post here; auto 10h + admin/system log-outs
+// keep their existing alerts.
+const SHIFT_TZ_CLIENT = 'America/New_York';      // all clients are US Eastern
+const SHIFT_TZ_REF_DATE = '2026-10-01';          // saved client shift times = US summer-time (EDT) values
+const SHIFT_DST_AUTO_FROM = '2026-10-01';        // same switch-on date as the portal (index.html)
+const EARLY_LOGIN_GRACE_MIN_SRV = 60;
+function tzOffsetMin(tz, at){
+  const p={};new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})
+    .formatToParts(at).forEach(x=>p[x.type]=x.value);
+  const asUtc=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second);
+  return Math.round((asUtc-at.getTime())/60000);
+}
+// Auto-DST: when US clocks fall back (Nov), the same US start time is 1h later in PHT.
+function dstShiftMin(at){
+  return tzOffsetMin(SHIFT_TZ_CLIENT,new Date(SHIFT_TZ_REF_DATE+'T12:00:00Z'))-tzOffsetMin(SHIFT_TZ_CLIENT,at);
+}
+function phIsoDate(at){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'}).format(at);}
+function addIsoDays(iso,n){const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
+function srvShiftWindow(client,dateIso){
+  if(!client||!client.shift_start||!client.shift_end) return null;
+  const pad=t=>String(t).length===5?t+':00':String(t);
+  let start=new Date(dateIso+'T'+pad(client.shift_start)+'+08:00');
+  let end=new Date(dateIso+'T'+pad(client.shift_end)+'+08:00');
+  if(end<=start) end=new Date(end.getTime()+86400000);
+  const shiftMs=(dateIso<SHIFT_DST_AUTO_FROM?0:dstShiftMin(start))*60000;  // dates before the switch-on stay exactly as before
+  return {start:new Date(start.getTime()+shiftMs),end:new Date(end.getTime()+shiftMs)};
+}
+function nearestShiftWindow(client,at){
+  const d=phIsoDate(at);
+  const c=[addIsoDays(d,-1),d,addIsoDays(d,1)].map(x=>srvShiftWindow(client,x)).filter(Boolean);
+  if(!c.length) return null;
+  return c.reduce((a,b)=>Math.abs(at-a.start)<=Math.abs(at-b.start)?a:b);
+}
+function phtClock(value){
+  return new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Manila',hour:'numeric',minute:'2-digit',hour12:true}).format(new Date(value));
+}
+function durText(min){min=Math.max(0,Math.round(min));const h=Math.floor(min/60),m=min%60;return h?`${h}h ${m}m`:`${m}m`;}
+function noticePayload(lines,fallback){
+  return {text:safeSlack(fallback,2500),blocks:lines.filter(Boolean).map(t=>({type:'section',text:{type:'mrkdwn',text:t}}))};
+}
+async function shiftNoticeContext(req,res){
+  const caller=await requireActiveUser(req,res); if(!caller) return null;
+  const shiftId=String(req.body?.shift_id||'');
+  if(!uuidRe.test(shiftId)){res.status(400).json({error:'Valid shift_id required.'});return null;}
+  const {data:shift,error}=await admin.from('shifts').select('id, staff_id, login_at, logout_at, logout_reason').eq('id',shiftId).single();
+  if(error||!shift){res.status(404).json({error:'Shift not found.'});return null;}
+  if(shift.staff_id!==caller.user.id){res.status(403).json({error:'You can only notify your own shift.'});return null;}
+  let client=null;
+  if(caller.row.client_id){
+    const {data:c}=await admin.from('clients').select('id, name, shift_start, shift_end').eq('id',caller.row.client_id).maybeSingle();
+    client=c||null;
+  }
+  const win=client?nearestShiftWindow(client,new Date(shift.login_at)):null;
+  // Other shifts of this staff in the same shift-day (window start - 60 min grace .. window end), or last 12h if no client
+  const from=win?new Date(win.start.getTime()-EARLY_LOGIN_GRACE_MIN_SRV*60000):new Date(new Date(shift.login_at).getTime()-12*3600000);
+  const to=win?win.end:new Date(new Date(shift.login_at).getTime()+12*3600000);
+  const {data:sameDay,error:sdErr}=await admin.from('shifts').select('id, login_at, logout_at')
+    .eq('staff_id',shift.staff_id).gte('login_at',from.toISOString()).lte('login_at',to.toISOString()).order('login_at',{ascending:true});
+  if(sdErr) throw sdErr;
+  return {caller,shift,client,win,sameDay:sameDay||[],
+    name:safeSlack(caller.row.full_name||'Staff',120),clientName:safeSlack(client?.name||'No client',120),
+    NAME:safeSlack(String(caller.row.full_name||'Staff').toUpperCase(),120),CLIENT:safeSlack(String(client?.name||'No client').toUpperCase(),120)};
+}
+
+app.post('/api/slack/login', async (req, res) => {
+  try{
+    const ctx=await shiftNoticeContext(req,res); if(!ctx) return;
+    const {shift,win,sameDay,name,clientName,NAME,CLIENT}=ctx;
+    const login=new Date(shift.login_at);
+    const earlier=sameDay.filter(s=>s.id!==shift.id&&new Date(s.login_at)<login);
+    let payload;
+    if(earlier.length){
+      payload=noticePayload([`↩️ _${name} (${clientName}) logged back in · ${phtClock(login)} PHT_`],`${name} (${clientName}) logged back in · ${phtClock(login)} PHT`);
+    }else{
+      const lateMin=win?Math.floor((login-win.start)/60000):0;
+      const shiftTxt=win?` · Shift ${phtClock(win.start)}–${phtClock(win.end)} PHT`:'';
+      payload=noticePayload([
+        `🎉 *${NAME}* of *${CLIENT}* HAS LOGGED IN for today's awesome shift!\n🕘 Log-in time: *${phtClock(login)} PHT*${shiftTxt}`,
+        lateMin>=1?`⏰ _Late ${lateMin} min si *${name}* of *${clientName}*, I hope you are okay and that your day gets better._`:''
+      ],`${name} of ${clientName} HAS LOGGED IN for today's awesome shift! Log-in time: ${phtClock(login)} PHT`+(lateMin>=1?` · Late ${lateMin} min`:''));
+    }
+    const result=await sendSlackOnce({eventKey:`login:${shift.id}`,destination:'SMB general',eventType:'activity',entityId:shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
+    res.json({ok:true,...result});
+  }catch(e){console.error('Slack login notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
+});
+
+app.post('/api/slack/logout', async (req, res) => {
+  try{
+    const ctx=await shiftNoticeContext(req,res); if(!ctx) return;
+    const {shift,win,sameDay,name,clientName,NAME,CLIENT}=ctx;
+    if(!shift.logout_at) return res.status(409).json({error:'Shift is not closed yet.'});
+    if(shift.logout_reason&&shift.logout_reason!=='manual') return res.json({ok:true,sent:false,skipped:'not a manual log-out'});
+    const out=new Date(shift.logout_at);
+    const leftMin=win?Math.floor((win.end-out)/60000):0;
+    let payload;
+    if(win&&leftMin>=1){
+      payload=noticePayload([
+        `🚪 *${NAME}* of *${CLIENT}* HAS LOGGED OUT.\n🕘 Log-out time: *${phtClock(out)} PHT* · Shift ends ${phtClock(win.end)} PHT`,
+        `⚠️ *${durText(leftMin)} before shift end* — can someone reach out to ${name}?`
+      ],`${name} of ${clientName} HAS LOGGED OUT at ${phtClock(out)} PHT — ${durText(leftMin)} before shift end`);
+    }else{
+      const total=sameDay.filter(s=>s.logout_at).reduce((m,s)=>m+Math.max(0,(new Date(s.logout_at)-new Date(s.login_at))/60000),0);
+      payload=noticePayload([
+        `👋 *${NAME}* of *${CLIENT}* has logged out. Shift done — salamat!\n🕘 Log-out time: *${phtClock(out)} PHT* · Total logged today: *${durText(total)}*`
+      ],`${name} of ${clientName} has logged out at ${phtClock(out)} PHT. Total logged today: ${durText(total)}`);
+    }
+    const result=await sendSlackOnce({eventKey:`logout:${shift.id}`,destination:'SMB general',eventType:'activity',entityId:shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
+    res.json({ok:true,...result});
+  }catch(e){console.error('Slack logout notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
+});
+
+
 // ============================================================
 // SMB VS PORTAL — document storage (Supabase Storage) + signatures
 // Switched from Google Drive on 2026-09-05: the destination folder lived in
