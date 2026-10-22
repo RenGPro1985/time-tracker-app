@@ -588,6 +588,7 @@ button.btn{padding:7px 12px;font-size:12px}
 
     <!-- ---------- PUNCH CLOCK ---------- -->
     <section id="v-punch" class="grid" style="grid-template-columns:1.35fr .95fr">
+      <div id="docTodoBanner" class="hide" style="grid-column:1/-1;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:linear-gradient(90deg,rgba(226,104,95,.18),rgba(227,166,62,.10));border:1px solid rgba(226,104,95,.45);border-radius:14px;padding:12px 16px"></div>
       <div class="grid" style="gap:16px">
         <div class="card">
           <div class="hdr">
@@ -889,7 +890,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         <table><thead><tr><th>Staff</th><th>Days</th><th>Billable</th><th style="white-space:normal;max-width:60px">Non-<br>billable</th><th style="white-space:normal;max-width:60px" title="Minutes over the allowance cap across 15min/30min/60min/Personal/Bio breaks, summed for the period">Over<br>Break</th><th style="white-space:normal;max-width:60px">Personal<br>Breaks</th><th style="white-space:normal;max-width:60px">Personal<br>Minutes</th><th style="white-space:normal;max-width:60px">Bio<br>Breaks</th><th style="white-space:normal;max-width:60px">Bio<br>Minutes</th><th>Total</th><th>Billable %</th><th style="white-space:normal;max-width:70px" title="Billable hours minus total Personal Break and Bio Break minutes for the period">Actual<br>Working<br>Hours</th></tr></thead><tbody id="sheetTable"></tbody></table>
       </div>
       <div class="card">
-        <div class="hdr"><h3 style="font-size:15px">Daily hours grid</h3>
+        <div class="hdr"><div><h3 style="font-size:15px">Daily hours grid</h3><div id="gridTotal" class="hide" style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:6px"></div></div>
           <span class="muted" style="font-size:11.5px">Weekdays only &middot; click a cell to override that day's total &middot; overrides never touch raw time entries</span>
         </div>
         <div class="sticky-scroll"><table class="sheet-grid"><thead><tr id="gridHead"></tr></thead><tbody id="gridBody"></tbody></table></div>
@@ -978,7 +979,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
           <div class="cr-legend"><span><i class="cr-se"></i>Staff error</span><span><i class="cr-ap"></i>App issue</span><span><i class="cr-rj"></i>Other / pending / rejected</span></div>
           <label style="margin-top:16px">Most common reasons</label><table><tbody id="crReasons"></tbody></table></div></div>
       </div></section><section id="v-ledger" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_ledger" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-gold" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout and is added only by approving it in Payroll → 🏅 Completion Bonus (highlighted in gold when paid); the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span></div><div id="lgQrBanner" class="hide" style="background:rgba(91,141,239,.12);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div class="sticky-scroll"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px">
+      <div class="row pay-sub hide" id="paySub_ledger" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-gold" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><span class="muted" style="font-size:12px">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout and is added only by approving it in Payroll → 🏅 Completion Bonus (highlighted in gold when paid); the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span><div style="text-align:right;margin-left:auto"><span class="muted" style="font-size:12px">Period total: <b class="mono" style="color:var(--gold);font-size:15px" id="lgTotal">₱0.00</b></span><div id="lgHours" style="margin-top:4px"></div></div></div><div id="lgQrBanner" class="hide" style="background:rgba(91,141,239,.12);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div class="sticky-scroll"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px">
       <div class="row pay-sub hide" id="paySub_invoice" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-gold" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
 <div class="hide" id="civSettingsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60"><div class="card" style="max-width:720px;width:92vw;max-height:88vh;overflow-y:auto"><div class="hdr"><h3 style="font-size:15px" id="civSettingsTitle">Client Invoice Settings</h3><button class="btn btn-ghost" id="civSettingsClose">✕ Close</button></div><div class="muted" style="font-size:12px;margin-bottom:12px">Controls exactly what appears on this client's bi-weekly invoice. Nothing here changes payroll (Contractor Ledger) math.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Task Description</div><input type="text" id="civTaskDescription" placeholder="e.g. Back Office CRM tasks" style="margin-bottom:6px"><div class="muted" style="font-size:11px;margin-bottom:14px">One label for everyone on this client. Rate rows on the invoice come straight from each staff member's live hourly rate \u2014 nothing to configure here for that.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Recurring Pay Items</div><table><tbody>
 <tr><td style="width:26px"><input type="checkbox" id="civInternetOn"></td><td><b>Internet / Fiber Share</b><div class="muted" style="font-size:11px">Flat cost line on every invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civInternetAmt" style="width:110px" placeholder="$/period"></td></tr>
@@ -994,11 +995,11 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
   <div id="portalStaffView" class="grid" style="gap:16px">
     <div class="card">
       <div class="hdr"><h3 style="font-size:15px">Company Documents</h3></div>
-      <table><thead><tr><th>Title</th><th>Category</th><th>Status</th><th></th></tr></thead><tbody id="portalCompanyDocs"></tbody></table>
+      <table><thead><tr><th>Title</th><th>Category</th><th>Uploaded</th><th>Status</th><th></th></tr></thead><tbody id="portalCompanyDocs"></tbody></table>
     </div>
     <div class="card">
       <div class="hdr"><h3 style="font-size:15px">My Documents</h3></div>
-      <table><thead><tr><th>Title</th><th>Category</th><th>Status</th><th></th></tr></thead><tbody id="portalMyDocs"></tbody></table>
+      <table><thead><tr><th>Title</th><th>Category</th><th>Uploaded</th><th>Status</th><th></th></tr></thead><tbody id="portalMyDocs"></tbody></table>
     </div>
     <div class="card hide" id="portalSignCard">
       <div class="hdr"><h3 style="font-size:15px">Sign Document</h3></div>
@@ -1040,7 +1041,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     </div>
     <div class="card">
       <div class="hdr"><h3 style="font-size:15px">All Documents</h3></div>
-      <table><thead><tr><th>Title</th><th>Category</th><th>Assigned to</th><th>Signatures</th><th></th></tr></thead><tbody id="portalAdminDocs"></tbody></table>
+      <table><thead><tr><th>Title</th><th>Category</th><th>Uploaded</th><th>Assigned to</th><th>Signatures</th><th></th></tr></thead><tbody id="portalAdminDocs"></tbody></table>
     </div>
   </div>
 </section>
@@ -1128,6 +1129,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 
     <!-- ---------- STAFF: CONTRACTOR PROFILE ---------- -->
     <section id="v-profile" class="hide grid" style="gap:12px">
+      <div class="card hide" id="docTodoCard"></div>
       <div class="card">
         <div class="row" style="gap:14px;align-items:center"><div class="pf-avatar" id="pfAvatar">—</div><div><h3 style="font-size:19px" id="pfName">—</h3><div class="muted" style="font-size:12.5px" id="pfSub">Contractor</div></div></div>
         <div class="pf-facts" id="pfFacts"></div>
@@ -2678,6 +2680,9 @@ function ledgerInactiveTag(id){
   return ` <span class="pill p-off" style="font-size:10.5px" title="Deactivated — shown because this is their final pay period"><span class="dot"></span>Inactive${s.termination_date?' · last day '+escapeHtml(fmtNice(s.termination_date)):''}</span>`;
 }
 function renderLedgerTable(start,end){
+  {const reg=ledgerRows.reduce((a,r)=>a+(Number(r.regularHrs)||0),0),ot=ledgerRows.reduce((a,r)=>a+(Number(r.otHrs)||0),0),n=new Set(ledgerRows.map(r=>r.staffId)).size,f2=v=>v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+   /* Same hours formula as SMB PH Earning (regularHrs+otHrs). Night-diff hours are a subset, PCH/PTO is paid in days. */
+   const lh=$('lgHours'); if(lh) lh.innerHTML=`<span class="muted" style="font-size:12px">Total hours: <b class="mono" style="color:var(--ink);font-size:15px">${f2(reg+ot)}</b></span><div class="muted" style="font-size:11px">Contracted ${f2(reg)} + Extended ${f2(ot)} · ${n} staff</div>`;}
   const grand=ledgerRows.reduce((a,r)=>a+r.total,0);$('lgTotal').textContent='₱'+grand.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});$('lgRangeLabel').textContent=start&&end?`${fmtNice(start)} – ${fmtNice(end)}`:'—';
   $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr${me.role==='admin'&&sentEarlyRec(r)&&!(r.paid&&r.paid.status==='paid')?' style="background:rgba(242,184,75,.07)"':''}><td class="sticky-col">${window.SalaryQR?SalaryQR.nameCell(r.staffId,r.name):`<b>${escapeHtml(r.name)}</b>`}${ledgerInactiveTag(r.staffId)}</td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
     +extraCellHtml(r,'completion_bonus')+extraCellHtml(r,'relationship_bonus')+extraCellHtml(r,'meal_allowance')+extraCellHtml(r,'statutory_allowance')+extraCellHtml(r,'workspace_allowance')+extraCellHtml(r,'scope_differential')+extraCellHtml(r,'adhoc_project_fee')+extraCellHtml(r,'incentive_award')+extraCellHtml(r,'reimbursable_expenses')+extraCellHtml(r,'other_fee_items')
@@ -2860,6 +2865,7 @@ async function start(){
   await refreshNotifications();
   setInterval(refreshNotifications,60000);
   window.Bulletin?.onStart();
+  window.DocTodo?.load();
 }
 
 /* ---------- in-app notifications bell ---------- */
@@ -2961,6 +2967,7 @@ function buildNav(){
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   go(view);
   window.Bulletin?.paintBadge();
+  window.DocTodo?.paint();
 }
 function renderNavArrangeBar(){
   $('navArrangeBtn').classList.toggle('hide',navArranging);
@@ -4365,6 +4372,7 @@ async function renderSheetGrid(){
   adj.forEach(a=>activeDays.add(a.work_date));
   leaves.forEach(l=>activeDays.add(l.date));
   const days=weekdayList(start,end,activeDays);
+  let gridGrand=0;
 
   const fmtCol=iso=>{const d=new Date(iso+'T00:00:00Z');
     return `${d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'})}<br>${d.toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short'}).toUpperCase()}`;};
@@ -4401,11 +4409,21 @@ async function renderSheetGrid(){
       const shown=hrs?hrs.toFixed(2):'0.00';
       return `<td class="num"><input type="number" class="dayval${hasAdj?' is-adj':''}" min="0" step="0.25" data-staff="${s.id}" data-date="${d}" value="${shown}"></td>`;
     }).join('');
+    gridGrand+=totalHrs;
     rowsHtml+=`<tr><td class="mono">${mmddyy(s.hire_date)}</td><td class="mono">${escapeHtml(tenureStr(s.hire_date))}</td>`
       +`<td><b>${escapeHtml(s.full_name)}</b></td>`
       +`<td class="totalcell">${totalHrs.toFixed(2)}</td>${cells}</tr>`;
   });
   body.innerHTML=rowsHtml||`<tr><td colspan="${4+days.length}" class="muted">No staff match this filter.</td></tr>`;
+  /* Grand total = sum of the visible "Total hours worked" column (overrides + billed PCH/PTO included),
+     so it follows the client/staff filter used for this render. */
+  const gt=$('gridTotal');
+  if(gt){
+    const cLbl=fc?((clients.find(c=>c.id===fc)||{}).name||'Client'):'All clients';
+    const sLbl=fs?((staffList.find(x=>x.id===fs)||{}).full_name||'1 staff'):`${people.length} staff`;
+    gt.innerHTML=`<span class="muted" style="font-size:12px">Total hours:</span><span class="mono" style="font-size:19px;font-weight:800;color:var(--gold)">${gridGrand.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span><span class="muted" style="font-size:11.5px;background:var(--card2);border-radius:999px;padding:2px 9px">${escapeHtml(sLbl)} · ${escapeHtml(cLbl)} · ${escapeHtml(fmtNice(start))} – ${escapeHtml(fmtNice(end))}</span>`;
+    gt.classList.remove('hide');
+  }
 
   body.querySelectorAll('input.dayval').forEach(inp=>{
     const baseline=inp.value;
@@ -5140,14 +5158,23 @@ async function loadPortalStaffDocs() {
   $('portalCompanyDocs').innerHTML = renderStaffDocRows(company);
   $('portalMyDocs').innerHTML = renderStaffDocRows(mine);
   wirePortalDocActions();
+  window.DocTodo?.set(portalDocsCache);
+  window.DocTodo?.focusPending();
 }
 
+/* Doc upload date + waiting days (PHT calendar days). NEW for DOC_NEW_DAYS after upload; red after DOC_RED_DAYS unsigned. */
+const DOC_NEW_DAYS=3, DOC_RED_DAYS=5;
+function docUpDate(d){ try{ return d&&d.created_at?phDate(new Date(d.created_at)):null; }catch(_){ return null; } }
+function docAgeDays(d){ const u=docUpDate(d); if(!u)return null; const a=Date.parse(u+'T00:00:00Z'),b=Date.parse(phDate(new Date())+'T00:00:00Z'); return Math.max(0,Math.round((b-a)/86400000)); }
+function docWaitDays(d){ return docAgeDays(d); }
+function docUploadedCell(d){ const u=docUpDate(d); if(!u)return '<span class="muted">—</span>'; const age=docAgeDays(d); return `${escapeHtml(fmtNice(u))}${age!=null&&age<DOC_NEW_DAYS?' <span style="color:var(--gold);font-weight:700">· NEW</span>':''}`; }
+
 function renderStaffDocRows(docs) {
-  if (!docs.length) return `<tr><td colspan="4" class="muted">No documents yet.</td></tr>`;
+  if (!docs.length) return `<tr><td colspan="5" class="muted">No documents yet.</td></tr>`;
   return docs.map(d => {
     const status = !d.requires_signature ? '<span class="pill">—</span>'
       : d.signed_at ? `<span class="pill p-work"><span class="dot"></span>Signed ${escapeHtml(fmtNice(d.signed_at.slice(0,10)))}</span>`
-      : `<span class="pill p-break"><span class="dot"></span>Needs signature</span>`;
+      : (()=>{const w=docWaitDays(d);return `<span class="pill ${w!=null&&w>=DOC_RED_DAYS?'p-late':'p-break'}" ${w!=null&&w>=DOC_RED_DAYS?'style="color:var(--rose)"':''}><span class="dot"></span>Needs signature${w!=null?' · waiting '+w+' day'+(w===1?'':'s'):''}</span>`;})();
     const viewBtn = `<button class="btn btn-ghost" data-view="${d.id}" type="button">View</button>`;
     const needsSign = d.requires_signature && !d.signed_at;
     const viewed = portalHasViewed(d.id);
@@ -5155,7 +5182,7 @@ function renderStaffDocRows(docs) {
       ? `<button class="btn btn-gold" data-sign="${d.id}" data-title="${escapeHtml(d.title)}" ${viewed?'':'disabled title="Open the document first"'} style="margin-left:6px">Sign</button>`
       : '';
     const hint = needsSign && !viewed ? `<div class="muted" style="font-size:11px;margin-top:4px">View the document to unlock Sign</div>` : '';
-    return `<tr><td><b>${escapeHtml(d.title)}</b></td><td class="muted">${escapeHtml(d.category)}</td><td>${status}</td><td style="text-align:right;white-space:nowrap">${viewBtn}${signBtn}${hint}</td></tr>`;
+    return `<tr data-docrow="${d.id}"><td><b>${escapeHtml(d.title)}</b></td><td class="muted">${escapeHtml(d.category)}</td><td style="white-space:nowrap">${docUploadedCell(d)}</td><td>${status}</td><td style="text-align:right;white-space:nowrap">${viewBtn}${signBtn}${hint}</td></tr>`;
   }).join('');
 }
 
@@ -5277,8 +5304,8 @@ async function loadPortalAdminDocs() {
   $('portalAdminDocs').innerHTML = portalDocsCache.length ? portalDocsCache.map(d => {
     const assignee = d.visibility === 'all' ? 'Everyone' : escapeHtml((staffList.find(s => s.id === d.visibility) || {}).full_name || '—');
     const sigCol = d.requires_signature ? `<button class="btn btn-ghost" data-sigs="${d.id}" title="See who signed" style="padding:3px 10px">${d.signed_count}/${d.eligible_count}${d.eligible_count>d.signed_count?' <span style="color:var(--rose)">• '+(d.eligible_count-d.signed_count)+' missing</span>':''}</button>` : '—';
-    return `<tr><td>${d.drive_link?`<a href="${d.drive_link}" target="_blank" rel="noopener"><b>${escapeHtml(d.title)}</b></a>`:`<b>${escapeHtml(d.title)}</b> <span class="muted" style="font-size:11px;color:var(--rose)">(file missing)</span>`}</td><td class="muted">${escapeHtml(d.category)}</td><td>${assignee}</td><td>${sigCol}</td><td style="text-align:right"><button class="btn btn-rose" data-del="${d.id}">Delete</button></td></tr>`;
-  }).join('') : `<tr><td colspan="5" class="muted">No documents yet.</td></tr>`;
+    return `<tr><td>${d.drive_link?`<a href="${d.drive_link}" target="_blank" rel="noopener"><b>${escapeHtml(d.title)}</b></a>`:`<b>${escapeHtml(d.title)}</b> <span class="muted" style="font-size:11px;color:var(--rose)">(file missing)</span>`}</td><td class="muted">${escapeHtml(d.category)}</td><td style="white-space:nowrap">${docUploadedCell(d)}</td><td>${assignee}</td><td>${sigCol}</td><td style="text-align:right"><button class="btn btn-rose" data-del="${d.id}">Delete</button></td></tr>`;
+  }).join('') : `<tr><td colspan="6" class="muted">No documents yet.</td></tr>`;
   document.querySelectorAll('[data-sigs]').forEach(btn => { btn.onclick = () => showPortalSigs(btn.dataset.sigs); });
   renderPortalMissing();
   document.querySelectorAll('[data-del]').forEach(btn => {
@@ -10503,4 +10530,71 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
 })();
 </script>
 
+<script>
+/* ============================================================
+   DOC TODO (staff): reminders for documents waiting for signature.
+   Shown as a banner on the Time Tracker, a "To finish" card on the
+   Contractor Profile, and a gold ✍ count on the PM Bulletin Board nav.
+   Reminder only: never blocks clock-in/out. "Later" hides the banner
+   for this browser session; a newly uploaded doc brings it back.
+   Data: /api/portal/docs (same call the Documents section uses).
+   ============================================================ */
+(function(){
+  let docs=[], loaded=false, pendingFocus=null;
+  const isStaff=()=>typeof me!=='undefined'&&!!me&&me.role!=='admin';
+  const pending=()=>docs.filter(d=>d.requires_signature&&!d.signed_at)
+    .sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||'')));
+  const laterKey=()=>'docTodoLater_'+((me&&me.id)||'anon');
+  function laterIds(){ try{ return new Set(JSON.parse(sessionStorage.getItem(laterKey())||'[]').map(String)); }catch(_){ return new Set(); } }
+  function waitTxt(d){ const w=docWaitDays(d); if(w==null) return ''; const age=docAgeDays(d); return age<DOC_NEW_DAYS&&w===0?'new':(age<DOC_NEW_DAYS?'new · waiting '+w+' day'+(w===1?'':'s'):'waiting '+w+' days'); }
+  function red(d){ const w=docWaitDays(d); return w!=null&&w>=DOC_RED_DAYS; }
+  async function load(){
+    if(!isStaff()) return;
+    try{ const j=await api('/api/portal/docs'); docs=j.docs||[]; loaded=true; if(typeof portalDocsCache!=='undefined'&&!portalDocsCache.length){ portalDocsCache=docs; portalDocsLoadedAt=Date.now(); } }
+    catch(e){ console.warn('DocTodo load:',e&&e.message); return; }
+    paint();
+  }
+  function set(list){ if(!isStaff()) return; docs=list||[]; loaded=true; paint(); }
+  function open(id){ pendingFocus=id?String(id):null; go('v-portal'); }
+  function focusPending(){
+    if(!pendingFocus) return; const id=pendingFocus; pendingFocus=null;
+    const row=document.querySelector(`#v-portal tr[data-docrow="${CSS.escape(id)}"]`);
+    if(row){ row.scrollIntoView({behavior:'smooth',block:'center'}); row.style.transition='background .6s'; row.style.background='rgba(227,166,62,.18)'; setTimeout(()=>row.style.background='',2200); }
+    else{ const t=document.getElementById('portalCompanyDocs'); t&&t.scrollIntoView({behavior:'smooth',block:'start'}); }
+  }
+  function paintBanner(list){
+    const b=document.getElementById('docTodoBanner'); if(!b) return;
+    const later=laterIds();
+    const show=list.length&&list.some(d=>!later.has(String(d.id)));
+    if(!show){ b.classList.add('hide'); b.innerHTML=''; return; }
+    const names=list.slice(0,3).map(d=>`${escapeHtml(d.title)} <span style="${red(d)?'color:var(--rose)':''}">(${escapeHtml(waitTxt(d))})</span>`).join(' · ')+(list.length>3?` · +${list.length-3} more`:'');
+    b.innerHTML=`<div style="font-size:22px">✍️</div><div style="flex:1;min-width:220px"><b style="font-size:14px">You have ${list.length} document${list.length===1?'':'s'} to sign</b><div class="muted" style="font-size:12.5px;margin-top:2px">${names}</div></div><button class="btn btn-gold" type="button" data-dt-open>Open documents →</button><button class="btn btn-ghost" type="button" data-dt-later title="Hide until your next session">Later</button>`;
+    b.classList.remove('hide');
+    b.querySelector('[data-dt-open]').onclick=()=>open(list[0]&&list[0].id);
+    b.querySelector('[data-dt-later]').onclick=()=>{ try{ sessionStorage.setItem(laterKey(),JSON.stringify(list.map(d=>String(d.id)))); }catch(_){} paintBanner(list); };
+  }
+  function paintCard(list){
+    const c=document.getElementById('docTodoCard'); if(!c) return;
+    if(!loaded){ c.classList.add('hide'); return; }
+    if(!list.length){ c.innerHTML='<div style="font-weight:700">📋 To finish</div><div class="muted" style="font-size:12.5px;margin-top:6px">✅ You\'re all caught up.</div>'; c.classList.remove('hide'); return; }
+    c.innerHTML=`<div style="font-weight:700;margin-bottom:4px">📋 To finish <span style="display:inline-block;min-width:18px;padding:1px 6px;margin-left:6px;border-radius:999px;background:var(--rose);color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:16px">${list.length}</span></div>`+
+      list.map((d,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;${i<list.length-1?'border-bottom:1px solid var(--line)':''}"><div>✍️ Sign <b>${escapeHtml(d.title)}</b><div class="muted" style="font-size:12px;${red(d)?'color:var(--rose)':''}">Uploaded ${escapeHtml(docUpDate(d)?fmtNice(docUpDate(d)):'—')} · ${escapeHtml(waitTxt(d))}</div></div><button class="btn btn-gold" type="button" data-dt-sign="${escapeHtml(String(d.id))}">Sign</button></div>`).join('');
+    c.classList.remove('hide');
+    c.querySelectorAll('[data-dt-sign]').forEach(btn=>btn.onclick=()=>open(btn.dataset.dtSign));
+  }
+  function paintNav(list){
+    const b=document.querySelector('#nav button[data-v="v-portal"]'); if(!b) return;
+    let s=b.querySelector('.doc-badge');
+    if(!list.length){ if(s) s.remove(); return; }
+    if(!s){ s=document.createElement('span'); s.className='doc-badge'; s.style.cssText='display:inline-block;min-width:18px;padding:1px 6px;margin-left:6px;border-radius:999px;background:var(--gold);color:#151515;font-size:11px;font-weight:700;text-align:center;line-height:16px;vertical-align:1px'; s.title='Documents waiting for your signature'; b.appendChild(s); }
+    s.textContent='✍ '+list.length;
+  }
+  function paint(){
+    if(!isStaff()) return;
+    const list=pending();
+    paintBanner(list); paintCard(list); paintNav(list);
+  }
+  window.DocTodo={load,set,paint,open,focusPending,_state:()=>({docs,loaded})};
+})();
+</script>
 </body></html>
