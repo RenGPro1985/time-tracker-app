@@ -1036,7 +1036,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     </div>
     <div class="card">
       <div class="hdr"><h3 style="font-size:15px">Not signed — company-wide documents</h3></div>
-      <div class="muted" style="font-size:12px;margin-bottom:8px">Active staff missing at least one required company-wide signature, earliest hire first.</div>
+      <div class="muted" style="font-size:12px;margin-bottom:8px">Active staff missing at least one required company-wide signature, most stagnant first. Stagnant = days since the oldest unsigned doc was uploaded (or since their hire date, if hired after the upload).</div>
       <div id="portalMissing" style="overflow:auto"></div>
     </div>
     <div class="card">
@@ -2013,7 +2013,7 @@ const advClientName=staffId=>{const s=staffList.find(x=>x.id===staffId);const c=
    selection — the old version rebuilt it before reading it, which silently reset the
    Staff filter to "All staff" on every Filter click (Rendy 2026-10-21). */
 function advFillStaffSelects(){
-  const opts=staffList.filter(s=>s.active).map(s=>[s.id,s.full_name]);
+  const opts=staffList.filter(s=>s.active&&(!ncHideNow(s)||(typeof $==='function'&&$('advStaff')&&$('advStaff').value===s.id))).map(s=>[s.id,s.full_name]);
   if($('advStaff')){const keep=$('advStaff').value;$('advStaff').innerHTML=opts.map(p=>`<option value="${p[0]}">${escapeHtml(p[1])}</option>`).join('');if(keep&&opts.some(p=>p[0]===keep))$('advStaff').value=keep;}
   if($('advFStaff')){
     const keep=$('advFStaff').value;
@@ -2298,8 +2298,8 @@ function initLedgerFilters(){
 function refreshLedgerStaff(){
   const old=$('lgStaff').value,fc=$('lgClient').value;
   const inC=s=>!fc||s.client_id===fc;
-  fill('lgStaff','All staff',staffList.filter(s=>s.active&&inC(s)).map(s=>[s.id,s.full_name])
-    .concat(staffList.filter(s=>!s.active&&s.role!=='admin'&&inC(s)).map(s=>[s.id,s.full_name+' (inactive)'])));
+  fill('lgStaff','All staff',staffList.filter(s=>s.active&&inC(s)&&!ncHideNow(s)).map(s=>[s.id,s.full_name])
+    .concat(staffList.filter(s=>!s.active&&s.role!=='admin'&&inC(s)&&!ncHideNow(s)).map(s=>[s.id,s.full_name+' (inactive)'])));
   if([...$('lgStaff').options].some(o=>o.value===old))$('lgStaff').value=old;
 }
 function refreshLedgerPeriods(){const list=periodList('semi');$('lgPeriod').innerHTML=list.map(p=>`<option value="${p.start}|${p.end}">${fmtNice(p.start)} – ${fmtNice(p.end)}</option>`).join('');}
@@ -2462,6 +2462,10 @@ async function runLedger(){
   if(guardRun!==LedgerLoadGuard.run)return; // a newer Run started — let it render
   people=people.filter(staff=>ledgerKeepInactive(staff,start,end,{ledgerDetailRows,leavesByStaff,extrasRaw,advanceByStaff,adjustmentsByStaff,paidByStaff,reimbByStaff}));
   ledgerRows=people.map(staff=>computeLedgerRowPure(staff,{clients,ledgerDetailRows,leavesByStaff,extrasByStaff,rulesByField,advanceByStaff,adjustmentsByStaff,paidByStaff,cutoffIso,phase,reimbByStaff}));
+  /* No client + nothing in the period (no shifts, leave, extras, advances, adjustments, paid record, reimbursement, zero net) → hidden. */
+  if(!fs){const ctx={ledgerDetailRows,leavesByStaff,extrasRaw,advanceByStaff,adjustmentsByStaff,paidByStaff,reimbByStaff};
+    ledgerRows=ledgerRows.filter(r=>{const st=staffList.find(x=>x.id===r.staffId);if(!ncHideNow(st))return true;
+      return Math.abs(Number(r.total)||0)>0.004||ledgerKeepInactive({...st,active:false,termination_date:null},start,end,ctx);});}
   renderLedgerTable(start,end);
 }
 /* value===null means this field doesn't apply to the current payout cutoff (e.g. Completion
@@ -2684,7 +2688,7 @@ function renderLedgerTable(start,end){
    /* Same hours formula as SMB PH Earning (regularHrs+otHrs). Night-diff hours are a subset, PCH/PTO is paid in days. */
    const lh=$('lgHours'); if(lh) lh.innerHTML=`<span class="muted" style="font-size:12px">Total hours: <b class="mono" style="color:var(--ink);font-size:15px">${f2(reg+ot)}</b></span><div class="muted" style="font-size:11px">Contracted ${f2(reg)} + Extended ${f2(ot)} · ${n} staff</div>`;}
   const grand=ledgerRows.reduce((a,r)=>a+r.total,0);$('lgTotal').textContent='₱'+grand.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});$('lgRangeLabel').textContent=start&&end?`${fmtNice(start)} – ${fmtNice(end)}`:'—';
-  $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr${me.role==='admin'&&sentEarlyRec(r)&&!(r.paid&&r.paid.status==='paid')?' style="background:rgba(242,184,75,.07)"':''}><td class="sticky-col">${window.SalaryQR?SalaryQR.nameCell(r.staffId,r.name):`<b>${escapeHtml(r.name)}</b>`}${ledgerInactiveTag(r.staffId)}</td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
+  $('ledgerTable').innerHTML=ledgerRows.length?ledgerRows.map(r=>`<tr${me.role==='admin'&&sentEarlyRec(r)&&!(r.paid&&r.paid.status==='paid')?' style="background:rgba(242,184,75,.07)"':''}><td class="sticky-col">${window.SalaryQR?SalaryQR.nameCell(r.staffId,r.name):`<b>${escapeHtml(r.name)}</b>`}${ledgerInactiveTag(r.staffId)}${ncTag(r.staffId)}</td><td class="muted">${escapeHtml(r.client)}</td><td class="mono">${r.monthly.toFixed(2)}</td><td class="mono">${r.regularHrs.toFixed(2)}</td><td class="mono" style="color:#9B7EDE">${r.nightHrs.toFixed(2)}</td><td class="mono" style="color:#5B8DEF">${r.otHrs.toFixed(2)}</td><td class="mono">${r.regularPay.toFixed(2)}</td><td class="mono">${r.nightPremium.toFixed(2)}</td><td class="mono">${r.otPay.toFixed(2)}</td><td class="mono">${r.pchPtoDays}</td><td class="mono" style="color:var(--teal)">${r.pchPtoPay.toFixed(2)}</td>`
     +extraCellHtml(r,'completion_bonus')+extraCellHtml(r,'relationship_bonus')+extraCellHtml(r,'meal_allowance')+extraCellHtml(r,'statutory_allowance')+extraCellHtml(r,'workspace_allowance')+extraCellHtml(r,'scope_differential')+extraCellHtml(r,'adhoc_project_fee')+extraCellHtml(r,'incentive_award')+extraCellHtml(r,'reimbursable_expenses')+extraCellHtml(r,'other_fee_items')
     +`<td class="mono" style="color:var(--teal)">${r.addonSubtotal.toFixed(2)}</td>`
     +extraCellHtml(r,'fee_advance')+extraCellHtml(r,'adjustments')
@@ -2866,6 +2870,7 @@ async function start(){
   setInterval(refreshNotifications,60000);
   window.Bulletin?.onStart();
   window.DocTodo?.load();
+  window.BreakNudge?.start();
 }
 
 /* ---------- in-app notifications bell ---------- */
@@ -3010,9 +3015,48 @@ $('navArrDone').onclick=async()=>{
   catch(e){ $('navArrMsg').textContent='Could not save tab order: '+(e?.message||e)+' (has the admin_nav_order SQL been run?)'; }
   finally{ btn.disabled=false; }
 };
+
+/* ===== Hide staff with no client on admin views (2026-10-22, Rendy) =====
+   One switch for every admin tab (localStorage). Admin-only: staff never lose their own rows.
+   Pay safeguard: payroll views keep a no-client person who has any hours/pay/leave in the period,
+   tagged "⚠ No client". Staff & Clients roster, access grids and Benefits/Adjustments rule pickers are never filtered. */
+const NC_KEY='smbShowNoClient';
+function ncShowAll(){ try{ return localStorage.getItem(NC_KEY)==='1'; }catch(_){ return false; } }
+function ncIs(s){ return !!s&&s.role!=='admin'&&!s.client_id; }
+function ncHideNow(s){ return !!me&&me.role==='admin'&&!ncShowAll()&&ncIs(s); }
+function ncHideId(id){ return ncHideNow((staffList||[]).find(x=>String(x.id)===String(id))); }
+function ncTag(id){ const s=(staffList||[]).find(x=>String(x.id)===String(id)); return (me&&me.role==='admin'&&ncIs(s))?' <span title="No client assigned — assign one in Staff &amp; Clients" style="background:rgba(226,104,95,.14);color:var(--rose);border-radius:6px;padding:1px 6px;font-size:10.5px;font-weight:700;white-space:nowrap">⚠ No client</span>':''; }
+const NC_VIEWS=['v-status','v-sheets','v-ledger','v-earning','v-cbonus','v-feeadv','v-ytd','v-portal'];
+function ncCount(){ return (staffList||[]).filter(s=>s.active&&ncIs(s)).length; }
+function ncPaintChip(v){
+  document.querySelectorAll('.nc-chipbar').forEach(el=>el.remove());
+  if(!me||me.role!=='admin'||!NC_VIEWS.includes(v))return;
+  const n=ncCount(); if(!n)return;
+  const sec=$(v); if(!sec)return;
+  const show=ncShowAll(), bar=document.createElement('div');
+  bar.className='nc-chipbar'; bar.style.cssText='grid-column:1/-1;display:flex;justify-content:flex-end;margin-bottom:-6px';
+  bar.innerHTML=`<span style="display:inline-flex;gap:6px;align-items:center;background:rgba(227,166,62,.12);border:1px solid var(--gold);border-radius:999px;padding:3px 12px;font-size:12px">${show?`Showing ${n} staff with no client`:`${n} staff with no client hidden`}${v==='v-portal'||v==='v-status'||v==='v-feeadv'||v==='v-ytd'?'':' <span class="muted">(anyone with hours/pay still shows)</span>'} · <a href="#" data-nc-toggle style="color:var(--gold);font-weight:700;text-decoration:underline">${show?'Hide':'Show'}</a></span>`;
+  bar.querySelector('[data-nc-toggle]').onclick=e=>{e.preventDefault();ncToggle();};
+  sec.insertBefore(bar,sec.firstChild);
+}
+function ncToggle(){
+  try{ localStorage.setItem(NC_KEY,ncShowAll()?'0':'1'); }catch(_){}
+  const v=view; ncPaintChip(v);
+  try{
+    if(v==='v-status'){ initFilters(); loadRoster(); }
+    else if(v==='v-sheets'){ if(typeof refreshSheetStaff==='function')refreshSheetStaff(); renderSheetGrid(); if(sheetRows.length)runSheet(); }
+    else if(v==='v-ledger'){ refreshLedgerStaff(); if($('lgPeriod').value)runLedger(); }
+    else if(v==='v-earning'){ if(egRows&&egRows.length)renderEarningRows(egRows); }
+    else if(v==='v-cbonus'){ const b=$('cbRun'); if(b&&!b.disabled&&$('cbStatus')&&$('cbStatus').textContent.trim())b.click(); }
+    else if(v==='v-feeadv'){ advFillStaffSelects(); }
+    else if(v==='v-ytd'){ const f=$('ytdClientFilter'); if(f&&f.onchange)f.onchange(); }
+    else if(v==='v-portal'){ renderPortalMissing(); }
+  }catch(e){ console.error('ncToggle',e); }
+}
 function go(v){
   if((v==='v-ytd'||v==='v-pto'||v==='v-rewards'||v==='v-files'||v==='v-cbonus'||v==='v-feeadv')&&me?.role!=='admin')v='v-punch';
   view=v;
+  try{ncPaintChip(v);}catch(_){}
   Object.keys(PAGES).forEach(id=>{const el=$(id); if(el) el.classList.add('hide');});
   $(v).classList.remove('hide');
   document.querySelectorAll('.pay-sub').forEach(el=>el.classList.toggle('hide',me?.role!=='admin'));
@@ -3230,6 +3274,7 @@ async function todaysEntries(){
 async function renderToday(){
   $('todayLabel').textContent=fmtNice(phDate(new Date()))+' (PHT)';
   const {entries:es,shift}=await todaysEntries(); const cMe=clients.find(x=>x.id===me.client_id);
+  try{window.BreakNudge?.setEntries(es);}catch(_){}
   /* Anchor the shift window to the shift the entries actually belong to. Using today's PH
      date instead meant that right after logging out of an overnight shift (login 9pm, logout
      6am next day) the window was built for the WRONG date, no entry fell inside it, and the
@@ -3401,12 +3446,12 @@ async function initFilters(){
   $('rosterActionsHead').textContent='';
   if(admin){
     fill('fClient','All clients',clients.map(c=>[c.id,c.name]));
-    fill('fStaff','All staff',statusRosterStaff.filter(s=>s.active).map(s=>[s.id,s.full_name]));
+    fill('fStaff','All staff',statusRosterStaff.filter(s=>s.active&&!ncHideNow(s)).map(s=>[s.id,s.full_name]));
     renderAccessBadge();
     $('manageAccessBtn').onclick=()=>{ $('accessPanel').classList.toggle('hide'); if(!$('accessPanel').classList.contains('hide')) renderAccessPanel(); };
     $('saveAccessBtn').onclick=saveLiveStatusAccess;
   }else{
-    fill('fStaff','All staff',statusRosterStaff.filter(s=>s.active).map(s=>[s.id,s.full_name]));
+    fill('fStaff','All staff',statusRosterStaff.filter(s=>s.active&&!ncHideNow(s)).map(s=>[s.id,s.full_name]));
   }
   if(!statusIsInit){ ['fClient','fStaff','fStatus'].forEach(id=>$(id).onchange=loadRoster); $('refreshBtn').onclick=loadRoster; statusIsInit=true; }
 }
@@ -3475,7 +3520,7 @@ async function loadRoster(){
     if(!onLeave&&sum.total>0){pctSum+=sum.billable/sum.total*100;pctN++;}
     
     return {s,c,status,act:onLeave?'—':(running?running.activity:'—'),sum,startedAt:(!onLeave&&running)?running.started_at:null,shiftId:(!onLeave&&sh)?sh.id:null};
-  }).filter(r=>(!fc||r.s.client_id===fc)&&(!fs||r.s.id===fs)&&(!fst||r.status===fst||(fst==='On Leave'&&r.status.startsWith('On Leave'))));
+  }).filter(r=>(fs||r.status!=='Off shift'||!ncHideNow(r.s))&&(!fc||r.s.client_id===fc)&&(!fs||r.s.id===fs)&&(!fst||r.status===fst||(fst==='On Leave'&&r.status.startsWith('On Leave'))));
   $('stOn').textContent=on;$('stBreak').textContent=br;$('stLeave').textContent=leaveN;$('stOff').textContent=off;
   $('stPct').textContent=pctN?Math.round(pctSum/pctN)+'%':'—';
   const pill=st=>`<span class="pill ${st==='Working'?'p-work':st==='On break'?'p-break':st.startsWith('On Leave')?'p-leave':'p-off'}"><span class="dot"></span>${st}</span>`;
@@ -3812,7 +3857,7 @@ $('saveClientTable').onclick=async()=>{
    ============================================================ */
 function initSheetFilters(){
   fill('pClient','All clients',clients.map(c=>[c.id,c.name]));
-  fill('pStaff','All staff',staffList.filter(s=>s.active).map(s=>[s.id,s.full_name]));
+  fill('pStaff','All staff',staffList.filter(s=>s.active&&!ncHideNow(s)).map(s=>[s.id,s.full_name]));
   $('pType').onchange=refreshPeriods; refreshPeriods();
   $('runSheet').onclick=()=>{runSheet();renderSheetGrid();};
   $('dlSummary').onclick=()=>downloadCsv(summaryCsv(),'timesheet-summary');
@@ -3904,6 +3949,7 @@ async function runSheet(){
   const OVERBREAK_ACTS=['15min Break','30min Break','60min Break','Personal Break','Bio Break','H2O Break'];
   people.forEach(s=>{
     const mine=ents.filter(e=>e.staff_id===s.id); const sc=clients.find(c=>c.id===s.client_id);
+    if(!fs&&!mine.length&&ncHideNow(s))return; /* no client + nothing logged → hidden (pay safeguard keeps anyone with time) */
     const byDay={};mine.forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
     let bill=0,non=0,overBreak=0,personalMinutes=0,bioMinutes=0;
     const personalCount=mine.filter(e=>e.activity==='Personal Break').length;
@@ -3927,7 +3973,7 @@ async function runSheet(){
       clientName:sc?sc.name:null,window:sc?`${sc.shift_start.slice(0,5)}–${sc.shift_end.slice(0,5)} PHT`:null});
   });
   renderSheetWarnings();
-  $('sheetTable').innerHTML=sheetRows.length?sheetRows.map(r=>`<tr data-fin-row="${r.staffId}"><td><b>${escapeHtml(r.name)}</b></td>
+  $('sheetTable').innerHTML=sheetRows.length?sheetRows.map(r=>`<tr data-fin-row="${r.staffId}"><td><b>${escapeHtml(r.name)}</b>${ncTag(r.staffId)}</td>
     <td class="mono">${r.days}</td><td class="mono" style="color:var(--teal)">${hm(r.bill)}</td>
     <td class="mono" style="color:var(--gold)">${hm(r.non)}</td>
     <td class="mono" style="color:var(--rose)">${hm(r.overBreak)}</td>
@@ -4380,7 +4426,10 @@ async function renderSheetGrid(){
     +days.map(d=>`<th>${fmtCol(d)}</th>`).join('');
 
   let rowsHtml='';let lastClient=null;
+  let gridShown=0;
   people.forEach((s,idx)=>{
+    if(!fs&&ncHideNow(s)&&!ents.some(e=>e.staff_id===s.id)&&!Object.keys(leaveMap).some(k=>k.startsWith(s.id+'|'))&&!Object.keys(adjMap).some(k=>k.startsWith(s.id+'|')))return;
+    gridShown++;
     const cName=(clients.find(c=>c.id===s.client_id)||{}).name||'\u2014 unassigned \u2014';
     if(lastClient!==null&&cName!==lastClient) rowsHtml+='<tr class="g-sep"><td colspan="'+(4+days.length)+'"></td></tr>';
     lastClient=cName;
@@ -4411,7 +4460,7 @@ async function renderSheetGrid(){
     }).join('');
     gridGrand+=totalHrs;
     rowsHtml+=`<tr><td class="mono">${mmddyy(s.hire_date)}</td><td class="mono">${escapeHtml(tenureStr(s.hire_date))}</td>`
-      +`<td><b>${escapeHtml(s.full_name)}</b></td>`
+      +`<td><b>${escapeHtml(s.full_name)}</b>${ncTag(s.id)}</td>`
       +`<td class="totalcell">${totalHrs.toFixed(2)}</td>${cells}</tr>`;
   });
   body.innerHTML=rowsHtml||`<tr><td colspan="${4+days.length}" class="muted">No staff match this filter.</td></tr>`;
@@ -4420,7 +4469,7 @@ async function renderSheetGrid(){
   const gt=$('gridTotal');
   if(gt){
     const cLbl=fc?((clients.find(c=>c.id===fc)||{}).name||'Client'):'All clients';
-    const sLbl=fs?((staffList.find(x=>x.id===fs)||{}).full_name||'1 staff'):`${people.length} staff`;
+    const sLbl=fs?((staffList.find(x=>x.id===fs)||{}).full_name||'1 staff'):`${gridShown} staff`;
     gt.innerHTML=`<span class="muted" style="font-size:12px">Total hours:</span><span class="mono" style="font-size:19px;font-weight:800;color:var(--gold)">${gridGrand.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span><span class="muted" style="font-size:11.5px;background:var(--card2);border-radius:999px;padding:2px 9px">${escapeHtml(sLbl)} · ${escapeHtml(cLbl)} · ${escapeHtml(fmtNice(start))} – ${escapeHtml(fmtNice(end))}</span>`;
     gt.classList.remove('hide');
   }
@@ -5167,6 +5216,10 @@ const DOC_NEW_DAYS=3, DOC_RED_DAYS=5;
 function docUpDate(d){ try{ return d&&d.created_at?phDate(new Date(d.created_at)):null; }catch(_){ return null; } }
 function docAgeDays(d){ const u=docUpDate(d); if(!u)return null; const a=Date.parse(u+'T00:00:00Z'),b=Date.parse(phDate(new Date())+'T00:00:00Z'); return Math.max(0,Math.round((b-a)/86400000)); }
 function docWaitDays(d){ return docAgeDays(d); }
+/* STAGNANT (2026-10-22, Rendy): days a doc has sat unsigned for one person = PHT days since upload,
+   or since their hire date if they were hired after the upload. Colors follow DOC_RED_DAYS. */
+function docStagDays(d,hire){ const u=docUpDate(d); if(!u)return null; let st=u; const h=String(hire||'').slice(0,10); if(/^\d{4}-\d{2}-\d{2}$/.test(h)&&h>st)st=h; const a=Date.parse(st+'T00:00:00Z'),b=Date.parse(phDate(new Date())+'T00:00:00Z'); return Math.max(0,Math.round((b-a)/86400000)); }
+function docStagHtml(n,note){ if(n==null)return '<span class="muted">—</span>'; const c=n>=DOC_RED_DAYS?'var(--rose)':n>=3?'var(--gold)':'var(--muted)'; return `<b class="mono" style="color:${c};white-space:nowrap">${n} day${n===1?'':'s'}</b>${note?`<div class="muted" style="font-size:11px">${note}</div>`:''}`; }
 function docUploadedCell(d){ const u=docUpDate(d); if(!u)return '<span class="muted">—</span>'; const age=docAgeDays(d); return `${escapeHtml(fmtNice(u))}${age!=null&&age<DOC_NEW_DAYS?' <span style="color:var(--gold);font-weight:700">· NEW</span>':''}`; }
 
 function renderStaffDocRows(docs) {
@@ -5280,10 +5333,10 @@ function portalSortStaff(list){return (list||[]).slice().sort((a,b)=>portalHireK
 function showPortalSigs(docId){
   const d=portalDocsCache.find(x=>String(x.id)===String(docId)); if(!d)return;
   const signed=(d.signed||[]).slice().sort((a,b)=>String(a.signed_at||'').localeCompare(String(b.signed_at||'')));
-  const unsigned=portalSortStaff(d.unsigned||[]);
+  const unsigned=(d.unsigned||[]).filter(s=>!ncHideId(s.id)).map(s=>({...s,_stag:docStagDays(d,s.hire_date)})).sort((a,b)=>(b._stag??-1)-(a._stag??-1)||String(a.full_name||'').localeCompare(String(b.full_name||'')));
   $('portalSigsTitle').textContent=d.title+' — signatures';
   $('portalSigsBody').innerHTML=`<div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
-    <div><div style="font-weight:700;margin-bottom:6px;color:var(--rose)">Not signed (${unsigned.length})</div>${unsigned.length?`<table><thead><tr><th>Name</th><th>Hire date</th></tr></thead><tbody>${unsigned.map(s=>`<tr><td>${escapeHtml(s.full_name||'—')}</td><td class="muted">${escapeHtml(s.hire_date||'—')}</td></tr>`).join('')}</tbody></table>`:'<div class="muted">Everyone has signed.</div>'}</div>
+    <div><div style="font-weight:700;margin-bottom:6px;color:var(--rose)">Not signed (${unsigned.length})</div>${unsigned.length?`<table><thead><tr><th>Name</th><th title="Days since this doc was uploaded (or since their hire date, if hired after the upload)">Stagnant</th></tr></thead><tbody>${unsigned.map(s=>`<tr><td>${escapeHtml(s.full_name||'—')}${ncTag(s.id)}</td><td>${docStagHtml(s._stag)}</td></tr>`).join('')}</tbody></table>`:'<div class="muted">Everyone has signed.</div>'}</div>
     <div><div style="font-weight:700;margin-bottom:6px">Signed (${signed.length})</div>${signed.length?`<table><thead><tr><th>Name</th><th>Signed</th></tr></thead><tbody>${signed.map(s=>`<tr><td>${escapeHtml(s.full_name||'—')}</td><td class="muted">${escapeHtml(s.signed_at?fmtNice(s.signed_at.slice(0,10)):'—')}</td></tr>`).join('')}</tbody></table>`:'<div class="muted">No signatures yet.</div>'}</div></div>`;
   $('portalSigsOverlay').style.display='flex';
 }
@@ -5291,11 +5344,11 @@ function renderPortalMissing(){
   const box=$('portalMissing'); if(!box)return;
   const docs=portalDocsCache.filter(d=>d.requires_signature&&d.visibility==='all');
   const byStaff=new Map();
-  docs.forEach(d=>(d.unsigned||[]).forEach(s=>{if(!byStaff.has(s.id))byStaff.set(s.id,{...s,docs:[]});byStaff.get(s.id).docs.push(d.title);}));
-  const rows=portalSortStaff([...byStaff.values()]);
+  docs.forEach(d=>(d.unsigned||[]).forEach(s=>{if(ncHideId(s.id))return;if(!byStaff.has(s.id))byStaff.set(s.id,{...s,docs:[],stag:null,stagFromHire:false});const r=byStaff.get(s.id);r.docs.push(d.title);const n=docStagDays(d,s.hire_date);if(n!=null&&(r.stag==null||n>r.stag)){r.stag=n;const u=docUpDate(d),h=String(s.hire_date||'').slice(0,10);r.stagFromHire=!!(u&&/^\d{4}-\d{2}-\d{2}$/.test(h)&&h>u);}}));
+  const rows=[...byStaff.values()].sort((a,b)=>(b.stag??-1)-(a.stag??-1)||b.docs.length-a.docs.length||String(a.full_name||'').localeCompare(String(b.full_name||'')));
   if(!docs.length){box.innerHTML='<div class="muted">No company-wide documents require a signature.</div>';return;}
   if(docs.some(d=>!Array.isArray(d.unsigned))){box.innerHTML='<div class="muted">Signer names are not available yet. The server update still needs to be deployed on Render.</div>';return;}
-  box.innerHTML=rows.length?`<table><thead><tr><th>Name</th><th>Hire date</th><th>Missing</th><th>Documents not signed</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${escapeHtml(r.full_name||'—')}</b></td><td class="muted">${escapeHtml(r.hire_date||'—')}</td><td style="color:var(--rose)">${r.docs.length}/${docs.length}</td><td>${r.docs.map(t=>escapeHtml(t)).join(', ')}</td></tr>`).join('')}</tbody></table>`:'<div class="muted">All active staff have signed every company-wide document.</div>';
+  box.innerHTML=rows.length?`<table><thead><tr><th>Name</th><th title="Days since the oldest unsigned doc was uploaded (or since their hire date, if hired after the upload)">Stagnant</th><th>Missing</th><th>Documents not signed</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${escapeHtml(r.full_name||'—')}</b>${ncTag(r.id)}</td><td>${docStagHtml(r.stag,r.stagFromHire&&r.hire_date?'since hired '+escapeHtml(fmtNice(String(r.hire_date).slice(0,10))):'')}</td><td style="color:var(--rose)">${r.docs.length}/${docs.length}</td><td>${r.docs.map(t=>escapeHtml(t)).join(', ')}</td></tr>`).join('')}</tbody></table>`:'<div class="muted">All active staff have signed every company-wide document.</div>';
 }
 async function loadPortalAdminDocs() {
   let j;
@@ -5856,7 +5909,7 @@ function sortEarningRows(rows) {
 }
 
 function renderEarningRows(rows) {
-  rows = sortEarningRows(rows);
+  rows = sortEarningRows(rows).filter(r => !ncHideId(r.staffId) || r.row.missing || Number(r.row.hours) || Number(r.row.payable));
   $('egTable').innerHTML = rows.length ? rows.map(r => {
     if (r.row.missing) {
       return `<tr><td class="sticky-col"><b>${escapeHtml(r.name)}</b></td><td class="muted">${escapeHtml(r.client)}</td>
@@ -7033,7 +7086,7 @@ async function downloadClientTimesheetXlsx(){
   function ytdApplyClientFilter(){
     if(ytdCurrentYear===null)return;
     const selected=$('ytdClientFilter')?.value||'__all__';
-    const rows=ytdFilterRowsByClient(ytdComputedRows,selected);
+    const rows=ytdFilterRowsByClient(ytdComputedRows,selected).filter(r=>selected!=='__all__'||!ncHideNow(r.staff));
     window.Reliability?.setShown(rows);
     ytdRenderTable(rows,ytdRows,ytdCurrentYear);
     ytdSummaryHtml(rows);
@@ -10090,7 +10143,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       const rows=M.computeRows(people,clientsById,{start,end},att,[],[]);
       const byStaff={};rows.forEach(r=>byStaff[r.staff.id]=r);
       const shiftsBy={};(att.shifts||[]).forEach(sh=>(shiftsBy[sh.staff_id]=shiftsBy[sh.staff_id]||[]).push(sh));
-      cbRows=people.map(s=>classify(s,clientsById[s.client_id],ym,{row:byStaff[s.id],shifts:shiftsBy[s.id]||[]},today))
+      cbRows=people.filter(s=>!ncHideNow(s)||(shiftsBy[s.id]||[]).length).map(s=>classify(s,clientsById[s.client_id],ym,{row:byStaff[s.id],shifts:shiftsBy[s.id]||[]},today))
         .sort((a,b)=>({eligible:0,review:1,no:2}[a.status]-{eligible:0,review:1,no:2}[b.status])||String(a.staff.full_name).localeCompare(String(b.staff.full_name)));
       const cutoff=payoutFor(ym);
       cbMeta={ym,start,end,cutoff,finished:end<today};
@@ -10595,6 +10648,71 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     paintBanner(list); paintCard(list); paintNav(list);
   }
   window.DocTodo={load,set,paint,open,focusPending,_state:()=>({docs,loaded})};
+})();
+</script>
+
+<!-- ===== TAKE A BREAK nudge (2026-10-22, Rendy) =====
+     Staff only, reminder only (never blocks). Counts time on non-break activities (Working, Meeting/Coaching, Overtime)
+     since the last 15/30/60min or Personal Break ended (or since LOGIN). Bio/H2O breaks don't reset it.
+     At 4h: popup + sound + tab title + desktop notification (if allowed). "Remind me in 30 min" snoozes; it repeats every 30 min. -->
+<div id="breakNudge" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(5,7,12,.72);align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--card,#151824);border:2px solid var(--gold);border-radius:20px;max-width:440px;width:100%;padding:26px 24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="font-size:44px;line-height:1">⏰</div>
+    <div style="font-size:30px;font-weight:900;letter-spacing:.04em;color:var(--gold);margin:8px 0 6px">TAKE A BREAK</div>
+    <div id="bnMsg" style="font-size:14px;margin-bottom:18px"></div>
+    <div id="bnBtns" style="display:flex;flex-direction:column;gap:8px"></div>
+    <button class="btn btn-ghost" id="bnLater" style="margin-top:8px;width:100%">Remind me in 30 min</button>
+  </div>
+</div>
+<script>
+(function(){
+  const LIMIT_MIN=240, SNOOZE_MIN=30, RESET=['15min Break','30min Break','60min Break','Personal Break'];
+  let es=[], esAt=0, timer=null, flash=null, origTitle=document.title;
+  const isStaff=()=>typeof me!=='undefined'&&!!me&&me.role!=='admin';
+  const t=x=>new Date(x).getTime();
+  function setEntries(list){ es=(list||[]).slice(); esAt=Date.now(); }
+  /* minutes on non-break activities since the last real break (or login) in the current shift */
+  function workedMin(){
+    if(!curShift||!curEntry)return 0;
+    if(curEntry.activity.includes('Break'))return 0;
+    const mine=es.filter(e=>e.shift_id===curShift.id);
+    if(mine.some(e=>RESET.includes(e.activity)&&!e.ended_at))return 0;
+    let anchor=t(curShift.login_at);
+    mine.forEach(e=>{ if(RESET.includes(e.activity)&&e.ended_at)anchor=Math.max(anchor,t(e.ended_at)); });
+    const now=Date.now(); let ms=0;
+    const list=mine.some(e=>e.id===curEntry.id)?mine:mine.concat([curEntry]);
+    list.forEach(e=>{ if(e.activity.includes('Break'))return; const a=Math.max(anchor,t(e.started_at)), b=e.ended_at?t(e.ended_at):now; if(b>a)ms+=b-a; });
+    return {min:Math.floor(ms/60000),anchor};
+  }
+  const key=a=>'breakNudge_'+(curShift&&curShift.id)+'_'+a;
+  function beep(){ try{ const C=window.AudioContext||window.webkitAudioContext; if(!C)return; const c=new C(); [0,0.35,0.7].forEach(off=>{ const o=c.createOscillator(),g=c.createGain(); o.frequency.value=880; o.connect(g); g.connect(c.destination); g.gain.setValueAtTime(0.0001,c.currentTime+off); g.gain.exponentialRampToValueAtTime(0.25,c.currentTime+off+0.02); g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+off+0.25); o.start(c.currentTime+off); o.stop(c.currentTime+off+0.3); }); setTimeout(()=>{try{c.close();}catch(_){}},1500); }catch(_){} }
+  function startFlash(){ if(flash)return; origTitle=document.title; let on=false; flash=setInterval(()=>{ on=!on; document.title=on?'⏰ TAKE A BREAK':origTitle; },1000); }
+  function stopFlash(){ if(flash){clearInterval(flash);flash=null;document.title=origTitle;} }
+  function hide(){ $('breakNudge').style.display='none'; stopFlash(); }
+  function askNotif(){ try{ if('Notification' in window&&Notification.permission==='default')Notification.requestPermission(); }catch(_){} }
+  function show(min){
+    const h=Math.floor(min/60), m=min%60;
+    $('bnMsg').innerHTML=`You've been working <b class="mono">${h}h ${String(m).padStart(2,'0')}m</b> without a break.<br><span class="muted" style="font-size:12.5px">Step away, stretch, drink water. Your eyes and back will thank you.</span>`;
+    const off=(typeof clientOffActs==='function')?clientOffActs(me&&me.client_id):[];
+    const acts=['15min Break','30min Break','60min Break'].filter(a=>!off.includes(a));
+    $('bnBtns').innerHTML=acts.map((a,i)=>`<button class="btn ${i===0?'btn-gold':'btn-ghost'}" data-bn-act="${a}" style="width:100%">Start ${a}</button>`).join('');
+    $('bnBtns').querySelectorAll('[data-bn-act]').forEach(b=>b.onclick=async()=>{ askNotif(); hide(); try{ await switchActivity(b.dataset.bnAct); }catch(e){ console.error(e); } });
+    $('breakNudge').style.display='flex';
+    beep(); startFlash();
+    try{ if(document.hidden&&'Notification' in window&&Notification.permission==='granted'){ const n=new Notification('⏰ TAKE A BREAK',{body:`You've been working ${h}h ${m}m without a break.`,tag:'smb-break-nudge'}); n.onclick=()=>{window.focus();n.close();}; } }catch(_){}
+  }
+  async function check(){
+    if(!isStaff()||!curShift||!curEntry){ if($('breakNudge').style.display!=='none')hide(); return; }
+    if(curEntry.activity.includes('Break')){ if($('breakNudge').style.display!=='none')hide(); return; }
+    if(Date.now()-esAt>5*60000){ try{ const r=await todaysEntries(); setEntries(r.entries); }catch(_){ esAt=Date.now(); } }
+    const w=workedMin(); if(!w||w.min<LIMIT_MIN)return;
+    if($('breakNudge').style.display!=='none')return;
+    let due=LIMIT_MIN; try{ due=Number(sessionStorage.getItem(key(w.anchor)))||LIMIT_MIN; }catch(_){}
+    if(w.min>=due) show(w.min);
+  }
+  $('bnLater').onclick=()=>{ askNotif(); const w=workedMin(); try{ if(w&&w.anchor)sessionStorage.setItem(key(w.anchor),String(w.min+SNOOZE_MIN)); }catch(_){} hide(); };
+  function start(){ if(timer||!isStaff())return; timer=setInterval(check,20000); setTimeout(check,3000); }
+  window.BreakNudge={start,check,setEntries,_worked:workedMin};
 })();
 </script>
 </body></html>
