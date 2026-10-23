@@ -1061,7 +1061,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     <!-- ---------- ADMIN: REWARDS (SHADOW) ---------- -->
     <section id="v-rewards" class="hide grid" style="gap:12px">
       <div class="card">
-        <div class="hdr"><h3 style="font-size:15px">Rewards (Shadow)</h3><div class="row" style="gap:7px;flex-wrap:wrap;align-items:center"><label for="rwWeek" style="margin:0">Week</label><select id="rwWeek" style="width:auto;min-width:190px"></select><label for="rwClient" style="margin:0">Client</label><select id="rwClient" style="width:auto;min-width:150px"><option value="">All clients</option></select><button class="btn btn-ghost" id="rwCsv">Export CSV</button><button class="btn btn-gold" id="rwRescore" title="Re-scores the last 14 days now (same as the 7:00 AM PHT nightly job)">Re-score now</button></div></div>
+        <div class="hdr"><h3 style="font-size:15px">Shift habits (Shadow)</h3><div class="row" style="gap:7px;flex-wrap:wrap;align-items:center"><label for="rwWeek" style="margin:0">Week</label><select id="rwWeek" style="width:auto;min-width:190px"></select><label for="rwClient" style="margin:0">Client</label><select id="rwClient" style="width:auto;min-width:150px"><option value="">All clients</option></select><button class="btn btn-ghost" id="rwCsv">Export CSV</button><button class="btn btn-gold" id="rwRescore" title="Re-scores the last 14 days now (same as the 7:00 AM PHT nightly job)">Re-score now</button></div></div>
         <div class="rw-shadow"><b>SHADOW MODE</b><span>Staff can't see this page and no BINGO tokens move. These are the tokens each agent <i>would</i> earn.</span></div>
         <div id="rwStatus" class="muted" role="status" aria-live="polite" style="font-size:12px;margin-bottom:9px">Loading…</div>
         <div class="rw-kpis" id="rwKpis"></div>
@@ -2906,6 +2906,7 @@ async function start(){
   window.Bulletin?.onStart();
   window.DocTodo?.load();
   window.BreakNudge?.start();
+  window.Ratings?.loadMine();
 }
 
 /* ---------- in-app notifications bell ---------- */
@@ -2960,7 +2961,7 @@ const PAGES={
   'v-cbonus':['🏅 Completion Bonus','Completion Bonus','Previous month: full month, no lates, no unpaid absences — review, then approve into the 15th payout'],
   'v-earning':['💰 SMB PH Earning','SMB PH Earning','Admin-only immutable per-semi-monthly-period FX + VSPH/ROI/margin LOCK IN'],
   'v-files':['📎 Files','Staff & Clients · Files','Every staff medcert, receipt and EOD attachment — filter, open, zip-download, or upload on their behalf'],
-  'v-policy':['⚙️ Rules','Staff & Clients · Rules','Billable rules, break allowances and activities by client'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Requests','Requests','Review and approve staff requests — SA/CA and PTO'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-eod':['📝 EOD & Weekly','EOD & Weekly Reports','Daily EOD and Friday weekly report — only you and Rendy can see them'], 'v-rewards':['🎟️ Rewards (Shadow)','Rewards (Shadow)','Tokens each agent would earn — admins only, nothing is paid out yet'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','Staff & Clients · PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
+  'v-policy':['⚙️ Rules','Staff & Clients · Rules','Billable rules, break allowances and activities by client'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Requests','Requests','Review and approve staff requests — SA/CA and PTO'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-eod':['📝 EOD & Weekly','EOD & Weekly Reports','Daily EOD and Friday weekly report — only you and Rendy can see them'], 'v-rewards':['🎟️ SMB Rewards','SMB Rewards','Shift habits, weekly ratings and tokens — one currency, paid into BINGO (shadow until Mon Nov 2)'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','Staff & Clients · PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
 };
 let view='v-punch';
 /* sub-tab groups (Rendy 2026-10-19): Rules + PTO Credits live in Staff & Clients; payroll tabs live under Contractor Ledger ("Payroll") for admins */
@@ -3109,7 +3110,7 @@ function go(v){
   if(v==='v-earning'){initEarningFilters();}
   if(v==='v-cbonus'){window.CompletionBonus?.init();}
   if(v==='v-files'){window.RFA?.load();}
-  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-rewards'){window.RewardsShadow?.init();} if(v==='v-eod'){window.EOD?.init();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();window.Reliability?.initProfile();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-rewards'){window.RewardsShadow?.init();window.Ratings?.initAdmin();} if(v==='v-punch'&&me&&me.role!=='admin'){window.Ratings?.loadMine();} if(v==='v-eod'){window.EOD?.init();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();window.Reliability?.initProfile();}
 }
 
 /* clocks + running timers */
@@ -10943,4 +10944,360 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   window.BreakNudge={start,check,setEntries,_worked:workedMin};
 })();
 </script>
+<script>
+/* ===== SMB Rewards · Weekly Ratings (2026-10-23) =====
+   Reliability + Compliance, both on the Reliability 1–5 bands, paid in tokens (not merit).
+   Backend: weekly_ratings / compliance_events / rating_disputes (ratings.sql), scored nightly 7:10 AM PHT.
+   Staff: "My Ratings" card on Time Tracker + header chips + drawer with Dispute (only once ratings are live — RLS).
+   Admin: Rewards tab sub-tabs Shift habits · Weekly Ratings · Economy. */
+(function(){
+  const esc=v=>escapeHtml(String(v??''));
+  const BANDS=[['Developing','below 3.00',0],['Meets','3.00+',3],['Exceeds','3.75+',3.75],['Outstanding','4.50+',4.5]];
+  const BCLS={Outstanding:'t',Exceeds:'g',Meets:'s',Developing:'r'};
+  const BCOL={Outstanding:'#2fb7a3',Exceeds:'#e3a63e',Meets:'#c9ced8',Developing:'#e2685f'};
+  const PARTS=[['hygiene','Timesheet hygiene'],['breaks','Break process'],['corrections','Corrections'],['eod','EOD on time'],['gotit','Got it on posts']];
+  const KIND_LBL={left_open:'Shift left open',break_process:'Break process',correction:'Correction',eod:'EOD',gotit:'Got it'};
+  const SHIFT_RULES=['on_time','no_overbreak','full_hours','perfect_shift','perfect_week'];
+  const DEF={payouts:{Outstanding:8,Exceeds:5,Meets:2,Developing:0},streak_weeks:4,streak_mult:1.5,dispute_days:7,min_shifts:3,live_from:'2026-11-02',earn_rate_history:[{from:'2026-10-26',rate:1}]};
+  let cfg=null, mine={weeks:[],events:[],disputes:[],ledger:[]}, adm={tab:'habits',week:null,client:'',rows:[],disputes:[],econ:null};
+  const today=()=>phDate(new Date());
+  const mondayOf=iso=>{const d=new Date(iso+'T00:00:00Z'),k=(d.getUTCDay()+6)%7;return addDays(iso,-k);};
+  const md=iso=>new Date(iso+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'});
+  const wkLbl=ws=>{const a=md(ws),b=addDays(ws,6);return a.split(' ')[0]===md(b).split(' ')[0]?`${a} – ${Number(b.slice(8))}`:`${a} – ${md(b)}`;};
+  const f2=n=>n==null?'—':Number(n).toFixed(2);
+  const isAdm=()=>me?.role==='admin';
+  const nameOf=id=>(staffList.find(s=>s.id===id)||{}).full_name||'—';
+  const clientOf=id=>{const s=staffList.find(x=>x.id===id);return (clients.find(c=>c.id===s?.client_id)||{}).name||'—';};
+  const errMsg=e=>e?.message||String(e);
+
+  const css=document.createElement('style');
+  css.textContent=`
+.rt-card .rt-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rt-b{display:flex;gap:12px;align-items:center;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left;color:inherit;font:inherit}
+.rt-b:hover{border-color:rgba(227,166,62,.6)}
+.rt-ring{--p:0;--c:#2fb7a3;width:58px;height:58px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),rgba(255,255,255,.08) 0);display:grid;place-items:center;flex:0 0 auto}
+.rt-ring>div{width:46px;height:46px;border-radius:50%;background:var(--card);display:grid;place-items:center;font:700 15px/1 ui-monospace,monospace}
+.rt-ring.lg{width:104px;height:104px}.rt-ring.lg>div{width:84px;height:84px;font-size:24px;flex-direction:column;gap:3px}.rt-ring.lg small{font-size:10px;color:var(--muted);font-weight:400}
+.rt-k{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.rt-s{font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px}
+.rt-tier{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;margin:3px 4px 0 0}
+.rt-tier.t{background:rgba(47,183,163,.18);color:#5fd6c3}.rt-tier.g{background:rgba(227,166,62,.2);color:#f0c070}.rt-tier.s{background:rgba(200,205,215,.16);color:#d6dae2}.rt-tier.r{background:rgba(226,104,95,.18);color:#f19a92}.rt-tier.n{background:rgba(255,255,255,.06);color:var(--muted)}
+.rt-tok{margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--card2);font-size:12.5px}
+.rt-tok .l{display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)}.rt-tok .l b{color:var(--text,#e8eaee);font-family:ui-monospace,monospace}
+.rt-tok .h{display:flex;justify-content:space-between;font-weight:700;margin-bottom:4px}.rt-tok .h b{color:var(--gold)}
+.rt-note{font-size:11.5px;color:var(--muted);margin-top:6px}
+.rt-nd{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.rt-n{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:7px 10px;border-radius:9px;background:rgba(255,255,255,.03)}
+.rt-n.u{background:rgba(226,104,95,.12)}.rt-n.w{background:rgba(227,166,62,.10)}.rt-n.ok{background:rgba(47,183,163,.10)}
+.rt-n a{margin-left:auto;color:var(--gold);font-weight:700;white-space:nowrap;cursor:pointer;font-size:12px}
+.rt-chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:6px}
+.rt-chip{all:unset;display:flex;align-items:center;gap:6px;font-size:11.5px;padding:3px 8px 3px 3px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line);cursor:pointer}
+.rt-chip b{font:700 11px/1 ui-monospace,monospace;padding:4px 6px;border-radius:999px;color:#14161c}
+#rtShade{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:998}
+#rtDrawer{position:fixed;top:0;right:0;height:100vh;width:min(540px,100vw);background:var(--card);border-left:1px solid var(--line);box-shadow:-20px 0 60px rgba(0,0,0,.5);z-index:999;overflow:auto;padding:20px 22px}
+.rt-dh{display:flex;gap:16px;align-items:center}
+.rt-lad{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:14px 0 4px}
+.rt-lad div{font-size:11px;text-align:center;padding:7px 4px;border-radius:7px;background:rgba(255,255,255,.04);color:var(--muted)}
+.rt-lad div.me{outline:2px solid var(--gold);color:inherit;background:rgba(227,166,62,.12)}
+.rt-h4{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:16px 0 6px}
+.rt-pil{display:grid;grid-template-columns:150px 1fr 110px;gap:10px;align-items:center;font-size:12.5px;margin:7px 0}
+.rt-pb{height:8px;border-radius:9px;background:rgba(255,255,255,.07);overflow:hidden}.rt-pb i{display:block;height:100%;border-radius:9px}
+.rt-ev{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;font-size:12.5px;padding:8px 0;border-bottom:1px solid var(--line)}
+.rt-tag{font-size:10.5px;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.rt-tag.c{background:rgba(227,166,62,.18);color:#f0c070}.rt-tag.x{background:rgba(255,255,255,.07);color:var(--muted)}.rt-tag.o{background:rgba(47,183,163,.15);color:#5fd6c3}.rt-tag.p{background:rgba(127,167,245,.18);color:#a9c3ff}
+.rt-mini{all:unset;cursor:pointer;font-size:11px;padding:4px 8px;border-radius:7px;border:1px solid var(--line);white-space:nowrap}
+.rt-mini:hover{border-color:var(--gold)}
+.rt-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.rt-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.rt-kpi{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px}.rt-kpi .v{font:700 20px/1.2 ui-monospace,monospace;margin-top:4px}
+.rt-tbl td,.rt-tbl th{font-size:12.5px}.rt-tbl tr[data-rt-staff]{cursor:pointer}.rt-tbl tr[data-rt-staff]:hover td{background:rgba(255,255,255,.03)}
+.rt-bar{display:grid;grid-template-columns:70px 1fr 60px;gap:8px;align-items:center;font-size:12px;margin:5px 0}
+.rt-bar .t{height:9px;border-radius:9px;background:rgba(255,255,255,.07);overflow:hidden;display:flex}.rt-bar .t i{display:block;height:100%}
+@media(max-width:700px){.rt-card .rt-row{grid-template-columns:1fr}.rt-kpis{grid-template-columns:repeat(2,1fr)}.rt-pil{grid-template-columns:110px 1fr 90px}}
+`;
+  document.head.appendChild(css);
+
+  async function loadCfg(){
+    if(cfg) return cfg;
+    try{const {data}=await sb.from('settings').select('value').eq('key','rating_rules').maybeSingle();cfg={...DEF,...(data?.value||{})};}
+    catch(e){cfg={...DEF};}
+    return cfg;
+  }
+  const payout=b=>Number((cfg?.payouts||DEF.payouts)[b]??0);
+  function earnRateFor(ws){const h=(cfg?.earn_rate_history||[]).filter(x=>x.from<=ws).sort((a,b)=>a.from<b.from?1:-1);return h.length?Number(h[0].rate):1;}
+  function ring(score,band,lg){
+    const p=score==null?0:Math.max(0,Math.min(100,(Number(score)-1)/4*100));
+    return `<div class="rt-ring${lg?' lg':''}" style="--p:${p.toFixed(1)};--c:${BCOL[band]||'#555'}"><div>${score==null?'—':f2(score)}${lg?'<small>/ 5.00</small>':''}</div></div>`;
+  }
+  const tier=b=>b?`<span class="rt-tier ${BCLS[b]}">${esc(b)}</span>`:'<span class="rt-tier n">Not scored</span>';
+  function nextBand(score){
+    if(score==null)return null;
+    const up=BANDS.find(([,,min])=>min>Number(score)+1e-9);
+    return up?{name:up[0],gap:(up[2]-Number(score)).toFixed(2),tok:payout(up[0])}:null;
+  }
+
+  /* ---------------- shared drawer ---------------- */
+  function closeDrawer(){document.getElementById('rtDrawer')?.remove();document.getElementById('rtShade')?.remove();}
+  function biggestLift(w){
+    const parts=w.comp_parts?.parts||{},wt=w.comp_parts?.weights||{};let best=null,tw=0;
+    PARTS.forEach(([k])=>{if(parts[k]!=null)tw+=Number(wt[k]||0);});
+    PARTS.forEach(([k,l])=>{const s=parts[k];if(s==null||!tw)return;const g=(5-s)*Number(wt[k]||0)/tw;if(g>0.005&&(!best||g>best.g))best={g,l};});
+    return best;
+  }
+  function eventRow(e,disputes,opts){
+    const d=disputes.find(x=>x.event_id===e.id&&x.status==='open')||disputes.filter(x=>x.event_id===e.id).sort((a,b)=>a.id<b.id?1:-1)[0];
+    let tag;
+    if(!e.counted) tag='<span class="rt-tag o">No effect</span>';
+    else if(e.excluded) tag=`<span class="rt-tag x" title="${esc(e.excluded_note||'')}">Excluded</span>`;
+    else if(d&&d.status==='open') tag='<span class="rt-tag p">Disputed · waiting</span>';
+    else tag='<span class="rt-tag c">Counted</span>';
+    let act='';
+    const left=Number(cfg.dispute_days||7)-Math.round((new Date(today()+'T00:00:00Z')-new Date(e.event_date+'T00:00:00Z'))/864e5);
+    if(opts.admin){
+      if(e.counted) act=e.excluded?`<button class="rt-mini" data-rt-restore="${e.id}">Restore</button>`:`<button class="rt-mini" data-rt-exclude="${e.id}">Exclude</button>`;
+    }else if(e.counted&&!e.excluded&&!(d&&d.status!=='rejected'&&d.status!=='approved')&&!(d&&d.status==='rejected')&&left>=0){
+      act=`<button class="rt-mini" data-rt-dispute="${e.id}">Dispute · ${left} day${left===1?'':'s'} left</button>`;
+    }
+    const note=d?`<div class="rt-s">Dispute: “${esc(d.reason)}”${d.status!=='open'?` → <b>${d.status}</b>${d.decision_note?` — ${esc(d.decision_note)}`:''}`:''}</div>`:'';
+    return `<div class="rt-ev"><span class="mono" style="font-size:12px">${esc(md(e.event_date))}</span><div>${esc(e.detail)}${note}</div><div style="display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap">${tag}${act}</div></div>`;
+  }
+  function openDrawer(kind,w,events,disputes,history,opts){
+    closeDrawer(); opts=opts||{};
+    const isC=kind==='compliance', score=isC?w.comp_score:w.rel_score, band=isC?w.comp_band:w.rel_band;
+    const nb=nextBand(score), tok=isC?w.comp_tokens:w.rel_tokens;
+    const status=w.locked_at?'final':'provisional — locks Mon 7:00 AM PHT';
+    let body='';
+    if(isC){
+      const parts=w.comp_parts?.parts||{},cnt=w.comp_parts?.counts||{},wt=w.comp_parts?.weights||{};
+      const raw={hygiene:`${cnt.left_open||0} left open`,breaks:`${cnt.break_process||0} slip${cnt.break_process===1?'':'s'}`,corrections:`${cnt.correction||0} counted`,
+        eod:cnt.eod_required?`${cnt.eod_required-(cnt.eod_missed||0)} / ${cnt.eod_required}`:'N/A',gotit:cnt.gotit_total?`${cnt.gotit_total-(cnt.gotit_missed||0)} of ${cnt.gotit_total}`:'N/A'};
+      body+=`<div class="rt-h4">How your score is built (each part scored 1–5)</div>`+PARTS.map(([k,l])=>{const s=parts[k];return `<div class="rt-pil"><span>${l} · ${wt[k]||0}%</span><div class="rt-pb"><i style="width:${s==null?0:(s/5*100).toFixed(0)}%;background:${s==null?'transparent':s>=4.5?'#2fb7a3':s>=3?'#e3a63e':'#e2685f'}"></i></div><span class="mono" style="text-align:right;font-size:12px">${esc(raw[k])} → ${s==null?'N/A':f2(s)}</span></div>`;}).join('')
+        +`<div class="rt-pil" style="font-weight:700"><span>Weighted total</span><span></span><span class="mono" style="text-align:right">${f2(score)}</span></div><div class="rt-note">A part with nothing to score this week (e.g. no policy posts) shows N/A and its weight is shared across the others. A correction you file yourself within 24h has no effect; the shift left open still counts once.</div>`;
+      const evs=events.filter(e=>e.week_start===w.week_start).sort((a,b)=>a.event_date<b.event_date?1:-1);
+      body+=`<div class="rt-h4">What counted this week</div>`+(evs.length?evs.map(e=>eventRow(e,disputes,opts)).join(''):'<div class="rt-note">Nothing counted against you this week. 🎉</div>');
+    }else{
+      const r=w.rel_parts||{};
+      const line=(l,v,s)=>`<div class="rt-pil"><span>${l}</span><div class="rt-pb"><i style="width:${s==null?0:(s/5*100).toFixed(0)}%;background:${s==null?'transparent':s>=4.5?'#2fb7a3':s>=3?'#e3a63e':'#e2685f'}"></i></div><span class="mono" style="text-align:right;font-size:12px">${esc(v)} → ${s==null?'—':f2(s)}</span></div>`;
+      body+=`<div class="rt-h4">How your score is built (same formula as your Reliability card, run on this week)</div>`
+        +line('Attendance · 60%',r.att_pct==null?'—':`${r.att_pct}%`,r.att)
+        +line('Punctuality · 25%',`${r.late||0} late`,r.punct)
+        +line('Breaks · 15%',`${r.over_min||0} min over`,r.brk)
+        +`<div class="rt-note">Expected ${r.expected??'—'} workdays · PA/SL ${r.pa??0} · unplanned absence ${r.out??0} (counts ×2) · ${r.tracked??0} tracked shifts. Late = more than 5 min after shift start. If something here is wrong, file a time correction or tell Rendy — he can excuse a date.</div>`;
+    }
+    const hist=(history||[]).slice(0,8).map(h=>`<div class="rt-ev" style="grid-template-columns:110px 1fr auto"><span style="font-size:12px">Wk ${esc(wkLbl(h.week_start))}</span><span class="rt-s" style="margin:0">${h.status==='scored'?`Reliability ${esc(h.rel_band||'—')} · Compliance ${esc(h.comp_band||'—')}${h.multiplier>1?` · streak ×${h.multiplier}`:''}`:esc(h.note||'Not scored')}</span><b class="mono" style="font-size:12px">${h.shadow?'shadow — not paid':`🪙 ${h.rel_tokens+h.comp_tokens}${h.locked_at?'':' pending'}`}</b></div>`).join('');
+    const html=`<div id="rtShade"></div><div id="rtDrawer" role="dialog" aria-label="${isC?'Compliance':'Reliability'} details">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div class="rt-k">${opts.admin?esc(nameOf(w.staff_id))+' · ':''}${isC?'Compliance':'Reliability'} · week ${esc(wkLbl(w.week_start))} · ${status}</div><button class="rt-mini" id="rtClose" aria-label="Close">✕</button></div>
+      <div class="rt-dh" style="margin-top:12px">${ring(score,band,true)}<div><div style="font-size:20px;font-weight:700">${esc(band||'Not scored')} ${w.status==='scored'?`<span class="rt-tier g">🪙 ${tok} tokens</span>`:''}</div>
+        <div class="rt-s">${w.status!=='scored'?esc(w.note||'Not scored this week'):nb?`${nb.gap} to <b>${esc(nb.name)}</b> (🪙 ${nb.tok}).`:'Top band — keep it up!'}${isC&&w.status==='scored'?(()=>{const b=biggestLift(w);return b?` Biggest lift: ${esc(b.l)}.`:'';})():''}</div>
+        <div class="rt-s">Same 1–5 bands for both ratings. Tokens only — never affects your fee, merit or Year End Bonus.</div></div></div>
+      <div class="rt-lad">${BANDS.map(([n,r])=>`<div class="${n===band?'me':''}">${n}<br>${r} · 🪙${payout(n)}</div>`).join('')}</div>
+      <div class="rt-note">${cfg.streak_weeks||4} weeks in a row at Exceeds or better on both → rating tokens ×${cfg.streak_mult||1.5} · weeks with fewer than ${cfg.min_shifts||3} shifts aren't scored${w.shadow?' · <b>shadow week — not paid</b>':''}</div>
+      ${body}
+      ${hist?`<div class="rt-h4">Token history</div>${hist}`:''}
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend',html);
+    const dr=document.getElementById('rtDrawer');
+    document.getElementById('rtShade').onclick=closeDrawer; document.getElementById('rtClose').onclick=closeDrawer;
+    dr.querySelectorAll('[data-rt-dispute]').forEach(b=>b.onclick=async()=>{
+      const reason=prompt('What happened? Rendy will review this (add details, e.g. "brownout 5:40 AM, photo sent in Viber").');
+      if(reason==null)return; b.disabled=true;
+      const {error}=await sb.rpc('rate_dispute',{p_event:Number(b.dataset.rtDispute),p_reason:reason});
+      if(error){b.disabled=false;return alert(errMsg(error));}
+      await loadMine(); const nw=mine.weeks.find(x=>x.week_start===w.week_start)||w; openDrawer(kind,nw,mine.events,mine.disputes,mine.weeks,opts);
+    });
+    const exSet=async(id,ex)=>{
+      const note=prompt(ex?'Why exclude this item? (audit note)':'Why restore this item? (audit note)'); if(note==null)return;
+      const {error}=await sb.rpc('admin_rating_event_set',{p_event:Number(id),p_excluded:ex,p_note:note}); if(error)return alert(errMsg(error));
+      await opts.reload?.();
+    };
+    dr.querySelectorAll('[data-rt-exclude]').forEach(b=>b.onclick=()=>exSet(b.dataset.rtExclude,true));
+    dr.querySelectorAll('[data-rt-restore]').forEach(b=>b.onclick=()=>exSet(b.dataset.rtRestore,false));
+  }
+
+  /* ---------------- staff: My Ratings card ---------------- */
+  async function loadMine(){
+    if(!me||isAdm()||!sb)return;
+    await loadCfg();
+    const w=await sb.from('weekly_ratings').select('*').eq('staff_id',me.id).order('week_start',{ascending:false}).limit(12);
+    if(w.error||!(w.data||[]).length){mine={weeks:[],events:[],disputes:[],ledger:[]};return paintMine();}
+    mine.weeks=w.data; const latest=w.data[0].week_start, from=addDays(latest,-28);
+    const [ev,dp,lg]=await Promise.all([
+      sb.from('compliance_events').select('*').eq('staff_id',me.id).gte('week_start',from).order('event_date',{ascending:false}).limit(300),
+      sb.from('rating_disputes').select('*').eq('staff_id',me.id).gte('week_start',from).order('id',{ascending:false}).limit(100),
+      sb.from('reward_ledger').select('rule,tokens,week_start,award_date,shadow').eq('staff_id',me.id).eq('week_start',latest).limit(500)]);
+    mine.events=ev.data||[]; mine.disputes=dp.data||[]; mine.ledger=lg.data||[];
+    paintMine();
+  }
+  function paintMine(){
+    const sec=$('v-punch'); if(!sec)return;
+    const R=[...sec.children].filter(c=>c.id!=='docTodoBanner')[1]; if(!R)return;
+    let card=$('rtMyCard'), chips=$('rtChips');
+    const w=mine.weeks[0];
+    if(!w){card?.remove();chips?.remove();return;}
+    if(!card){card=document.createElement('div');card.className='card rt-card';card.id='rtMyCard';}
+    if(R.firstChild!==card)R.insertBefore(card,R.firstChild);
+    const shiftTok=mine.ledger.filter(l=>SHIFT_RULES.includes(l.rule)).reduce((n,l)=>n+l.tokens,0);
+    const adjTok=mine.ledger.filter(l=>!SHIFT_RULES.includes(l.rule)&&l.award_date!==w.week_start).reduce((n,l)=>n+l.tokens,0);
+    const scored=w.status==='scored', total=shiftTok+(scored?w.rel_tokens+w.comp_tokens:0)+adjTok;
+    const prov=w.locked_at?'final':'provisional';
+    const evs=mine.events.filter(e=>e.week_start===w.week_start&&e.counted&&!e.excluded);
+    const nb=nextBand(w.comp_score);
+    const nd=[];
+    evs.filter(e=>e.kind==='left_open').forEach(e=>nd.push(`<div class="rt-n u">⏰ <span>${esc(e.detail)} — ${esc(md(e.event_date))}</span><a data-rt-fix="${esc(e.event_date)}">Fix now →</a></div>`));
+    const got=evs.filter(e=>e.kind==='gotit').length; if(got) nd.push(`<div class="rt-n w">📘 <span>${got} policy post${got>1?'s':''} missed the 48h “Got it”</span><a data-rt-go="v-portal">Open →</a></div>`);
+    const eodMiss=evs.filter(e=>e.kind==='eod').length, eodReq=w.comp_parts?.counts?.eod_required||0;
+    if(eodReq) nd.push(`<div class="rt-n ${eodMiss?'w':'ok'}">📝 <span>EOD on time ${eodReq-eodMiss} / ${eodReq} this week</span>${eodMiss?'<a data-rt-go="v-eod">Open EOD →</a>':''}</div>`);
+    card.innerHTML=`<div class="hdr"><h3 style="font-size:15px">My Ratings · SMB Rewards</h3><span class="badge">Week ${esc(wkLbl(w.week_start))} · ${prov}</span></div>
+      <div class="rt-row">
+        <button class="rt-b" data-rt-open="reliability">${ring(w.rel_score,w.rel_band)}<div><div class="rt-k">Reliability · this week</div>${tier(scored?w.rel_band:null)}${scored?`🪙 ${w.rel_tokens}`:''}<div class="rt-s">Show up, on time, breaks in limits</div></div></button>
+        <button class="rt-b" data-rt-open="compliance">${ring(w.comp_score,w.comp_band)}<div><div class="rt-k">Compliance · this week</div>${tier(scored?w.comp_band:null)}${scored?`🪙 ${w.comp_tokens}`:''}${scored&&nb?` · +${nb.gap} to ${esc(nb.name)}`:''}<div class="rt-s">Timesheet, breaks, corrections, EOD, Got it</div></div></button>
+      </div>
+      <div class="rt-tok"><div class="h"><span>🪙 This week's tokens${w.shadow?' (shadow — not paid)':''}</span><b>${total}</b></div>
+        <div class="l"><span>Shift habits (on time, breaks, full hours)</span><b>${shiftTok}</b></div>
+        <div class="l"><span>Reliability · ${esc(scored?w.rel_band:'not scored')}</span><b>${scored?w.rel_tokens:0}</b></div>
+        <div class="l"><span>Compliance · ${esc(scored?w.comp_band:'not scored')}</span><b>${scored?w.comp_tokens:0}</b></div>
+        ${adjTok?`<div class="l"><span>Approved dispute (earlier week)</span><b>+${adjTok}</b></div>`:''}
+        <div class="rt-note">${scored?'':esc(w.note||'')+' · '}🔥 Streak ${Math.min(w.streak||0,cfg.streak_weeks||4)} / ${cfg.streak_weeks||4} weeks at Exceeds or better${w.multiplier>1?` → rating tokens ×${w.multiplier}`:''} · claim in BINGO Mon ${esc(md(addDays(w.week_start,7)))}, 7:00 AM PHT</div></div>
+      ${nd.length?`<div class="rt-nd">${nd.join('')}</div>`:''}`;
+    card.querySelectorAll('[data-rt-open]').forEach(b=>b.onclick=()=>openDrawer(b.dataset.rtOpen,w,mine.events,mine.disputes,mine.weeks,{}));
+    card.querySelectorAll('[data-rt-go]').forEach(a=>a.onclick=()=>go(a.dataset.rtGo));
+    card.querySelectorAll('[data-rt-fix]').forEach(a=>a.onclick=()=>fixNow(a.dataset.rtFix));
+    // header chips
+    const host=$('shiftPill')?.parentElement; if(host){
+      if(!chips){chips=document.createElement('div');chips.id='rtChips';chips.className='rt-chips';}
+      if(chips.parentElement!==host)host.appendChild(chips);
+      chips.innerHTML=`<button class="rt-chip" data-rt-open="reliability"><b style="background:${BCOL[w.rel_band]||'#666'}">${f2(w.rel_score)}</b>Reliability</button><button class="rt-chip" data-rt-open="compliance"><b style="background:${BCOL[w.comp_band]||'#666'}">${f2(w.comp_score)}</b>Compliance</button><span class="rt-chip" style="cursor:default"><b style="background:var(--gold)">${total}</b>🪙 this week</span>`;
+      chips.querySelectorAll('[data-rt-open]').forEach(b=>b.onclick=()=>openDrawer(b.dataset.rtOpen,w,mine.events,mine.disputes,mine.weeks,{}));
+    }
+  }
+  function fixNow(date){
+    go('v-punch'); const d=$('corrDate'); if(!d)return;
+    d.value=date; d.dispatchEvent(new Event('change'));
+    const chip=document.querySelector('[data-cr-reason="forgot_logout"]'); if(chip&&!chip.classList.contains('on'))chip.click();
+    d.closest('.card')?.scrollIntoView({behavior:'smooth',block:'start'});
+    setTimeout(()=>$('corrMsg')?.focus(),400);
+  }
+
+  /* ---------------- admin: Rewards sub-tabs ---------------- */
+  function setupAdminTabs(){
+    const sec=$('v-rewards'); if(!sec||$('rtTabs'))return;
+    [...sec.children].forEach(c=>c.dataset.rtPanel='habits');
+    const bar=document.createElement('div'); bar.id='rtTabs'; bar.className='rt-tabs';
+    bar.innerHTML=`<button class="btn btn-gold" data-rt-tab="habits">Shift habits</button><button class="btn btn-ghost" data-rt-tab="ratings">⭐ Weekly Ratings</button><button class="btn btn-ghost" data-rt-tab="economy">🪙 Economy</button>`;
+    sec.insertBefore(bar,sec.firstChild);
+    const rp=document.createElement('div'); rp.dataset.rtPanel='ratings'; rp.className='grid hide'; rp.style.gap='12px'; rp.id='rtRatingsPanel'; sec.appendChild(rp);
+    const ep=document.createElement('div'); ep.dataset.rtPanel='economy'; ep.className='grid hide'; ep.style.gap='12px'; ep.id='rtEconPanel'; sec.appendChild(ep);
+    bar.querySelectorAll('[data-rt-tab]').forEach(b=>b.onclick=()=>showTab(b.dataset.rtTab));
+  }
+  function showTab(t){
+    adm.tab=t;
+    $('rtTabs')?.querySelectorAll('[data-rt-tab]').forEach(b=>b.className='btn '+(b.dataset.rtTab===t?'btn-gold':'btn-ghost'));
+    $('v-rewards').querySelectorAll('[data-rt-panel]').forEach(p=>p.classList.toggle('hide',p.dataset.rtPanel!==t));
+    if(t==='ratings')loadAdmin().catch(e=>{$('rtRatingsPanel').innerHTML=`<div class="card note">Could not load ratings: ${esc(errMsg(e))}</div>`;});
+    if(t==='economy')loadEcon().catch(e=>{$('rtEconPanel').innerHTML=`<div class="card note">Could not load economy: ${esc(errMsg(e))}</div>`;});
+  }
+  async function initAdmin(){ if(!isAdm())return; await loadCfg(); setupAdminTabs(); if(adm.tab!=='habits')showTab(adm.tab); }
+
+  async function loadAdmin(){
+    const host=$('rtRatingsPanel'); await loadCfg();
+    const wk=await sb.from('weekly_ratings').select('week_start').order('week_start',{ascending:false}).limit(1);
+    if(wk.error){host.innerHTML=`<div class="card note">Weekly ratings aren't set up yet — run the ratings SQL first. (${esc(errMsg(wk.error))})</div>`;return;}
+    const latest=wk.data?.[0]?.week_start;
+    if(!latest){host.innerHTML=`<div class="card"><div class="note">No weeks scored yet. The first shadow week (${esc(wkLbl(cfg.shadow_from||'2026-10-26'))}) shows here from the morning after its first shift.</div></div>`;return;}
+    if(!adm.week)adm.week=latest;
+    const [rw,dp]=await Promise.all([
+      sb.from('weekly_ratings').select('*').eq('week_start',adm.week).limit(500),
+      sb.from('rating_disputes').select('*').eq('status','open').order('created_at').limit(200)]);
+    if(rw.error)throw rw.error;
+    adm.rows=rw.data||[]; adm.disputes=dp.data||[];
+    let evIds=adm.disputes.map(d=>d.event_id), evMap={};
+    if(evIds.length){const {data}=await sb.from('compliance_events').select('*').in('id',evIds);(data||[]).forEach(e=>evMap[e.id]=e);}
+    const weeks=[]; for(let w=latest;w>=(cfg.shadow_from||'2026-10-26')&&weeks.length<16;w=addDays(w,-7))weeks.push(w);
+    const cl=[...new Set(adm.rows.map(r=>clientOf(r.staff_id)))].sort();
+    let rows=adm.rows.filter(r=>!adm.client||clientOf(r.staff_id)===adm.client);
+    const sc=rows.filter(r=>r.status==='scored'), avg=k=>sc.length?(sc.reduce((n,r)=>n+Number(r[k]||0),0)/sc.length).toFixed(2):'—';
+    const shadow=adm.week<(cfg.live_from||'2026-11-02');
+    rows.sort((a,b)=>(a.status==='scored'?0:1)-(b.status==='scored'?0:1)||((b.rel_score||0)+(b.comp_score||0))-((a.rel_score||0)+(a.comp_score||0)));
+    const weakest=r=>{const p=r.comp_parts?.parts||{};let m=null;PARTS.forEach(([k,l])=>{if(p[k]!=null&&(m==null||p[k]<m.s))m={s:p[k],l};});return m&&m.s<5?`${m.l.split(' ').pop()} ${f2(m.s)}`:'—';};
+    host.innerHTML=`<div class="card"><div class="hdr"><h3 style="font-size:15px">Weekly Ratings ${shadow?'<span class="rt-tier n">shadow — not paid, staff can\'t see</span>':''}</h3>
+        <div class="row" style="gap:7px;flex-wrap:wrap;align-items:center"><select id="rtWeek" style="width:auto">${weeks.map(w=>`<option value="${w}"${w===adm.week?' selected':''}>Week ${esc(wkLbl(w))}</option>`).join('')}</select>
+        <select id="rtClient" style="width:auto"><option value="">All clients</option>${cl.map(c=>`<option${c===adm.client?' selected':''}>${esc(c)}</option>`).join('')}</select>
+        <button class="btn btn-ghost" id="rtCsv">Export CSV</button><button class="btn btn-gold" id="rtRescore" title="Same as the 7:10 AM PHT nightly job">Re-score now</button></div></div>
+        <div class="muted" style="font-size:12px;margin-bottom:10px">Scored nightly 7:10 AM PHT · week locks Mon 7:00 AM PHT · disputes open ${cfg.dispute_days||7} days · click a row to see exactly what that agent sees.</div>
+        <div class="rt-kpis">
+          <div class="rt-kpi"><div class="rt-k">Avg Reliability / Compliance</div><div class="v">${avg('rel_score')} / ${avg('comp_score')}</div></div>
+          <div class="rt-kpi"><div class="rt-k">Outstanding (either)</div><div class="v" style="color:#5fd6c3">${sc.filter(r=>r.rel_band==='Outstanding'||r.comp_band==='Outstanding').length}</div></div>
+          <div class="rt-kpi"><div class="rt-k">Developing (either)</div><div class="v" style="color:#f19a92">${sc.filter(r=>r.rel_band==='Developing'||r.comp_band==='Developing').length}</div></div>
+          <div class="rt-kpi"><div class="rt-k">Rating tokens this week</div><div class="v" style="color:var(--gold)">${sc.reduce((n,r)=>n+r.rel_tokens+r.comp_tokens,0)}</div></div>
+          <div class="rt-kpi"><div class="rt-k">Open disputes</div><div class="v">${adm.disputes.length}</div></div></div></div>
+      <div class="card"><div style="overflow-x:auto"><table class="rt-tbl"><thead><tr><th>#</th><th>Agent</th><th>Client</th><th>Shifts</th><th>Reliability</th><th>Band</th><th>Compliance</th><th>Band</th><th>Weakest part</th><th>Streak</th><th>Rating 🪙</th></tr></thead><tbody>
+        ${rows.map((r,i)=>r.status==='scored'?`<tr data-rt-staff="${esc(r.staff_id)}"><td>${i+1}</td><td>${esc(nameOf(r.staff_id))}</td><td>${esc(clientOf(r.staff_id))}</td><td>${r.shifts}</td><td class="mono">${f2(r.rel_score)}</td><td>${tier(r.rel_band)}</td><td class="mono">${f2(r.comp_score)}</td><td>${tier(r.comp_band)}</td><td>${esc(weakest(r))}</td><td class="mono">${Math.min(r.streak,cfg.streak_weeks||4)}/${cfg.streak_weeks||4}${r.multiplier>1?` ×${r.multiplier}`:''}</td><td class="mono"><b>${r.rel_tokens+r.comp_tokens}</b></td></tr>`
+          :`<tr data-rt-staff="${esc(r.staff_id)}" style="opacity:.6"><td>—</td><td>${esc(nameOf(r.staff_id))}</td><td>${esc(clientOf(r.staff_id))}</td><td>${r.shifts}</td><td colspan="7">Not scored this week · ${esc(r.note||'')}</td></tr>`).join('')||'<tr><td colspan="11" class="muted">No rows for this week.</td></tr>'}
+        </tbody></table></div>
+        <div class="muted" style="font-size:11px;margin-top:8px">Admins and staff with no client aren't scored · Rating 🪙 = Reliability + Compliance payout (${payout('Outstanding')}/${payout('Exceeds')}/${payout('Meets')}/${payout('Developing')} each) × streak × earn rate (${earnRateFor(adm.week)}×).</div></div>
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Open disputes (${adm.disputes.length})</h3></div>
+        ${adm.disputes.length?adm.disputes.map(d=>{const e=evMap[d.event_id]||{};const left=Number(cfg.dispute_days||7)-Math.round((new Date(today()+'T00:00:00Z')-new Date((e.event_date||today())+'T00:00:00Z'))/864e5);
+          return `<div style="padding:10px 0;border-bottom:1px solid var(--line)"><div><b>${esc(nameOf(d.staff_id))}</b> · ${esc(e.event_date?md(e.event_date):'')} · ${esc(KIND_LBL[e.kind]||'')} · filed ${esc(new Date(d.created_at).toLocaleString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))}</div>
+          <div class="rt-s">${esc(e.detail||'')}</div><div style="margin:4px 0 6px">“${esc(d.reason)}”</div>
+          <div class="row" style="gap:6px"><button class="btn btn-teal" data-rt-appr="${d.id}">Approve → exclude</button><button class="btn btn-ghost" data-rt-rej="${d.id}">Reject</button></div></div>`;}).join('')+`<div class="muted" style="font-size:11px;margin-top:8px">Approving excludes the item and rescores the week. If that week already paid, the token difference goes into the current week (never clawed back).</div>`
+        :'<div class="muted" style="font-size:12.5px">No open disputes.</div>'}</div>`;
+    $('rtWeek').onchange=()=>{adm.week=$('rtWeek').value;loadAdmin();};
+    $('rtClient').onchange=()=>{adm.client=$('rtClient').value;loadAdmin();};
+    $('rtCsv').onclick=()=>csv(rows);
+    $('rtRescore').onclick=async()=>{const b=$('rtRescore');b.disabled=true;b.textContent='Scoring…';const {error}=await sb.rpc('admin_ratings_rescore');b.disabled=false;b.textContent='Re-score now';if(error)return alert(errMsg(error));loadAdmin();};
+    host.querySelectorAll('[data-rt-staff]').forEach(tr=>tr.onclick=()=>previewStaff(tr.dataset.rtStaff));
+    const decide=async(id,ok)=>{const note=prompt(ok?'Approve: short audit note (e.g. "Brownout confirmed, photo in Viber")':'Reject: short reason the agent will see');if(note==null)return;
+      const {data,error}=await sb.rpc('rate_decide',{p_dispute:Number(id),p_approve:ok,p_note:note});if(error)return alert(errMsg(error));
+      if(ok&&data?.token_diff)alert(`Approved. ${data.token_diff>0?'+':''}${data.token_diff} tokens for that week.`);loadAdmin();};
+    host.querySelectorAll('[data-rt-appr]').forEach(b=>b.onclick=()=>decide(b.dataset.rtAppr,true));
+    host.querySelectorAll('[data-rt-rej]').forEach(b=>b.onclick=()=>decide(b.dataset.rtRej,false));
+  }
+  async function previewStaff(id,kind){
+    const w=adm.rows.find(r=>r.staff_id===id); if(!w)return;
+    const [ev,dp,hist]=await Promise.all([
+      sb.from('compliance_events').select('*').eq('staff_id',id).eq('week_start',w.week_start).limit(200),
+      sb.from('rating_disputes').select('*').eq('staff_id',id).eq('week_start',w.week_start).limit(100),
+      sb.from('weekly_ratings').select('*').eq('staff_id',id).order('week_start',{ascending:false}).limit(8)]);
+    openDrawer(kind||'compliance',w,ev.data||[],dp.data||[],hist.data||[],{admin:true,reload:async()=>{await loadAdmin();previewStaff(id,kind);}});
+    const dr=$('rtDrawer'); if(dr){const t=document.createElement('div');t.className='row';t.style.cssText='gap:6px;margin-top:10px';
+      t.innerHTML=`<button class="btn ${kind==='reliability'?'btn-ghost':'btn-gold'}" data-k="compliance">Compliance view</button><button class="btn ${kind==='reliability'?'btn-gold':'btn-ghost'}" data-k="reliability">Reliability view</button>`;
+      dr.insertBefore(t,dr.children[1]); t.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>previewStaff(id,b.dataset.k));}
+  }
+  function csv(rows){
+    const head=['week_start','agent','client','status','shifts','reliability','rel_band','compliance','comp_band','hygiene','breaks','corrections','eod','gotit','streak','multiplier','rel_tokens','comp_tokens','shadow'];
+    const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+    const lines=[head.join(',')].concat(rows.map(r=>{const p=r.comp_parts?.parts||{};return [r.week_start,nameOf(r.staff_id),clientOf(r.staff_id),r.status,r.shifts,r.rel_score,r.rel_band,r.comp_score,r.comp_band,p.hygiene,p.breaks,p.corrections,p.eod,p.gotit,r.streak,r.multiplier,r.rel_tokens,r.comp_tokens,r.shadow].map(q).join(',');}));
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/csv'}));a.download=`weekly_ratings_${adm.week}.csv`;a.click();
+  }
+
+  async function pageAll(build){let out=[],from=0;for(;;){const {data,error}=await build().range(from,from+999);if(error)throw error;out=out.concat(data||[]);if(!data||data.length<1000)break;from+=1000;}return out;}
+  async function loadEcon(){
+    const host=$('rtEconPanel'); await loadCfg();
+    const cur=mondayOf(today()), weeks=[0,1,2,3,4].map(i=>addDays(cur,-7*i)).reverse();
+    const rows=await pageAll(()=>sb.from('reward_ledger').select('week_start,rule,tokens,shadow').gte('week_start',weeks[0]));
+    const by={}; weeks.forEach(w=>by[w]={shift:0,reliability:0,compliance:0,shadow:false});
+    rows.forEach(r=>{const b=by[r.week_start];if(!b)return;const k=SHIFT_RULES.includes(r.rule)?'shift':r.rule;b[k]=(b[k]||0)+r.tokens;if(r.shadow)b.shadow=true;});
+    const max=Math.max(1,...weeks.map(w=>by[w].shift+by[w].reliability+by[w].compliance));
+    const rateNow=earnRateFor(cur), hist=(cfg.earn_rate_history||[]).slice().sort((a,b)=>a.from<b.from?1:-1), pend=hist.find(h=>h.from>today());
+    host.innerHTML=`<div class="card"><div class="hdr"><h3 style="font-size:15px">🪙 Tokens created per week</h3><span class="muted" style="font-size:12px">all agents · shift habits + weekly ratings</span></div>
+      ${weeks.map(w=>{const b=by[w],t=b.shift+b.reliability+b.compliance;return `<div class="rt-bar"><span>${esc(md(w))}</span><div class="t" title="Shift ${b.shift} · Reliability ${b.reliability} · Compliance ${b.compliance}"><i style="width:${(b.shift/max*100).toFixed(1)}%;background:#7FA7F5"></i><i style="width:${(b.reliability/max*100).toFixed(1)}%;background:#2fb7a3"></i><i style="width:${(b.compliance/max*100).toFixed(1)}%;background:#e3a63e"></i></div><b class="mono" style="text-align:right">${t}${b.shadow?' <span class="muted" style="font-weight:400">sh</span>':''}</b></div>`;}).join('')}
+      <div class="muted" style="font-size:11px;margin-top:6px"><span style="color:#7FA7F5">■</span> Shift habits <span style="color:#2fb7a3">■</span> Reliability <span style="color:#e3a63e">■</span> Compliance · “sh” = shadow (not paid). BINGO spending (cards, pet care) will show here next to this once the BINGO claim is connected — that's what the burn-rate target (≥70%) is measured against.</div></div>
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Earn rate</h3></div>
+        <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><span>Now <b class="mono">${rateNow}×</b>${pend?` · <b class="mono">${pend.rate}×</b> from Mon ${esc(md(pend.from))}`:''}</span>
+        <input type="number" id="rtRate" min="0" max="3" step="0.05" value="${pend?pend.rate:rateNow}" style="width:90px"><button class="btn btn-gold" id="rtRateSave">Save — applies next Monday</button></div>
+        <div class="muted" style="font-size:12px;margin-top:6px">Scales weekly rating payouts from next Monday (PHT). Lower it if tokens pile up faster than they're spent.</div></div>
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Token rules</h3></div><table class="rt-tbl"><tbody>
+        <tr><td>On time / no over-break / full hours / perfect shift</td><td class="mono">1·2·1·1 (cap 10/day)</td></tr>
+        <tr><td style="text-decoration:line-through;color:var(--muted)">Perfect week bonus</td><td class="mono">removed</td></tr>
+        <tr><td>Reliability weekly · Outstanding / Exceeds / Meets / Developing</td><td class="mono">${payout('Outstanding')}·${payout('Exceeds')}·${payout('Meets')}·${payout('Developing')}</td></tr>
+        <tr><td>Compliance weekly · same bands</td><td class="mono">${payout('Outstanding')}·${payout('Exceeds')}·${payout('Meets')}·${payout('Developing')}</td></tr>
+        <tr><td>Streak after ${cfg.streak_weeks||4} weeks at Exceeds+ on both (rating tokens only)</td><td class="mono">×${cfg.streak_mult||1.5}</td></tr>
+        <tr><td>Ratings go live (staff see them, tokens real)</td><td class="mono">Mon ${esc(md(cfg.live_from||'2026-11-02'))}</td></tr></tbody></table></div>`;
+    $('rtRateSave').onclick=async()=>{const v=Number($('rtRate').value);const {data,error}=await sb.rpc('admin_set_earn_rate',{p_rate:v});if(error)return alert(errMsg(error));cfg=null;await loadCfg();alert(`Earn rate ${data.rate}× from Mon ${md(data.from)}.`);loadEcon();};
+  }
+
+  window.Ratings={loadMine,initAdmin,showTab,_open:openDrawer,_mine:()=>mine};
+})();
+</script>
+
 </body></html>
