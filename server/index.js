@@ -594,7 +594,6 @@ app.post('/api/slack/login', async (req, res) => {
 /* Login speed test → SMB General [Rendy, 2026-10-23]. The browser measures the staff member's
    connection right after LOGIN; this posts it once per shift (slack_notification_log key
    speedtest:<shift>). Only for the caller's own open shift, within 15 min of its login. */
-const SPEEDTEST_MIN = { down: 25, up: 10, ping: 100 };
 function stNum(v, max){ const n=Number(v); return Number.isFinite(n)&&n>=0&&n<=max ? Math.round(n*10)/10 : null; }
 app.post('/api/slack/speedtest', async (req, res) => {
   try{
@@ -605,18 +604,13 @@ app.post('/api/slack/speedtest', async (req, res) => {
     const down=stNum(req.body?.down,10000), up=stNum(req.body?.up,10000), ping=stNum(req.body?.ping,10000), jitter=stNum(req.body?.jitter,10000);
     if(down==null||up==null||ping==null) return res.status(400).json({error:'Invalid speed test result.'});
     const isp=safeSlack(req.body?.isp||'',80), city=safeSlack(req.body?.city||'',60);
-    const m=SPEEDTEST_MIN;
-    const lowDown=down<m.down, lowUp=up<m.up, highPing=ping>=m.ping, pass=!(lowDown||lowUp||highPing);
-    const mark=(txt,bad)=>bad?`*${txt}* ⚠️`:txt;
     const when=phtClock(new Date())+' PHT';
-    const lines=[
-      `📶 *Speed Test: ${name}* (${clientName}) · ${pass?'✅ *PASS*':'⚠️ *BELOW MINIMUM*'}\n⬇️ ${mark(down+' Mbps',lowDown)}  ·  ⬆️ ${mark(up+' Mbps',lowUp)}  ·  Ping ${mark(ping+' ms',highPing)}${jitter!=null?`  ·  Jitter ${jitter} ms`:''}`
-    ];
-    const ctxTxt=[isp,city,when].filter(Boolean).join(' · ')+(pass?'':` · Min: ${m.down}↓ / ${m.up}↑ Mbps, ping under ${m.ping} ms`);
-    const payload={text:safeSlack(`Speed Test: ${ctx.caller.row.full_name||'Staff'} (${clientName}) · ${pass?'PASS':'BELOW MINIMUM'} · ${down}↓ / ${up}↑ Mbps · ${ping} ms ping`,2500),
-      blocks:[{type:'section',text:{type:'mrkdwn',text:lines[0]}},{type:'context',elements:[{type:'mrkdwn',text:ctxTxt}]}]};
+    const line=`📶 *Speed Test: ${name}* (${clientName})\n⬇️ ${down} Mbps  ·  ⬆️ ${up} Mbps  ·  Ping ${ping} ms${jitter!=null?`  ·  Jitter ${jitter} ms`:''}`;
+    const ctxTxt=[isp,city,when].filter(Boolean).join(' · ');
+    const payload={text:safeSlack(`Speed Test: ${ctx.caller.row.full_name||'Staff'} (${clientName}) · ${down}↓ / ${up}↑ Mbps · ${ping} ms ping`,2500),
+      blocks:[{type:'section',text:{type:'mrkdwn',text:line}},{type:'context',elements:[{type:'mrkdwn',text:ctxTxt}]}]};
     const result=await sendSlackOnce({eventKey:`speedtest:${shift.id}`,destination:'SMB general',eventType:'activity',entityId:shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
-    res.json({ok:true,pass,...result});
+    res.json({ok:true,...result});
   }catch(e){console.error('Slack speed test notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
 });
 
