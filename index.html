@@ -1375,6 +1375,84 @@ function notifyLogout(shiftId){
 function notifyForceLogout(shiftId){
   sendSlackNotice('/api/slack/force-logout',{shift_id:shiftId}).catch(e=>showSlackWarning('forcelogout:'+shiftId,'Force logout saved, but the Slack alert failed: '+e.message));
 }
+/* ---------- Login speed test [Rendy, 2026-10-23] ----------
+   Runs in the background right after a NEW login (never delays the login or pay), measures the
+   staff member's own connection against Cloudflare's free speed-test servers, then the Render
+   server posts the result to SMB General (once per shift). If the test can't finish, nothing is posted. */
+const SPEEDTEST_MIN={down:25,up:10,ping:100};
+const ST_BASE='https://speed.cloudflare.com';
+let speedTestBusy=false;
+function stPanelHtml(state,r,msg){
+  const m=SPEEDTEST_MIN, f=v=>v==null?'—':v;
+  const title=state==='run'?'📶 Internet speed test, running…':state==='fail'?'❌ Speed test could not finish':(r.pass?'✅ Speed test PASSED':'⚠️ Speed test BELOW MINIMUM')+(r.posted?' · posted to SMB General':'');
+  const sub=state==='run'?"You're already logged in. This runs in the background (~20 sec).":state==='fail'?escapeHtml(msg||'Check your internet connection.'):`Min: ${m.down}↓ / ${m.up}↑ Mbps · ping under ${m.ping} ms`;
+  const pct=state==='run'?(r.stage||5):100;
+  return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><b style="font-size:14px">${title}</b><span class="muted" style="font-size:12px">${sub}</span></div>`+
+    (state==='run'?`<div style="height:6px;background:rgba(255,255,255,.12);border-radius:4px;margin:10px 0;overflow:hidden"><div style="width:${pct}%;height:100%;background:#5B8DEF;transition:width .4s"></div></div>`:'')+
+    (state==='fail'?'':`<div class="row mono" style="gap:22px;font-size:13px;margin-top:8px;flex-wrap:wrap"><span>Download <b>${f(r.down)}${r.down!=null?' Mbps':''}</b></span><span>Upload <b>${f(r.up)}${r.up!=null?' Mbps':''}</b></span><span>Ping <b>${f(r.ping)}${r.ping!=null?' ms':''}</b></span><span>Jitter <b>${f(r.jitter)}${r.jitter!=null?' ms':''}</b></span>${r.isp?`<span class="muted">${escapeHtml(r.isp)}${r.city?' · '+escapeHtml(r.city):''}</span>`:''}</div>`);
+}
+function stShow(state,r,msg){
+  let el=document.getElementById('stPanel');
+  if(!el){const card=$('loginBtn').closest('.card'); if(!card) return; el=document.createElement('div'); el.id='stPanel'; card.appendChild(el);}
+  const col=state==='done'?(r.pass?'46,196,160':'242,184,75'):state==='fail'?'226,104,95':'91,141,239';
+  el.style.cssText=`margin-top:14px;border:1px solid rgba(${col},.6);background:rgba(${col},.10);border-radius:12px;padding:12px 16px`;
+  el.innerHTML=stPanelHtml(state,r,msg);
+  clearTimeout(el._hide); if(state!=='run') el._hide=setTimeout(()=>el.remove(),state==='fail'?20000:120000);
+}
+function stMedian(a){const s=[...a].sort((x,y)=>x-y);const n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):0;}
+function stServerMs(res){ // Cloudflare's own processing time, subtracted so ping is network time only
+  const h=res.headers.get('server-timing')||''; const m=h.match(/cfSpeedWorker;dur=([\d.]+)/)||h.match(/dur=([\d.]+)/); return m?parseFloat(m[1]):0;
+}
+async function stPing(n){
+  const rtts=[];
+  for(let i=0;i<n;i++){
+    const t0=performance.now(); const res=await fetch(`${ST_BASE}/__down?bytes=0&r=${Math.random()}`,{cache:'no-store'}); await res.arrayBuffer();
+    const ms=performance.now()-t0-stServerMs(res); if(i>0) rtts.push(Math.max(1,ms)); // first request = connection warm-up
+  }
+  let jit=0; for(let i=1;i<rtts.length;i++) jit+=Math.abs(rtts[i]-rtts[i-1]);
+  return {ping:Math.round(stMedian(rtts)),jitter:Math.round(rtts.length>1?jit/(rtts.length-1):0)};
+}
+async function stThroughput(kind,budgetMs,onTick){ // adaptive: grow the transfer size until one takes ~1.5s or the time budget is used
+  const sizes=[100e3,1e6,5e6,10e6,25e6,50e6]; const speeds=[]; const end=performance.now()+budgetMs; let i=0;
+  while(performance.now()<end && i<sizes.length){
+    const bytes=sizes[i]; const t0=performance.now();
+    const ctl=new AbortController(); const guard=setTimeout(()=>ctl.abort(),Math.max(2000,end-performance.now()+3000));
+    try{
+      if(kind==='down'){const res=await fetch(`${ST_BASE}/__down?bytes=${bytes}&r=${Math.random()}`,{cache:'no-store',signal:ctl.signal}); await res.arrayBuffer();}
+      else{await fetch(`${ST_BASE}/__up?r=${Math.random()}`,{method:'POST',body:new Uint8Array(bytes),cache:'no-store',signal:ctl.signal}).then(r=>r.arrayBuffer());}
+    }catch(e){clearTimeout(guard); if(speeds.length) break; throw e;}
+    clearTimeout(guard);
+    const sec=(performance.now()-t0)/1000; const mbps=bytes*8/sec/1e6;
+    if(sec>=0.25||bytes>=sizes[sizes.length-1]) speeds.push(mbps);
+    onTick&&onTick(mbps);
+    if(sec<1.5) i++; // too quick to be accurate → go bigger; otherwise repeat this size until the budget ends
+  }
+  if(!speeds.length) throw new Error('No '+kind+'load result.');
+  const top=speeds.sort((a,b)=>b-a); return Math.round(top[Math.min(1,top.length-1)]*10)/10; // 2nd-best sample: ignores one lucky spike
+}
+async function stMeta(){
+  try{const r=await fetch(`${ST_BASE}/meta`,{cache:'no-store'}); if(!r.ok) return {}; const j=await r.json(); return {isp:String(j.asOrganization||'').slice(0,80),city:String(j.city||'').slice(0,60)};}catch(_e){return {};}
+}
+async function runSpeedTest(shiftId){
+  if(!shiftId||speedTestBusy) return;
+  const doneKey='smbSpeedTest:'+shiftId; try{ if(localStorage.getItem(doneKey)) return; }catch(_e){}
+  speedTestBusy=true; const r={stage:5};
+  try{
+    stShow('run',r);
+    const meta=await stMeta(); Object.assign(r,meta);
+    Object.assign(r,await stPing(8)); r.stage=20; stShow('run',r);
+    r.down=await stThroughput('down',8000,v=>{r.down=Math.round(v*10)/10; r.stage=Math.min(60,r.stage+6); stShow('run',r);}); r.stage=60; stShow('run',r);
+    r.up=await stThroughput('up',7000,v=>{r.up=Math.round(v*10)/10; r.stage=Math.min(95,r.stage+6); stShow('run',r);});
+    r.pass=r.down>=SPEEDTEST_MIN.down&&r.up>=SPEEDTEST_MIN.up&&r.ping<SPEEDTEST_MIN.ping;
+    try{
+      await sendSlackNotice('/api/slack/speedtest',{shift_id:shiftId,down:r.down,up:r.up,ping:r.ping,jitter:r.jitter,isp:r.isp||'',city:r.city||''});
+      r.posted=true; try{localStorage.setItem(doneKey,'1');}catch(_e){}
+    }catch(e){ console.warn('Speed test Slack post failed:',e.message); }
+    stShow('done',r);
+  }catch(e){
+    console.warn('Speed test failed:',e); stShow('fail',r,'Your login is saved. The speed test could not reach the test server.');
+  }finally{speedTestBusy=false;}
+}
 async function syncOverbreakAlerts(shiftId){
   if(!shiftId||slackOverbreakBusy) return;
   slackOverbreakBusy=true;
@@ -3216,6 +3294,7 @@ $('loginBtn').onclick = async () => {
         curShift=data.shift;
         curEntry=data.entry||null;
         notifyLogin(curShift&&curShift.id); // server posts once per shift (server clock); failure never blocks the login
+        runSpeedTest(curShift&&curShift.id); // background speed test → SMB General (never blocks the login)
       }
     }else{
       const endedShiftId=curShift.id;
