@@ -892,4 +892,403 @@ app.post('/api/admin/shifts/:id/force-logout', async (req, res) => {
   }
 });
 
+/* ============================================================================
+   Bagani DMs to staff  [Rendy, 2026-10-23]
+   Private Slack DMs (bot token, Render env SLACK_BOT_TOKEN) for:
+     • new PM Bulletin posts (only the post's audience, when it publishes)
+     • Contractor Fee: Sent Early ticked / cutoff marked PAID (PAID skipped if Sent Early)
+     • requests approved / rejected (PTO, PCH, PA, Sick, Reimbursement, SA, CA)
+     • time log corrections applied / not applied
+     • timesheet acknowledgement: 10 PM PHT on the 8th (21–4) and 23rd (5–20),
+       Friday before if that is a weekend; 24h reminder; auto-acknowledge after 48h;
+       new DM when an admin asks to re-acknowledge; issues → payroll-and-sheet.
+   Everything runs from one idempotent sweep (dmSweep): every 5 min while awake, at boot,
+   on POST/GET /api/notify/sweep (the hourly free pinger + the portal after admin actions).
+   slack_notification_log (destination 'dm') is the once-only guard. Only events after the
+   go-live marker (first boot of this code) send DMs — no flood of old items.
+   ============================================================================ */
+const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN || '';
+const PORTAL_URL = APP_URL || 'https://rengpro1985.github.io/time-tracker-app/';
+const DM_REQ_LABEL = {pto:'PTO',pch:'Paid Client Holiday',planned_absence:'Planned Absence',sick_leave:'Sick Leave',
+  reimbursement:'Reimbursement',salary_advance:'Salary Advance',cash_advance:'Cash Advance'};
+const DM_DATED = new Set(['pto','pch','planned_absence','sick_leave']);
+
+async function slackApi(method, body){
+  if(!SLACK_BOT_TOKEN) throw new Error('SLACK_BOT_TOKEN is not set on Render.');
+  let lastError;
+  for(let attempt=1;attempt<=3;attempt++){
+    try{
+      const isGet = method==='users.lookupByEmail';
+      const url = 'https://slack.com/api/'+method+(isGet?'?'+new URLSearchParams(body):'');
+      const r = await fetch(url, isGet
+        ? {headers:{Authorization:'Bearer '+SLACK_BOT_TOKEN}}
+        : {method:'POST',headers:{'Content-Type':'application/json; charset=utf-8',Authorization:'Bearer '+SLACK_BOT_TOKEN},body:JSON.stringify(body)});
+      if(r.status===429){ await sleep(Math.max(1200,Number(r.headers.get('retry-after')||1)*1000)); continue; }
+      const j = await r.json().catch(()=>({ok:false,error:'bad_json_'+r.status}));
+      if(j.ok) return j;
+      lastError = Object.assign(new Error(j.error||'slack_error'),{slack:j.error});
+      if(j.error!=='ratelimited' && j.error!=='internal_error' && j.error!=='fatal_error') break;
+    }catch(e){ lastError=e; }
+    if(attempt<3) await sleep(1200*attempt);
+  }
+  throw lastError || new Error('Slack API failed.');
+}
+
+// email → Slack user id (positive cache 24h, negative cache 3h so unmatched staff don't hammer Slack)
+const slackIdCache = new Map();
+async function slackUserIdFor(email){
+  const key = String(email||'').trim().toLowerCase();
+  if(!key) return null;
+  const hit = slackIdCache.get(key);
+  if(hit && Date.now()-hit.at < (hit.id?24:3)*3600000) return hit.id;
+  let id = null;
+  try{ const j = await slackApi('users.lookupByEmail',{email:key}); id = j.user && !j.user.deleted ? j.user.id : null; }
+  catch(e){ if(e.slack!=='users_not_found') throw e; }
+  slackIdCache.set(key,{id,at:Date.now()});
+  return id;
+}
+
+function dmBlocks(lines, context){
+  const blocks = [{type:'section',text:{type:'mrkdwn',text:lines.filter(Boolean).join('\n')}}];
+  if(context) blocks.push({type:'context',elements:[{type:'mrkdwn',text:context}]});
+  return blocks;
+}
+// Sends one DM once (event key). Returns {sent}|{duplicate}|{noSlack}. Throws on Slack errors.
+async function sendDmOnce({eventKey, entityId, staff, text, blocks}){
+  const claim = await claimNotification(eventKey,'dm','dm',entityId);
+  if(!claim.claimed) return {sent:false,...claim};
+  const now = () => new Date().toISOString();
+  try{
+    const uid = await slackUserIdFor(staff.email);
+    if(!uid){
+      await admin.from('slack_notification_log').update({status:'failed',last_error:'No Slack user with email '+String(staff.email||'(none)').slice(0,120),updated_at:now()}).eq('event_key',eventKey);
+      return {sent:false,noSlack:true};
+    }
+    await slackApi('chat.postMessage',{channel:uid,text:String(text).slice(0,2900),blocks,unfurl_links:false,unfurl_media:false});
+    await admin.from('slack_notification_log').update({status:'sent',sent_at:now(),last_error:null,updated_at:now()}).eq('event_key',eventKey);
+    await sleep(350); // stay well under Slack's per-second posting limit
+    return {sent:true};
+  }catch(e){
+    await admin.from('slack_notification_log').update({status:'failed',last_error:String(e.message||e).slice(0,1000),updated_at:now()}).eq('event_key',eventKey);
+    throw e;
+  }
+}
+
+// ---- dates (PHT) ----
+function dmNiceDate(iso){ return new Intl.DateTimeFormat('en-US',{timeZone:'UTC',month:'short',day:'numeric',year:'numeric'}).format(new Date(iso+'T00:00:00Z')); }
+function dmShortDate(iso){ return new Intl.DateTimeFormat('en-US',{timeZone:'UTC',month:'short',day:'numeric'}).format(new Date(iso+'T00:00:00Z')); }
+function dmRange(a,b){ if(!b||a===b) return dmNiceDate(a); return a.slice(0,4)===b.slice(0,4) ? `${dmShortDate(a)} – ${dmNiceDate(b)}` : `${dmNiceDate(a)} – ${dmNiceDate(b)}`; }
+function dmCutoffLabel(iso){ return `${dmNiceDate(iso)} (${Number(iso.slice(8,10))===15?'15th':'end of month'})`; }
+function lastDayIso(y,m){ const d=new Date(Date.UTC(y,m,0)).getUTCDate(); return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function ymd(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+/* Hours periods 21st–4th (paid 15th, DM on the 8th) and 5th–20th (paid end of month, DM on
+   the 23rd), 10 PM PHT; if that day is Sat/Sun, the Friday before. */
+function tsPeriodsAround(now=new Date()){
+  const today = phIsoDate(now); let [y,m] = today.split('-').map(Number);
+  const out = [];
+  for(let back=0; back<2; back++){
+    let yy=y, mm=m-back; if(mm<1){mm+=12;yy--;}
+    const py = mm===1?yy-1:yy, pm = mm===1?12:mm-1;
+    out.push({start:ymd(py,pm,21), end:ymd(yy,mm,4), cutoff:ymd(yy,mm,15), sendDay:ymd(yy,mm,8)});
+    out.push({start:ymd(yy,mm,5), end:ymd(yy,mm,20), cutoff:lastDayIso(yy,mm), sendDay:ymd(yy,mm,23)});
+  }
+  return out.map(p=>{
+    const dow = new Date(p.sendDay+'T00:00:00Z').getUTCDay();
+    const sd = dow===6?addIsoDays(p.sendDay,-1):dow===0?addIsoDays(p.sendDay,-2):p.sendDay;
+    return {...p, sendDay:sd, sendAt:new Date(sd+'T22:00:00+08:00')};
+  });
+}
+function tsDeadline(sentAtIso){ return phtDateTime(new Date(new Date(sentAtIso).getTime()+48*3600000)); }
+
+// ---- go-live marker: DMs only for things that happen after this ----
+let dmSinceIso = null;
+async function dmSince(){
+  if(dmSinceIso) return dmSinceIso;
+  const now = new Date().toISOString();
+  const {error} = await admin.from('slack_notification_log').insert({event_key:'dm:golive',destination:'dm',event_type:'dm',entity_id:'golive',status:'sent',attempts:1,claimed_at:now,sent_at:now,updated_at:now});
+  if(error && error.code!=='23505') throw error;
+  const {data,error:e2} = await admin.from('slack_notification_log').select('claimed_at').eq('event_key','dm:golive').single();
+  if(e2) throw e2;
+  dmSinceIso = new Date(data.claimed_at).toISOString();
+  return dmSinceIso;
+}
+
+async function dmStaffMap(ids){
+  const uniq = [...new Set(ids.filter(Boolean).map(String))];
+  if(!uniq.length) return new Map();
+  const {data,error} = await admin.from('staff').select('id, full_name, email, role, active, client_id').in('id',uniq);
+  if(error) throw error;
+  return new Map((data||[]).map(s=>[String(s.id),s]));
+}
+function firstName(s){ return safeSlack(String(s?.full_name||'').trim().split(/\s+/)[0]||'there',60); }
+
+// ---- message builders ----
+function requestDm(r, s){
+  const label = DM_REQ_LABEL[r.type] || 'Request';
+  let what = `${label}`;
+  if(DM_DATED.has(r.type) && r.start_date) what += ` for ${dmRange(r.start_date, r.end_date||r.start_date)}`;
+  else if(r.amount!=null) what += ` of ${peso(r.amount)}`;
+  const ok = r.status!=='rejected';
+  const lines = [ok ? `✅ *Your ${what} was approved*` : `❌ *Your ${what} was not approved*`];
+  if(ok && (r.type==='salary_advance'||r.type==='cash_advance') && Number(r.cutoffs)>0) lines.push(`Repaid over ${Number(r.cutoffs)} cutoff${Number(r.cutoffs)===1?'':'s'}.`);
+  if(ok && r.type==='reimbursement' && r.payout_cutoff) lines.push(`Added to your Contractor Fee on ${dmCutoffLabel(String(r.payout_cutoff).slice(0,10))}.`);
+  if(!ok && r.rejection_reason) lines.push(`*Reason:* ${safeSlack(r.rejection_reason,800)}`);
+  return {text:(ok?'Approved: ':'Not approved: ')+what, blocks:dmBlocks(lines,`Details: <${PORTAL_URL}|SMB Portal> → Requests`)};
+}
+function correctionDm(c){
+  const ok = c.status==='approved';
+  const day = c.target_date ? ` for ${dmNiceDate(String(c.target_date).slice(0,10))}` : '';
+  const lines = [ok ? `✅ *Your time log correction${day} was applied*` : `❌ *Your time log correction${day} was not applied*`];
+  if(c.admin_note) lines.push(`*${ok?'Note':'Reason'}:* ${safeSlack(c.admin_note,800)}`);
+  return {text:`Time log correction${day} ${ok?'applied':'not applied'}`, blocks:dmBlocks(lines,`Check your hours in the <${PORTAL_URL}|SMB Portal>`)};
+}
+function paidDm(p){
+  const cutoff = String(p.cutoff_date).slice(0,10), amt = p.snapshot && p.snapshot.net_amount_payable;
+  const lines = ['✅ *Your Contractor Fee has been sent*',`Cutoff: *${dmCutoffLabel(cutoff)}*`];
+  if(amt!=null && Number.isFinite(Number(amt))) lines.push(`Net amount: *${peso(amt)}*`);
+  lines.push('Salamat sa hard work! 💪');
+  return {text:`Your Contractor Fee for the ${dmNiceDate(cutoff)} cutoff has been sent`, blocks:dmBlocks(lines,`Contractor Fee details: <${PORTAL_URL}|SMB Portal> → Contractor Ledger`)};
+}
+function sentEarlyDm(cutoff, amount){
+  const lines = ['💸 *Your Contractor Fee was sent early*',`Cutoff: *${dmCutoffLabel(cutoff)}*`];
+  if(amount!=null && Number.isFinite(Number(amount))) lines.push(`Amount: *${peso(amount)}*`);
+  lines.push('Please check your account. 🙏');
+  return {text:`Your Contractor Fee for the ${dmNiceDate(cutoff)} cutoff was sent early`, blocks:dmBlocks(lines,`Contractor Fee details: <${PORTAL_URL}|SMB Portal> → Contractor Ledger`)};
+}
+function bulletinDm(p){
+  const tags = [p.urgent?'`URGENT`':'', p.require_ack?'`NEEDS "GOT IT"`':''].filter(Boolean).join(' ');
+  const body = String(p.body||'').replace(/\s+/g,' ').trim();
+  const snip = body.length>220 ? body.slice(0,220).replace(/\s+\S*$/,'')+'…' : body;
+  const lines = [`📌 *New PM Bulletin post*${tags?' · '+tags:''}`, `*${safeSlack(p.title||'(untitled)',200)}*`];
+  if(snip) lines.push('>'+safeSlack(snip,400));
+  lines.push(`👉 <${PORTAL_URL}|Open the SMB Portal> to read it${p.require_ack?' and tap *Got it*':''}.`);
+  return {text:`New PM Bulletin post: ${String(p.title||'').slice(0,150)}`, blocks:dmBlocks(lines,safeSlack([p.category,p.created_by_name?'from '+p.created_by_name:''].filter(Boolean).join(' · '),200))};
+}
+function timesheetDm(a, kind){
+  const per = dmRange(String(a.period_start).slice(0,10), String(a.period_end).slice(0,10));
+  const due = tsDeadline(a.sent_at || new Date().toISOString());
+  let head;
+  if(kind==='reminder') head = `⏰ *Reminder: please review your timesheet for ${per}*`;
+  else if(kind==='again') head = `🗓️ *Your timesheet for ${per} was updated. Please review it again*`;
+  else head = `🗓️ *Your timesheet for ${per} is ready*`;
+  const lines = [head];
+  if(kind==='again' && a.reset_reason) lines.push(`*What changed:* ${safeSlack(a.reset_reason,300)}`);
+  lines.push(`👉 <${PORTAL_URL}|Open the SMB Portal> and tap *Acknowledge*, or report an issue, by *${due}*.`);
+  return {text:`Timesheet ${per}: please review and acknowledge`, blocks:dmBlocks(lines,`Contractor Fee for this period: ${dmCutoffLabel(String(a.cutoff_date).slice(0,10))}`)};
+}
+
+// ---- the sweep ----
+let dmRunning = false, dmLastRun = 0, dmRerun = false;
+const dmStats = {last:null, lastError:null, sent:0, noSlack:0, failed:0};
+async function dmTry(fn, label){
+  try{ const r = await fn(); if(r?.sent) dmStats.sent++; if(r?.noSlack) dmStats.noSlack++; return r; }
+  catch(e){ dmStats.failed++; console.error('DM failed ('+label+'):', e.message); return null; }
+}
+async function dmSweep(force=false){
+  if(!SLACK_BOT_TOKEN) return {skipped:'no SLACK_BOT_TOKEN'};
+  if(dmRunning){ dmRerun = true; return {skipped:'running'}; }
+  if(!force && Date.now()-dmLastRun < 20000){ dmRerun = true; setTimeout(()=>{ if(dmRerun){ dmRerun=false; dmSweep(true); } }, 21000); return {skipped:'recent'}; }
+  dmRunning = true; dmLastRun = Date.now();
+  try{
+    const since = await dmSince();
+    const nowIso = new Date().toISOString();
+    const recent = new Date(Date.now()-14*86400000).toISOString();
+    const floor = since > recent ? since : recent;
+
+    // 1) requests approved / rejected
+    {
+      const {data,error} = await admin.from('requests').select('*').in('status',['approved','paid','rejected']).gte('reviewed_at',floor).limit(500);
+      if(error) throw error;
+      const sm = await dmStaffMap((data||[]).map(r=>r.staff_id));
+      for(const r of data||[]){
+        const s = sm.get(String(r.staff_id)); if(!s||!s.active||!DM_REQ_LABEL[r.type]) continue;
+        const kind = r.status==='rejected'?'rejected':'approved';
+        await dmTry(()=>sendDmOnce({eventKey:`dm:req:${r.id}:${kind}`,entityId:r.id,staff:s,...requestDm(r,s)}),'request');
+      }
+    }
+    // 2) time log corrections
+    {
+      const {data,error} = await admin.from('corrections').select('*').in('status',['approved','rejected']).or(`reviewed_at.gte.${floor},and(reviewed_at.is.null,created_at.gte.${floor})`).limit(500);
+      if(error) throw error;
+      const sm = await dmStaffMap((data||[]).map(c=>c.staff_id));
+      for(const c of data||[]){
+        const s = sm.get(String(c.staff_id)); if(!s||!s.active) continue;
+        await dmTry(()=>sendDmOnce({eventKey:`dm:corr:${c.id}:${c.status}`,entityId:c.id,staff:s,...correctionDm(c)}),'correction');
+      }
+    }
+    // 3) Sent Early (fallback without amount if the portal's instant call failed) + 4) PAID
+    {
+      const {data:early,error:e1} = await admin.from('ledger_extras').select('staff_id, cutoff_date, amount, updated_at').eq('field_key','sent_early').gte('updated_at',floor).limit(1000);
+      if(e1) throw e1;
+      const {data:paid,error:e2} = await admin.from('paid_cutoffs').select('staff_id, cutoff_date, status, snapshot, confirmed_at').eq('status','paid').gte('confirmed_at',floor).limit(1000);
+      if(e2) throw e2;
+      const sm = await dmStaffMap([...(early||[]),...(paid||[])].map(x=>x.staff_id));
+      for(const x of early||[]){
+        if(Number(x.amount)!==1) continue;
+        const s = sm.get(String(x.staff_id)); if(!s||!s.active) continue;
+        const cutoff = String(x.cutoff_date).slice(0,10);
+        // give the portal's instant call (which includes the amount) a head start
+        if(Date.now()-new Date(x.updated_at).getTime() < 3*60000) continue;
+        await dmTry(()=>sendDmOnce({eventKey:`dm:early:${x.staff_id}:${cutoff}`,entityId:`${x.staff_id}:${cutoff}`,staff:s,...sentEarlyDm(cutoff,null)}),'sent-early');
+      }
+      for(const p of paid||[]){
+        const s = sm.get(String(p.staff_id)); if(!s) continue;
+        const cutoff = String(p.cutoff_date).slice(0,10);
+        const {data:se} = await admin.from('ledger_extras').select('amount').eq('field_key','sent_early').eq('staff_id',p.staff_id).eq('cutoff_date',cutoff).maybeSingle();
+        if(se && Number(se.amount)===1) continue; // Rendy: skip the PAID DM when Sent Early was ticked
+        await dmTry(()=>sendDmOnce({eventKey:`dm:paid:${p.staff_id}:${cutoff}`,entityId:`${p.staff_id}:${cutoff}`,staff:s,...paidDm(p)}),'paid');
+      }
+    }
+    // 5) PM Bulletin posts (when live, only their audience)
+    {
+      const {data:posts,error} = await admin.from('bulletin_posts').select('*').gte('created_at',floor).lte('publish_at',nowIso).limit(200);
+      if(error) throw error;
+      const live = (posts||[]).filter(p=>!p.archived && (!p.expires_at || p.expires_at > nowIso));
+      if(live.length){
+        const {data:staff,error:se} = await admin.from('staff').select('id, full_name, email, role, active, client_id').eq('active',true).neq('role','admin');
+        if(se) throw se;
+        for(const p of live){
+          const ids = (p.audience_ids||[]).map(String);
+          const aud = (staff||[]).filter(s=>p.audience==='all'||(p.audience==='client'&&s.client_id!=null&&ids.includes(String(s.client_id)))||(p.audience==='staff'&&ids.includes(String(s.id))));
+          for(const s of aud) await dmTry(()=>sendDmOnce({eventKey:`dm:bb:${p.id}:${s.id}`,entityId:p.id,staff:s,...bulletinDm(p)}),'bulletin');
+        }
+      }
+    }
+    // 6) timesheet acknowledgements
+    await tsSweep(since);
+    dmStats.last = new Date().toISOString(); dmStats.lastError = null;
+    return {ok:true};
+  }catch(e){
+    dmStats.lastError = String(e.message||e).slice(0,300);
+    console.error('DM sweep crashed:', e.message);
+    return {ok:false,error:dmStats.lastError};
+  }finally{
+    dmRunning = false;
+    if(dmRerun){ dmRerun=false; setTimeout(()=>dmSweep(true), 1000); }
+  }
+}
+
+async function tsSweep(since){
+  const {error:probe} = await admin.from('timesheet_acks').select('id').limit(1);
+  if(probe) return; // SQL not run yet
+  const now = new Date();
+  // a) create rows (and first DM) for periods whose send time has passed (within 5 days, after go-live boot day)
+  for(const p of tsPeriodsAround(now)){
+    if(p.sendAt > now || now - p.sendAt > 5*86400000) continue;
+    if(p.sendAt.getTime() < new Date(since).getTime() - 2*86400000) continue; // no back-filling old periods at go-live
+    const fromIso = new Date(p.start+'T00:00:00+08:00').toISOString(), toIso = new Date(addIsoDays(p.end,1)+'T00:00:00+08:00').toISOString();
+    const {data:sh,error} = await admin.from('shifts').select('staff_id').gte('login_at',fromIso).lt('login_at',toIso).limit(5000);
+    if(error) throw error;
+    const ids = [...new Set((sh||[]).map(x=>String(x.staff_id)))];
+    if(!ids.length) continue;
+    const sm = await dmStaffMap(ids);
+    const rows = ids.map(id=>sm.get(id)).filter(s=>s&&s.active&&s.role!=='admin')
+      .map(s=>({staff_id:s.id,period_start:p.start,period_end:p.end,cutoff_date:p.cutoff}));
+    if(rows.length){
+      const {error:ie} = await admin.from('timesheet_acks').upsert(rows,{onConflict:'staff_id,period_start',ignoreDuplicates:true});
+      if(ie) throw ie;
+    }
+  }
+  const recentStart = addIsoDays(phIsoDate(now), -45);
+  const {data:acks,error} = await admin.from('timesheet_acks').select('*').gte('period_start',recentStart).limit(2000);
+  if(error) throw error;
+  const sm = await dmStaffMap((acks||[]).map(a=>a.staff_id));
+  const periods = tsPeriodsAround(now);
+  for(const a of acks||[]){
+    const s = sm.get(String(a.staff_id)); if(!s) continue;
+    const per = periods.find(p=>p.start===String(a.period_start).slice(0,10));
+    if(per && per.sendAt > now) continue; // never before the scheduled time
+    // b) first DM / re-acknowledge DM for the current round
+    if(a.status==='waiting' && Number(a.notified_round) < Number(a.round)){
+      const sentAt = new Date().toISOString();
+      const msg = timesheetDm({...a,sent_at:sentAt}, Number(a.round)>1?'again':'first');
+      const r = await dmTry(()=>sendDmOnce({eventKey:`dm:ts:${a.id}:${a.round}`,entityId:a.id,staff:s,...msg}),'timesheet');
+      if(r && (r.sent || r.noSlack || r.duplicate)){
+        await admin.from('timesheet_acks').update({notified_round:a.round,sent_at:sentAt,reminded_at:null,updated_at:sentAt}).eq('id',a.id).eq('round',a.round);
+      }
+      continue;
+    }
+    if(a.status==='waiting' && a.sent_at){
+      const age = now - new Date(a.sent_at);
+      // c) auto-acknowledge after 48h
+      if(age >= 48*3600000){
+        await admin.from('timesheet_acks').update({status:'auto',answered_at:now.toISOString(),updated_at:now.toISOString()}).eq('id',a.id).eq('status','waiting').eq('round',a.round);
+        continue;
+      }
+      // d) one reminder after 24h
+      if(age >= 24*3600000 && !a.reminded_at){
+        const r = await dmTry(()=>sendDmOnce({eventKey:`dm:ts-remind:${a.id}:${a.round}`,entityId:a.id,staff:s,...timesheetDm(a,'reminder')}),'timesheet-reminder');
+        if(r && (r.sent || r.noSlack || r.duplicate)) await admin.from('timesheet_acks').update({reminded_at:now.toISOString(),updated_at:now.toISOString()}).eq('id',a.id).eq('round',a.round);
+      }
+    }
+    // e) issue reported → payroll-and-sheet (once per round)
+    if(a.status==='issue' && a.answered_at && now - new Date(a.answered_at) < 7*86400000 && SLACK_PAYROLL_WEBHOOK_URL){
+      const client = await clientName(s.client_id);
+      const fields = [['Staff',s.full_name],['Client',client],['Period',dmRange(String(a.period_start).slice(0,10),String(a.period_end).slice(0,10))]];
+      if(a.issue_date) fields.push(['Day',dmNiceDate(String(a.issue_date).slice(0,10))]);
+      if(a.hours!=null) fields.push(['Hours they saw',String(a.hours)]);
+      const payload = slackPayload('⚠️ Timesheet Issue Reported', fields, 'Fix it in the portal, then use "Ask again" on the Contractor Ledger so they re-acknowledge.', a.issue_text||'', 'Issue');
+      await sendSlackOnce({eventKey:`ts-issue:${a.id}:${a.round}`,destination:'payroll-and-sheet',eventType:'request',entityId:a.id,webhook:SLACK_PAYROLL_WEBHOOK_URL,payload})
+        .catch(e=>console.error('Timesheet issue post failed:', e.message));
+    }
+  }
+}
+
+// pinger + portal "kick" (idempotent; rate limited)
+async function dmSweepRoute(_req,res){
+  const r = await dmSweep(false);
+  res.json({ok:true, bot:!!SLACK_BOT_TOKEN, ...r, last:dmStats.last, lastError:dmStats.lastError});
+}
+app.get('/api/notify/sweep', notificationRateLimit, dmSweepRoute);
+app.post('/api/notify/sweep', notificationRateLimit, dmSweepRoute);
+
+// admin: instant Sent Early DM with the amount shown on the Ledger
+app.post('/api/dm/sent-early', notificationRateLimit, async (req,res)=>{
+  try{
+    const adminRow = await requireAdmin(req,res); if(!adminRow) return;
+    const staffId = String(req.body?.staff_id||''), cutoff = String(req.body?.cutoff_date||'');
+    if(!uuidRe.test(staffId) || !/^\d{4}-\d{2}-\d{2}$/.test(cutoff)) return res.status(400).json({error:'staff_id and cutoff_date required.'});
+    const amount = req.body?.amount==null ? null : Number(req.body.amount);
+    if(amount!=null && (!Number.isFinite(amount) || amount<0 || amount>10000000)) return res.status(400).json({error:'Invalid amount.'});
+    const {data:se} = await admin.from('ledger_extras').select('amount').eq('field_key','sent_early').eq('staff_id',staffId).eq('cutoff_date',cutoff).maybeSingle();
+    if(!se || Number(se.amount)!==1) return res.status(409).json({error:'Sent Early is not ticked for this staff member and cutoff.'});
+    const sm = await dmStaffMap([staffId]); const s = sm.get(staffId);
+    if(!s) return res.status(404).json({error:'Staff not found.'});
+    const r = await sendDmOnce({eventKey:`dm:early:${staffId}:${cutoff}`,entityId:`${staffId}:${cutoff}`,staff:s,...sentEarlyDm(cutoff,amount)});
+    res.json({ok:true,...r});
+  }catch(e){ console.error('Sent Early DM failed:',e); res.status(502).json({error:e.message||'DM failed.'}); }
+});
+
+// admin: which staff can receive DMs (Slack email match)
+app.get('/api/dm/check', async (req,res)=>{
+  try{
+    const adminRow = await requireAdmin(req,res); if(!adminRow) return;
+    if(!SLACK_BOT_TOKEN) return res.status(409).json({error:'SLACK_BOT_TOKEN is not set on Render yet.'});
+    const {data:staff,error} = await admin.from('staff').select('id, full_name, email, role, active').eq('active',true).order('full_name');
+    if(error) throw error;
+    const out = [];
+    for(const s of staff||[]){
+      let slack = null, err = null;
+      try{ slack = await slackUserIdFor(s.email); }catch(e){ err = e.slack||e.message; }
+      out.push({id:s.id,name:s.full_name,email:s.email,role:s.role,matched:!!slack,error:err});
+    }
+    res.json({ok:true,staff:out,last_sweep:dmStats.last,last_error:dmStats.lastError,since:dmSinceIso});
+  }catch(e){ console.error('DM check failed:',e); res.status(502).json({error:e.message||'Check failed.'}); }
+});
+
+// admin: test DM to yourself
+app.post('/api/dm/test', notificationRateLimit, async (req,res)=>{
+  try{
+    const adminRow = await requireAdmin(req,res); if(!adminRow) return;
+    const {data:s} = await admin.from('staff').select('id, full_name, email').eq('id',adminRow.id).single();
+    const uid = await slackUserIdFor(s?.email);
+    if(!uid) return res.status(404).json({error:`No Slack user found with your portal email (${s?.email||'none'}).`});
+    await slackApi('chat.postMessage',{channel:uid,text:'Test DM from the SMB Portal',blocks:dmBlocks(['👋 *Test DM from the SMB Portal*','If you can read this, staff DMs are working.'],`Sent ${phtDateTime(new Date())}`)});
+    res.json({ok:true});
+  }catch(e){ console.error('Test DM failed:',e); res.status(502).json({error:e.slack==='missing_scope'?'Bagani is missing a Slack permission (scope). Re-check step 2 and reinstall.':(e.message||'Test DM failed.')}); }
+});
+
+setInterval(()=>dmSweep(true), 5*60*1000);
+setTimeout(()=>dmSweep(true), 15000); // once shortly after boot
+
 app.listen(PORT, () => console.log('SMB Time server listening on ' + PORT));
