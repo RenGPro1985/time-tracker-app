@@ -988,7 +988,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
           <div class="cr-legend"><span><i class="cr-se"></i>Staff error</span><span><i class="cr-ap"></i>App issue</span><span><i class="cr-rj"></i>Other / pending / rejected</span></div>
           <label style="margin-top:16px">Most common reasons</label><table><tbody id="crReasons"></tbody></table></div></div>
       </div></section><section id="v-ledger" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_ledger" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-gold" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="align-items:flex-start;gap:18px;margin-bottom:8px;flex-wrap:nowrap"><div id="lgTotBox" style="flex:0 0 auto;min-width:260px;background:rgba(242,184,75,.08);border:1px solid rgba(242,184,75,.45);border-radius:12px;padding:10px 14px"><div class="muted" style="font-size:12px">Period total</div><b class="mono" style="color:var(--gold);font-size:22px" id="lgTotal">₱0.00</b><div id="lgHours" style="margin-top:6px"></div></div><span class="muted" style="font-size:12px;flex:1;min-width:0">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout and is added only by approving it in Payroll → 🏅 Completion Bonus (highlighted in gold when paid); the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span></div><div id="lgQrBanner" class="hide" style="background:rgba(91,141,239,.12);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div class="sticky-scroll"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px">
+      <div class="row pay-sub hide" id="paySub_ledger" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-gold" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="align-items:flex-start;gap:18px;margin-bottom:8px;flex-wrap:nowrap"><div id="lgTotBox" style="flex:0 0 auto;min-width:260px;background:rgba(242,184,75,.08);border:1px solid rgba(242,184,75,.45);border-radius:12px;padding:10px 14px"><div class="muted" style="font-size:12px">Period total</div><b class="mono" style="color:var(--gold);font-size:22px" id="lgTotal">₱0.00</b><div id="lgHours" style="margin-top:6px"></div></div><span class="muted" style="font-size:12px;flex:1;min-width:0">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout and is added only by approving it in Payroll → 🏅 Completion Bonus (highlighted in gold when paid); the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span></div><div id="lgQrBanner" class="hide" style="background:rgba(91,141,239,.12);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgTsAckTh" title="Timesheet acknowledgement by the staff member for this hours period">Timesheet</th><th id="lgSentEarlyTh" title="Reminder only: money already sent to this staff member before the cutoff date. Does not change any amount or the PAID status.">Sent Early</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div class="sticky-scroll"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px">
       <div class="row pay-sub hide" id="paySub_invoice" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-gold" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
 <div class="hide" id="civSettingsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60"><div class="card" style="max-width:720px;width:92vw;max-height:88vh;overflow-y:auto"><div class="hdr"><h3 style="font-size:15px" id="civSettingsTitle">Client Invoice Settings</h3><button class="btn btn-ghost" id="civSettingsClose">✕ Close</button></div><div class="muted" style="font-size:12px;margin-bottom:12px">Controls exactly what appears on this client's bi-weekly invoice. Nothing here changes payroll (Contractor Ledger) math.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Task Description</div><input type="text" id="civTaskDescription" placeholder="e.g. Back Office CRM tasks" style="margin-bottom:6px"><div class="muted" style="font-size:11px;margin-bottom:14px">One label for everyone on this client. Rate rows on the invoice come straight from each staff member's live hourly rate \u2014 nothing to configure here for that.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Recurring Pay Items</div><table><tbody>
 <tr><td style="width:26px"><input type="checkbox" id="civInternetOn"></td><td><b>Internet / Fiber Share</b><div class="muted" style="font-size:11px">Flat cost line on every invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civInternetAmt" style="width:110px" placeholder="$/period"></td></tr>
@@ -2669,6 +2669,7 @@ function wireSentEarlyCheckboxes(){
       const want=cb.checked;cb.disabled=true;
       const ok=await saveLedgerExtra(cb.dataset.staff,cb.dataset.cutoff,'sent_early',want?1:0,null);
       if(!ok){cb.checked=!want;cb.disabled=false;return;}
+      if(want) window.DmKick?.sentEarly(cb.dataset.staff,cb.dataset.cutoff); // Bagani DM with the amount [2026-10-23]
       await runLedger();
     };
   });
@@ -2704,6 +2705,7 @@ $('payConfirmYes').onclick=async()=>{
       p_snapshot:buildPaidSnapshot(payConfirmTarget)});
     if(error) throw new Error(isMissingTableError(error)?'This database hasn\'t run the Adjustments migration yet — ask an admin to run it in the Supabase SQL Editor.':error.message);
     closePayConfirm();
+    window.DmKick?.kick(); // Bagani DM: Contractor Fee sent [2026-10-23]
     await runLedger(); // re-fetch so the checkbox locks and reflects the frozen snapshot
   }catch(e){$('payConfirmMsg').textContent='';alert(e.message);}
   $('payConfirmYes').disabled=false;
@@ -2778,6 +2780,7 @@ $('payAllYes').onclick=async()=>{
   payAllBusy=false;$('payAllCancel').disabled=false;
   $('payAllMsg').innerHTML=`<b>${okN} marked PAID.</b>`+(failed.length?` <span style="color:var(--rose)">${failed.length} failed — they are still unpaid; see the Status column.</span>`:'');
   $('payAllCancel').textContent='Close';
+  if(okN) window.DmKick?.kick();
   await runLedger();
 };
 function renderLedgerLoadBanner(){
@@ -2807,8 +2810,9 @@ function renderLedgerTable(start,end){
     +extraCellHtml(r,'fee_advance')+extraCellHtml(r,'adjustments')
     +`<td class="mono" style="color:var(--rose)">${r.deductionSubtotal.toFixed(2)}</td>`
     +`<td class="mono" style="color:var(--gold);font-weight:600">${r.total.toFixed(2)}</td>`
-    +sentEarlyCellHtml(r)+paidCellHtml(r)+`</tr>`).join(''):`<tr><td colspan="${me.role==='admin'?28:27}" class="muted">No staff match this filter. Press Run.</td></tr>`;
+    +(window.TsAck?TsAck.cell(r):'')+sentEarlyCellHtml(r)+paidCellHtml(r)+`</tr>`).join(''):`<tr><td colspan="${me.role==='admin'?29:27}" class="muted">No staff match this filter. Press Run.</td></tr>`;
   if($('lgSentEarlyTh'))$('lgSentEarlyTh').classList.toggle('hide',me.role!=='admin');
+  window.TsAck?.afterLedger(start,end); // timesheet acknowledgement column + banner [2026-10-23]
   wirePaidCheckboxes();wireSentEarlyCheckboxes();renderSentEarlyBanner();renderLedgerLoadBanner();updatePayAllButton();window.SalaryQR?.afterLedger();
   $('ledgerTable').querySelectorAll('input.ledger-extra').forEach(inp=>{
     const baseline=inp.value;
@@ -2982,6 +2986,7 @@ async function start(){
   await refreshNotifications();
   setInterval(refreshNotifications,60000);
   window.Bulletin?.onStart();
+  window.TsAck?.onStart();
   window.DocTodo?.load();
   window.BreakNudge?.start();
   window.Ratings?.loadMine();
@@ -8598,7 +8603,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
         row.created_by=me.id; row.created_by_name=me.full_name;
         const {error}=await sb.from('bulletin_posts').insert(row); if(error) throw error;
       }
-      editingId=null; await load();
+      editingId=null; window.DmKick?.kick(); await load();
     }catch(e){ btn.disabled=false; msg.textContent='Could not save: '+errMsg(e); }
   }
   function receiptsHtml(p){
@@ -11376,6 +11381,264 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   }
 
   window.Ratings={loadMine,initAdmin,showTab,_open:openDrawer,_mine:()=>mine};
+})();
+</script>
+
+<script>
+/* ============================================================================
+   Bagani DMs + Timesheet acknowledgement  [Rendy, 2026-10-23]
+   • DmKick: after admin actions, asks the Render server to run its DM sweep right away
+     (the server also sweeps every 5 min while awake + the hourly pinger).
+   • TsAck (staff): "Review my timesheet" card on Time Tracker for the latest period
+     (rows created by the server at 10 PM PHT on the 8th / 23rd). Hours use the exact
+     Contractor Ledger math (ledgerShiftRow). Acknowledge / Report an issue (ts_ack_respond).
+   • TsAck (admin): Timesheet column + banner on the Contractor Ledger, "Ask again"
+     (ts_ack_reset); auto "ask again" if an acknowledged total no longer matches the Ledger.
+   • DmAdmin: Staff & Clients → "📨 Slack DMs" check (email match) + test DM.
+   ============================================================================ */
+(function(){
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const emsg=e=>(e&&(e.message||e.error_description||e.details))||String(e);
+  const isAdm=()=>me&&me.role==='admin';
+  const nice=iso=>fmtNice(String(iso).slice(0,10));
+  const shortD=iso=>new Date(String(iso).slice(0,10)+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'});
+  const range=(a,b)=>`${shortD(a)}–${nice(b)}`;
+  const dow=iso=>new Date(String(iso).slice(0,10)+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short'});
+  const r2=n=>Math.round((Number(n)||0)*100)/100;
+
+  /* ---------------- DmKick ---------------- */
+  let kickT=null;
+  function kick(){
+    clearTimeout(kickT);
+    kickT=setTimeout(()=>{ fetch(SERVER_URL+'/api/notify/sweep',{method:'POST'}).catch(()=>{}); },2500);
+  }
+  async function sentEarly(staffId,cutoff){
+    const row=(typeof ledgerRows!=='undefined'&&ledgerRows||[]).find(r=>r.staffId===staffId&&r.cutoffIso===cutoff);
+    try{ await sendSlackNotice('/api/dm/sent-early',{staff_id:staffId,cutoff_date:cutoff,amount:row?r2(row.total):null}); }
+    catch(e){ console.warn('Sent Early DM:',e.message); kick(); }
+  }
+  async function serverGet(path){
+    const token=await getValidAccessToken(); if(!token) throw new Error('Your session expired.');
+    const r=await fetch(SERVER_URL+path,{headers:{'Authorization':'Bearer '+token}});
+    let j={}; try{j=await r.json();}catch(_e){}
+    if(!r.ok) throw new Error(j.error||('Server error '+r.status));
+    return j;
+  }
+  window.DmKick={kick,sentEarly};
+
+  /* ---------------- CSS ---------------- */
+  const css=document.createElement('style');
+  css.textContent=`
+  .tsa-card{border:1px solid rgba(227,166,62,.6)!important}
+  .tsa-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .tsa-pill{border-radius:20px;padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap;display:inline-block}
+  .tsa-ok{background:rgba(63,191,174,.15);color:var(--teal)} .tsa-is{background:rgba(226,104,95,.15);color:var(--rose)} .tsa-wt{background:rgba(227,166,62,.15);color:var(--gold)}
+  .tsa-tiles{display:flex;gap:22px;flex-wrap:wrap;margin:12px 0}
+  .tsa-tiles .k{font-size:12px;color:var(--muted)} .tsa-tiles .v{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700}
+  .tsa-scroll{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .tsa-scroll table{width:100%;font-size:12.5px} .tsa-scroll th{position:sticky;top:0;background:var(--card2);z-index:1}
+  .tsa-btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .tsa-issue textarea{width:100%;min-height:60px;margin-top:6px}
+  .tsa-cell{font-size:12px;white-space:nowrap} .tsa-cell .muted{font-size:11px}
+  .tsa-ask{font-size:11px;padding:2px 7px;margin-left:4px}
+  #dmCheckOverlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:60}
+  #dmCheckOverlay .card{max-width:640px;width:94vw;max-height:86vh;overflow:auto}
+  `;
+  document.head.appendChild(css);
+
+  /* ---------------- Staff card ---------------- */
+  let mine=null, mineCalc=null, issueOpen=false, busy=false;
+  async function loadMine(){
+    if(!me||isAdm()) return;
+    const {data,error}=await sb.from('timesheet_acks').select('*').eq('staff_id',me.id).order('period_start',{ascending:false}).limit(1);
+    if(error){ if(!/timesheet_acks|does not exist|schema cache/i.test(error.message||'')) console.warn('timesheet_acks:',error.message); return; }
+    mine=(data&&data[0])||null; mineCalc=null;
+    if(mine&&(mine.status==='waiting'||mine.status==='issue')){ try{ mineCalc=await computeHours(me.id,String(mine.period_start).slice(0,10),String(mine.period_end).slice(0,10)); }catch(e){ console.warn('timesheet calc',e); } }
+    paint();
+  }
+  async function computeHours(staffId,start,end){
+    const staff=(staffList||[]).find(s=>s.id===staffId)||me;
+    const [ents,shifts]=await Promise.all([fetchEntriesRangeStrict(start,end,[staffId]),fetchShiftsRangeStrict(start,end,[staffId])]);
+    const client=clients.find(c=>c.id===staff.client_id), nightWins=nightWindowsForRange(start,end);
+    const rows=[];
+    shifts.filter(sh=>sh.staff_id===staffId).forEach(shift=>{
+      const date=shiftAnchorDate(shift); if(date<start||date>end) return;
+      rows.push(ledgerShiftRow(staff,client,shift,ents.filter(e=>e.staff_id===staffId&&e.shift_id===shift.id),nightWins));
+    });
+    let leaves=[]; try{ leaves=await fetchLeaveDaysStrict(start,end,[staffId]); }catch(e){ console.warn('leave_days',e); }
+    rows.sort((a,b)=>a.date.localeCompare(b.date)||a.login.localeCompare(b.login));
+    const lv=leaves.filter(l=>l.type==='pto'||l.type==='pch');
+    const billMin=rows.reduce((a,r)=>a+r.regularMin+r.otMin,0), ndMin=rows.reduce((a,r)=>a+r.nightMin,0);
+    return {rows,leaves:lv,hours:r2(billMin/60),nd:r2(ndMin/60),pto:lv.filter(l=>l.type==='pto').length,pch:lv.filter(l=>l.type==='pch').length,days:new Set(rows.map(r=>r.date)).size};
+  }
+  function host(){
+    let el=$('tsaCard'); if(el) return el;
+    const sec=$('v-punch'); if(!sec) return null;
+    const L=[...sec.children].filter(c=>c.id!=='docTodoBanner')[0]; if(!L) return null;
+    el=document.createElement('div'); el.id='tsaCard'; el.className='card tsa-card hide';
+    L.insertBefore(el,L.firstChild); return el;
+  }
+  function paint(){
+    const el=host(); if(!el) return;
+    if(!mine||isAdm()||!(mine.status==='waiting'||mine.status==='issue')){ el.classList.add('hide'); return; }
+    el.classList.remove('hide');
+    const per=range(mine.period_start,mine.period_end);
+    if(mine.status==='issue'){
+      el.innerHTML=`<div class="tsa-hd"><h3 style="font-size:15px">🗓️ My timesheet · ${esc(per)}</h3><span class="tsa-pill tsa-is">⚠️ Issue sent to Rendy</span></div>
+        <div class="muted" style="font-size:12.5px;margin-top:8px">"${esc(mine.issue_text||'')}"${mine.issue_date?' · '+esc(shortD(mine.issue_date)):''}<br>Rendy will fix it and may ask you to review again.</div>`;
+      return;
+    }
+    const c=mineCalc;
+    const due=mine.sent_at?new Date(new Date(mine.sent_at).getTime()+48*3600000):null;
+    const left=due?Math.max(0,Math.round((due-Date.now())/3600000)):null;
+    const rowsHtml=c?(c.rows.map(r=>{
+      const notes=[r.logout==='Open'?'⚠ no logout':'',r.missingLunch?'⚠ no 60min break logged':''].filter(Boolean).join(' · ');
+      return `<tr><td>${esc(dow(r.date))} ${esc(shortD(r.date))}</td><td class="mono">${esc(r.login)}</td><td class="mono">${esc(r.logout==='Open'?'—':r.logout)}</td><td class="mono">${((r.regularMin+r.otMin)/60).toFixed(2)}</td><td class="muted">${esc(notes)}</td></tr>`;
+    }).concat(c.leaves.map(l=>`<tr><td>${esc(dow(l.date))} ${esc(shortD(l.date))}</td><td class="mono">—</td><td class="mono">—</td><td class="mono">${esc(String(l.type).toUpperCase())}</td><td class="muted">paid day</td></tr>`)).join('')||'<tr><td colspan="5" class="muted">No shifts found in this period.</td></tr>'):'<tr><td colspan="5" class="muted">Loading…</td></tr>';
+    const dates=[]; for(let d=String(mine.period_start).slice(0,10); d<=String(mine.period_end).slice(0,10); d=addDays(d,1)) dates.push(d);
+    el.innerHTML=`<div class="tsa-hd"><h3 style="font-size:15px">🗓️ Review my timesheet · ${esc(per)}</h3><span class="tsa-pill tsa-wt">⏳ Waiting${left!=null?' · '+left+'h left':''}</span></div>
+      ${Number(mine.round)>1&&mine.reset_reason?`<div class="muted" style="font-size:12px;margin-top:6px">Updated by Rendy: ${esc(mine.reset_reason)}</div>`:''}
+      <div class="tsa-tiles"><div><div class="k">Billable hours</div><div class="v" style="color:var(--gold)">${c?c.hours.toFixed(2):'—'}</div></div>
+        <div><div class="k">ND hours</div><div class="v">${c?c.nd.toFixed(2):'—'}</div></div>
+        <div><div class="k">PTO / PCH</div><div class="v">${c?c.pto+' / '+c.pch:'—'}</div></div>
+        <div><div class="k">Days worked</div><div class="v">${c?c.days:'—'}</div></div></div>
+      <div class="tsa-scroll"><table><thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Hours</th><th>Note</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
+      <div class="tsa-btns"><button class="btn btn-teal" id="tsaAck"${c?'':' disabled'}>✅ Acknowledge: my hours are correct</button><button class="btn btn-ghost" id="tsaIssueBtn" style="border-color:var(--rose);color:var(--rose)">⚠️ Report an issue</button></div>
+      <div class="tsa-issue ${issueOpen?'':'hide'}" id="tsaIssue" style="margin-top:12px"><label>Which day? (optional)</label>
+        <select id="tsaDay" style="width:auto"><option value="">Not about one day</option>${dates.map(d=>`<option value="${d}">${esc(dow(d))} ${esc(shortD(d))}</option>`).join('')}</select>
+        <textarea id="tsaText" maxlength="1500" placeholder="e.g. I forgot to log out on Oct 7, my shift ended at 6:00 AM."></textarea>
+        <div class="row" style="gap:8px;margin-top:6px"><button class="btn btn-rose" id="tsaSend">Send to Rendy</button><span class="muted" id="tsaMsg" style="font-size:12px"></span></div></div>
+      <div class="muted" style="font-size:11.5px;margin-top:8px">No answer within 48 hrs = marked "Acknowledged (no response)".</div>`;
+    $('tsaAck').onclick=()=>respond(true);
+    $('tsaIssueBtn').onclick=()=>{ issueOpen=!issueOpen; $('tsaIssue').classList.toggle('hide',!issueOpen); };
+    $('tsaSend').onclick=()=>respond(false);
+  }
+  async function respond(ack){
+    if(busy||!mine) return;
+    const text=ack?null:($('tsaText').value||'').trim();
+    if(!ack&&!text){ $('tsaMsg').textContent='Please describe the issue.'; return; }
+    if(ack&&!confirm(`Confirm your timesheet for ${range(mine.period_start,mine.period_end)}: ${mineCalc?mineCalc.hours.toFixed(2):'?'} billable hours?`)) return;
+    busy=true;
+    try{
+      const {error}=await sb.rpc('ts_ack_respond',{p_id:mine.id,p_ack:ack,p_text:text,p_date:ack?null:($('tsaDay').value||null),p_hours:mineCalc?mineCalc.hours:null,p_nd_hours:mineCalc?mineCalc.nd:null});
+      if(error) throw error;
+      issueOpen=false; kick(); await loadMine();
+      if(ack) alert('Thanks! Your timesheet is acknowledged.');
+    }catch(e){ alert('Could not save: '+emsg(e)); }
+    busy=false;
+  }
+
+  /* ---------------- Admin: Contractor Ledger ---------------- */
+  let ledgerAcks=[], ledgerStart=null;
+  function cell(r){
+    if(!isAdm()) return '';
+    return `<td class="tsa-cell" data-tsack="${r.staffId}"><span class="muted">—</span></td>`;
+  }
+  function cellInner(a){
+    if(!a) return '<span class="muted" title="No timesheet request for this period (none sent yet, or no shifts).">—</span>';
+    const when=t=>t?new Date(t).toLocaleString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    const ask=`<button class="btn btn-ghost tsa-ask" data-tsask="${a.id}" title="Ask this person to review and acknowledge again (sends a new DM)">Ask again</button>`;
+    if(a.status==='acknowledged') return `<span class="tsa-pill tsa-ok">✅ Acknowledged</span> <span class="muted">${esc(when(a.answered_at))}${a.hours!=null?' · '+Number(a.hours).toFixed(2)+'h':''}</span>${ask}`;
+    if(a.status==='auto') return `<span class="tsa-pill tsa-ok">✅ No response</span> <span class="muted">auto after 48h</span>${ask}`;
+    if(a.status==='issue') return `<span class="tsa-pill tsa-is" title="${esc(a.issue_text||'')}">⚠️ Issue</span> <span class="muted" title="${esc(a.issue_text||'')}">${a.issue_date?esc(shortD(a.issue_date))+': ':''}"${esc(String(a.issue_text||'').slice(0,40))}${String(a.issue_text||'').length>40?'…':''}"</span>${ask}`;
+    return `<span class="tsa-pill tsa-wt">⏳ Waiting</span> <span class="muted">${a.sent_at?'DM '+esc(when(a.sent_at)):'DM pending'}${Number(a.round)>1?' · round '+a.round:''}</span>`;
+  }
+  async function afterLedger(start,end){
+    const th=$('lgTsAckTh'); if(th) th.classList.toggle('hide',!isAdm());
+    if(!isAdm()) return;
+    ledgerStart=start;
+    const {data,error}=await sb.from('timesheet_acks').select('*').eq('period_start',start).range(0,1999);
+    if(start!==ledgerStart) return;
+    if(error){ ledgerAcks=[]; paintLedger(); return; }
+    ledgerAcks=data||[];
+    // hours changed after acknowledgement → ask again automatically (only on a clean Ledger load)
+    if(typeof LedgerLoadGuard==='undefined'||LedgerLoadGuard.ok()){
+      const changed=[];
+      for(const a of ledgerAcks){
+        if(a.status!=='acknowledged'||a.hours==null) continue;
+        const r=(ledgerRows||[]).find(x=>x.staffId===a.staff_id); if(!r) continue;
+        const now=r2(r.regularHrs+r.otHrs);
+        if(Math.abs(now-Number(a.hours))>0.02){
+          const {error:e2}=await sb.rpc('ts_ack_reset',{p_id:a.id,p_reason:`Hours changed from ${Number(a.hours).toFixed(2)} to ${now.toFixed(2)}`});
+          if(!e2) changed.push(r.name);
+        }
+      }
+      if(changed.length){
+        kick();
+        const {data:d2}=await sb.from('timesheet_acks').select('*').eq('period_start',start).range(0,1999);
+        ledgerAcks=d2||ledgerAcks;
+        ledgerAcks._changed=changed;
+      }
+    }
+    paintLedger();
+  }
+  function paintLedger(){
+    document.querySelectorAll('#ledgerTable td[data-tsack]').forEach(td=>{
+      td.innerHTML=cellInner(ledgerAcks.find(a=>a.staff_id===td.dataset.tsack));
+    });
+    document.querySelectorAll('#ledgerTable [data-tsask]').forEach(b=>b.onclick=()=>askAgain(b.dataset.tsask));
+    let ban=$('lgTsAckBanner');
+    if(!ban){ const se=$('lgSentEarlyBanner'); if(!se) return; ban=document.createElement('div'); ban.id='lgTsAckBanner'; ban.style.cssText='background:rgba(91,141,239,.10);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px'; se.parentNode.insertBefore(ban,se); }
+    const shown=new Set([...document.querySelectorAll('#ledgerTable td[data-tsack]')].map(td=>td.dataset.tsack));
+    const list=ledgerAcks.filter(a=>shown.has(a.staff_id));
+    if(!isAdm()||!list.length){ ban.classList.add('hide'); return; }
+    const nm=id=>((staffList||[]).find(s=>s.id===id)||{}).full_name||'Staff';
+    const ok=list.filter(a=>a.status==='acknowledged'||a.status==='auto'), is=list.filter(a=>a.status==='issue'), wt=list.filter(a=>a.status==='waiting');
+    ban.classList.remove('hide');
+    ban.innerHTML=`🗓️ Timesheets ${esc(range(list[0].period_start,list[0].period_end))}: <b>${ok.length} acknowledged</b>`
+      +(is.length?` · <b style="color:var(--rose)">${is.length} issue${is.length>1?'s':''}</b> (${is.map(a=>esc(nm(a.staff_id))).join(', ')})`:'')
+      +(wt.length?` · <b>${wt.length} waiting</b> (${wt.map(a=>esc(nm(a.staff_id))).join(', ')})`:'')
+      +'. You can still mark PAID.'
+      +(ledgerAcks._changed&&ledgerAcks._changed.length?`<br>Hours changed after they acknowledged, so a new review was sent to: <b>${ledgerAcks._changed.map(esc).join(', ')}</b>.`:'');
+  }
+  async function askAgain(id){
+    const reason=prompt('What changed? (shown to the staff member in the DM)','Hours corrected');
+    if(reason===null) return;
+    const {error}=await sb.rpc('ts_ack_reset',{p_id:id,p_reason:reason.trim()||'Hours corrected'});
+    if(error) return alert('Could not ask again: '+emsg(error));
+    kick();
+    const {data}=await sb.from('timesheet_acks').select('*').eq('period_start',ledgerStart).range(0,1999);
+    ledgerAcks=data||[]; paintLedger();
+  }
+
+  /* ---------------- Admin: Slack DM check ---------------- */
+  function addDmButton(){
+    const bar=$('scSubStaff'); if(!bar||$('dmCheckBtn')||!isAdm()) return;
+    const b=document.createElement('button'); b.id='dmCheckBtn'; b.className='btn btn-ghost'; b.textContent='📨 Slack DMs';
+    b.onclick=openDmCheck; bar.appendChild(b);
+  }
+  async function openDmCheck(){
+    let ov=$('dmCheckOverlay'); if(ov) ov.remove();
+    ov=document.createElement('div'); ov.id='dmCheckOverlay';
+    ov.innerHTML=`<div class="card"><div class="hdr" style="display:flex;justify-content:space-between;align-items:center"><h3 style="font-size:15px">📨 Slack DMs from Bagani</h3><button class="btn btn-ghost" id="dmClose">Close</button></div>
+      <div class="muted" style="font-size:12px;margin:6px 0 10px">Staff get private DMs for Bulletin posts, Contractor Fee (Sent Early / PAID), request decisions, time log corrections and timesheet reviews. A DM only works when their <b>portal email = Slack email</b>.</div>
+      <div class="row" style="gap:8px;margin-bottom:10px"><button class="btn btn-gold" id="dmTest">Send test DM to me</button><span class="muted" id="dmMsg" style="font-size:12px"></span></div>
+      <div id="dmList" class="muted">Checking Slack…</div></div>`;
+    document.body.appendChild(ov);
+    $('dmClose').onclick=()=>ov.remove(); ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+    $('dmTest').onclick=async()=>{ $('dmMsg').textContent='Sending…'; try{ await sendSlackNotice('/api/dm/test',{}); $('dmMsg').textContent='✅ Sent. Check your Slack DMs from Bagani.'; }catch(e){ $('dmMsg').textContent='❌ '+e.message; } };
+    try{
+      const j=await serverGet('/api/dm/check');
+      const rows=(j.staff||[]).filter(s=>s.role!=='admin');
+      const bad=rows.filter(s=>!s.matched);
+      $('dmList').innerHTML=`<div style="margin-bottom:8px"><b>${rows.length-bad.length}</b> of ${rows.length} staff can get DMs${bad.length?` · <b style="color:var(--rose)">${bad.length} not found in Slack</b>`:''}.</div>
+        <table><thead><tr><th>Staff</th><th>Portal email</th><th>Slack</th></tr></thead><tbody>${rows.map(s=>`<tr><td>${esc(s.name)}</td><td class="muted">${esc(s.email||'—')}</td><td>${s.matched?'<span class="tsa-pill tsa-ok">✅ matched</span>':`<span class="tsa-pill tsa-is" title="${esc(s.error||'')}">❌ not found</span>`}</td></tr>`).join('')}</tbody></table>
+        <div class="muted" style="font-size:11.5px;margin-top:8px">Not found = no Slack account with that exact email. Fix the email in Staff &amp; Clients, or ask them to use the same email in Slack.${j.last_sweep?' · Last DM check: '+esc(new Date(j.last_sweep).toLocaleString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+' PHT':''}${j.last_error?' · <span style="color:var(--rose)">Last error: '+esc(j.last_error)+'</span>':''}</div>`;
+    }catch(e){ $('dmList').innerHTML=`<span style="color:var(--rose)">${esc(e.message)}</span>`; }
+  }
+
+  function onStart(){
+    if(!me) return;
+    if(isAdm()){ addDmButton(); return; }
+    loadMine();
+    setInterval(()=>{ if(!document.hidden) loadMine(); },15*60000);
+  }
+  window.TsAck={onStart,loadMine,cell,afterLedger,_state:()=>({mine,mineCalc,ledgerAcks})};
+})();
+/* request / correction decisions → Bagani DM right away */
+(function(){
+  if(typeof decideReq==='function'){ const _d=decideReq; decideReq=async function(){ const r=await _d.apply(this,arguments); if(r!==false) window.DmKick?.kick(); return r; }; }
+  if(typeof applyCorrectionResolution==='function'){ const _a=applyCorrectionResolution; applyCorrectionResolution=async function(){ const r=await _a.apply(this,arguments); window.DmKick?.kick(); return r; }; }
 })();
 </script>
 
