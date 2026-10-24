@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="smb-build" content="2026-10-23-b23">
+<meta name="smb-build" content="2026-10-24-b24">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SMB VS Portal</title>
@@ -11499,8 +11499,10 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const per=range(mine.period_start,mine.period_end);
     if(mine.status==='issue'){
       el.innerHTML=`<div class="tsa-hd"><h3 style="font-size:15px">🗓️ My timesheet · ${esc(per)}</h3><span class="tsa-pill tsa-is">⚠️ Issue sent to Sir Rendy</span></div>
-        <div class="muted" style="font-size:12.5px;margin-top:8px">"${esc(mine.issue_text||'')}"${mine.issue_date?' · '+esc(shortD(mine.issue_date)):''}<br>Sir Rendy will fix it and may ask you to review again.</div><div id="tsaIssueFiles" style="margin-top:8px"></div>`;
+        <div class="muted" style="font-size:12.5px;margin-top:8px">"${esc(mine.issue_text||'')}"${mine.issue_date?' · '+esc(shortD(mine.issue_date)):''}<br>Sir Rendy will fix it and may ask you to review again.</div><div id="tsaIssueFiles" style="margin-top:8px"></div>
+        ${mine.issue_date?`<div style="margin-top:8px"><button class="btn btn-ghost" id="tsaGoCorr">✏️ Open Time Log Correction for ${esc(shortD(mine.issue_date))}</button></div>`:''}`;
       window.B23?.paintIssueFiles(mine);
+      const gc=$('tsaGoCorr'); if(gc) gc.onclick=()=>goCorr(String(mine.issue_date).slice(0,10),mine.issue_text||'');
       return;
     }
     const c=mineCalc;
@@ -11519,29 +11521,44 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
         <div><div class="k">Days worked</div><div class="v">${c?c.days:'—'}</div></div></div>
       <div class="tsa-scroll"><table><thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Hours</th><th>Note</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
       <div class="tsa-btns"><button class="btn btn-teal" id="tsaAck"${c?'':' disabled'}>✅ Acknowledge: my hours are correct</button><button class="btn btn-ghost" id="tsaIssueBtn" style="border-color:var(--rose);color:var(--rose)">⚠️ Report an issue</button></div>
-      <div class="tsa-issue ${issueOpen?'':'hide'}" id="tsaIssue" style="margin-top:12px"><label>Which day? (optional)</label>
-        <select id="tsaDay" style="width:auto"><option value="">Not about one day</option>${dates.map(d=>`<option value="${d}">${esc(dow(d))} ${esc(shortD(d))}</option>`).join('')}</select>
+      <div class="tsa-issue ${issueOpen?'':'hide'}" id="tsaIssue" style="margin-top:12px"><label>Which day? <b style="color:var(--rose)">(required)</b></label>
+        <select id="tsaDay" style="width:auto"><option value="" selected disabled>Choose the day…</option>${dates.map(d=>`<option value="${d}">${esc(dow(d))} ${esc(shortD(d))}</option>`).join('')}</select>
         <textarea id="tsaText" maxlength="1500" placeholder="e.g. I forgot to log out on Oct 7, my shift ended at 6:00 AM."></textarea>
-        ${window.B23?B23.tsaFilesHtml():''}
-        <div class="row" style="gap:8px;margin-top:6px"><button class="btn btn-rose" id="tsaSend">Send to Sir Rendy</button><span class="muted" id="tsaMsg" style="font-size:12px"></span></div></div>
+        <div class="muted" style="font-size:11.5px;margin-top:4px">Next step: you'll finish a Time Log Correction for that day (attach your screenshot there).</div>
+        <div class="row" style="gap:8px;margin-top:6px"><button class="btn btn-rose" id="tsaSend">Continue to Time Log Correction →</button><span class="muted" id="tsaMsg" style="font-size:12px"></span></div></div>
       <div class="muted" style="font-size:11.5px;margin-top:8px">No answer within 48 hrs = marked "Acknowledged (no response)".</div>`;
     $('tsaAck').onclick=()=>respond(true);
     $('tsaIssueBtn').onclick=()=>{ issueOpen=!issueOpen; $('tsaIssue').classList.toggle('hide',!issueOpen); };
     $('tsaSend').onclick=()=>respond(false);
-    window.B23?.wireTsaFiles();
+  }
+  // Report an issue -> Time Log Correction form for that day [2026-10-24]
+  function goCorr(day,text){
+    if(!day) return;
+    go('v-punch'); const d=$('corrDate'); if(!d) return;
+    d.value=day; d.dispatchEvent(new Event('change'));
+    const m=$('corrMsg'); if(m&&!m.value.trim()) m.value=String(text||'').slice(0,1000);
+    const card=d.closest('.card'); if(!card) return;
+    let b=$('tsaCorrBanner');
+    if(!b){ b=document.createElement('div'); b.id='tsaCorrBanner'; b.style.cssText='background:rgba(232,93,117,.10);border:1px solid var(--rose);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;display:flex;gap:8px;align-items:flex-start'; card.insertBefore(b,card.firstChild); }
+    b.innerHTML=`<div style="flex:1">⚠️ <b>Finish your correction for ${esc(dow(day))} ${esc(shortD(day))}</b>: pick the recorded activity and what happened, attach your screenshot, then press Send. Your issue was already sent to Sir Rendy.</div><a href="#" id="tsaCorrBannerX" title="Close" style="color:var(--muted)">✕</a>`;
+    $('tsaCorrBannerX').onclick=e=>{e.preventDefault();b.remove();};
+    card.scrollIntoView({behavior:'smooth',block:'start'});
+    setTimeout(()=>$('corrEntry')?.focus(),400);
   }
   async function respond(ack){
     if(busy||!mine) return;
     const text=ack?null:($('tsaText').value||'').trim();
+    const day=ack?null:($('tsaDay').value||null);
+    if(!ack&&!day){ $('tsaMsg').textContent='Please choose the day.'; return; }
     if(!ack&&!text){ $('tsaMsg').textContent='Please describe the issue.'; return; }
     if(ack&&!confirm(`Confirm your timesheet for ${range(mine.period_start,mine.period_end)}: ${mineCalc?mineCalc.hours.toFixed(2):'?'} billable hours?`)) return;
     busy=true;
     try{
-      const {error}=await sb.rpc('ts_ack_respond',{p_id:mine.id,p_ack:ack,p_text:text,p_date:ack?null:($('tsaDay').value||null),p_hours:mineCalc?mineCalc.hours:null,p_nd_hours:mineCalc?mineCalc.nd:null});
+      const {error}=await sb.rpc('ts_ack_respond',{p_id:mine.id,p_ack:ack,p_text:text,p_date:day,p_hours:mineCalc?mineCalc.hours:null,p_nd_hours:mineCalc?mineCalc.nd:null});
       if(error) throw error;
-      if(!ack&&window.B23){ const note=await B23.uploadTsaFiles(mine.id); if(note) alert(note); }
       issueOpen=false; kick(); await loadMine();
       if(ack) alert('Thanks! Your timesheet is acknowledged.');
+      else goCorr(day,text);
     }catch(e){ alert('Could not save: '+emsg(e)); }
     busy=false;
   }
@@ -12037,7 +12054,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     if(error){ box.innerHTML=''; return; }
     (data||[]).forEach(f=>{ if(window.RF&&RF._all) RF._all[f.id]=f; });
     const fs=data||[];
-    box.innerHTML=(fs.length?'<span class="muted" style="font-size:12px">📎 </span>'+chipsB23(fs):'')+(fs.length<MAXF?` <button class="btn btn-ghost" style="padding:3px 8px;font-size:11.5px" id="tsaAddShot">📎 Add screenshot</button>`:'');
+    box.innerHTML=(fs.length?'<span class="muted" style="font-size:12px">📎 </span>'+chipsB23(fs):''); // screenshots now go on the Time Log Correction form [2026-10-24]
     const b=$id('tsaAddShot'); if(b) b.onclick=()=>{
       const inp=document.createElement('input'); inp.type='file'; inp.multiple=true; if(window.RF) inp.accept=RF.ACCEPT;
       inp.onchange=async()=>{ const files=[...inp.files].slice(0,MAXF-fs.length); if(!files.length) return; b.disabled=true; b.textContent='Uploading…';
