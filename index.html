@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta name="smb-build" content="2026-10-23-b23">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SMB VS Portal</title>
@@ -636,7 +637,7 @@ th.eg-new,td.eg-new{background:rgba(242,184,75,.07)}
           <div style="margin-top:10px"><label id="corrProofLbl">Proof screenshot</label>
             <input type="file" id="corrProof" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%">
             <div id="corrProofList"></div>
-            <div class="muted" style="font-size:11.5px;margin-top:4px">Up to 3 photos or screenshots · JPG/PNG/PDF · max 10 MB each · 🔒 only you and Rendy can open them. Required for "App / page error" and "Internet or power outage".</div></div>
+            <div class="muted" style="font-size:11.5px;margin-top:4px">Up to 3 photos or screenshots · JPG/PNG/PDF · max 10 MB each · 🔒 only you and Sir Rendy can open them. Required for "App / page error" and "Internet or power outage".</div></div>
           <div class="row" style="margin-top:12px;align-items:center"><button class="btn btn-gold" id="corrBtn">Send request</button></div>
           <div class="muted" style="font-size:11.5px;margin-top:8px">You may use any break type more than once. Break minutes accumulate; a correction is only for an incorrect recorded entry.</div>
           <div id="myCorrections" style="margin-top:14px"></div>
@@ -974,7 +975,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     <section id="v-corr" class="hide grid" style="gap:16px">
       <div class="cr-sub" id="corrSubBar"><button class="btn btn-gold" data-corr-sub="list">📋 Requests</button><button class="btn btn-ghost" data-corr-sub="report">📊 Report</button></div>
       <div class="card" id="corrListCard"><div class="hdr"><h3 style="font-size:15px">Correction requests</h3>
-        <div class="row" style="gap:8px"><button class="btn btn-gold" id="elOpenBtn" type="button" title="Move a shift's login earlier (e.g. staff couldn't log in on time)">Edit login time</button><select id="corrFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div></div>
+        <div class="row" style="gap:8px"><button class="btn btn-gold" id="elOpenBtn" type="button" title="Move a shift's login earlier (e.g. staff couldn't log in on time)">Edit login time</button><input id="corrName" placeholder="🔎 Filter by name" style="width:170px"><select id="corrFilter" style="width:auto" title="Status"><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="all">All</option></select></div></div>
         <div class="muted" style="font-size:11.5px;margin:0 0 10px">Review the raw activity record before changing it. Repeated breaks are valid and accumulate; delete only a confirmed duplicate.</div>
         <div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Shift date</th><th>What happened</th><th>Request</th><th>Proof</th><th>Status / resolution</th><th></th></tr></thead><tbody id="corrTable"></tbody></table></div></div>
       <div class="card hide" id="corrReportCard"><div class="hdr"><h3 style="font-size:15px">📊 Correction Report</h3><div class="row" style="gap:8px"><select id="crRange" style="width:auto"><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="month">This month</option><option value="lastmonth">Last month</option><option value="year">This year</option></select><select id="crClient" style="width:auto"></select><button class="btn btn-ghost" id="crCsv">Download CSV</button></div></div>
@@ -996,7 +997,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 <tr><td><input type="checkbox" id="civAllowanceOn"></td><td><b>Allowance</b><div class="muted" style="font-size:11px">Per staff, per month, prorated to cutoff — auto-calculated, editable per invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civAllowanceRate" style="width:110px" placeholder="$/mo"></td></tr>
 <tr><td><input type="checkbox" id="civHolidayOn"></td><td><b>Holiday Pay</b><div class="muted" style="font-size:11px">Rate per staff — admin types the staff count on the invoice itself, total = count × rate</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civHolidayRate" style="width:110px" placeholder="$/staff"></td></tr>
 </tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px">Invoice Numbering</div><div class="row" style="gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase" id="civStartingNumLbl">Invoice # for the selected pay period</label><input type="number" min="1" step="1" id="civStartingNum" style="width:100%"><div class="muted" style="font-size:11px;margin-top:4px">Goes up by 1 every bi-weekly period after this one.</div></div><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Last invoice issued for this client</label><input type="text" id="civNextNum" disabled style="width:100%"></div></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn btn-ghost" id="civSettingsCancel">Cancel</button><button class="btn btn-gold" id="civSettingsSave">Save Settings</button></div><div class="muted" id="civSettingsMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div></div></div><section id="v-earning" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_earning" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-gold" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div id="egTilesSlot"></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egAggMargin" class="eg-tiles"><span class="muted" style="font-size:12px">—</span></div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th title="Hours × USD rate × FX">Hourly VSPH</th><th class="eg-new" title="Client-invoice staff allowance, split by days across the bi-weekly invoices that overlap this period, each at that invoice's cutoff FX (₱60 if no FX saved). 13th month is not included here — see YTD &amp; YEB.">Allowance<br><span style="font-weight:400;font-size:10.5px">split by days</span></th><th class="eg-new">VSPH Total</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="sick_leave">🤒 Sick Leave</option><option value="reimbursement">🧾 Reimbursement</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div id="rfSickNote" class="hide note" style="margin-top:10px;font-size:12.5px">Sick days are <b>unpaid</b>. This is for your record and for client documentation — the days show as <b>SL</b>.</div><div id="rfPickWrap" class="hide" style="margin-top:10px"><label id="rfPickLbl">Files</label><input type="file" id="rfPick" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%"><div id="rfPickList"></div><div class="muted" style="font-size:11.5px;margin-top:4px">🔒 Only you and Rendy can open your files · photo or PDF · max 10 MB each</div></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="rfMyFilesCard"><div class="hdr"><h3 style="font-size:15px">📎 My files</h3><span class="muted" style="font-size:12px">Medcerts, receipts and EOD attachments · only you and Rendy can open them</span></div><table><thead><tr><th>Uploaded</th><th>File</th><th>For</th><th>Status</th></tr></thead><tbody id="rfMyFiles"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="req-sub" id="reqSubBar"><button class="btn btn-gold" data-req-sub="money">💸 SA/CA Requests<span class="bb-badge hide" id="reqSubCnt_money"></span></button><button class="btn btn-ghost" data-req-sub="leave">🏖️ PTO Requests<span class="bb-badge hide" id="reqSubCnt_leave"></span></button></div><div class="card"><div class="hdr"><h3 style="font-size:15px" id="reqAdminTitle">SA/CA requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></div><div class="card" id="dedAdminCard"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances under PHP Adjustments → 💳 Fee Advances.</div><div class="sticky-scroll"><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+      <div class="row pay-sub hide" id="paySub_earning" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-gold" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div id="egTilesSlot"></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egAggMargin" class="eg-tiles"><span class="muted" style="font-size:12px">—</span></div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th title="Hours × USD rate × FX">Hourly VSPH</th><th class="eg-new" title="Client-invoice staff allowance, split by days across the bi-weekly invoices that overlap this period, each at that invoice's cutoff FX (₱60 if no FX saved). 13th month is not included here — see YTD &amp; YEB.">Allowance<br><span style="font-weight:400;font-size:10.5px">split by days</span></th><th class="eg-new">VSPH Total</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="sick_leave">🤒 Sick Leave</option><option value="half_day">🌓 Half Day</option><option value="reimbursement">🧾 Reimbursement</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div id="rfSickNote" class="hide note" style="margin-top:10px;font-size:12.5px">Sick days are <b>unpaid</b>. This is for your record and for client documentation — the days show as <b>SL</b>.</div><div id="rfPickWrap" class="hide" style="margin-top:10px"><label id="rfPickLbl">Files</label><input type="file" id="rfPick" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%"><div id="rfPickList"></div><div class="muted" style="font-size:11.5px;margin-top:4px">🔒 Only you and Sir Rendy can open your files · photo or PDF · max 10 MB each</div></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="rfMyFilesCard"><div class="hdr"><h3 style="font-size:15px">📎 My files</h3><span class="muted" style="font-size:12px">Medcerts, receipts and EOD attachments · only you and Sir Rendy can open them</span></div><table><thead><tr><th>Uploaded</th><th>File</th><th>For</th><th>Status</th></tr></thead><tbody id="rfMyFiles"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="req-sub" id="reqSubBar"><button class="btn btn-gold" data-req-sub="money">💸 SA/CA Requests<span class="bb-badge hide" id="reqSubCnt_money"></span></button><button class="btn btn-ghost" data-req-sub="leave">🏖️ PTO Requests<span class="bb-badge hide" id="reqSubCnt_leave"></span></button></div><div class="card"><div class="hdr"><h3 style="font-size:15px" id="reqAdminTitle">SA/CA requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></div><div class="card" id="dedAdminCard"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances under PHP Adjustments → 💳 Fee Advances.</div><div class="sticky-scroll"><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></div></section><section id="v-portal" class="hide grid" style="gap:16px">
   <!-- PM BULLETIN BOARD (announcements) -->
   <div id="bbBoard" class="grid" style="gap:16px"></div>
   <div class="bb-docs-hdr"><h3>📁 Documents &amp; Signatures</h3><span class="muted" style="font-size:12.5px">Contracts, house rules, and anything that needs your signature</span></div>
@@ -1113,7 +1114,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">YTD Attendance &amp; Year End Bonus</h3><div class="row" style="gap:7px"><label for="ytdYear" style="margin:0">Calendar year</label><select id="ytdYear" style="width:auto;min-width:92px"></select><button class="btn btn-gold" id="ytdRun">Run report</button></div></div>
         <div class="muted" id="ytdRange" style="font-size:12px;margin-bottom:9px"></div>
-        <div class="note" style="margin-bottom:9px">Year End Bonus estimate follows the standard 13th-month-pay rule: total basic salary earned during the year ÷ 12. Basic salary earned per employed calendar day = that day's applicable monthly rate ÷ the number of days in that calendar month; days outside the employment window (before hire / after termination) earn nothing. A rate change mid-month splits automatically at its effective date. Attendance (Days Present/PTO/PCH/PA/OUT) is tracked separately in this table and no longer affects the bonus calculation. Rendy identified Unhappy Day leave in the legacy tracker as OUT; the attached workbook is preserved for later reconciliation and is not imported in this build.</div>
+        <div class="note" style="margin-bottom:9px">Year End Bonus estimate follows the standard 13th-month-pay rule: total basic salary earned during the year ÷ 12. Basic salary earned per employed calendar day = that day's applicable monthly rate ÷ the number of days in that calendar month; days outside the employment window (before hire / after termination) earn nothing. A rate change mid-month splits automatically at its effective date. Attendance (Days Present/PTO/PCH/PA/OUT) is tracked separately in this table and no longer affects the bonus calculation. Sir Rendy identified Unhappy Day leave in the legacy tracker as OUT; the attached workbook is preserved for later reconciliation and is not imported in this build.</div>
         <div id="ytdStatus" class="note" role="status" aria-live="polite" style="margin-bottom:9px">Choose a calendar year and run the report.</div>
         <div class="ytd-summary" id="ytdSummary"></div>
       </div>
@@ -1552,6 +1553,10 @@ function shiftAnchorDate(sh,client){
   if(!c) return d;
   const nxt=shiftWindowFor(c,addDays(d,1));
   if(nxt&&login>=new Date(nxt.start.getTime()-EARLY_LOGIN_GRACE_MIN*60000)) return addDays(d,1);
+  /* a log-in after 12MN that is still inside LAST NIGHT's shift window (half day / late log-in)
+     belongs to last night's shift date [Sir Rendy, 2026-10-23] */
+  const prv=shiftWindowFor(c,addDays(d,-1));
+  if(prv&&login>=new Date(prv.start.getTime()-EARLY_LOGIN_GRACE_MIN*60000)&&login<prv.end) return addDays(d,-1);
   return d;
 }
 function buildShiftDateMap(shifts){const m={};(shifts||[]).forEach(sh=>{m[sh.id]=shiftAnchorDate(sh);});return m;}
@@ -3044,7 +3049,7 @@ const PAGES={
   'v-cbonus':['🏅 Completion Bonus','Completion Bonus','Previous month: full month, no lates, no unpaid absences — review, then approve into the 15th payout'],
   'v-earning':['💰 SMB PH Earning','SMB PH Earning','Admin-only immutable per-semi-monthly-period FX + VSPH/ROI/margin LOCK IN'],
   'v-files':['📎 Files','Staff & Clients · Files','Every staff medcert, receipt and EOD attachment — filter, open, zip-download, or upload on their behalf'],
-  'v-policy':['⚙️ Rules','Staff & Clients · Rules','Billable rules, break allowances and activities by client'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Requests','Requests','Review and approve staff requests — SA/CA and PTO'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-eod':['📝 EOD & Weekly','EOD & Weekly Reports','Daily EOD and Friday weekly report — only you and Rendy can see them'], 'v-rewards':['🎟️ SMB Rewards','SMB Rewards','Shift habits, weekly ratings and tokens — one currency, paid into BINGO (shadow until Mon Nov 2)'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','Staff & Clients · PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
+  'v-policy':['⚙️ Rules','Staff & Clients · Rules','Billable rules, break allowances and activities by client'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Requests','Requests','Review and approve staff requests — SA/CA and PTO'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-eod':['📝 EOD & Weekly','EOD & Weekly Reports','Daily EOD and Friday weekly report — only you and Sir Rendy can see them'], 'v-rewards':['🎟️ SMB Rewards','SMB Rewards','Shift habits, weekly ratings and tokens — one currency, paid into BINGO (shadow until Mon Nov 2)'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','Staff & Clients · PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
 };
 let view='v-punch';
 /* sub-tab groups (Rendy 2026-10-19): Rules + PTO Credits live in Staff & Clients; payroll tabs live under Contractor Ledger ("Payroll") for admins */
@@ -3276,6 +3281,7 @@ function paintShiftState(){
 $('loginBtn').onclick = async () => {
   $('loginBtn').disabled=true;
   try{
+    if(!curShift&&window.B23&&await B23.staleBeforeLogin()) return; // page reloads to the new version first [2026-10-23]
     if(!curShift){
       // curShift being null only means THIS browser tab doesn't know about an open shift —
       // it doesn't mean one doesn't exist. A stale tab left open from an earlier session (or
@@ -4939,7 +4945,7 @@ function renderClientActs(){
   };
 }
 
-const TYPE_LABEL={pto:'Paid Time Off',pch:'Paid Client Holiday',planned_absence:'Planned Absence',salary_advance:'Salary Advance',cash_advance:'Cash Advance',sick_leave:'Sick Leave',reimbursement:'Reimbursement'};
+const TYPE_LABEL={pto:'Paid Time Off',pch:'Paid Client Holiday',planned_absence:'Planned Absence',salary_advance:'Salary Advance',cash_advance:'Cash Advance',sick_leave:'Sick Leave',reimbursement:'Reimbursement',half_day:'🌓 Half Day'};
 const STATUS_PILL={pending:'p-off',approved:'p-work',rejected:'p-bad',paid:'p-work',scheduled:'p-off',deducted:'p-work',waived:'p-off'};
 const isAdvanceType=t=>t==='salary_advance'||t==='cash_advance';
 const isLeaveType=t=>t==='pto'||t==='pch';
@@ -4951,6 +4957,7 @@ const isLeaveType=t=>t==='pto'||t==='pch';
 const hasDateRange=t=>isLeaveType(t)||t==='planned_absence'||t==='sick_leave';
 let myReqs=[], myDeductions=[];
 function reqDetails(r){
+  if(r.type==='half_day') return window.B23?B23.halfDetails(r):fmtNice(r.start_date);
   if(hasDateRange(r.type)) return fmtNice(r.start_date)+' – '+fmtNice(r.end_date);
   const amt='₱'+Number(r.amount||0).toLocaleString();
   return isAdvanceType(r.type)&&r.cutoffs ? `${amt} over ${r.cutoffs} cutoff${r.cutoffs>1?'s':''}` : amt;
@@ -4988,6 +4995,7 @@ if($('reqType')){
     $('reqAmtFields').classList.toggle('hide', hasDateRange(t));
     $('reqCutoffFields').classList.toggle('hide', hasDateRange(t));
     window.RF?.onType(t);
+    window.B23?.onType(t);
   };
   window.RF?.initForm();
   $('reqSubmit').onclick=async()=>{
@@ -5003,6 +5011,11 @@ if($('reqType')){
         try{const chk=await window.PTOCredits.precheckPto(payload.start_date,payload.end_date); if(!chk.ok){$('reqMsg').textContent=chk.msg; return alert(chk.msg);}}
         catch(e){return alert('Could not check your PTO balance: '+e.message);}
       }
+    }else if(t==='half_day'){
+      payload.start_date=$('reqStart').value;
+      if(!payload.start_date) return alert('Pick the shift date (for a night shift, the date it started).');
+      payload.end_date=payload.start_date;
+      payload.half_part=($('reqHalfPart')&&$('reqHalfPart').value)||null;
     }else if(t==='reimbursement'){
       payload.amount=Number($('reqAmount').value||0);
       if(!payload.amount||payload.amount<=0) return alert('Enter the amount to reimburse.');
@@ -5026,7 +5039,7 @@ if($('reqType')){
     }
     $('reqSubmit').disabled=false;
     $('reqReason').value='';$('reqAmount').value='';$('reqStart').value='';$('reqEnd').value='';$('reqCutoffs').value='1';
-    $('reqMsg').textContent=rfMsg||(slackError?'Request saved; Slack notice failed.':(t==='sick_leave'||t==='reimbursement')?'Request sent to Rendy.':'Request sent and posted to payroll-and-sheet.'); setTimeout(()=>$('reqMsg').textContent='',rfMsg?12000:5000);
+    $('reqMsg').textContent=rfMsg||(slackError?'Request saved; Slack notice failed.':(t==='sick_leave'||t==='reimbursement')?'Request sent to Sir Rendy.':'Request sent and posted to payroll-and-sheet.'); setTimeout(()=>$('reqMsg').textContent='',rfMsg?12000:5000);
     if(rfMsg) alert(rfMsg);
     await loadMyRequests();
   };
@@ -5054,7 +5067,7 @@ async function loadReqAdmin(){
   const {data:staffRows}=ids.length? await sb.from('staff').select('id,full_name').in('id',ids) : {data:[]};
   const nameOf=id=>{const s=(staffRows||[]).find(x=>x.id===id); return s?s.full_name:'—';};
   const reqShown=reqAdminList.filter(r=>reqSubOf(r)===reqSub); paintReqSub();
-  $('reqAdminTable').innerHTML = reqShown.length? reqShown.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}${window.RF?RF.slot(r):''}</td><td>${escapeHtml(r.reason||'')}</td><td>${r.status==='rejected'?escapeHtml(r.rejection_reason||'—'):'—'}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'&&r.type!=='planned_absence'&&r.type!=='sick_leave'?`<button class="btn btn-ghost" data-paid="${r.id}">${isAdvanceType(r.type)?'Mark advance issued':'Mark paid'}</button>`:''}<button class="btn btn-ghost" data-edit="${r.id}">Edit</button><button class="btn btn-rose" data-del="${r.id}">Delete</button></td></tr>`).join('') : `<tr><td colspan="8" class="muted">No requests.</td></tr>`;
+  $('reqAdminTable').innerHTML = reqShown.length? reqShown.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}${window.RF?RF.slot(r):''}</td><td>${escapeHtml(r.reason||'')}</td><td>${r.status==='rejected'?escapeHtml(r.rejection_reason||'—'):'—'}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'&&r.type!=='planned_absence'&&r.type!=='sick_leave'&&r.type!=='half_day'?`<button class="btn btn-ghost" data-paid="${r.id}">${isAdvanceType(r.type)?'Mark advance issued':'Mark paid'}</button>`:''}${r.type==='half_day'?'':`<button class="btn btn-ghost" data-edit="${r.id}">Edit</button>`}<button class="btn btn-rose" data-del="${r.id}">Delete</button></td></tr>`).join('') : `<tr><td colspan="8" class="muted">No requests.</td></tr>`;
   window.RF?.afterAdminRequests(reqAdminList);
   $('reqAdminTable').querySelectorAll('[data-appr]').forEach(b=>b.onclick=()=>decideReq(b.dataset.appr,'approved'));
   $('reqAdminTable').querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>openRejectRequest(b.dataset.rej));
@@ -9458,12 +9471,12 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
         <div class="card" id="eodForm">
           <div class="hdr" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
             <h3 style="font-size:15px">EOD Report · ${fmtDate(ctx.date)}${c?' · '+esc(c.name):''}</h3>
-            <div class="row" style="gap:6px;align-items:center"><span class="eod-chip">🔒 Only Rendy sees this</span>${statusChip}</div>
+            <div class="row" style="gap:6px;align-items:center"><span class="eod-chip">🔒 Only Sir Rendy sees this</span>${statusChip}</div>
           </div>
           <div class="note" style="margin-top:10px;font-size:12.5px">${ctxNote}</div>
           ${r.emergency_reason?`<div class="note" style="margin-top:8px;border-color:var(--rose);font-size:12.5px">Emergency log out: “${esc(r.emergency_reason)}” — this EOD counts as Late.</div>`:''}
           ${locked?'<div class="note" style="margin-top:8px;border-color:var(--slate);font-size:12.5px">Locked — EODs can be edited up to 12 hours after logout.</div>':''}
-          <div class="eod-sec gl"><label>💬 How was today? <span class="eod-hint">required — only Rendy sees this</span></label>
+          <div class="eod-sec gl"><label>💬 How was today? <span class="eod-hint">required — only Sir Rendy sees this</span></label>
             <div class="eod-mood">${MOODS.map(([k,e,l])=>`<button type="button" data-mood="${k}" class="${r.mood===k?'on':''}" ${dis}><span>${e}</span>${l}</button>`).join('')}</div>
             <input id="eodMoodNote" style="margin-top:8px" maxlength="200" placeholder="Why? (optional, one line)" value="${esc(r.mood_note||'')}" ${dis}>
             ${r.mood==='sick'&&!locked?'<div class="muted" style="font-size:12px;margin-top:6px">Pagaling ka! If you need a day off, file a leave under Request.</div>':''}</div>
@@ -9497,7 +9510,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:8px"><div class="stat" style="padding:12px"><div class="k">On-time streak</div><div class="v">${streak}${streak>=3?' 🔥':''}</div></div>
           <div class="stat" style="padding:12px"><div class="k">EODs sent (wk)</div><div class="v">${S.weekReports.filter(x=>x.status==='submitted').length}</div></div></div>
         </div>
-        ${lastComment?`<div class="card"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Rendy replied · ${lastComment.report_date?fmtShort(lastComment.report_date):'Weekly '+fmtShort(lastComment.week_start)}</h3><p style="margin:8px 0 0;line-height:1.5">${nl(lastComment.admin_comment)}</p></div>`:''}
+        ${lastComment?`<div class="card"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Sir Rendy replied · ${lastComment.report_date?fmtShort(lastComment.report_date):'Weekly '+fmtShort(lastComment.week_start)}</h3><p style="margin:8px 0 0;line-height:1.5">${nl(lastComment.admin_comment)}</p></div>`:''}
         <div class="card"><div class="hdr" style="display:flex;justify-content:space-between;align-items:center"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">My report log</h3><button class="btn btn-ghost" id="eodPdf" style="padding:6px 10px">⬇ Export PDF</button></div>
           <input id="eodSearch" placeholder="🔍 Search my reports" style="margin:10px 0">
           <div style="max-height:520px;overflow:auto"><table class="eod-log"><thead><tr><th>Date</th><th>Type</th><th>Status</th><th></th></tr></thead><tbody id="eodLogBody"></tbody></table></div>
@@ -9672,7 +9685,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       ${adm?`<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px"><label style="font-size:12px;color:var(--muted)">Reply to ${esc(staffName(r.staff_id))} (they see this in their log)</label>
         <textarea id="eodCmt" rows="3" maxlength="2000">${esc(r.admin_comment||'')}</textarea>
         <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-gold" data-a="comment">Save reply</button><button class="btn btn-ghost" data-a="${r.starred?'unstar':'star'}">${r.starred?'☆ Remove star':'⭐ Star (+3 shadow)'}</button><button class="btn btn-ghost" data-a="${r.admin_read_at?'unread':'read'}">${r.admin_read_at?'Mark unread':'✓ Mark read'}</button><span class="eod-msg muted" id="eodCmtMsg"></span></div></div>`
-      :(r.admin_comment?`<div class="note" style="margin-top:14px"><b>Rendy replied</b> <span class="muted" style="font-size:11px">${fmtTs(r.admin_comment_at)}</span><div style="margin-top:4px">${nl(r.admin_comment)}</div></div>`:'')}`);
+      :(r.admin_comment?`<div class="note" style="margin-top:14px"><b>Sir Rendy replied</b> <span class="muted" style="font-size:11px">${fmtTs(r.admin_comment_at)}</span><div style="margin-top:4px">${nl(r.admin_comment)}</div></div>`:'')}`);
     ov.querySelector('[data-x]').onclick=()=>ov.remove();
     if(kind==='eod'&&window.RF&&r.id) RF.loadForEod(r.id).then(fs=>{ const el=$('eodVFiles'); if(el&&fs.length){ el.innerHTML='<span class="muted" style="font-size:12px">📎 Attachments </span>'+RF.chips(fs,{download:adm}); RF.wire(el); } });
     if(adm){
@@ -9708,7 +9721,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       ${rows.map(x=>{const r=x.r; const nums=Object.entries((x.kind==='eod'?r.numbers:r.totals)||{}).map(([k,v])=>esc(k)+': '+esc(v)).join(' · ');
         return `<h2>${x.kind==='weekly'?'Weekly · '+fmtShort(r.week_start):'EOD · '+fmtDate(r.report_date)} ${r.on_time?'':'(late)'}</h2>${nums?`<div class="s"><b>${nums}</b></div>`:''}
         ${['highlights','lowlights','blockers','tasks','next_goal'].filter(f=>r[f]).map(f=>`<div class="s"><span class="k">${f.replace('_',' ')}</span><br>${nl(r[f])}</div>`).join('')}
-        ${r.admin_comment?`<div class="s"><span class="k">Rendy replied</span><br>${nl(r.admin_comment)}</div>`:''}`;}).join('')}
+        ${r.admin_comment?`<div class="s"><span class="k">Sir Rendy replied</span><br>${nl(r.admin_comment)}</div>`:''}`;}).join('')}
       <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
     w.document.open(); w.document.write(doc); w.document.close();
   }
@@ -9857,7 +9870,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
         <div class="muted" style="font-size:13px;margin:8px 0 14px;line-height:1.5">${hard?'Logging out is locked until your EOD is sent. It takes about 2 minutes.':'Please send it before you go — it takes about 2 minutes.'}</div>
         <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn btn-gold" data-k="write">Write EOD now</button>${hard?'<button class="btn btn-ghost" data-k="em">⚡ Emergency log out</button>':'<button class="btn btn-ghost" data-k="anyway">Log out anyway</button>'}<button class="btn btn-ghost" data-k="cancel">Cancel</button></div>
         <div id="eodEmBox" class="hide" style="margin-top:14px"><label style="font-size:12px;color:var(--muted)">What happened? (e.g. brownout, internet down)</label><input id="eodEmReason" maxlength="500">
-          <div class="muted" style="font-size:11.5px;margin:6px 0">Send your EOD within 1 hour. It will be marked Late and Rendy sees the reason.</div>
+          <div class="muted" style="font-size:11.5px;margin:6px 0">Send your EOD within 1 hour. It will be marked Late and Sir Rendy sees the reason.</div>
           <div class="row" style="gap:8px"><button class="btn btn-rose" data-k="emgo">Log out now</button><span class="eod-msg" id="eodEmMsg" style="color:var(--rose)"></span></div></div>`);
       const done=v=>{ ov.remove(); resolve(v); };
       ov.addEventListener('click',e=>{ if(e.target===ov) resolve('cancel'); });
@@ -10072,7 +10085,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     remember(data); RF.mine=data||[];
     const forTxt=f=>{ if(f.request_id){ const r=RF._reqs[f.request_id]; if(!r) return 'Request';
         return r.type==='sick_leave'?`Sick ${fmtNice(r.start_date)}${r.end_date!==r.start_date?' – '+fmtNice(r.end_date):''}`:`Reimb. ₱${Number(r.amount||0).toLocaleString()}`; }
-      return f.kind==='eod'?'EOD report':f.kind==='correction'?'Time correction':'Other'; };
+      return f.kind==='eod'?'EOD report':f.kind==='correction'?'Time correction':f.kind==='tsack'?'Timesheet issue':'Other'; };
     const stTxt=f=>{ const r=f.request_id&&RF._reqs[f.request_id]; if(!r) return '<span class="pill p-off">Saved</span>';
       if(r.type==='reimbursement'&&r.payout_cutoff) return `<span class="pill p-work">Approved · ${fmtNice(r.payout_cutoff)} payout</span>`;
       return `<span class="pill ${STATUS_PILL[r.status]||'p-off'}">${esc(r.status)}</span>`; };
@@ -10125,7 +10138,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   const OK_MIME=['image/jpeg','image/png','image/webp','image/heic','image/heif','application/pdf'];
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const $id=id=>document.getElementById(id);
-  const KIND={medcert:['🩺 Medcert','rfa-k-med'],receipt:['🧾 Receipt','rfa-k-rec'],eod:['📝 EOD','rfa-k-eod'],correction:['✏️ Correction proof','rfa-k-eod'],other:['📄 Other','rfa-k-eod']};
+  const KIND={medcert:['🩺 Medcert','rfa-k-med'],receipt:['🧾 Receipt','rfa-k-rec'],eod:['📝 EOD','rfa-k-eod'],correction:['✏️ Correction proof','rfa-k-eod'],tsack:['🗓️ Timesheet issue','rfa-k-eod'],other:['📄 Other','rfa-k-eod']};
   let files=[], reqs={}, eods={}, sel=new Set(), noCert=[], loaded=false, busy=false;
   const today=()=>phDate(new Date());
   const yearStart=()=>today().slice(0,4)+'-01-01';
@@ -10730,11 +10743,12 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   CORR.loadAdmin=async function(){
     CORR.initAdminTabs();
     $id('corrFilter').onchange=CORR.loadAdmin;
-    let q=sb.from('corrections').select('*').order('created_at',{ascending:false}).limit(200);
-    if($id('corrFilter').value==='pending') q=q.eq('status','pending');
+    window.B23?.wireCorrFilters(CORR.loadAdmin);
+    let q=sb.from('corrections').select('*').order('created_at',{ascending:false}).limit(500);
+    { const fv=$id('corrFilter').value; if(fv&&fv!=='all') q=q.eq('status',fv); }
     const {data,error}=await q;
     if(error){ $id('corrTable').innerHTML=`<tr><td colspan="8" class="muted">${esc(error.message)}</td></tr>`; return; }
-    correctionRows=data||[];
+    correctionRows=window.B23?B23.corrFilterRows(data||[]):(data||[]);
     await CORR.loadFiles(correctionRows.map(c=>c.id));
     $id('corrTable').innerHTML=correctionRows.length?correctionRows.map(c=>{
       const s=staffList.find(x=>x.id===c.staff_id), fs=CORR.byCorr[c.id]||[];
@@ -11166,7 +11180,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
         +line('Attendance · 60%',r.att_pct==null?'—':`${r.att_pct}%`,r.att)
         +line('Punctuality · 25%',`${r.late||0} late`,r.punct)
         +line('Breaks · 15%',`${r.over_min||0} min over`,r.brk)
-        +`<div class="rt-note">Expected ${r.expected??'—'} workdays · PA/SL ${r.pa??0} · unplanned absence ${r.out??0} (counts ×2) · ${r.tracked??0} tracked shifts. Late = more than 5 min after shift start. If something here is wrong, file a time correction or tell Rendy — he can excuse a date.</div>`;
+        +`<div class="rt-note">Expected ${r.expected??'—'} workdays · PA/SL ${r.pa??0} · unplanned absence ${r.out??0} (counts ×2) · ${r.tracked??0} tracked shifts. Late = more than 5 min after shift start. If something here is wrong, file a time correction or tell Sir Rendy — he can excuse a date.</div>`;
     }
     const hist=(history||[]).slice(0,8).map(h=>`<div class="rt-ev" style="grid-template-columns:110px 1fr auto"><span style="font-size:12px">Wk ${esc(wkLbl(h.week_start))}</span><span class="rt-s" style="margin:0">${h.status==='scored'?`Reliability ${esc(h.rel_band||'—')} · Compliance ${esc(h.comp_band||'—')}${h.multiplier>1?` · streak ×${h.multiplier}`:''}`:esc(h.note||'Not scored')}</span><b class="mono" style="font-size:12px">${h.shadow?'shadow — not paid':`🪙 ${h.rel_tokens+h.comp_tokens}${h.locked_at?'':' pending'}`}</b></div>`).join('');
     const html=`<div id="rtShade"></div><div id="rtDrawer" role="dialog" aria-label="${isC?'Compliance':'Reliability'} details">
@@ -11183,7 +11197,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const dr=document.getElementById('rtDrawer');
     document.getElementById('rtShade').onclick=closeDrawer; document.getElementById('rtClose').onclick=closeDrawer;
     dr.querySelectorAll('[data-rt-dispute]').forEach(b=>b.onclick=async()=>{
-      const reason=prompt('What happened? Rendy will review this (add details, e.g. "brownout 5:40 AM, photo sent in Viber").');
+      const reason=prompt('What happened? Sir Rendy will review this (add details, e.g. "brownout 5:40 AM, photo sent in Viber").');
       if(reason==null)return; b.disabled=true;
       const {error}=await sb.rpc('rate_dispute',{p_event:Number(b.dataset.rtDispute),p_reason:reason});
       if(error){b.disabled=false;return alert(errMsg(error));}
@@ -11484,8 +11498,9 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     el.classList.remove('hide');
     const per=range(mine.period_start,mine.period_end);
     if(mine.status==='issue'){
-      el.innerHTML=`<div class="tsa-hd"><h3 style="font-size:15px">🗓️ My timesheet · ${esc(per)}</h3><span class="tsa-pill tsa-is">⚠️ Issue sent to Rendy</span></div>
-        <div class="muted" style="font-size:12.5px;margin-top:8px">"${esc(mine.issue_text||'')}"${mine.issue_date?' · '+esc(shortD(mine.issue_date)):''}<br>Rendy will fix it and may ask you to review again.</div>`;
+      el.innerHTML=`<div class="tsa-hd"><h3 style="font-size:15px">🗓️ My timesheet · ${esc(per)}</h3><span class="tsa-pill tsa-is">⚠️ Issue sent to Sir Rendy</span></div>
+        <div class="muted" style="font-size:12.5px;margin-top:8px">"${esc(mine.issue_text||'')}"${mine.issue_date?' · '+esc(shortD(mine.issue_date)):''}<br>Sir Rendy will fix it and may ask you to review again.</div><div id="tsaIssueFiles" style="margin-top:8px"></div>`;
+      window.B23?.paintIssueFiles(mine);
       return;
     }
     const c=mineCalc;
@@ -11497,7 +11512,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     }).concat(c.leaves.map(l=>`<tr><td>${esc(dow(l.date))} ${esc(shortD(l.date))}</td><td class="mono">—</td><td class="mono">—</td><td class="mono">${esc(String(l.type).toUpperCase())}</td><td class="muted">paid day</td></tr>`)).join('')||'<tr><td colspan="5" class="muted">No shifts found in this period.</td></tr>'):'<tr><td colspan="5" class="muted">Loading…</td></tr>';
     const dates=[]; for(let d=String(mine.period_start).slice(0,10); d<=String(mine.period_end).slice(0,10); d=addDays(d,1)) dates.push(d);
     el.innerHTML=`<div class="tsa-hd"><h3 style="font-size:15px">🗓️ Review my timesheet · ${esc(per)}</h3><span class="tsa-pill tsa-wt">⏳ Waiting${left!=null?' · '+left+'h left':''}</span></div>
-      ${Number(mine.round)>1&&mine.reset_reason?`<div class="muted" style="font-size:12px;margin-top:6px">Updated by Rendy: ${esc(mine.reset_reason)}</div>`:''}
+      ${Number(mine.round)>1&&mine.reset_reason?`<div class="muted" style="font-size:12px;margin-top:6px">Updated by Sir Rendy: ${esc(mine.reset_reason)}</div>`:''}
       <div class="tsa-tiles"><div><div class="k">Billable hours</div><div class="v" style="color:var(--gold)">${c?c.hours.toFixed(2):'—'}</div></div>
         <div><div class="k">ND hours</div><div class="v">${c?c.nd.toFixed(2):'—'}</div></div>
         <div><div class="k">PTO / PCH</div><div class="v">${c?c.pto+' / '+c.pch:'—'}</div></div>
@@ -11507,11 +11522,13 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       <div class="tsa-issue ${issueOpen?'':'hide'}" id="tsaIssue" style="margin-top:12px"><label>Which day? (optional)</label>
         <select id="tsaDay" style="width:auto"><option value="">Not about one day</option>${dates.map(d=>`<option value="${d}">${esc(dow(d))} ${esc(shortD(d))}</option>`).join('')}</select>
         <textarea id="tsaText" maxlength="1500" placeholder="e.g. I forgot to log out on Oct 7, my shift ended at 6:00 AM."></textarea>
-        <div class="row" style="gap:8px;margin-top:6px"><button class="btn btn-rose" id="tsaSend">Send to Rendy</button><span class="muted" id="tsaMsg" style="font-size:12px"></span></div></div>
+        ${window.B23?B23.tsaFilesHtml():''}
+        <div class="row" style="gap:8px;margin-top:6px"><button class="btn btn-rose" id="tsaSend">Send to Sir Rendy</button><span class="muted" id="tsaMsg" style="font-size:12px"></span></div></div>
       <div class="muted" style="font-size:11.5px;margin-top:8px">No answer within 48 hrs = marked "Acknowledged (no response)".</div>`;
     $('tsaAck').onclick=()=>respond(true);
     $('tsaIssueBtn').onclick=()=>{ issueOpen=!issueOpen; $('tsaIssue').classList.toggle('hide',!issueOpen); };
     $('tsaSend').onclick=()=>respond(false);
+    window.B23?.wireTsaFiles();
   }
   async function respond(ack){
     if(busy||!mine) return;
@@ -11522,6 +11539,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     try{
       const {error}=await sb.rpc('ts_ack_respond',{p_id:mine.id,p_ack:ack,p_text:text,p_date:ack?null:($('tsaDay').value||null),p_hours:mineCalc?mineCalc.hours:null,p_nd_hours:mineCalc?mineCalc.nd:null});
       if(error) throw error;
+      if(!ack&&window.B23){ const note=await B23.uploadTsaFiles(mine.id); if(note) alert(note); }
       issueOpen=false; kick(); await loadMine();
       if(ack) alert('Thanks! Your timesheet is acknowledged.');
     }catch(e){ alert('Could not save: '+emsg(e)); }
@@ -11540,7 +11558,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const ask=`<button class="btn btn-ghost tsa-ask" data-tsask="${a.id}" title="Ask this person to review and acknowledge again (sends a new DM)">Ask again</button>`;
     if(a.status==='acknowledged') return `<span class="tsa-pill tsa-ok">✅ Acknowledged</span> <span class="muted">${esc(when(a.answered_at))}${a.hours!=null?' · '+Number(a.hours).toFixed(2)+'h':''}</span>${ask}`;
     if(a.status==='auto') return `<span class="tsa-pill tsa-ok">✅ No response</span> <span class="muted">auto after 48h</span>${ask}`;
-    if(a.status==='issue') return `<span class="tsa-pill tsa-is" title="${esc(a.issue_text||'')}">⚠️ Issue</span> <span class="muted" title="${esc(a.issue_text||'')}">${a.issue_date?esc(shortD(a.issue_date))+': ':''}"${esc(String(a.issue_text||'').slice(0,40))}${String(a.issue_text||'').length>40?'…':''}"</span>${ask}`;
+    if(a.status==='issue') return `<span class="tsa-pill tsa-is" title="${esc(a.issue_text||'')}">⚠️ Issue</span> <span class="muted" title="${esc(a.issue_text||'')}">${a.issue_date?esc(shortD(a.issue_date))+': ':''}"${esc(String(a.issue_text||'').slice(0,40))}${String(a.issue_text||'').length>40?'…':''}"</span>${ask}${window.B23?B23.ledgerClip(a):''}`;
     return `<span class="tsa-pill tsa-wt">⏳ Waiting</span> <span class="muted">${a.sent_at?'DM '+esc(when(a.sent_at)):'DM pending'}${Number(a.round)>1?' · round '+a.round:''}</span>`;
   }
   async function afterLedger(start,end){
@@ -11551,6 +11569,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     if(start!==ledgerStart) return;
     if(error){ ledgerAcks=[]; paintLedger(); return; }
     ledgerAcks=data||[];
+    try{ await window.B23?.loadAckFiles(ledgerAcks); }catch(e){}
     // hours changed after acknowledgement → ask again automatically (only on a clean Ledger load)
     if(typeof LedgerLoadGuard==='undefined'||LedgerLoadGuard.ok()){
       const changed=[];
@@ -11598,7 +11617,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     if(error) return alert('Could not ask again: '+emsg(error));
     kick();
     const {data}=await sb.from('timesheet_acks').select('*').eq('period_start',ledgerStart).range(0,1999);
-    ledgerAcks=data||[]; paintLedger();
+    ledgerAcks=data||[]; try{ await window.B23?.loadAckFiles(ledgerAcks); }catch(e){} paintLedger();
   }
 
   /* ---------------- Admin: Slack DM check ---------------- */
@@ -11639,6 +11658,409 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
 (function(){
   if(typeof decideReq==='function'){ const _d=decideReq; decideReq=async function(){ const r=await _d.apply(this,arguments); if(r!==false) window.DmKick?.kick(); return r; }; }
   if(typeof applyCorrectionResolution==='function'){ const _a=applyCorrectionResolution; applyCorrectionResolution=async function(){ const r=await _a.apply(this,arguments); window.DmKick?.kick(); return r; }; }
+})();
+</script>
+
+<script>
+/* ============================================================================
+   Oct 23 bundle (window.B23) — Sir Rendy 2026-10-23
+   • Auto-reload when a new portal version is live (only when no shift is open)
+   • Admin: ✏️ Edit logout time (admin_edit_shift_logout: within the shift, merges a
+     later re-login) and ➕ Add shift (admin_add_shifts: staff without portal access)
+   • Half Day request form (type half_day) + late-filing tag
+   • Timesheet "Report an issue": optional screenshots (rf_register_tsack_file)
+   • Time Log Corrections: filter by name + status (Pending default)
+   ============================================================================ */
+(function(){
+  const B23={}; window.B23=B23;
+  const BUILD=(document.querySelector('meta[name="smb-build"]')||{}).content||'';
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const $id=id=>document.getElementById(id);
+  const isAdm=()=>typeof me!=='undefined'&&me&&me.role==='admin';
+  const staffName=id=>((typeof staffList!=='undefined'?staffList:[]).find(s=>s.id===id)||{}).full_name||'—';
+  const kickDm=()=>{ try{ window.DmKick&&DmKick.kick&&DmKick.kick(); }catch(e){} };
+  const pht=iso=>iso?phTime(new Date(iso)):'—';
+  const niceDT=iso=>iso?fmtNice(phDate(new Date(iso))).replace(/, \d{4}$/,'')+' '+phTime(new Date(iso)):'Open';
+  const isoAt=(d,t)=>(d&&t)?new Date(`${d}T${t}:00+08:00`).toISOString():null;
+
+  const css=document.createElement('style');
+  css.textContent=`
+  .b23-ov{display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:73;align-items:center;justify-content:center;padding:20px;overflow:auto}
+  .b23-ov .card{width:100%;max-width:760px;max-height:92vh;overflow:auto}
+  .b23-late{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600;background:rgba(227,166,62,.18);color:var(--gold);margin-left:4px}
+  .b23-half{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600;background:rgba(155,126,222,.18);color:#c3b0ff;margin-left:4px}
+  .b23-rows td{padding:4px 6px} .b23-rows input[type=time]{width:96px;padding:4px 6px}
+  .b23-ok{color:var(--teal)} .b23-bad{color:var(--rose)} .b23-warn{color:var(--gold)}
+  #b23Banner{position:fixed;left:50%;transform:translateX(-50%);top:10px;z-index:90;background:#1f2a44;border:1px solid #5B8DEF;color:#fff;border-radius:12px;padding:10px 16px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.4);display:flex;gap:12px;align-items:center}
+  `;
+  document.head.appendChild(css);
+
+  /* ======================= 1. auto-reload on a new version ======================= */
+  let newer=false, lastCheck=0;
+  async function liveBuild(timeoutMs){
+    const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),timeoutMs||8000);
+    try{
+      const r=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store',signal:ctl.signal});
+      if(!r.ok) return null;
+      const txt=await r.text(); const m=txt.match(/<meta name="smb-build" content="([^"]+)"/);
+      return m?m[1]:null;
+    }catch(e){ return null; } finally{ clearTimeout(t); }
+  }
+  function shiftOpen(){ return typeof curShift!=='undefined'&&curShift&&!curShift.logout_at; }
+  function busyUi(){
+    const a=document.activeElement; if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&a.value) return true;
+    return [...document.querySelectorAll('[id$="Overlay"],.b23-ov')].some(el=>el.style.display==='flex'||el.style.display==='block');
+  }
+  function banner(){
+    if($id('b23Banner')) return;
+    const b=document.createElement('div'); b.id='b23Banner';
+    b.innerHTML='🔄 A new version of the portal is ready. <button class="btn btn-teal" style="padding:4px 10px">Refresh</button><span class="muted" style="font-size:11.5px">You stay logged in.</span>';
+    b.querySelector('button').onclick=()=>location.reload();
+    document.body.appendChild(b);
+  }
+  async function checkVersion(force){
+    if(!BUILD) return;
+    if(!force&&Date.now()-lastCheck<120000) return;
+    lastCheck=Date.now();
+    const live=await liveBuild();
+    if(!live||live===BUILD) return;
+    newer=true;
+    const signedIn=typeof me!=='undefined'&&me;
+    if((!signedIn||(!isAdm()&&!shiftOpen()))&&!busyUi()) { location.reload(); return; }
+    banner();
+  }
+  B23.checkVersion=checkVersion;
+  /* called by the Log in button: never start a shift on an outdated page */
+  B23.staleBeforeLogin=async function(){
+    if(!BUILD) return false;
+    if(!newer){ const live=await liveBuild(2500); newer=!!(live&&live!==BUILD); }
+    if(!newer) return false;
+    alert('The portal was just updated. The page will reload now. Then tap Log in again.');
+    location.reload(); return true;
+  };
+  setInterval(()=>checkVersion(true),10*60000);
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checkVersion(false); });
+  window.addEventListener('focus',()=>checkVersion(false));
+  setTimeout(()=>checkVersion(true),60000);
+
+  /* ======================= 2. Half Day request form ======================= */
+  B23.onType=function(t){
+    const pto=$id('reqPtoFields'); if(!pto) return;
+    let hf=$id('reqHalfFields');
+    if(!hf){
+      hf=document.createElement('div'); hf.id='reqHalfFields'; hf.className='hide'; hf.style.cssText='flex:0 0 190px';
+      hf.innerHTML='<label>Which half? (optional)</label><select id="reqHalfPart"><option value="">—</option><option value="first">1st half of the shift</option><option value="second">2nd half of the shift</option></select>';
+      pto.parentNode.insertBefore(hf,pto.nextSibling);
+      const note=document.createElement('div'); note.id='reqHalfNote'; note.className='note hide'; note.style.cssText='margin-top:10px;font-size:12.5px';
+      note.innerHTML='🌓 <b>Half Day:</b> log in and out as usual. Your Contractor Fee is based on the hours you actually log. <b>File it as soon as possible, within 24 hours of the shift.</b> Sir Rendy approves it, and an approved Half Day does not count against your Reliability rating. For a night shift, pick the date the shift <b>started</b>.';
+      const reason=$id('reqReason'); const host=reason&&reason.parentNode; if(host) host.parentNode.insertBefore(note,host);
+    }
+    const isH=t==='half_day', end=$id('reqEnd'), endWrap=end&&end.parentNode, startLbl=$id('reqStart')&&$id('reqStart').parentNode.querySelector('label');
+    hf.classList.toggle('hide',!isH); $id('reqHalfNote').classList.toggle('hide',!isH);
+    if(endWrap) endWrap.classList.toggle('hide',isH);
+    if(startLbl) startLbl.textContent=isH?'Shift date':'From';
+    if(isH){ pto.classList.remove('hide'); $id('reqAmtFields').classList.add('hide'); $id('reqCutoffFields').classList.add('hide'); }
+  };
+  B23.halfDetails=function(r){
+    const part=r.half_part==='first'?' · 1st half':r.half_part==='second'?' · 2nd half':'';
+    return `${fmtNice(r.start_date)}${part}${r.late_filing?'<span class="b23-late" title="Filed more than 24 hours after the shift">⏰ Late filing</span>':''}`;
+  };
+
+  /* ======================= 3. Time Log Corrections filters ======================= */
+  B23.corrFilterRows=function(rows){
+    const nf=(($id('corrName')||{}).value||'').trim().toLowerCase();
+    if(!nf) return rows;
+    return rows.filter(c=>String(staffName(c.staff_id)).toLowerCase().includes(nf));
+  };
+  B23.wireCorrFilters=function(reload){
+    const n=$id('corrName'); if(!n||n.dataset.w) return; n.dataset.w='1';
+    let t; n.oninput=()=>{ clearTimeout(t); t=setTimeout(reload,250); };
+  };
+
+  /* ======================= 4. Edit logout time (admin) ======================= */
+  function overlay(id,title,inner){
+    let ov=$id(id); if(ov) return ov;
+    ov=document.createElement('div'); ov.id=id; ov.className='b23-ov';
+    ov.onclick=e=>{ if(e.target===ov) ov.style.display='none'; };
+    ov.innerHTML=`<div class="card"><div class="hdr"><h3 style="font-size:15px">${title}</h3><button class="btn btn-ghost" type="button" data-close>Close</button></div>${inner}</div>`;
+    ov.querySelector('[data-close]').onclick=()=>{ ov.style.display='none'; };
+    document.body.appendChild(ov); return ov;
+  }
+  function staffOptions(){
+    const act=(staffList||[]).filter(s=>s.active!==false&&s.role!=='admin').slice().sort((a,b)=>String(a.full_name||'').localeCompare(String(b.full_name||'')));
+    return '<option value="">— pick staff —</option>'+act.map(s=>`<option value="${s.id}">${esc(s.full_name||'—')}</option>`).join('');
+  }
+  let eo={shifts:[]};
+  function eoEl(){
+    return overlay('b23EoOverlay','✏️ Edit logout time',`
+      <div class="muted" style="font-size:12px;margin-bottom:10px">Sets the shift's logout and lines up its activities (the last Working/Overtime is stretched, or Working is added after a break; anything after an earlier logout is removed). <b>Must stay within the scheduled shift end</b> unless the last activity is Overtime. Max 10 hours after login. A later log-in inside the new time is <b>merged</b> into this shift. Blocked for PAID cutoffs. Every edit is logged and the staff member gets a Bagani DM.</div>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px"><label>Staff</label><select id="eoStaff" style="width:100%"></select></div>
+        <div style="flex:1.5;min-width:240px"><label>Shift (last 14 days)</label><select id="eoShift" style="width:100%"></select></div>
+      </div>
+      <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px">
+        <div style="flex:1;min-width:150px"><label>New logout date (PHT)</label><input type="date" id="eoDate" style="width:100%"></div>
+        <div style="flex:1;min-width:120px"><label>New logout time (PHT)</label><input type="time" id="eoTime" style="width:100%"></div>
+      </div>
+      <div id="eoPreview" class="note" style="font-size:12.5px;margin-top:10px;min-height:18px"></div>
+      <label id="eoGapWrap" class="hide" style="display:flex;gap:8px;align-items:center;margin-top:8px;text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--ink)"><input type="checkbox" id="eoGap" style="width:auto"> <span id="eoGapTxt"></span></label>
+      <div style="margin-top:10px"><label>Reason (required)</label><input id="eoReason" placeholder="e.g. Forgot to log out, shift ended 5:00 AM" style="width:100%"></div>
+      <div class="row" style="margin-top:12px"><button class="btn btn-teal" id="eoSave" type="button">Save logout time</button><span class="muted" id="eoMsg" style="font-size:12px"></span></div>
+      <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px">Recent logout edits</div>
+      <table><thead><tr><th>Edited</th><th>Staff</th><th>Old → New logout</th><th>What changed</th><th>Reason</th></tr></thead><tbody id="eoHistory"></tbody></table>`);
+  }
+  B23.openEditLogout=function(){
+    const ov=eoEl();
+    $id('eoStaff').innerHTML=staffOptions(); $id('eoShift').innerHTML='<option value="">— pick staff first —</option>';
+    ['eoDate','eoTime','eoReason'].forEach(i=>$id(i).value=''); $id('eoMsg').textContent=''; $id('eoPreview').textContent=''; $id('eoGapWrap').classList.add('hide'); $id('eoGap').checked=false;
+    $id('eoStaff').onchange=eoLoadShifts; $id('eoShift').onchange=eoShiftChanged;
+    $id('eoDate').oninput=eoPreview; $id('eoTime').oninput=eoPreview; $id('eoSave').onclick=eoSave;
+    ov.style.display='flex'; eoHistory();
+  };
+  async function eoLoadShifts(){
+    const sid=$id('eoStaff').value; eo.shifts=[];
+    if(!sid){ $id('eoShift').innerHTML='<option value="">— pick staff first —</option>'; eoPreview(); return; }
+    $id('eoShift').innerHTML='<option value="">Loading…</option>';
+    const from=new Date(Date.now()-14*86400000).toISOString();
+    const {data,error}=await sb.from('shifts').select('*').eq('staff_id',sid).gte('login_at',from).order('login_at',{ascending:false});
+    if(error){ $id('eoShift').innerHTML=`<option value="">${esc(error.message)}</option>`; return; }
+    eo.shifts=data||[];
+    $id('eoShift').innerHTML=eo.shifts.length?eo.shifts.map(sh=>`<option value="${sh.id}">${esc(shiftAnchorDate(sh))} · ${esc(pht(sh.login_at))} → ${sh.logout_at?esc(pht(sh.logout_at)):'still open'}${sh.added_by?' (added)':''}</option>`).join(''):'<option value="">No shifts in the last 14 days</option>';
+    eoShiftChanged();
+  }
+  function eoWin(sh){ const c=shiftClientFor(sh); return c?shiftWindowFor(c,shiftAnchorDate(sh,c)):null; }
+  function eoShiftChanged(){
+    const sh=eo.shifts.find(x=>x.id===$id('eoShift').value);
+    if(sh){
+      const w=eoWin(sh); let def=null;
+      if(w&&w.end<=new Date()&&(!sh.logout_at||new Date(sh.logout_at)<w.end)) def=w.end;
+      if(!def&&sh.logout_at) def=new Date(sh.logout_at);
+      if(def){ $id('eoDate').value=phDate(def); $id('eoTime').value=phTime(def); } else { $id('eoDate').value=phDate(new Date(sh.login_at)); $id('eoTime').value=''; }
+    }
+    eoPreview();
+  }
+  function eoPlan(){
+    const sh=eo.shifts.find(x=>x.id===$id('eoShift').value), iso=isoAt($id('eoDate').value,$id('eoTime').value);
+    if(!sh||!iso) return {sh,iso};
+    const nl=new Date(iso), login=new Date(sh.login_at), w=eoWin(sh), errs=[], warns=[];
+    if(nl<=login) errs.push('must be after the login');
+    if(nl>new Date()) errs.push('cannot be in the future');
+    if(nl-login>10*3600000) errs.push('max 10 hours after login ('+niceDT(new Date(login.getTime()+10*3600000).toISOString())+')');
+    if(w&&nl>new Date(w.end.getTime()+59000)) warns.push(`after the shift end (${phTime(w.end)}) — only allowed if the last activity is Overtime`);
+    if(sh.logout_at&&nl<new Date(sh.logout_at)) warns.push('activity after the new logout will be removed');
+    const later=eo.shifts.filter(x=>x.id!==sh.id&&new Date(x.login_at)>login&&new Date(x.login_at)<nl).sort((a,b)=>a.login_at<b.login_at?-1:1);
+    later.forEach(x=>{ if(!x.logout_at) errs.push(`the later shift from ${pht(x.login_at)} is still open`); else if(new Date(x.logout_at)>new Date(nl.getTime()+59000)) errs.push(`the later shift ends ${pht(x.logout_at)} — pick that or later`); });
+    let gap=null;
+    if(later.length&&sh.logout_at){ const g=(new Date(later[0].login_at)-new Date(sh.logout_at))/60000; if(g>=1) gap={from:sh.logout_at,to:later[0].login_at,min:Math.round(g)}; }
+    return {sh,iso,w,errs,warns,later,gap};
+  }
+  function eoPreview(){
+    const p=eoPlan(), el=$id('eoPreview');
+    $id('eoGapWrap').classList.toggle('hide',!(p&&p.gap));
+    if(!p.sh){ el.textContent=''; return; }
+    const sched=p.w?` · scheduled ${phTime(p.w.start)}–${phTime(p.w.end)} PHT`:'';
+    if(!p.iso){ el.innerHTML=`Login <b>${esc(niceDT(p.sh.login_at))}</b> · current logout <b>${esc(niceDT(p.sh.logout_at))}</b>${sched}`; return; }
+    if(p.gap) $id('eoGapTxt').innerHTML=`Count the gap between the two logins (<b>${esc(pht(p.gap.from))}–${esc(pht(p.gap.to))}</b>, ${p.gap.min} min) as Working`;
+    el.innerHTML=`Logout <b>${esc(niceDT(p.sh.logout_at))}</b> → <b>${esc(niceDT(p.iso))}</b>${sched}`
+      +(p.later.length?`<div class="b23-warn">↪ Will merge ${p.later.length} later log-in${p.later.length>1?'s':''}: ${p.later.map(x=>esc(pht(x.login_at))+'–'+esc(pht(x.logout_at))).join(', ')}</div>`:'')
+      +p.warns.map(w=>`<div class="b23-warn">⚠ ${esc(w)}</div>`).join('')
+      +p.errs.map(e=>`<div class="b23-bad">✖ ${esc(e)}</div>`).join('');
+  }
+  async function eoSave(){
+    const p=eoPlan(), reason=$id('eoReason').value.trim(), msg=$id('eoMsg');
+    if(!p.sh){ msg.textContent='Pick a staff member and shift.'; return; }
+    if(!p.iso){ msg.textContent='Enter the new logout date and time.'; return; }
+    if(p.errs.length){ msg.innerHTML=`<span class="b23-bad">${esc(p.errs[0])}</span>`; return; }
+    if(reason.length<3){ msg.textContent='Please enter a reason.'; return; }
+    if(!confirm(`Set ${staffName(p.sh.staff_id)}'s logout to ${niceDT(p.iso)} PHT?${p.later.length?`\n\n${p.later.length} later log-in(s) will be merged into this shift.`:''}`)) return;
+    $id('eoSave').disabled=true; msg.textContent='Saving…';
+    try{
+      const {data,error}=await sb.rpc('admin_edit_shift_logout',{p_shift_id:p.sh.id,p_new_logout:p.iso,p_reason:reason,p_fill_gap:!!(p.gap&&$id('eoGap').checked)});
+      if(error){ const m=String(error.message||''); throw new Error(/admin_edit_shift_logout|schema cache|does not exist/i.test(m)?'Run the Oct 23 SQL first (Supabase SQL Editor).':m); }
+      msg.innerHTML=`<span class="b23-ok">✓ Saved: ${esc((data&&data.action)||'logout updated')}.</span>`;
+      $id('eoReason').value=''; kickDm(); await eoLoadShifts(); eoHistory();
+    }catch(e){ msg.innerHTML=`<span class="b23-bad">${esc(e.message)}</span>`; }
+    finally{ $id('eoSave').disabled=false; }
+  }
+  async function eoHistory(){
+    const {data,error}=await sb.from('shift_admin_log').select('*').eq('action','edit_logout').order('edited_at',{ascending:false}).limit(10);
+    $id('eoHistory').innerHTML=error?'<tr><td colspan="5" class="muted">No history yet (run the Oct 23 SQL first).</td></tr>':(data||[]).length?data.map(r=>`<tr><td class="mono" style="font-size:12px">${esc(niceDT(r.edited_at))}</td><td>${esc(staffName(r.staff_id))}</td><td class="mono" style="font-size:12px">${esc(r.old_logout?niceDT(r.old_logout):'open')} → ${esc(niceDT(r.new_logout))}</td><td style="font-size:12px">${esc(r.detail||'')}</td><td style="font-size:12px">${esc(r.reason)}</td></tr>`).join(''):'<tr><td colspan="5" class="muted">No edits yet.</td></tr>';
+  }
+
+  /* ======================= 5. Add shift (admin) ======================= */
+  let as={rows:[],existing:[],topEdited:false};
+  function asEl(){
+    return overlay('b23AsOverlay','➕ Add shift',`
+      <div class="muted" style="font-size:12px;margin-bottom:10px">For staff who could not use the portal (e.g. no access yet). Each day becomes a closed shift: Working, plus the 60min Break if ticked. Pay follows the normal rules (8h regular max, only time inside the scheduled shift counts, no Overtime). Days that already have a shift, or overlap one, are skipped. Blocked for PAID cutoffs. The staff member gets one Bagani DM.</div>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        <div style="flex:1.3;min-width:180px"><label>Staff</label><select id="asStaff" style="width:100%"></select></div>
+        <div style="flex:1;min-width:130px"><label>From (shift date)</label><input type="date" id="asFrom" style="width:100%"></div>
+        <div style="flex:1;min-width:130px"><label>To</label><input type="date" id="asTo" style="width:100%"></div>
+        <label style="display:flex;gap:6px;align-items:center;align-self:flex-end;text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--ink)"><input type="checkbox" id="asWk" checked style="width:auto"> Weekdays only</label>
+      </div>
+      <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px;align-items:flex-end">
+        <div><label>Login</label><input type="time" id="asIn"></div><div><label>Logout</label><input type="time" id="asOut"></div>
+        <label style="display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--ink)"><input type="checkbox" id="asBrk" checked style="width:auto"> 60min Break</label>
+        <div><label>Break start</label><input type="time" id="asBs"></div><div><label>Break end</label><input type="time" id="asBe"></div>
+        <span class="muted" id="asSched" style="font-size:11.5px"></span>
+      </div>
+      <div style="overflow-x:auto;margin-top:10px"><table class="b23-rows"><thead><tr><th>Add</th><th>Shift date</th><th>Login</th><th>Logout</th><th>Break</th><th>Status</th></tr></thead><tbody id="asRows"><tr><td colspan="6" class="muted">Pick staff and dates.</td></tr></tbody></table></div>
+      <div style="margin-top:10px"><label>Reason (required)</label><input id="asReason" placeholder="e.g. No portal access before 10/9" style="width:100%"></div>
+      <div class="row" style="margin-top:12px"><button class="btn btn-teal" id="asSave" type="button">Add shifts</button><span class="muted" id="asMsg" style="font-size:12px"></span></div>
+      <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px">Recently added shifts</div>
+      <table><thead><tr><th>Added</th><th>Staff</th><th>Shift date</th><th>Times</th><th>Reason</th></tr></thead><tbody id="asHistory"></tbody></table>`);
+  }
+  const asStaff=()=>(staffList||[]).find(s=>s.id===$id('asStaff').value)||null;
+  const asClient=()=>{ const s=asStaff(); return s?(clients||[]).find(c=>c.id===s.client_id)||null:null; };
+  B23.openAddShift=function(){
+    const ov=asEl();
+    $id('asStaff').innerHTML=staffOptions(); as={rows:[],existing:[],topEdited:false};
+    ['asFrom','asTo','asIn','asOut','asBs','asBe','asReason'].forEach(i=>$id(i).value=''); $id('asBrk').checked=true; $id('asWk').checked=true; $id('asMsg').textContent=''; $id('asSched').textContent='';
+    $id('asRows').innerHTML='<tr><td colspan="6" class="muted">Pick staff and dates.</td></tr>';
+    $id('asStaff').onchange=()=>{ as.topEdited=false; asDefaults(); asBuild(); };
+    $id('asFrom').onchange=()=>{ if(!$id('asTo').value||$id('asTo').value<$id('asFrom').value) $id('asTo').value=$id('asFrom').value; asDefaults(); asBuild(); };
+    $id('asTo').onchange=asBuild; $id('asWk').onchange=asBuild;
+    ['asIn','asOut','asBs','asBe'].forEach(i=>$id(i).onchange=()=>{ as.topEdited=true; asBuild(); });
+    $id('asBrk').onchange=asBuild; $id('asSave').onclick=asSave;
+    ov.style.display='flex'; asHistory();
+  };
+  function winTimes(c,d){ const w=c&&shiftWindowFor(c,d); if(!w) return null; return {in:phTime(w.start),out:phTime(w.end),bs:phTime(new Date(w.start.getTime()+4*3600000)),be:phTime(new Date(w.start.getTime()+5*3600000))}; }
+  function asDefaults(){
+    const c=asClient(), d=$id('asFrom').value||phDate(new Date()), t=winTimes(c,d);
+    if(t&&!as.topEdited){ $id('asIn').value=t.in; $id('asOut').value=t.out; $id('asBs').value=t.bs; $id('asBe').value=t.be; }
+    $id('asSched').textContent=c?(t?`Schedule (${c.name}): ${t.in}–${t.out} PHT`:''):'No client: enter the times.';
+  }
+  // times on a shift date → ISO; a time earlier than the login rolls to the next day
+  function rowIso(d,login,t){ if(!t) return null; const base=isoAt(d,login); let x=isoAt(d,t); if(base&&x&&new Date(x)<=new Date(base)) x=new Date(new Date(x).getTime()+86400000).toISOString(); return x; }
+  async function asBuild(){
+    const s=asStaff(), f=$id('asFrom').value, t=$id('asTo').value||f;
+    if(!s||!f){ $id('asRows').innerHTML='<tr><td colspan="6" class="muted">Pick staff and dates.</td></tr>'; as.rows=[]; return; }
+    const dates=[]; for(let d=f; d<=t && dates.length<32; d=addDays(d,1)){ const dow=new Date(d+'T00:00:00Z').getUTCDay(); if($id('asWk').checked&&(dow===0||dow===6)) continue; dates.push(d); }
+    if(dates.length>31){ $id('asRows').innerHTML='<tr><td colspan="6" class="b23-bad">At most 31 days at a time.</td></tr>'; as.rows=[]; return; }
+    const fromIso=new Date(new Date(f+'T00:00:00+08:00').getTime()-86400000).toISOString(), toIso=new Date(addDays(t,2)+'T00:00:00+08:00').toISOString();
+    const {data:ex}=await sb.from('shifts').select('id,login_at,logout_at').eq('staff_id',s.id).gte('login_at',fromIso).lte('login_at',toIso);
+    as.existing=ex||[];
+    const c=asClient(), brk=$id('asBrk').checked;
+    as.rows=dates.map(d=>{ const w=as.topEdited?null:winTimes(c,d);
+      return {d,add:true,in:w?w.in:$id('asIn').value,out:w?w.out:$id('asOut').value,bs:brk?(w?w.bs:$id('asBs').value):'',be:brk?(w?w.be:$id('asBe').value):''}; });
+    asPaint();
+  }
+  function asStatus(r){
+    if(!r.in||!r.out) return ['bad','enter login and logout'];
+    const li=isoAt(r.d,r.in), lo=rowIso(r.d,r.in,r.out);
+    if(new Date(lo)-new Date(li)>10*3600000) return ['bad','longer than 10 hours'];
+    if(new Date(lo)>new Date()) return ['bad','in the future'];
+    if((r.bs&&!r.be)||(!r.bs&&r.be)) return ['bad','break needs start and end'];
+    if(r.bs){ const bs=rowIso(r.d,r.in,r.bs), be=rowIso(r.d,r.in,r.be); if(new Date(be)<=new Date(bs)||new Date(be)>new Date(lo)) return ['bad','break must be inside the shift']; }
+    const clash=as.existing.find(x=>new Date(x.login_at)<new Date(lo)&&new Date(x.logout_at||Date.now())>new Date(li));
+    if(clash) return ['bad',`shift already exists (${pht(clash.login_at)}–${clash.logout_at?pht(clash.logout_at):'open'}) — skipped`];
+    return ['ok','✓ ready'];
+  }
+  function asPaint(){
+    $id('asRows').innerHTML=as.rows.length?as.rows.map((r,i)=>{ const [k,txt]=asStatus(r); return `<tr>
+      <td><input type="checkbox" data-as-add="${i}" ${r.add&&k==='ok'?'checked':''} ${k==='ok'?'':'disabled'} style="width:auto"></td>
+      <td class="mono">${esc(new Date(r.d+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric'}))}</td>
+      <td><input type="time" data-as="${i}" data-k="in" value="${esc(r.in)}"></td><td><input type="time" data-as="${i}" data-k="out" value="${esc(r.out)}"></td>
+      <td><input type="time" data-as="${i}" data-k="bs" value="${esc(r.bs)}"> – <input type="time" data-as="${i}" data-k="be" value="${esc(r.be)}"></td>
+      <td class="b23-${k}" style="font-size:12px">${esc(txt)}</td></tr>`; }).join(''):'<tr><td colspan="6" class="muted">No days in that range.</td></tr>';
+    $id('asRows').querySelectorAll('[data-as]').forEach(inp=>inp.onchange=()=>{ as.rows[+inp.dataset.as][inp.dataset.k]=inp.value; asPaint(); });
+    $id('asRows').querySelectorAll('[data-as-add]').forEach(cb=>cb.onchange=()=>{ as.rows[+cb.dataset.asAdd].add=cb.checked; asCount(); });
+    asCount();
+  }
+  function asPicked(){ return as.rows.filter(r=>r.add&&asStatus(r)[0]==='ok'); }
+  function asCount(){ const n=asPicked().length; $id('asSave').textContent=n?`Add ${n} shift${n===1?'':'s'}`:'Add shifts'; $id('asSave').disabled=!n; }
+  async function asSave(){
+    const s=asStaff(), reason=$id('asReason').value.trim(), msg=$id('asMsg'), pick=asPicked();
+    if(!s||!pick.length){ msg.textContent='Nothing to add.'; return; }
+    if(reason.length<3){ msg.textContent='Please enter a reason.'; return; }
+    if(!confirm(`Add ${pick.length} shift${pick.length===1?'':'s'} for ${s.full_name}?\n\n${pick.map(r=>`${r.d}: ${r.in}–${r.out}${r.bs?` (break ${r.bs}–${r.be})`:''}`).join('\n')}`)) return;
+    const rows=pick.map(r=>({login:isoAt(r.d,r.in),logout:rowIso(r.d,r.in,r.out),break_start:r.bs?rowIso(r.d,r.in,r.bs):null,break_end:r.be?rowIso(r.d,r.in,r.be):null}));
+    $id('asSave').disabled=true; msg.textContent='Saving…';
+    try{
+      const {data,error}=await sb.rpc('admin_add_shifts',{p_staff:s.id,p_rows:rows,p_reason:reason});
+      if(error){ const m=String(error.message||''); throw new Error(/admin_add_shifts|schema cache|does not exist/i.test(m)?'Run the Oct 23 SQL first (Supabase SQL Editor).':m); }
+      const add=(data&&data.added)||[], sk=(data&&data.skipped)||[];
+      msg.innerHTML=`<span class="b23-ok">✓ Added ${add.length} shift${add.length===1?'':'s'}.</span>`+(sk.length?` <span class="b23-warn">Skipped ${sk.length}: ${sk.map(x=>esc(fmtNice(phDate(new Date(x.login))))+' ('+esc(x.why)+')').join(', ')}</span>`:'');
+      $id('asReason').value=''; kickDm(); await asBuild(); asHistory();
+    }catch(e){ msg.innerHTML=`<span class="b23-bad">${esc(e.message)}</span>`; }
+    finally{ asCount(); }
+  }
+  async function asHistory(){
+    const {data,error}=await sb.from('shift_admin_log').select('*').eq('action','add_shift').order('edited_at',{ascending:false}).limit(12);
+    $id('asHistory').innerHTML=error?'<tr><td colspan="5" class="muted">No history yet (run the Oct 23 SQL first).</td></tr>':(data||[]).length?data.map(r=>`<tr><td class="mono" style="font-size:12px">${esc(niceDT(r.edited_at))}</td><td>${esc(staffName(r.staff_id))}</td><td class="mono">${esc(r.shift_date||'')}</td><td class="mono" style="font-size:12px">${esc(pht(r.new_login))}–${esc(pht(r.new_logout))}<div class="muted" style="font-size:11px">${esc(r.detail||'')}</div></td><td style="font-size:12px">${esc(r.reason)}</td></tr>`).join(''):'<tr><td colspan="5" class="muted">Nothing added yet.</td></tr>';
+  }
+
+  /* ======================= 6. Timesheet issue screenshots ======================= */
+  const BUCKET='staff-docs', MAXF=3; let tsaPending=[]; B23.ackFiles={};
+  const chipsB23=fs=>window.RF&&fs&&fs.length?RF.chips(fs,{download:isAdm()}).replace(/data-rf-open=/g,'data-b23-open=').replace(/data-rf-dl=/g,'data-b23-dl='):'';
+  document.addEventListener('click',e=>{
+    const a=e.target.closest&&e.target.closest('[data-b23-open],[data-b23-dl]'); if(!a||!window.RF) return;
+    e.preventDefault(); RF.open(a.dataset.b23Open||a.dataset.b23Dl,!!a.dataset.b23Dl);
+  });
+  function paintPending(){
+    const box=$id('tsaFileList'); if(!box) return;
+    box.innerHTML=tsaPending.map((f,i)=>`<span class="rf-chip">🖼️ ${esc(f.name.length>28?f.name.slice(0,26)+'…':f.name)} <a href="#" data-tsa-rm="${i}" title="Remove">✕</a></span>`).join('');
+    box.querySelectorAll('[data-tsa-rm]').forEach(a=>a.onclick=e=>{ e.preventDefault(); tsaPending.splice(+a.dataset.tsaRm,1); paintPending(); });
+  }
+  B23.tsaFilesHtml=function(){
+    return `<div style="margin-top:8px"><label>Screenshots (optional)</label><input type="file" id="tsaFiles" multiple style="width:100%"><div id="tsaFileList"></div><div class="muted" style="font-size:11px;margin-top:3px">Up to 3 · photo or PDF · max 10 MB each · 🔒 only you and Sir Rendy can open them</div></div>`;
+  };
+  B23.wireTsaFiles=function(){
+    const inp=$id('tsaFiles'); if(!inp) return;
+    if(window.RF) inp.accept=RF.ACCEPT;
+    inp.onchange=()=>{ const add=[...inp.files]; inp.value='';
+      for(const f of add){ const bad=window.RF?RF.checkFile(f):''; if(bad){ alert(bad); continue; } if(tsaPending.length>=MAXF){ alert('At most 3 screenshots.'); break; } tsaPending.push(f); }
+      paintPending(); };
+    paintPending();
+  };
+  async function uploadOne(file,ackId){
+    const bad=RF.checkFile(file); if(bad) throw new Error(bad);
+    const safe=String(file.name||'file').replace(/[^\w.\-]+/g,'_').slice(-80);
+    const path=`${me.id}/tsack/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safe}`;
+    const mime=file.type||(/\.pdf$/i.test(file.name)?'application/pdf':/\.heic$/i.test(file.name)?'image/heic':/\.heif$/i.test(file.name)?'image/heif':'');
+    const up=await sb.storage.from(BUCKET).upload(path,file,{contentType:mime,upsert:false});
+    if(up.error) throw new Error('Upload failed: '+up.error.message);
+    const {data,error}=await sb.rpc('rf_register_tsack_file',{p_path:path,p_name:file.name||safe,p_mime:mime,p_size:file.size,p_ack_id:ackId});
+    if(error) throw new Error(error.message);
+    return data;
+  }
+  /* after the issue is saved: upload picked files; returns an error note or '' */
+  B23.uploadTsaFiles=async function(ackId,files){
+    const list=files||tsaPending; if(!list.length||!window.RF) return '';
+    const errs=[]; for(const f of list){ try{ await uploadOne(f,ackId); }catch(e){ errs.push(`${f.name}: ${e.message}`); } }
+    if(!files) tsaPending=[];
+    return errs.length?`Your issue was sent, but ${errs.length} screenshot(s) did not upload:\n${errs.join('\n')}\n\nUse "📎 Add screenshot" to try again.`:'';
+  };
+  B23.paintIssueFiles=async function(ack){
+    const box=$id('tsaIssueFiles'); if(!box||!ack) return;
+    const {data,error}=await sb.from('staff_files').select('*').eq('ts_ack_id',ack.id).eq('ts_ack_round',ack.round).order('created_at');
+    if(error){ box.innerHTML=''; return; }
+    (data||[]).forEach(f=>{ if(window.RF&&RF._all) RF._all[f.id]=f; });
+    const fs=data||[];
+    box.innerHTML=(fs.length?'<span class="muted" style="font-size:12px">📎 </span>'+chipsB23(fs):'')+(fs.length<MAXF?` <button class="btn btn-ghost" style="padding:3px 8px;font-size:11.5px" id="tsaAddShot">📎 Add screenshot</button>`:'');
+    const b=$id('tsaAddShot'); if(b) b.onclick=()=>{
+      const inp=document.createElement('input'); inp.type='file'; inp.multiple=true; if(window.RF) inp.accept=RF.ACCEPT;
+      inp.onchange=async()=>{ const files=[...inp.files].slice(0,MAXF-fs.length); if(!files.length) return; b.disabled=true; b.textContent='Uploading…';
+        const note=await B23.uploadTsaFiles(ack.id,files); if(note) alert(note); kickDm(); B23.paintIssueFiles(ack); };
+      inp.click();
+    };
+  };
+  B23.loadAckFiles=async function(acks){
+    B23.ackFiles={}; const ids=(acks||[]).filter(a=>a.status==='issue').map(a=>a.id); if(!ids.length) return;
+    const {data,error}=await sb.from('staff_files').select('*').in('ts_ack_id',ids);
+    if(error) return;
+    (data||[]).forEach(f=>{ const a=acks.find(x=>x.id===f.ts_ack_id); if(!a||Number(f.ts_ack_round)!==Number(a.round)) return; (B23.ackFiles[a.id]=B23.ackFiles[a.id]||[]).push(f); if(window.RF&&RF._all) RF._all[f.id]=f; });
+  };
+  B23.ledgerClip=function(a){ const fs=B23.ackFiles[a.id]||[]; return fs.length?`<div style="margin-top:3px">${chipsB23(fs)}</div>`:''; };
+
+  /* ======================= 7. admin buttons ======================= */
+  function addButtons(){
+    const el=$id('elOpenBtn'); if(!el||$id('eoOpenBtn')) return;
+    const b1=document.createElement('button'); b1.className='btn btn-gold'; b1.id='eoOpenBtn'; b1.type='button'; b1.textContent='Edit logout time'; b1.title="Fix a shift's logout (forgot to log out, logged out early, re-login merge)"; b1.onclick=B23.openEditLogout;
+    const b2=document.createElement('button'); b2.className='btn btn-gold'; b2.id='asOpenBtn'; b2.type='button'; b2.textContent='➕ Add shift'; b2.title='Enter shifts for staff who could not use the portal'; b2.onclick=B23.openAddShift;
+    el.parentNode.insertBefore(b1,el.nextSibling); b1.parentNode.insertBefore(b2,b1.nextSibling);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',addButtons); else addButtons();
 })();
 </script>
 
