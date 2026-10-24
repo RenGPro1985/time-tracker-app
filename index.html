@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="smb-build" content="2026-10-24-b25">
+<meta name="smb-build" content="2026-10-24-b26">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SMB VS Portal</title>
@@ -1258,7 +1258,7 @@ const SERVER_URL        = "https://time-tracker-app-95fe.onrender.com";        /
 /* ============================================================ */
 
 const ACTIVITIES = ['Working','15min Break','30min Break','60min Break','Personal Break','Bio Break','H2O Break','Meeting/Coaching','Overtime'];const OVERTIME = 'Overtime';
-const NON_BILLABLE = ['60min Break'];
+const NON_BILLABLE = ['60min Break','Deducted (admin)']; /* b26: admin Deduct time */
 const CLIENT_TOGGLE_ACTS=['15min Break','30min Break','60min Break','Personal Break'];
 function clientOffActs(clientId){return clientId?((clientActOff[clientId])||[]):[];}
 function myActivities(){const off=clientOffActs(me&&me.client_id);return ACTIVITIES.filter(a=>!off.includes(a));}
@@ -12087,6 +12087,247 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     el.parentNode.insertBefore(b1,el.nextSibling); b1.parentNode.insertBefore(b2,b1.nextSibling);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',addButtons); else addButtons();
+})();
+</script>
+
+<script>
+/* ===== Admin Shift Tools (2026-10-24, b26): Delete shift · Merge shifts · Deduct time + Undo =====
+   SQL: shift_tools.sql (admin_delete_shift, admin_merge_shifts, admin_deduct_time,
+   admin_shift_tool_undo, table shift_tool_log). Admin-only; staff are not notified. */
+(function(){
+  const ST=window.ST={shifts:[],entries:{},sel:null};
+  const g=id=>document.getElementById(id);
+  const E=s=>escapeHtml(String(s==null?'':s));
+  const T=iso=>iso?phTime(new Date(iso)):'open';
+  const DT=iso=>iso?fmtNice(phDate(new Date(iso))).replace(/, \d{4}$/,'')+' '+phTime(new Date(iso)):'—';
+  const nm=id=>((staffList||[]).find(s=>s.id===id)||{}).full_name||'—';
+  const isoAt=(d,t)=>d&&t?new Date(`${d}T${t}:00+08:00`).toISOString():null;
+  const CAUSE={staff_error:'Staff error',app_issue:'App / system issue',outside:'Outside cause'};
+  const WHY={outage:'Outage while logged in',not_working:'Not working (AFK)',other:'Other'};
+  const css=document.createElement('style');
+  css.textContent=`#stOv{display:none;position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:72;align-items:flex-start;justify-content:center;padding:20px;overflow:auto}
+#stOv>.card{width:100%;max-width:1180px}
+#stOv .st-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:12px}
+#stOv .st-box{border:1px solid var(--line,#2a2f3a);border-radius:10px;padding:12px}
+#stOv .st-box h4{margin:0 0 4px;font-size:14px}
+#stOv .st-sub{font-size:12px;color:var(--muted,#9aa3b2);margin-bottom:8px}
+#stOv .st-bad{color:var(--rose,#e05252);font-size:12.5px}#stOv .st-ok{color:var(--teal,#3fb97a);font-size:12.5px}
+#stOv .st-tl{display:flex;height:20px;border-radius:5px;overflow:hidden;margin:8px 0;font-size:10.5px}
+#stOv .st-tl div{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
+#stOv .st-w{background:#2f6fd6;color:#fff}#stOv .st-b{background:#7a6a2a;color:#fff}#stOv .st-g{background:repeating-linear-gradient(45deg,#333 0 6px,#444 6px 12px);color:#ccc}#stOv .st-d{background:#8a3b3b;color:#fff}
+#stOv table{font-size:12.5px}#stOv label.st-r{display:inline-flex;gap:5px;align-items:center;text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--ink);margin-right:10px}
+#stOv label.st-r input{width:auto}`;
+  document.head.appendChild(css);
+  function build(){
+    if(g('stOv')) return g('stOv');
+    const ov=document.createElement('div'); ov.id='stOv';
+    ov.onclick=e=>{ if(e.target===ov) ov.style.display='none'; };
+    ov.innerHTML=`<div class="card">
+      <div class="hdr"><h3 style="font-size:15px">🛠 Shift tools</h3><button class="btn btn-ghost" type="button" id="stClose">Close</button></div>
+      <div class="muted" style="font-size:12px">Admin only. Staff are not notified. Every action is logged below and can be undone (unless the cutoff is PAID).</div>
+      <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px">
+        <div style="flex:1;min-width:180px"><label>Staff</label><select id="stStaff" style="width:100%"></select></div>
+        <div style="flex:1.6;min-width:260px"><label>Shift (last 21 days)</label><select id="stShift" style="width:100%"></select></div>
+      </div>
+      <div id="stInfo" class="note" style="font-size:12.5px;margin-top:10px;min-height:18px"></div>
+      <div class="st-grid">
+        <div class="st-box"><h4>🗑 Delete shift</h4><div class="st-sub">For junk shifts: duplicate, accidental or test logins. Removes the shift and all its activity from Ledger, Timesheets, Invoice, Adherence and Rewards.</div>
+          <div id="stDelPrev" style="font-size:12.5px"></div>
+          <label style="margin-top:8px">Reason (required, admin-only)</label><input id="stDelReason" placeholder="e.g. Duplicate login after browser crash" style="width:100%">
+          <div class="row" style="margin-top:10px"><button class="btn" style="background:var(--rose,#e05252);color:#fff" id="stDelBtn" type="button">Delete shift</button></div><div id="stDelMsg" style="margin-top:6px"></div></div>
+        <div class="st-box"><h4>🔗 Merge shifts</h4><div class="st-sub">Joins a re-login into the selected (earlier) shift. The gap between them stays <b>unpaid</b>.</div>
+          <label>Merge in (later shift)</label><select id="stMrgLater" style="width:100%"></select>
+          <div id="stMrgPrev" style="font-size:12.5px"></div>
+          <label style="margin-top:8px">Reason (required, admin-only)</label><input id="stMrgReason" placeholder="e.g. Power outage, resumed same shift" style="width:100%">
+          <div class="row" style="margin-top:10px"><button class="btn btn-gold" id="stMrgBtn" type="button">Merge</button></div><div id="stMrgMsg" style="margin-top:6px"></div></div>
+        <div class="st-box"><h4>➖ Deduct time</h4><div class="st-sub">Staff stayed logged in but wasn't working. That time becomes <b>Deducted (admin)</b>: non-billable, not a break, not on the Client Invoice. A 60min Break inside the range is left as is (already unpaid).</div>
+          <div class="row" style="gap:8px"><div style="flex:1"><label>From (PHT)</label><input type="datetime-local" id="stDedFrom" style="width:100%"></div><div style="flex:1"><label>To (PHT)</label><input type="datetime-local" id="stDedTo" style="width:100%"></div></div>
+          <label style="margin-top:8px">Why</label><select id="stDedWhy" style="width:100%">${Object.entries(WHY).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
+          <label style="margin-top:8px">Whose error?</label><div>${Object.entries(CAUSE).map(([k,v])=>`<label class="st-r"><input type="radio" name="stDedCause" value="${k}"${k==='outside'?' checked':''}> ${v}</label>`).join('')}</div>
+          <div id="stDedPrev" style="font-size:12.5px;margin-top:6px"></div>
+          <label style="margin-top:8px">Reason (required, admin-only)</label><input id="stDedReason" placeholder="e.g. Brownout 9–10 PM, no activity" style="width:100%">
+          <div class="row" style="margin-top:10px"><button class="btn btn-teal" id="stDedBtn" type="button">Deduct</button></div><div id="stDedMsg" style="margin-top:6px"></div></div>
+      </div>
+      <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px">History</div>
+      <table><thead><tr><th>When</th><th>Staff</th><th>Action</th><th>What changed</th><th>Reason</th><th></th></tr></thead><tbody id="stHist"></tbody></table>
+    </div>`;
+    document.body.appendChild(ov);
+    g('stClose').onclick=()=>{ ov.style.display='none'; };
+    g('stStaff').onchange=loadShifts; g('stShift').onchange=render;
+    g('stMrgLater').onchange=renderMerge;
+    ['stDedFrom','stDedTo'].forEach(i=>g(i).oninput=renderDeduct);
+    g('stDelBtn').onclick=doDelete; g('stMrgBtn').onclick=doMerge; g('stDedBtn').onclick=doDeduct;
+    return ov;
+  }
+  ST.open=function(){
+    const ov=build();
+    const act=(staffList||[]).filter(s=>s.active!==false&&s.role!=='admin').slice().sort((a,b)=>String(a.full_name||'').localeCompare(String(b.full_name||'')));
+    g('stStaff').innerHTML='<option value="">— pick staff —</option>'+act.map(s=>`<option value="${s.id}">${E(s.full_name||'—')}</option>`).join('');
+    ST.shifts=[]; ST.entries={}; g('stShift').innerHTML='<option value="">— pick staff first —</option>';
+    ['stDelReason','stMrgReason','stDedReason','stDedFrom','stDedTo'].forEach(i=>g(i).value='');
+    ['stDelMsg','stMrgMsg','stDedMsg'].forEach(i=>g(i).innerHTML='');
+    render(); ov.style.display='flex'; history();
+  };
+  async function loadShifts(keep){
+    const sid=g('stStaff').value; ST.shifts=[]; ST.entries={};
+    if(!sid){ g('stShift').innerHTML='<option value="">— pick staff first —</option>'; render(); return; }
+    g('stShift').innerHTML='<option value="">Loading…</option>';
+    const from=new Date(Date.now()-21*86400000).toISOString();
+    const [{data:sh,error:e1},{data:en,error:e2}]=await Promise.all([
+      sb.from('shifts').select('*').eq('staff_id',sid).gte('login_at',from).order('login_at',{ascending:false}),
+      sb.from('entries').select('*').eq('staff_id',sid).eq('active',true).gte('started_at',new Date(Date.now()-22*86400000).toISOString()).order('started_at')]);
+    if(e1||e2){ g('stShift').innerHTML=`<option value="">${E((e1||e2).message)}</option>`; return; }
+    ST.shifts=sh||[]; (en||[]).forEach(e=>{ (ST.entries[e.shift_id]=ST.entries[e.shift_id]||[]).push(e); });
+    g('stShift').innerHTML=ST.shifts.length?ST.shifts.map(s=>`<option value="${s.id}">${E(shiftAnchorDate(s))} · ${E(T(s.login_at))} → ${s.logout_at?E(T(s.logout_at)):'still open'} · ${(ST.entries[s.id]||[]).length} entries</option>`).join(''):'<option value="">No shifts in the last 21 days</option>';
+    if(typeof keep==='string'&&ST.shifts.some(s=>s.id===keep)) g('stShift').value=keep;
+    render();
+  }
+  const cur=()=>ST.shifts.find(s=>s.id===g('stShift').value)||null;
+  const ents=s=>(s&&ST.entries[s.id])||[];
+  function tl(list,lo,hi,extra){
+    if(!(hi>lo)) return '';
+    const segs=[]; let t=lo;
+    const all=list.map(e=>({a:e.activity,s:new Date(e.started_at).getTime(),e:new Date(e.ended_at||Date.now()).getTime()})).concat(extra||[]).sort((x,y)=>x.s-y.s);
+    all.forEach(x=>{ if(x.s>t) segs.push({c:'st-g',w:x.s-t,l:'gap'}); const c=x.a==='Deducted (admin)'?'st-d':/Break/.test(x.a)?'st-b':x.a==='gap'?'st-g':'st-w'; segs.push({c,w:Math.max(0,x.e-Math.max(t,x.s)),l:x.a}); t=Math.max(t,x.e); });
+    if(hi>t) segs.push({c:'st-g',w:hi-t,l:''});
+    for(let i=segs.length-1;i>0;i--){ if(segs[i].c===segs[i-1].c&&segs[i].l===segs[i-1].l){ segs[i-1].w+=segs[i].w; segs.splice(i,1); } }
+    return `<div class="st-tl">${segs.filter(s=>s.w>0).map(s=>`<div class="${s.c}" style="flex:${s.w}" title="${E(s.l)}">${E(s.l)}</div>`).join('')}</div>`;
+  }
+  function stats(list,shift){ try{ const c=shiftClientFor(shift), w=c&&shiftWindowFor(c,shiftAnchorDate(shift,c)); return summarize(list,null,w,buildShiftSpanMap([shift])[shift.id]); }catch(e){ return null; } }
+  function render(e){
+    if(e&&e.type) ['stDelMsg','stMrgMsg','stDedMsg'].forEach(i=>g(i).innerHTML='');
+    const s=cur();
+    g('stInfo').innerHTML=s?`<b>${E(nm(s.staff_id))}</b> · shift date ${E(shiftAnchorDate(s))} · ${E(DT(s.login_at))} → ${E(s.logout_at?DT(s.logout_at):'still open')}`+tl(ents(s),new Date(s.login_at).getTime(),new Date(s.logout_at||Date.now()).getTime()):'Pick a staff member and a shift.';
+    // delete
+    if(!s) g('stDelPrev').innerHTML='';
+    else{
+      const st=stats(ents(s),s);
+      g('stDelPrev').innerHTML=`<table><thead><tr><th>Activity</th><th>Start</th><th>End</th></tr></thead><tbody>${ents(s).map(e=>`<tr><td>${E(e.activity)}</td><td class="mono">${E(T(e.started_at))}</td><td class="mono">${E(T(e.ended_at))}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">No activity</td></tr>'}</tbody></table>`
+        +(st?`<div class="st-bad" style="margin-top:6px">Billable −${hm(st.billable)} will be removed.</div>`:'')+(s.logout_at?'':'<div class="st-bad">Still running — log it out first.</div>');
+    }
+    // merge options: later closed shifts of the same staff within 12h
+    const later=s?ST.shifts.filter(x=>x.id!==s.id&&new Date(x.login_at)>new Date(s.login_at)&&new Date(x.login_at)-new Date(s.login_at)<12*3600000).sort((a,b)=>a.login_at<b.login_at?-1:1):[];
+    g('stMrgLater').innerHTML=later.length?later.map(x=>`<option value="${x.id}">${E(T(x.login_at))} → ${x.logout_at?E(T(x.logout_at)):'still open'}</option>`).join(''):'<option value="">No later shift within 12h</option>';
+    renderMerge();
+    // deduct defaults
+    if(s){ const lo=phDate(new Date(s.login_at))+'T'+phTime(new Date(s.login_at)); g('stDedFrom').min=lo; g('stDedTo').min=lo;
+      if(s.logout_at){ const hi=phDate(new Date(s.logout_at))+'T'+phTime(new Date(s.logout_at)); g('stDedFrom').max=hi; g('stDedTo').max=hi; } }
+    renderDeduct();
+  }
+  function mergePlan(){
+    const k=cur(), l=ST.shifts.find(x=>x.id===g('stMrgLater').value); if(!k||!l) return {k,l,errs:[]};
+    const errs=[];
+    if(!k.logout_at||!l.logout_at) errs.push('Both shifts must be logged out first.');
+    else{
+      if(new Date(l.login_at)<new Date(k.logout_at)-59000) errs.push('The shifts overlap.');
+      if(new Date(l.logout_at)-new Date(k.login_at)>12*3600000) errs.push('Merged shift would be longer than 12 hours.');
+    }
+    if(ST.shifts.some(x=>x.id!==k.id&&x.id!==l.id&&x.login_at>k.login_at&&x.login_at<l.login_at)) errs.push('Another shift sits between these two — merge them one at a time.');
+    const gap=k.logout_at?Math.max(0,Math.round((new Date(l.login_at)-new Date(k.logout_at))/60000)):0;
+    return {k,l,errs,gap};
+  }
+  function renderMerge(){
+    const p=mergePlan(), el=g('stMrgPrev');
+    if(!p.k||!p.l){ el.innerHTML=''; return; }
+    const both=ents(p.k).concat(ents(p.l));
+    const merged=Object.assign({},p.k,{logout_at:p.l.logout_at});
+    const a=stats(ents(p.k),p.k), b=stats(ents(p.l),p.l), m=stats(both,merged);
+    el.innerHTML=tl(both,new Date(p.k.login_at).getTime(),new Date(p.l.logout_at||Date.now()).getTime())
+      +`<table><thead><tr><th></th><th>Before</th><th>After</th></tr></thead><tbody>
+        <tr><td>Shifts</td><td>2</td><td>1</td></tr>
+        <tr><td>Login / Logout</td><td class="mono">${E(T(p.k.login_at))} · ${E(T(p.l.logout_at))}</td><td class="mono">${E(T(p.k.login_at))} – ${E(T(p.l.logout_at))}</td></tr>
+        <tr><td>Gap (unpaid)</td><td class="mono">${hm(p.gap)}</td><td class="mono">${hm(p.gap)}</td></tr>
+        ${a&&b&&m?`<tr><td>Billable</td><td class="mono">${hm(a.billable+b.billable)}</td><td class="mono">${hm(m.billable)}</td></tr>`:''}
+      </tbody></table>`+p.errs.map(e=>`<div class="st-bad">✖ ${E(e)}</div>`).join('');
+  }
+  function dedPlan(){
+    const s=cur(); const f=g('stDedFrom').value, t=g('stDedTo').value;
+    if(!s||!f||!t) return {s};
+    const from=new Date(f+':00+08:00'), to=new Date(t+':00+08:00'), errs=[];
+    if(!(to>from)) errs.push('"To" must be after "From".');
+    if(!s.logout_at) errs.push('Shift is still running — log it out first.');
+    if(from<new Date(new Date(s.login_at).setSeconds(0,0))||(s.logout_at&&to>new Date(new Date(s.logout_at).getTime()+59000))) errs.push('The range must be inside the shift.');
+    const list=ents(s), F=from.getTime(), U=to.getTime();
+    if(list.some(e=>/Break/.test(e.activity)&&e.activity!=='60min Break'&&new Date(e.started_at)<from&&new Date(e.ended_at)>to)) errs.push("That range is in the middle of a break — start or end at the break's edge.");
+    if(list.some(e=>e.activity==='Deducted (admin)'&&new Date(e.started_at)<to&&new Date(e.ended_at)>from)) errs.push('Part of that range is already deducted.');
+    const after=[]; let mins=0;
+    list.forEach(e=>{
+      const s0=new Date(e.started_at).getTime(), e0=new Date(e.ended_at||Date.now()).getTime();
+      if(!(s0<U&&e0>F)||e.activity==='60min Break'){ after.push(e); return; }  // unpaid lunch is never cut
+      if(s0<F) after.push(Object.assign({},e,{ended_at:from.toISOString()}));
+      const ds=Math.max(s0,F), de=Math.min(e0,U); mins+=(de-ds)/60000;
+      after.push(Object.assign({},e,{id:'ded'+ds,activity:'Deducted (admin)',started_at:new Date(ds).toISOString(),ended_at:new Date(de).toISOString()}));
+      if(e0>U) after.push(Object.assign({},e,{started_at:to.toISOString()}));
+    });
+    if(!errs.length&&mins<=0) errs.push('Nothing to deduct in that range (only an unpaid 60min Break or no activity).');
+    return {s,from,to,errs,after,mins};
+  }
+  function renderDeduct(){
+    const p=dedPlan(), el=g('stDedPrev');
+    if(!p.s||!p.from){ el.innerHTML=''; return; }
+    let html=tl(p.after||[],new Date(p.s.login_at).getTime(),new Date(p.s.logout_at||Date.now()).getTime());
+    if(!p.errs.length){
+      const a=stats(ents(p.s),p.s), b=stats(p.after,p.s);
+      html+=`<div class="note" style="font-size:12.5px">Deducting <b>${hm(Math.round(p.mins))}</b>${a&&b?` · Billable <b>${hm(a.billable)}</b> → <b>${hm(b.billable)}</b>`:''}</div>`;
+    }
+    el.innerHTML=html+p.errs.map(e=>`<div class="st-bad">✖ ${E(e)}</div>`).join('');
+  }
+  function errMsg(e){ const m=String((e&&e.message)||e||''); return /admin_(delete_shift|merge_shifts|deduct_time|shift_tool_undo)|schema cache|does not exist/i.test(m)&&!/Shift not found/.test(m)?'Run shift_tools.sql in the Supabase SQL Editor first.':m; }
+  async function call(fn,args,msgId,btnId,okText){
+    const msg=g(msgId), btn=g(btnId); btn.disabled=true; msg.innerHTML='<span class="muted">Saving…</span>';
+    try{ const {data,error}=await sb.rpc(fn,args); if(error) throw error; msg.innerHTML=`<span class="st-ok">✓ ${E(okText(data||{}))}</span>`; return true; }
+    catch(e){ msg.innerHTML=`<span class="st-bad">${E(errMsg(e))}</span>`; return false; }
+    finally{ btn.disabled=false; }
+  }
+  async function doDelete(){
+    const s=cur(), r=g('stDelReason').value.trim();
+    if(!s) return g('stDelMsg').innerHTML='<span class="st-bad">Pick a shift.</span>';
+    if(r.length<3) return g('stDelMsg').innerHTML='<span class="st-bad">Please enter a reason.</span>';
+    if(!confirm(`Delete ${nm(s.staff_id)}'s shift ${DT(s.login_at)} → ${T(s.logout_at)} and all ${ents(s).length} entries?\n\nYou can undo this from the History list.`)) return;
+    if(await call('admin_delete_shift',{p_shift_id:s.id,p_reason:r},'stDelMsg','stDelBtn',d=>`Shift deleted (${d.entries||0} entries).`)){ g('stDelReason').value=''; await loadShifts(); history(); }
+  }
+  async function doMerge(){
+    const p=mergePlan(), r=g('stMrgReason').value.trim();
+    if(!p.k||!p.l) return g('stMrgMsg').innerHTML='<span class="st-bad">Pick both shifts.</span>';
+    if(p.errs.length) return g('stMrgMsg').innerHTML=`<span class="st-bad">${E(p.errs[0])}</span>`;
+    if(r.length<3) return g('stMrgMsg').innerHTML='<span class="st-bad">Please enter a reason.</span>';
+    if(!confirm(`Merge ${nm(p.k.staff_id)}'s ${T(p.l.login_at)}–${T(p.l.logout_at)} shift into ${T(p.k.login_at)}–${T(p.k.logout_at)}?\nThe ${p.gap} min gap stays unpaid.`)) return;
+    if(await call('admin_merge_shifts',{p_keep:p.k.id,p_later:p.l.id,p_reason:r},'stMrgMsg','stMrgBtn',d=>`Merged — gap ${Math.round(d.gap_min||0)} min unpaid.`)){ g('stMrgReason').value=''; await loadShifts(p.k.id); history(); }
+  }
+  async function doDeduct(){
+    const p=dedPlan(), r=g('stDedReason').value.trim(), c=(document.querySelector('input[name="stDedCause"]:checked')||{}).value;
+    if(!p.s||!p.from) return g('stDedMsg').innerHTML='<span class="st-bad">Pick a shift and the From/To times.</span>';
+    if(p.errs.length) return g('stDedMsg').innerHTML=`<span class="st-bad">${E(p.errs[0])}</span>`;
+    if(!c) return g('stDedMsg').innerHTML='<span class="st-bad">Choose whose error it was.</span>';
+    if(r.length<3) return g('stDedMsg').innerHTML='<span class="st-bad">Please enter a reason.</span>';
+    if(!confirm(`Deduct ${hm(Math.round(p.mins))} from ${nm(p.s.staff_id)} (${T(p.from.toISOString())}–${T(p.to.toISOString())} PHT)?`)) return;
+    if(await call('admin_deduct_time',{p_shift_id:p.s.id,p_from:p.from.toISOString(),p_to:p.to.toISOString(),p_reason_code:g('stDedWhy').value,p_cause:c,p_reason:r},'stDedMsg','stDedBtn',d=>`Deducted ${Math.round(d.minutes||0)} min.`)){
+      g('stDedReason').value=''; await loadShifts(p.s.id); history(); }
+  }
+  async function history(){
+    const {data,error}=await sb.from('shift_tool_log').select('*').order('done_at',{ascending:false}).limit(25);
+    const tb=g('stHist'); if(!tb) return;
+    if(error){ tb.innerHTML='<tr><td colspan="6" class="muted">No history yet (run shift_tools.sql first).</td></tr>'; return; }
+    const A={delete_shift:'🗑 Delete',merge_shifts:'🔗 Merge',deduct_time:'➖ Deduct'};
+    tb.innerHTML=(data||[]).length?data.map(r=>`<tr${r.undone_at?' style="opacity:.55"':''}><td class="mono" style="font-size:12px">${E(DT(r.done_at))}<div class="muted" style="font-size:11px">${E(nm(r.done_by))}</div></td><td>${E(nm(r.staff_id))}</td><td>${A[r.action]||E(r.action)}</td>
+      <td>${E(r.summary||'')}${r.cause?`<div class="muted" style="font-size:11px">${E(CAUSE[r.cause]||r.cause)} · ${E(WHY[r.reason_code]||r.reason_code||'')}</div>`:''}</td><td>${E(r.reason)}</td>
+      <td style="text-align:right">${r.undone_at?`<span class="muted" style="font-size:11px">Undone ${E(DT(r.undone_at))}</span>`:`<button class="btn btn-ghost" type="button" data-stundo="${r.id}">Undo</button>`}</td></tr>`).join(''):'<tr><td colspan="6" class="muted">Nothing yet.</td></tr>';
+    tb.querySelectorAll('[data-stundo]').forEach(b=>b.onclick=async()=>{
+      if(!confirm('Undo this change?')) return;
+      b.disabled=true;
+      const {error}=await sb.rpc('admin_shift_tool_undo',{p_log_id:b.dataset.stundo});
+      if(error){ alert(errMsg(error)); b.disabled=false; return; }
+      await history(); if(g('stStaff').value) loadShifts(g('stShift').value);
+    });
+  }
+  function addBtn(){
+    const anchor=g('asOpenBtn')||g('eoOpenBtn')||g('elOpenBtn'); if(!anchor||g('stOpenBtn')) return !!g('stOpenBtn');
+    const b=document.createElement('button'); b.className='btn btn-gold'; b.id='stOpenBtn'; b.type='button'; b.textContent='🛠 Shift tools';
+    b.title='Delete a junk shift, merge a re-login, or deduct time when staff stayed logged in but were not working'; b.onclick=ST.open;
+    anchor.parentNode.insertBefore(b,anchor.nextSibling); return true;
+  }
+  function tryAdd(n){ if(addBtn()||n>40) return; setTimeout(()=>tryAdd(n+1),250); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>tryAdd(0)); else tryAdd(0);
 })();
 </script>
 
