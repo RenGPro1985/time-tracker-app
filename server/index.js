@@ -398,11 +398,15 @@ app.post('/api/slack/request', async (req, res) => {
     const {data:r,error}=await admin.from('requests').select('*').eq('id',requestId).single();
     if(error||!r) return res.status(404).json({error:'Request not found.'});
     if(r.staff_id!==caller.user.id) return res.status(403).json({error:'You can only notify your own request.'});
-    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}[r.type];
+    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance',half_day:'Half Day'}[r.type];
     if(!typeLabel) return res.status(400).json({error:'Unsupported request type.'});
     const client=await clientName(caller.row.client_id);
     const fields=[['Staff',caller.row.full_name],['Client',client],['Request',typeLabel]];
-    if(r.type==='pto'){
+    if(r.type==='half_day'){
+      fields.push(['Shift date',phtDate(r.start_date+'T12:00:00+08:00')]);
+      if(r.half_part) fields.push(['Half',r.half_part==='first'?'1st half':'2nd half']);
+      if(r.late_filing) fields.push(['Filing','⏰ Late filing (more than 24h after the shift)']);
+    }else if(r.type==='pto'){
       fields.push(['Dates',`${phtDate(r.start_date+'T00:00:00+08:00')} – ${phtDate(r.end_date+'T00:00:00+08:00')}`],['Requested',`${inclusiveDays(r.start_date,r.end_date)} calendar day(s)`]);
     }else{
       fields.push(['Amount',peso(r.amount)],['Repayment',`${Number(r.cutoffs||0)} cutoff(s)`]);
@@ -425,14 +429,16 @@ app.post('/api/slack/request-rejected', async (req, res) => {
     if(r.status!=='rejected'||!String(r.rejection_reason||'').trim()){
       return res.status(409).json({error:'The request must be rejected with a reason before notifying payroll.'});
     }
-    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance'}[r.type];
+    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance',half_day:'Half Day'}[r.type];
     if(!typeLabel) return res.status(400).json({error:'Unsupported request type.'});
     const {data:staff,error:staffErr}=await admin.from('staff')
       .select('id, full_name, client_id').eq('id',r.staff_id).single();
     if(staffErr||!staff) return res.status(404).json({error:'Request staff account not found.'});
     const client=await clientName(staff.client_id);
     const fields=[['Staff',staff.full_name],['Client',client],['Request',typeLabel]];
-    if(r.type==='pto'){
+    if(r.type==='half_day'){
+      fields.push(['Shift date',phtDate(r.start_date+'T12:00:00+08:00')]);
+    }else if(r.type==='pto'){
       fields.push(['Dates',`${phtDate(r.start_date+'T00:00:00+08:00')} – ${phtDate(r.end_date+'T00:00:00+08:00')}`],['Requested',`${inclusiveDays(r.start_date,r.end_date)} calendar day(s)`]);
     }else{
       fields.push(['Amount',peso(r.amount)],['Repayment',`${Number(r.cutoffs||0)} cutoff(s)`]);
@@ -545,6 +551,59 @@ function durText(min){min=Math.max(0,Math.round(min));const h=Math.floor(min/60)
 function noticePayload(lines,fallback){
   return {text:safeSlack(fallback,2500),blocks:lines.filter(Boolean).map(t=>({type:'section',text:{type:'mrkdwn',text:t}}))};
 }
+/* Shift-date window: a log-in inside the 60-min early grace before TOMORROW's window belongs to
+   tomorrow; a log-in after 12MN that falls inside LAST NIGHT's window belongs to last night's
+   shift (half day / late log-in); otherwise today's window. Same rule as the portal. [2026-10-23] */
+function anchoredShiftWindow(client,at){
+  const d=phIsoDate(at);
+  const nxt=srvShiftWindow(client,addIsoDays(d,1));
+  if(nxt&&at>=new Date(nxt.start.getTime()-EARLY_LOGIN_GRACE_MIN_SRV*60000)) return {...nxt,date:addIsoDays(d,1)};
+  const prv=srvShiftWindow(client,addIsoDays(d,-1));
+  if(prv&&at>=new Date(prv.start.getTime()-EARLY_LOGIN_GRACE_MIN_SRV*60000)&&at<prv.end) return {...prv,date:addIsoDays(d,-1)};
+  const cur=srvShiftWindow(client,d);
+  return cur?{...cur,date:d}:null;
+}
+// Build everything a login/logout notice needs for one shift (route + backfill sweep share this).
+async function shiftNoticeData(shift,staffRow){
+  let client=null;
+  if(staffRow.client_id){
+    const {data:c}=await admin.from('clients').select('id, name, shift_start, shift_end').eq('id',staffRow.client_id).maybeSingle();
+    client=c||null;
+  }
+  const win=client?anchoredShiftWindow(client,new Date(shift.login_at)):null;
+  // Other shifts of this staff in the same shift-day (window start - 60 min grace .. window end), or last 12h if no client
+  const from=win?new Date(win.start.getTime()-EARLY_LOGIN_GRACE_MIN_SRV*60000):new Date(new Date(shift.login_at).getTime()-12*3600000);
+  const to=win?win.end:new Date(new Date(shift.login_at).getTime()+12*3600000);
+  const {data:sameDay,error:sdErr}=await admin.from('shifts').select('id, login_at, logout_at')
+    .eq('staff_id',shift.staff_id).gte('login_at',from.toISOString()).lte('login_at',to.toISOString()).order('login_at',{ascending:true});
+  if(sdErr) throw sdErr;
+  let halfDay=null;
+  if(win){
+    const {data:hd}=await admin.from('requests').select('id, status, half_part').eq('staff_id',shift.staff_id).eq('type','half_day').eq('start_date',win.date).neq('status','rejected').limit(1);
+    halfDay=(hd&&hd[0])||null;
+  }
+  return {shift,client,win,sameDay:sameDay||[],halfDay,
+    name:safeSlack(staffRow.full_name||'Staff',120),clientName:safeSlack(client?.name||'No client',120),
+    NAME:safeSlack(String(staffRow.full_name||'Staff').toUpperCase(),120),CLIENT:safeSlack(String(client?.name||'No client').toUpperCase(),120)};
+}
+function loginNoticePayload(ctx,{late=false}={}){
+  const {shift,win,sameDay,halfDay,name,clientName,NAME,CLIENT}=ctx;
+  const login=new Date(shift.login_at);
+  const earlier=sameDay.filter(s=>s.id!==shift.id&&new Date(s.login_at)<login);
+  const lateNote=late?`📨 _Late notice — the portal did not send this at log-in._`:'';
+  if(earlier.length){
+    return noticePayload([`↩️ _${name} (${clientName}) logged back in · ${phtClock(login)} PHT_`,lateNote],`${name} (${clientName}) logged back in · ${phtClock(login)} PHT`);
+  }
+  const lateMin=win?Math.floor((login-win.start)/60000):0;
+  const shiftTxt=win?` · Shift ${phtClock(win.start)}–${phtClock(win.end)} PHT`:'';
+  const tag=halfDay
+    ? `🌓 _Half Day${halfDay.half_part==='first'?' (1st half)':halfDay.half_part==='second'?' (2nd half)':''} filed${halfDay.status==='pending'?' · waiting for Sir Rendy':''}._`
+    : (lateMin>=1?`⏰ _Late ${lateMin} min si *${name}* of *${clientName}*, I hope you are okay and that your day gets better._`:'');
+  return noticePayload([
+    `🎉 *${NAME}* of *${CLIENT}* HAS LOGGED IN for today's awesome shift!\n🕘 Log-in time: *${phtClock(login)} PHT*${shiftTxt}`,
+    tag, lateNote
+  ],`${name} of ${clientName} HAS LOGGED IN for today's awesome shift! Log-in time: ${phtClock(login)} PHT`+(halfDay?' · Half Day':lateMin>=1?` · Late ${lateMin} min`:''));
+}
 async function shiftNoticeContext(req,res){
   const caller=await requireActiveUser(req,res); if(!caller) return null;
   const shiftId=String(req.body?.shift_id||'');
@@ -552,44 +611,60 @@ async function shiftNoticeContext(req,res){
   const {data:shift,error}=await admin.from('shifts').select('id, staff_id, login_at, logout_at, logout_reason').eq('id',shiftId).single();
   if(error||!shift){res.status(404).json({error:'Shift not found.'});return null;}
   if(shift.staff_id!==caller.user.id){res.status(403).json({error:'You can only notify your own shift.'});return null;}
-  let client=null;
-  if(caller.row.client_id){
-    const {data:c}=await admin.from('clients').select('id, name, shift_start, shift_end').eq('id',caller.row.client_id).maybeSingle();
-    client=c||null;
-  }
-  const win=client?nearestShiftWindow(client,new Date(shift.login_at)):null;
-  // Other shifts of this staff in the same shift-day (window start - 60 min grace .. window end), or last 12h if no client
-  const from=win?new Date(win.start.getTime()-EARLY_LOGIN_GRACE_MIN_SRV*60000):new Date(new Date(shift.login_at).getTime()-12*3600000);
-  const to=win?win.end:new Date(new Date(shift.login_at).getTime()+12*3600000);
-  const {data:sameDay,error:sdErr}=await admin.from('shifts').select('id, login_at, logout_at')
-    .eq('staff_id',shift.staff_id).gte('login_at',from.toISOString()).lte('login_at',to.toISOString()).order('login_at',{ascending:true});
-  if(sdErr) throw sdErr;
-  return {caller,shift,client,win,sameDay:sameDay||[],
-    name:safeSlack(caller.row.full_name||'Staff',120),clientName:safeSlack(client?.name||'No client',120),
-    NAME:safeSlack(String(caller.row.full_name||'Staff').toUpperCase(),120),CLIENT:safeSlack(String(client?.name||'No client').toUpperCase(),120)};
+  return {caller,...(await shiftNoticeData(shift,caller.row))};
 }
 
 app.post('/api/slack/login', async (req, res) => {
   try{
     const ctx=await shiftNoticeContext(req,res); if(!ctx) return;
-    const {shift,win,sameDay,name,clientName,NAME,CLIENT}=ctx;
-    const login=new Date(shift.login_at);
-    const earlier=sameDay.filter(s=>s.id!==shift.id&&new Date(s.login_at)<login);
-    let payload;
-    if(earlier.length){
-      payload=noticePayload([`↩️ _${name} (${clientName}) logged back in · ${phtClock(login)} PHT_`],`${name} (${clientName}) logged back in · ${phtClock(login)} PHT`);
-    }else{
-      const lateMin=win?Math.floor((login-win.start)/60000):0;
-      const shiftTxt=win?` · Shift ${phtClock(win.start)}–${phtClock(win.end)} PHT`:'';
-      payload=noticePayload([
-        `🎉 *${NAME}* of *${CLIENT}* HAS LOGGED IN for today's awesome shift!\n🕘 Log-in time: *${phtClock(login)} PHT*${shiftTxt}`,
-        lateMin>=1?`⏰ _Late ${lateMin} min si *${name}* of *${clientName}*, I hope you are okay and that your day gets better._`:''
-      ],`${name} of ${clientName} HAS LOGGED IN for today's awesome shift! Log-in time: ${phtClock(login)} PHT`+(lateMin>=1?` · Late ${lateMin} min`:''));
-    }
-    const result=await sendSlackOnce({eventKey:`login:${shift.id}`,destination:'SMB general',eventType:'activity',entityId:shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
+    const payload=loginNoticePayload(ctx);
+    const result=await sendSlackOnce({eventKey:`login:${ctx.shift.id}`,destination:'SMB general',eventType:'activity',entityId:ctx.shift.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload});
     res.json({ok:true,...result});
   }catch(e){console.error('Slack login notification failed:',e);res.status(502).json({error:e.message||'Slack notification failed.'});}
 });
+
+/* Missed log-in notices backfill [Rendy, 2026-10-23]. If a staff member's browser never sent
+   the log-in notice (old open tab, closed too fast, network), the server posts it within ~5 min,
+   marked as a late notice. Only shifts logged in during the last 14h, at least 3 min ago, with
+   NO login:<shift> row in the delivery log at all (a failed post is not retried here), and never
+   for shifts an admin added by hand. */
+const LOGIN_NOTICE_FLOOR = '2026-10-22T21:40:00Z'; // log-in notices went live Oct 23 05:40 PHT
+let loginSweepRunning=false;
+async function loginNoticeSweep(){
+  if(loginSweepRunning||!SLACK_GENERAL_WEBHOOK_URL) return;
+  loginSweepRunning=true;
+  try{
+    const fromMs=Math.max(Date.now()-14*3600000,new Date(LOGIN_NOTICE_FLOOR).getTime());
+    let {data:shifts,error}=await admin.from('shifts').select('id, staff_id, login_at, logout_at, logout_reason, added_by')
+      .gte('login_at',new Date(fromMs).toISOString()).lte('login_at',new Date(Date.now()-3*60000).toISOString()).limit(500);
+    if(error&&/added_by/.test(error.message||'')){
+      ({data:shifts,error}=await admin.from('shifts').select('id, staff_id, login_at, logout_at, logout_reason')
+        .gte('login_at',new Date(fromMs).toISOString()).lte('login_at',new Date(Date.now()-3*60000).toISOString()).limit(500));
+    }
+    if(error) throw error;
+    const list=(shifts||[]).filter(sh=>!sh.added_by);
+    if(!list.length) return;
+    const keys=list.map(sh=>`login:${sh.id}`);
+    const {data:logs,error:le}=await admin.from('slack_notification_log').select('event_key').in('event_key',keys);
+    if(le) throw le;
+    const have=new Set((logs||[]).map(x=>x.event_key));
+    const missing=list.filter(sh=>!have.has(`login:${sh.id}`));
+    if(!missing.length) return;
+    const {data:staff,error:se}=await admin.from('staff').select('id, full_name, client_id, role, active').in('id',[...new Set(missing.map(x=>x.staff_id))]);
+    if(se) throw se;
+    for(const sh of missing.sort((a,b)=>a.login_at<b.login_at?-1:1)){
+      const st=(staff||[]).find(x=>x.id===sh.staff_id); if(!st||!st.active||st.role==='admin') continue;
+      try{
+        const ctx=await shiftNoticeData(sh,st);
+        await sendSlackOnce({eventKey:`login:${sh.id}`,destination:'SMB general',eventType:'activity',entityId:sh.id,webhook:SLACK_GENERAL_WEBHOOK_URL,payload:loginNoticePayload(ctx,{late:true})});
+        await sleep(400);
+      }catch(e){console.error('Login notice backfill failed for',sh.id,e.message);}
+    }
+  }catch(e){console.error('Login notice sweep failed:',e.message);}
+  finally{loginSweepRunning=false;}
+}
+setInterval(loginNoticeSweep,5*60*1000);
+setTimeout(loginNoticeSweep,30000);
 
 /* Login speed test → SMB General [Rendy, 2026-10-23]. The browser measures the staff member's
    connection right after LOGIN; this posts it once per shift (slack_notification_log key
@@ -910,8 +985,8 @@ app.post('/api/admin/shifts/:id/force-logout', async (req, res) => {
 const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN || '';
 const PORTAL_URL = APP_URL || 'https://rengpro1985.github.io/time-tracker-app/';
 const DM_REQ_LABEL = {pto:'PTO',pch:'Paid Client Holiday',planned_absence:'Planned Absence',sick_leave:'Sick Leave',
-  reimbursement:'Reimbursement',salary_advance:'Salary Advance',cash_advance:'Cash Advance'};
-const DM_DATED = new Set(['pto','pch','planned_absence','sick_leave']);
+  reimbursement:'Reimbursement',salary_advance:'Salary Advance',cash_advance:'Cash Advance',half_day:'Half Day'};
+const DM_DATED = new Set(['pto','pch','planned_absence','sick_leave','half_day']);
 
 async function slackApi(method, body){
   if(!SLACK_BOT_TOKEN) throw new Error('SLACK_BOT_TOKEN is not set on Render.');
@@ -1031,6 +1106,7 @@ function requestDm(r, s){
   const ok = r.status!=='rejected';
   const lines = [ok ? `✅ *Your ${what} was approved*` : `❌ *Your ${what} was not approved*`];
   if(ok && (r.type==='salary_advance'||r.type==='cash_advance') && Number(r.cutoffs)>0) lines.push(`Repaid over ${Number(r.cutoffs)} cutoff${Number(r.cutoffs)===1?'':'s'}.`);
+  if(ok && r.type==='half_day') lines.push('That shift will not count against your Reliability rating. Your Contractor Fee is based on the hours you actually logged.');
   if(ok && r.type==='reimbursement' && r.payout_cutoff) lines.push(`Added to your Contractor Fee on ${dmCutoffLabel(String(r.payout_cutoff).slice(0,10))}.`);
   if(!ok && r.rejection_reason) lines.push(`*Reason:* ${safeSlack(r.rejection_reason,800)}`);
   return {text:(ok?'Approved: ':'Not approved: ')+what, blocks:dmBlocks(lines,`Details: <${PORTAL_URL}|SMB Portal> → Requests`)};
@@ -1075,6 +1151,77 @@ function timesheetDm(a, kind){
   if(kind==='again' && a.reset_reason) lines.push(`*What changed:* ${safeSlack(a.reset_reason,300)}`);
   lines.push(`👉 <${PORTAL_URL}|Open the SMB Portal> and tap *Acknowledge*, or report an issue, by *${due}*.`);
   return {text:`Timesheet ${per}: please review and acknowledge`, blocks:dmBlocks(lines,`Contractor Fee for this period: ${dmCutoffLabel(String(a.cutoff_date).slice(0,10))}`)};
+}
+
+function fmtPhtShort(iso){ return new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}).format(new Date(iso)); }
+function editLogoutDm(l){
+  const day = l.shift_date ? dmNiceDate(String(l.shift_date).slice(0,10)) : fmtPhtShort(l.new_logout);
+  const lines = [`🕘 *Sir Rendy updated your logout time for ${day}*`, `New logout: *${phtClock(l.new_logout)} PHT*${l.old_logout?` (was ${phtClock(l.old_logout)})`:' (your shift was still open)'}`];
+  if(l.merged && Array.isArray(l.merged) && l.merged.length) lines.push(`Your log-in after that was joined into the same shift.`);
+  if(l.reason) lines.push(`*Reason:* ${safeSlack(l.reason,300)}`);
+  return {text:`Sir Rendy updated your logout time for ${day}`, blocks:dmBlocks(lines,`Check your hours in the <${PORTAL_URL}|SMB Portal>`)};
+}
+function addShiftDm(rows){
+  rows = rows.slice().sort((a,b)=>String(a.shift_date)<String(b.shift_date)?-1:1);
+  const n = rows.length, d0 = String(rows[0].shift_date).slice(0,10), d1 = String(rows[n-1].shift_date).slice(0,10);
+  const lines = [`🗓️ *Sir Rendy added ${n} shift${n===1?'':'s'} (${dmRange(d0,d1)}) to your timesheet*`];
+  rows.slice(0,8).forEach(r=>lines.push(`• ${dmShortDate(String(r.shift_date).slice(0,10))}: ${phtClock(r.new_login)} – ${phtClock(r.new_logout)} PHT`));
+  if(n>8) lines.push(`…and ${n-8} more.`);
+  if(rows[0].reason) lines.push(`*Reason:* ${safeSlack(rows[0].reason,300)}`);
+  return {text:`Sir Rendy added ${n} shift${n===1?'':'s'} to your timesheet`, blocks:dmBlocks(lines,`Check your hours in the <${PORTAL_URL}|SMB Portal>`)};
+}
+function halfDayReminderDm(dateIso, workedMin){
+  const lines = [`🌓 *Your shift on ${dmNiceDate(dateIso)} was short* (${durText(workedMin)} logged).`,
+    'If this was a half day, please file a *Half Day* request now (Requests → New request → Half Day). It must be filed within *24 hours* of the shift.',
+    'If it was something else, you can ignore this message.'];
+  return {text:`Your shift on ${dmNiceDate(dateIso)} was short — file a Half Day request within 24h if it was a half day`, blocks:dmBlocks(lines,`<${PORTAL_URL}|Open the SMB Portal>`)};
+}
+
+/* Half Day reminder [Rendy, 2026-10-23]: when a shift-day ends more than 1h short of 8h worked
+   inside the scheduled window (60min Break not counted), and no Half Day / leave is on file,
+   DM once asking them to file a Half Day within 24h. Waits 30 min after the last logout (in case
+   they log back in) and only looks at the last 24h. */
+const HALFDAY_SHORT_MIN = 420; // worked under 7h (8h minus 1h) inside the shift window
+async function halfDayReminderSweep(since){
+  const now = Date.now();
+  const {data:shifts,error} = await admin.from('shifts').select('id, staff_id, login_at, logout_at')
+    .gte('login_at',new Date(Math.max(now-36*3600000,new Date(since).getTime()-12*3600000)).toISOString()).limit(2000);
+  if(error) throw error;
+  if(!(shifts||[]).length) return;
+  const sm = await dmStaffMap(shifts.map(x=>x.staff_id));
+  const clientIds = [...new Set([...sm.values()].map(s=>s.client_id).filter(Boolean))];
+  const {data:cl} = clientIds.length ? await admin.from('clients').select('id, shift_start, shift_end').in('id',clientIds) : {data:[]};
+  const groups = new Map();
+  for(const sh of shifts){
+    const st = sm.get(String(sh.staff_id)); if(!st||!st.active||st.role==='admin') continue;
+    const c = (cl||[]).find(x=>x.id===st.client_id); if(!c) continue;
+    const w = anchoredShiftWindow(c,new Date(sh.login_at)); if(!w) continue;
+    const k = st.id+'|'+w.date; if(!groups.has(k)) groups.set(k,{st,w,shifts:[]});
+    groups.get(k).shifts.push(sh);
+  }
+  for(const g of groups.values()){
+    const {st,w} = g;
+    if(w.end.getTime() > now) continue;                          // scheduled shift not over yet
+    if(g.shifts.some(s=>!s.logout_at)) continue;                  // still logged in somewhere
+    const lastOut = Math.max(...g.shifts.map(s=>new Date(s.logout_at).getTime()));
+    if(now-lastOut < 30*60000 || now-w.end.getTime() > 24*3600000) continue;
+    if(w.end.getTime() < new Date(since).getTime()) continue;     // nothing from before this feature went live
+    const key = `dm:halfday:${st.id}:${w.date}`;
+    const {data:done} = await admin.from('slack_notification_log').select('event_key').eq('event_key',key).maybeSingle();
+    if(done) continue;
+    const {data:ents,error:ee} = await admin.from('entries').select('activity, started_at, ended_at, active').in('shift_id',g.shifts.map(s=>s.id));
+    if(ee) throw ee;
+    const ws=w.start.getTime(), we=w.end.getTime();
+    const worked = (ents||[]).filter(e=>e.active!==false&&e.activity!=='60min Break'&&e.ended_at).reduce((m,e)=>{
+      const a=Math.max(ws,new Date(e.started_at).getTime()), b=Math.min(we,new Date(e.ended_at).getTime());
+      return m+Math.max(0,b-a)/60000; },0);
+    if(worked >= HALFDAY_SHORT_MIN || worked < 1) continue;
+    const {data:hd} = await admin.from('requests').select('id').eq('staff_id',st.id).eq('type','half_day').eq('start_date',w.date).neq('status','rejected').limit(1);
+    if(hd&&hd.length) continue;
+    const {data:lv} = await admin.from('leave_days').select('id').eq('staff_id',st.id).eq('date',w.date).limit(1);
+    if(lv&&lv.length) continue;
+    await dmTry(()=>sendDmOnce({eventKey:key,entityId:`${st.id}:${w.date}`,staff:st,...halfDayReminderDm(w.date,worked)}),'halfday-reminder');
+  }
 }
 
 // ---- the sweep ----
@@ -1156,6 +1303,25 @@ async function dmSweep(force=false){
     }
     // 6) timesheet acknowledgements
     await tsSweep(since);
+    // 7) admin shift changes: Edit logout time + Add shift (SQL table shift_admin_log) [2026-10-23]
+    {
+      const {data:logs,error} = await admin.from('shift_admin_log').select('*').gte('edited_at',floor).order('edited_at').limit(500);
+      if(!error && logs && logs.length){
+        const sm = await dmStaffMap(logs.map(l=>l.staff_id));
+        for(const l of logs.filter(x=>x.action==='edit_logout')){
+          const s = sm.get(String(l.staff_id)); if(!s||!s.active||s.role==='admin') continue;
+          await dmTry(()=>sendDmOnce({eventKey:`dm:editlogout:${l.id}`,entityId:l.id,staff:s,...editLogoutDm(l)}),'edit-logout');
+        }
+        const batches = new Map();
+        logs.filter(x=>x.action==='add_shift'&&x.batch_id).forEach(l=>{ if(!batches.has(l.batch_id)) batches.set(l.batch_id,[]); batches.get(l.batch_id).push(l); });
+        for(const [bid,rows] of batches){
+          const s = sm.get(String(rows[0].staff_id)); if(!s||!s.active||s.role==='admin') continue;
+          await dmTry(()=>sendDmOnce({eventKey:`dm:addshift:${bid}`,entityId:bid,staff:s,...addShiftDm(rows)}),'add-shift');
+        }
+      }
+    }
+    // 8) Half Day reminder for short shifts
+    try{ await halfDayReminderSweep(since); }catch(e){ console.error('Half Day reminder sweep failed:', e.message); }
     dmStats.last = new Date().toISOString(); dmStats.lastError = null;
     return {ok:true};
   }catch(e){
@@ -1222,11 +1388,15 @@ async function tsSweep(since){
       }
     }
     // e) issue reported → payroll-and-sheet (once per round)
-    if(a.status==='issue' && a.answered_at && now - new Date(a.answered_at) < 7*86400000 && SLACK_PAYROLL_WEBHOOK_URL){
+    // (waits 45 s after the answer so screenshots uploaded right after it are counted)
+    if(a.status==='issue' && a.answered_at && now - new Date(a.answered_at) >= 45000 && now - new Date(a.answered_at) < 7*86400000 && SLACK_PAYROLL_WEBHOOK_URL){
       const client = await clientName(s.client_id);
+      let shots = 0;
+      { const {count,error:fe} = await admin.from('staff_files').select('id',{count:'exact',head:true}).eq('ts_ack_id',a.id).eq('ts_ack_round',a.round); if(!fe) shots = count||0; }
       const fields = [['Staff',s.full_name],['Client',client],['Period',dmRange(String(a.period_start).slice(0,10),String(a.period_end).slice(0,10))]];
       if(a.issue_date) fields.push(['Day',dmNiceDate(String(a.issue_date).slice(0,10))]);
       if(a.hours!=null) fields.push(['Hours they saw',String(a.hours)]);
+      if(shots) fields.push(['Screenshots',`📎 ${shots} screenshot${shots===1?'':'s'} attached (open in the portal: Contractor Ledger → ⚠️ Issue)`]);
       const payload = slackPayload('⚠️ Timesheet Issue Reported', fields, 'Fix it in the portal, then use "Ask again" on the Contractor Ledger so they re-acknowledge.', a.issue_text||'', 'Issue');
       await sendSlackOnce({eventKey:`ts-issue:${a.id}:${a.round}`,destination:'payroll-and-sheet',eventType:'request',entityId:a.id,webhook:SLACK_PAYROLL_WEBHOOK_URL,payload})
         .catch(e=>console.error('Timesheet issue post failed:', e.message));
