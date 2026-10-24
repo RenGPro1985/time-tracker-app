@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="smb-build" content="2026-10-24-b24">
+<meta name="smb-build" content="2026-10-24-b25">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SMB VS Portal</title>
@@ -948,7 +948,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="grid ad-summary" style="grid-template-columns:repeat(4,minmax(0,1fr))">
         <div class="stat"><div class="k">Total logged-in hours</div><div class="v" id="adLoggedInHrs">—</div></div>
         <div class="stat"><div class="k">Total break time</div><div class="v" style="color:var(--gold)" id="adBreakHrs">—</div></div>
-        <div class="stat"><div class="k">Actual working time</div><div class="v" style="color:var(--teal)" id="adWorkingHrs">—</div></div>
+        <div class="stat"><div class="k">On-task time (excl. all breaks)</div><div class="v" style="color:var(--teal)" id="adWorkingHrs">—</div></div>
         <div class="stat"><div class="k">Late log-ins</div><div class="v" style="color:var(--rose)" id="adLateCount">—</div></div>
       </div>
       <div class="card">
@@ -958,7 +958,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
             <th rowspan="2" id="adFirstColHead">Staff</th><th rowspan="2">Shift<br>(PHT)</th><th rowspan="2">Late<br>log-in</th><th rowspan="2">Logged-in<br>hours</th>
             <th colspan="2" class="b15 grp first">15min Break</th><th colspan="2" class="b30 grp first">30min Break</th><th colspan="2" class="b60 grp first">60min Break</th>
             <th colspan="2" class="bp grp first">Personal Break</th><th colspan="2" class="bb grp first">Bio Break</th><th colspan="2" class="bh grp first">H2O Break</th>
-            <th rowspan="2">Total break<br>time</th><th rowspan="2">Actual working<br>time</th>
+            <th rowspan="2">Total break<br>time</th><th rowspan="2">On-task time<br>(excl. all breaks)</th>
           </tr>
           <tr>
             <th class="b15 first">Sessions /<br>max instances</th><th class="b15">Total<br>time</th>
@@ -967,7 +967,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
             <th class="bp first">Sessions</th><th class="bp">Total<br>time</th><th class="bb first">Sessions</th><th class="bb">Total<br>time</th><th class="bh first">Sessions</th><th class="bh">Total<br>time</th>
           </tr>
         </thead><tbody id="adherenceTable"></tbody></table></div>
-        <div class="muted" style="font-size:10.5px;margin-top:8px">Actual working time = logged-in hours − total break time. For 15/30/60-minute breaks, sessions are raw records and instances are grouped per shift under the allowance rules. A status is <b>Over limit</b> only when a shift exceeds its allowed instance count.</div>
+        <div class="muted" style="font-size:10.5px;margin-top:8px">On-task time = logged-in hours − all break time, including paid 15-min, Bio and H2O breaks. It is <b>not</b> paid hours — paid hours are on the Timesheet. For 15/30/60-minute breaks, sessions are raw records and instances are grouped per shift under the allowance rules. A status is <b>Over limit</b> only when a shift exceeds its allowed instance count.</div>
       </div>
     </section>
 
@@ -1279,10 +1279,15 @@ const BREAK_INSTANCE_RULES = {
 };
 /* Groups an activity's raw [start,end] ms intervals into "instances" per BREAK_INSTANCE_RULES,
    merging entries less than mergeGapMin apart. Chronological order preserved. */
+/* b25 (Rendy 2026-10-24): a 15/30/60min Break record shorter than TINY_BREAK_SEC is an
+   accidental tap — it never counts as an instance (so it can't push a real break to #3),
+   and its few seconds stay paid. Must match server/index.js groupBreakInstances. */
+const TINY_BREAK_SEC = 30;
+function isTinyBreakIv(iv,activity){ return !!BREAK_INSTANCE_RULES[activity] && (iv[1]-iv[0]) < TINY_BREAK_SEC*1000; }
 function groupActivityInstances(intervals,activity){
   const rule=BREAK_INSTANCE_RULES[activity]||{};
   const mergeGapMs=(rule.mergeGapMin||0)*60000;
-  const sorted=intervals.slice().sort((a,b)=>a[0]-b[0]);
+  const sorted=intervals.filter(iv=>!isTinyBreakIv(iv,activity)).sort((a,b)=>a[0]-b[0]);
   const groups=[];
   sorted.forEach(iv=>{
     const g=groups[groups.length-1];
@@ -1312,6 +1317,8 @@ function activityCapResult(intervals,activity,cap){
       billableIntervals.push(...mergeIntervals(g));
     }
   });
+  const tiny=intervals.filter(iv=>isTinyBreakIv(iv,activity));
+  if(tiny.length){ const extra=subtractIntervals(mergeIntervals(tiny),mergeIntervals(billableIntervals)); billableMinutes+=unionMinutes(extra); billableIntervals.push(...extra); }
   return {billableMinutes,overMinutes,billableIntervals,instanceCount:groups.length};
 }
 const REGULAR_DAILY_CAP_MIN = 8*60; // hard cap: regular (non-Overtime) billable can never exceed 8h/day
@@ -4419,7 +4426,7 @@ function downloadAdherenceCsv(){
     head.push(`${act} recorded sessions`,`${act} total policy instances`,`${act} highest instances in one shift`,`${act} time (HH:MM)`,`${act} status`);
   });
   ['Personal Break','Bio Break','H2O Break'].forEach(act=>head.push(`${act} sessions`,`${act} time (HH:MM)`));
-  head.push('Total break time (HH:MM)','Actual working time (HH:MM)');
+  head.push('Total break time (HH:MM)','On-task time excl. all breaks (HH:MM)');
   const lines=[[`Adherence & productivity ${adRangeStr.replace('_',' to ')} (Philippine time)`],[],head];
   const line=(name,dateText,r,perShift)=>{
     const lateText=perShift?(r.shifts?(r.lateCount?`Yes - ${Math.round(r.lateMinTotal)} min`:'No'):'—'):(r.shifts?`${r.lateCount}/${r.shifts}`:'—');
@@ -9369,7 +9376,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   .eod-wrap{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;align-items:start}
   @media(max-width:1000px){.eod-wrap{grid-template-columns:1fr}}
   .eod-sec{border-left:3px solid var(--teal);padding-left:12px;margin-top:16px}
-  .eod-sec.lo{border-color:var(--rose)}.eod-sec.bl{border-color:var(--gold)}.eod-sec.gl{border-color:#8E7CF0}.eod-sec.tk{border-color:var(--slate)}
+  .eod-sec.lo{border-color:var(--rose)}.eod-sec.bl{border-color:var(--gold)}.eod-sec.gl{border-color:#8E7CF0}.eod-sec.tk{border-color:var(--slate)}.eod-sec.ms{border-color:var(--teal)}
   .eod-sec>label,.eod-wrap label,.eod-ov label{text-transform:none;letter-spacing:0}
   .eod-sec>label{display:block;font-weight:600;font-size:13px;color:var(--ink);margin-bottom:6px}
   .eod-hint{color:var(--muted);font-size:11px;font-weight:400;margin-left:6px}
@@ -9491,6 +9498,8 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
             <textarea id="eodHi" rows="4" maxlength="4000" ${dis}>${esc(r.highlights||'')}</textarea></div>
           <div class="eod-sec lo"><label>🌧️ Lowlights <span class="eod-hint">what didn’t go well, at work or in life</span></label>
             <textarea id="eodLo" rows="3" maxlength="4000" ${dis}>${esc(r.lowlights||'')}</textarea></div>
+          <div class="eod-sec ms"><label>🗂️ Miscellaneous <span class="eod-hint">anything else worth noting — optional</span></label>
+            <textarea id="eodMs" rows="2" maxlength="4000" ${dis}>${esc(r.misc||'')}</textarea></div>
           <div class="eod-sec bl"><label>🚧 Blockers <span class="eod-hint">who do you need help from? Leave blank if none</span></label>
             <textarea id="eodBl" rows="2" maxlength="4000" ${dis}>${esc(r.blockers||'')}</textarea></div>
           <div class="eod-sec tk"><label>📋 What I worked on <span class="eod-hint">optional — one task per line</span></label>
@@ -9552,7 +9561,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const nums={}; document.querySelectorAll('#eodForm [data-num]').forEach(i=>{ if(i.value.trim()) nums[i.dataset.num]=i.value.trim(); });
     const g=document.querySelector('#eodForm [data-goal].on');
     return {report_date:E.state.ctx.date, shift_id:E.state.ctx.shift?E.state.ctx.shift.id:null, numbers:nums,
-      goal_status:g?g.dataset.goal:null, highlights:$('eodHi').value, lowlights:$('eodLo').value, blockers:$('eodBl').value,
+      goal_status:g?g.dataset.goal:null, highlights:$('eodHi').value, lowlights:$('eodLo').value, misc:$('eodMs').value, blockers:$('eodBl').value,
       tasks:$('eodTk').value, link:$('eodLink').value, mood:(document.querySelector('#eodForm [data-mood].on')||{dataset:{}}).dataset.mood||null, mood_note:$('eodMoodNote').value};
   }
   async function saveReport(submit){
@@ -9667,7 +9676,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       <div class="row" style="gap:6px;flex-wrap:wrap">${statusChipFor(r)}${r.mood?`<span class="eod-chip ${moodLow(r.mood)?'miss':''}">${moodEmo(r.mood)} ${esc(moodOf(r.mood)[2])}${r.mood_note?' — '+esc(r.mood_note):''}</span>`:''}${r.goal_status?`<span class="eod-chip">${{on_track:'Goal: on track',at_risk:'Goal: at risk',done:'Goal: done'}[r.goal_status]}</span>`:''}${r.goal_result?`<span class="eod-chip">Goal ${r.goal_result}</span>`:''}${r.submitted_at?`<span class="muted" style="font-size:12px">Sent ${fmtTs(r.submitted_at)}</span>`:''}</div>
       ${r.emergency_reason?`<div class="note" style="margin-top:10px;border-color:var(--rose);font-size:12.5px">Emergency log out ${fmtTs(r.emergency_at)}: “${esc(r.emergency_reason)}”</div>`:''}
       ${nums.length?`<div class="eod-nums" style="margin-top:12px">${nums.map(([k,v])=>`<div class="stat" style="padding:10px"><div class="k">${esc(k)}</div><div class="v" style="font-size:18px">${esc(v)}</div></div>`).join('')}</div>`:''}
-      ${sec('✨ Highlights',r.highlights)}${sec('🌧️ Lowlights',r.lowlights,'lo')}${sec('🚧 Blockers',r.blockers,'bl')}${sec('📋 What I worked on',r.tasks,'tk')}
+      ${sec('✨ Highlights',r.highlights)}${sec('🌧️ Lowlights',r.lowlights,'lo')}${sec('🗂️ Miscellaneous',r.misc,'ms')}${sec('🚧 Blockers',r.blockers,'bl')}${sec('📋 What I worked on',r.tasks,'tk')}
       ${kind==='weekly'&&r.next_goal?sec('🎯 Goal for next week',r.next_goal,'gl'):''}
       ${r.link?`<div style="margin-top:12px;font-size:12.5px">🔗 <a href="${esc(/^https?:\/\//i.test(r.link)?r.link:'https://'+r.link)}" target="_blank" rel="noopener" style="color:var(--teal)">${esc(r.link)}</a></div>`:''}`;
   }
@@ -9720,7 +9729,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       <h1>${esc(me.full_name)} — EOD &amp; Weekly log</h1><div class="k">Exported ${new Date().toLocaleString('en-US',{timeZone:'Asia/Manila'})} PHT</div>
       ${rows.map(x=>{const r=x.r; const nums=Object.entries((x.kind==='eod'?r.numbers:r.totals)||{}).map(([k,v])=>esc(k)+': '+esc(v)).join(' · ');
         return `<h2>${x.kind==='weekly'?'Weekly · '+fmtShort(r.week_start):'EOD · '+fmtDate(r.report_date)} ${r.on_time?'':'(late)'}</h2>${nums?`<div class="s"><b>${nums}</b></div>`:''}
-        ${['highlights','lowlights','blockers','tasks','next_goal'].filter(f=>r[f]).map(f=>`<div class="s"><span class="k">${f.replace('_',' ')}</span><br>${nl(r[f])}</div>`).join('')}
+        ${['highlights','lowlights','misc','blockers','tasks','next_goal'].filter(f=>r[f]).map(f=>`<div class="s"><span class="k">${f==='misc'?'miscellaneous':f.replace('_',' ')}</span><br>${nl(r[f])}</div>`).join('')}
         ${r.admin_comment?`<div class="s"><span class="k">Sir Rendy replied</span><br>${nl(r.admin_comment)}</div>`:''}`;}).join('')}
       <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
     w.document.open(); w.document.write(doc); w.document.close();
@@ -9810,7 +9819,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       const lines=f=>reps.filter(r=>r[f]).map(r=>`<div class="it">• <b>${esc(staffName(r.staff_id))}</b> <span class="muted">${fmtShort(r.report_date)}</span> — ${esc(r[f].replace(/\s*\n\s*/g,' / '))}</div>`).join('')||'<div class="it muted">None</div>';
       return {cid,reps,tot,html:`<div class="card" style="background:var(--card2);margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b style="font-size:14px">${esc(clientName(cid==='null'?null:cid))}</b><span class="muted" style="font-size:12px">${reps.length} EODs from ${ss.length} staff</span></div>
         ${Object.keys(tot).length?`<div class="eod-nums" style="margin-top:10px">${Object.entries(tot).map(([k,v])=>`<div class="stat" style="padding:10px"><div class="k">${esc(k)} (week)</div><div class="v" style="font-size:18px">${esc(v)}</div></div>`).join('')}</div>`:''}
-        <div class="eod-dig"><h4>✨ Highlights</h4>${lines('highlights')}<h4>🚧 Blockers</h4>${lines('blockers')}<h4>🌧️ Lowlights <span class="muted" style="font-weight:400;font-size:11px">(private — never include in client copy)</span></h4>${lines('lowlights')}</div></div>`};
+        <div class="eod-dig"><h4>✨ Highlights</h4>${lines('highlights')}<h4>🚧 Blockers</h4>${lines('blockers')}<h4>🌧️ Lowlights <span class="muted" style="font-weight:400;font-size:11px">(private — never include in client copy)</span></h4>${lines('lowlights')}<h4>🗂️ Miscellaneous <span class="muted" style="font-weight:400;font-size:11px">(not in client copy)</span></h4>${lines('misc')}</div></div>`};
     });
     body.innerHTML=`<div class="row" style="justify-content:flex-end;margin-bottom:10px"><button class="btn btn-ghost" id="eodCopy">📋 Copy client-safe summary</button><span class="eod-msg muted" id="eodCopyMsg" style="margin-left:8px"></span></div>${blocks.map(b=>b.html).join('')||'<div class="muted">No reports this week.</div>'}`;
     $('eodCopy').onclick=async()=>{
