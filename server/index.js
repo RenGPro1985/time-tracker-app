@@ -165,12 +165,15 @@ const BREAK_INSTANCE_RULES = {
 /* Groups an activity's raw intervals for one shift into "instances" per BREAK_INSTANCE_RULES,
    merging entries that are less than mergeGapMin apart. Returns instances in chronological
    order, each as {minutes} (union of any sub-intervals in that instance). */
+const TINY_BREAK_SEC = 30; // b25 (Rendy 2026-10-24): 15/30/60min Break records shorter than this are accidental taps
 function groupBreakInstances(entries, activity, nowMs=Date.now()){
   const rule=BREAK_INSTANCE_RULES[activity]||{};
   const mergeGapMs=(rule.mergeGapMin||0)*60000;
   const ivs=(entries||[]).filter(e=>e.activity===activity)
     .map(e=>[new Date(e.started_at).getTime(), e.ended_at?new Date(e.ended_at).getTime():nowMs])
-    .filter(([s,t])=>Number.isFinite(s)&&Number.isFinite(t)&&t>s).sort((a,b)=>a[0]-b[0]);
+    .filter(([s,t])=>Number.isFinite(s)&&Number.isFinite(t)&&t>s)
+    .filter(([s,t])=>!(BREAK_INSTANCE_RULES[activity]&&(t-s)<TINY_BREAK_SEC*1000)) // b25: accidental taps never count as an instance (matches index.html)
+    .sort((a,b)=>a[0]-b[0]);
   const groups=[];
   ivs.forEach(iv=>{
     const g=groups[groups.length-1];
