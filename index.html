@@ -12348,7 +12348,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   const CH={C03TJ99BZ5W:'#general-all-smb-staff',C0A71RYLS9E:'#0-project-manager-corner'};
   const chName=id=>CH[id]||id;
   const t12=h=>{if(!h)return '—';let[a,b]=h.split(':').map(Number);const ap=a>=12?'PM':'AM';a=a%12||12;return `${a}:${String(b).padStart(2,'0')} ${ap}`;};
-  let S=null, editing=null, host=null, timer=null;
+  let S=null, editing=null, host=null, timer=null, dirty=false;
   const portalByEmail=e=>{ if(!e||typeof staffList==='undefined'||!Array.isArray(staffList)) return null; const l=String(e).toLowerCase(); return staffList.find(x=>String(x.email||'').toLowerCase()===l)||null; };
   const nm=r=>{ const p=portalByEmail(r.email); return p&&p.full_name?p.full_name:r.name; };
   const ago=iso=>{ if(!iso) return 'never'; const m=Math.round((Date.now()-new Date(iso).getTime())/60000); return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'; };
@@ -12397,6 +12397,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const dest=s.test_mode?s.test_channel:s.channel;
     const tOk=h.timer.installed&&h.timer.last_tick&&(Date.now()-new Date(h.timer.last_tick).getTime()<5*60000);
     const g=h.gemini, scopesOk=!h.scopes||['channels:history','reactions:write','users:read.email'].every(x=>h.scopes.includes(x));
+    const keep=dirty?snap():null;
     host.innerHTML=`
     <div class="ck-big">
       <span class="state">${s.enabled?'🟢 Running':'⏸️ Paused'}</span>
@@ -12424,8 +12425,13 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       <div class="ck-sec"><div class="ck-h"><h4>LAST 7 NIGHTS</h4></div>${S.history.length?`<table style="font-size:12px"><thead><tr><th>Night</th><th>Topic</th><th>Sent</th><th>Ans.</th></tr></thead><tbody>${S.history.map(x=>`<tr><td class="mono">${esc(x.night.slice(5))}</td><td>${esc(x.topic)} <span class="ck-tag ${x.source==='ai'?'ok':x.source==='mixed'?'warn':'bad'}">${esc(x.source)}</span></td><td class="mono" style="color:${x.sent<s.slots.length&&x.night!==S.night?'var(--rose)':'var(--teal)'}">${x.sent}/${s.slots.length}</td><td class="mono">${x.answers}</td></tr>`).join('')}</tbody></table>`:'<div class="muted" style="font-size:12.5px">No nights yet.</div>'}</div>
       <div class="ck-sec"><div class="ck-h"><h4>ALERTS</h4></div>${S.alerts.length?S.alerts.slice(0,6).map(a=>`<div class="ck-al"><time>${new Date(a.at).toLocaleString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})} PHT</time>${esc(a.text)}</div>`).join(''):'<div class="muted" style="font-size:12.5px">✅ No problems reported.</div>'}</div>
     </div></div>`;
-    wire();
+    if(keep) restore(keep);
+    wire(); markDirty();
   }
+  function snap(){ const o={}; host.querySelectorAll('.ck-form input').forEach(el=>{ o[el.id]=el.type==='checkbox'?el.checked:el.value; }); return o; }
+  function restore(o){ Object.entries(o).forEach(([id,v])=>{ const el=host.querySelector('#'+id); if(!el) return; if(el.type==='checkbox') el.checked=v; else el.value=v; }); }
+  function markDirty(){ const b=host&&host.querySelector('#ckSave'); if(b) b.textContent=dirty?'💾 Save settings (unsaved changes)':'Save settings'; }
+  function busy(){ const a=document.activeElement; return editing!==null||dirty||(a&&host&&host.contains(a)&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); }
   function slot(c,i,nx){
     const done=!!S.posted['c'+i], ans=S.responses.filter(r=>r.idx===i).length, tm=t12(S.settings.slots[i]);
     if(editing===i) return `<div class="ck-slot next"><div class="tm">${tm}</div><div class="ck-edit"><span class="ck-tag f">${esc(FMT[c.format]||c.format||'—')}</span>
@@ -12465,12 +12471,13 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     q('#ckMode').onclick=()=>{ if(S.settings.test_mode && !confirm('Go live? Check-ins will post in #general-all-smb-staff for everyone.')) return; save({test_mode:!S.settings.test_mode}); };
     q('#ckRegen').onclick=async()=>{ q('#ckRegen').textContent='Writing…'; try{ await api('/regenerate',{method:'POST',body:'{}'}); }catch(e){ alert(e.message); } load(); };
     q('#ckSweep').onclick=async()=>{ try{ const r=await api('/sweep',{method:'POST',body:'{}'}); alert(`Scored ${r.scored} new answer(s)${r.synced?`, synced ${r.synced}`:''}.`);}catch(e){alert(e.message)} load(); };
+    host.querySelectorAll('.ck-form input').forEach(el=>{ el.oninput=el.onchange=()=>{ if(!dirty){ dirty=true; markDirty(); } }; });
     q('#ckSave').onclick=()=>save({
       topics:Object.fromEntries(DAYS.map(([k])=>[k,q('#ckT_'+k).value.trim()])),
       slots:q('#ckSlots').value.split(',').map(x=>x.trim()).filter(Boolean).map(x=>x.padStart(5,'0')),
       opener:q('#ckOpener').value.trim(), recap:q('#ckRecap').value.trim(), closer:q('#ckCloser').value.trim(),
       points:{1:+q('#ckP1').value,2:+q('#ckP2').value,3:+q('#ckP3').value},
-      channel:q('#ckCh').value.trim(), test_channel:q('#ckTCh').value.trim(), admin_dm:q('#ckDm').value.trim(), shoutouts:q('#ckShout').checked });
+      channel:q('#ckCh').value.trim(), test_channel:q('#ckTCh').value.trim(), admin_dm:q('#ckDm').value.trim(), shoutouts:q('#ckShout').checked }, true);
     host.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{editing=+b.dataset.edit;render();});
     host.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=()=>{editing=null;render();});
     host.querySelectorAll('[data-save]').forEach(b=>b.onclick=async()=>{ const i=+b.dataset.save;
@@ -12482,15 +12489,16 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       if(!confirm(`Post check-in #${i+1} to ${dest} right now?`)) return;
       try{ await api('/post-now',{method:'POST',body:JSON.stringify({idx:i})}); load(); }catch(e){alert(e.message)} });
   }
-  async function save(patch){ try{ await api('/settings',{method:'POST',body:JSON.stringify(patch)}); await load(); }catch(e){ alert(e.message); } }
+  async function save(patch,isForm){ try{ await api('/settings',{method:'POST',body:JSON.stringify(patch)}); if(isForm) dirty=false; await load(); if(isForm) flash('✅ Saved'); }catch(e){ alert(e.message); } }
+  function flash(t){ const b=host&&host.querySelector('#ckSave'); if(!b) return; b.textContent=t; setTimeout(()=>{ if(!dirty) markDirty(); },2500); }
   async function load(){
     if(!host||!document.body.contains(host)){ clearInterval(timer); return; }
     try{ S=await api('/state'); render(); }
     catch(e){ host.innerHTML=`<div class="note" style="border-color:var(--rose)"><b>Hourly check-in isn't reachable.</b> ${esc(e.message)}<div class="muted" style="margin-top:6px">Check: the <b>checkin</b> edge function is deployed in the check-in Supabase project with <b>Verify JWT OFF</b>, and <code>CHECKIN_URL</code> at the top of index.html is its URL.</div></div>`; }
   }
   function paint(body){
-    css(); host=body; editing=null; host.innerHTML='<div class="muted">Loading hourly check-in…</div>';
-    clearInterval(timer); timer=setInterval(()=>{ if(editing===null) load(); },30000); load();
+    css(); host=body; editing=null; dirty=false; host.innerHTML='<div class="muted">Loading hourly check-in…</div>';
+    clearInterval(timer); timer=setInterval(()=>{ if(!busy()) load(); },30000); load();
   }
   window.Checkin={paint};
 })();
