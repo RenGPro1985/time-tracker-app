@@ -1254,6 +1254,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
    ============================================================ */
 const SUPABASE_URL      = "https://pmgpdldkntsjopfzigeu.supabase.co";      // e.g. https://abcdefgh.supabase.co
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtZ3BkbGRrbnRzam9wZnppZ2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwNzg2MzEsImV4cCI6MjEwMzY1NDYzMX0.HNIDJ6Y6LFl-pYfrESO5EdMHR2bAse9rOD-v59eM49M"; // the "anon public" key - safe in the browser
+const CHECKIN_URL       = "https://lsojaapfnrhjasupdyju.supabase.co/functions/v1/checkin";   // Hourly check-in edge function (its own free Supabase project)
 const SERVER_URL        = "https://time-tracker-app-95fe.onrender.com";        // e.g. https://smb-time-server.onrender.com
 /* ============================================================ */
 
@@ -9744,7 +9745,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     if(E.adm.client==null) E.adm.client='';
     root.innerHTML=`<div class="card">
       <div class="hdr" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-        <div class="eod-tabs">${[['board','📋 Board'],['digest','🧾 Client digest'],['tokens','🎟️ Report tokens (shadow)'],['settings','⚙️ Settings']].map(([k,l])=>`<button data-t="${k}" class="${E.adm.tab===k?'on':''}">${l}</button>`).join('')}</div>
+        <div class="eod-tabs">${[['board','📋 Board'],['digest','🧾 Client digest'],['tokens','🎟️ Report tokens (shadow)'],['checkin','⏰ Hourly check-in'],['settings','⚙️ Settings']].map(([k,l])=>`<button data-t="${k}" class="${E.adm.tab===k?'on':''}">${l}</button>`).join('')}</div>
         <div class="row" style="gap:8px;align-items:center"><select id="eodAWeek" style="width:auto">${adminWeeks().map(w=>`<option value="${w}" ${w===E.adm.week?'selected':''}>Week of ${fmtShort(w)}–${fmtShort(addDays(w,6))}</option>`).join('')}</select>
         <select id="eodAClient" style="width:auto"><option value="">All clients</option>${(clients||[]).map(c=>`<option value="${c.id}" ${c.id===E.adm.client?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
       </div>
@@ -9783,6 +9784,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     if(t==='board') paintBoard(body,staff);
     else if(t==='digest') paintDigest(body,staff);
     else if(t==='tokens') paintTokens(body,staff);
+    else if(t==='checkin') window.Checkin.paint(body);
     else paintSettings(body);
   }
   function cellFor(r){
@@ -12331,4 +12333,167 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
 })();
 </script>
 
+
+<script>
+/* ============================================================================
+   ⏰ HOURLY CHECK-IN admin  [Rendy, 2026-10-25]
+   Weekly EOD (admin) → ⏰ Hourly check-in. Talks to the check-in Supabase edge function (CHECKIN_URL) — its own free project, separate from this portal.
+   Bagani posts hourly check-ins in Slack; thread replies are scored 1–3 → points that the
+   SMB Game Portal "💰 Cash In" turns into SMB Tokens (5 pts = 1 token).
+   ============================================================================ */
+(function(){
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const DAYS=[['mon','Mon'],['tue','Tue'],['wed','Wed'],['thu','Thu'],['fri','Fri']];
+  const FMT={would_you_rather:'Would you rather',hot_take:'Hot take',story:'Story',food:'Food pick',confession:'Confession',rate:'Rate it',prediction:'Prediction',wrapup:'Wrap-up',fallback:'Backup pool'};
+  const CH={C03TJ99BZ5W:'#general-all-smb-staff',C0A71RYLS9E:'#0-project-manager-corner'};
+  const chName=id=>CH[id]||id;
+  const t12=h=>{if(!h)return '—';let[a,b]=h.split(':').map(Number);const ap=a>=12?'PM':'AM';a=a%12||12;return `${a}:${String(b).padStart(2,'0')} ${ap}`;};
+  let S=null, editing=null, host=null, timer=null;
+  const portalByEmail=e=>{ if(!e||typeof staffList==='undefined'||!Array.isArray(staffList)) return null; const l=String(e).toLowerCase(); return staffList.find(x=>String(x.email||'').toLowerCase()===l)||null; };
+  const nm=r=>{ const p=portalByEmail(r.email); return p&&p.full_name?p.full_name:r.name; };
+  const ago=iso=>{ if(!iso) return 'never'; const m=Math.round((Date.now()-new Date(iso).getTime())/60000); return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'; };
+
+  async function api(path,opt={}){
+    const token=await getValidAccessToken(); if(!token) throw new Error('Your session expired — log in again.');
+    if(!CHECKIN_URL||/YOUR-PROJECT/.test(CHECKIN_URL)) throw new Error('CHECKIN_URL is not set yet (top of index.html, next to SERVER_URL).');
+    const r=await fetch(CHECKIN_URL+path,{...opt,headers:{'Content-Type':'application/json','x-portal-token':token}});
+    let j={}; try{j=await r.json();}catch(_){}
+    if(!r.ok) throw new Error(j.error||('Server error '+r.status)); return j;
+  }
+  function css(){
+    if(document.getElementById('ckCss')) return;
+    const st=document.createElement('style'); st.id='ckCss'; st.textContent=`
+    .ck-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:14px}@media(max-width:900px){.ck-grid{grid-template-columns:1fr}}
+    .ck-sec{background:var(--card2,#1b1f2d);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+    .ck-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+    .ck-h h4{font-size:13px;letter-spacing:.4px}
+    .ck-slot{display:grid;grid-template-columns:70px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+    .ck-slot:first-of-type{border-top:none}.ck-slot .tm{font:600 12.5px 'IBM Plex Mono',monospace;color:var(--muted);padding-top:2px}
+    .ck-slot.done .tm{color:var(--teal)}.ck-slot.next .tm{color:var(--gold)}
+    .ck-q{font-weight:600;margin:4px 0 5px;font-size:13.5px}.ck-o{display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:#cfd3dc}
+    .ck-tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:2px 7px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--line);color:var(--muted);margin-right:4px}
+    .ck-tag.f{color:#7FA7F5;box-shadow:inset 0 0 0 1px rgba(127,167,245,.4)}.ck-tag.ok{color:var(--teal);box-shadow:inset 0 0 0 1px rgba(63,191,174,.45)}
+    .ck-tag.warn{color:var(--gold);box-shadow:inset 0 0 0 1px rgba(227,166,62,.5)}.ck-tag.bad{color:var(--rose);box-shadow:inset 0 0 0 1px rgba(226,104,95,.45)}
+    .ck-acts{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}.ck-acts .btn{padding:5px 10px;font-size:12px}
+    .ck-ans{border-top:1px solid var(--line);padding:9px 0;font-size:12.5px}.ck-ans:first-child{border-top:none}
+    .ck-ans .top{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:11.5px;margin-bottom:2px}
+    .ck-ans b{color:var(--ink)}.ck-st{color:var(--gold);letter-spacing:1px}
+    .ck-feed{max-height:380px;overflow:auto}
+    .ck-board div{display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px}.ck-board div:first-child{border-top:none}
+    .ck-form label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 4px}
+    .ck-form .g5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}@media(max-width:700px){.ck-form .g5{grid-template-columns:1fr}}
+    .ck-form .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+    .ck-sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px}.ck-sw input{width:auto}
+    .ck-big{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 14px;border-radius:14px;margin-bottom:14px;border:1px solid var(--line);background:var(--card2,#1b1f2d)}
+    .ck-big .state{font-weight:700;font-size:14px}.ck-al{font-size:12px;border-left:3px solid var(--gold);padding:6px 10px;margin-bottom:6px;background:rgba(227,166,62,.06);border-radius:0 8px 8px 0}
+    .ck-al time{display:block;color:var(--muted);font-size:10.5px}
+    .ck-edit textarea,.ck-edit input{margin-top:5px}`;
+    document.head.appendChild(st);
+  }
+  function nextIdx(){ if(!S.tonight) return 0; for(let i=0;i<S.tonight.items.length;i++) if(!S.posted['c'+i]) return i; return -1; }
+
+  function render(){
+    const s=S.settings, n=S.tonight, h=S.health, resp=S.responses, nx=nextIdx();
+    const dest=s.test_mode?s.test_channel:s.channel;
+    const tOk=h.timer.installed&&h.timer.last_tick&&(Date.now()-new Date(h.timer.last_tick).getTime()<5*60000);
+    const g=h.gemini, scopesOk=!h.scopes||['channels:history','reactions:write','users:read.email'].every(x=>h.scopes.includes(x));
+    host.innerHTML=`
+    <div class="ck-big">
+      <span class="state">${s.enabled?'🟢 Running':'⏸️ Paused'}</span>
+      <span class="ck-tag ${s.test_mode?'warn':'ok'}">${s.test_mode?'Test mode':'Live'} → ${esc(chName(dest))}</span>
+      <span class="ck-tag ${h.slack&&scopesOk?'ok':'bad'}" title="${esc((h.scopes||[]).join(', '))}">Slack ${h.slack?(scopesOk?'✓':'scopes!'):'✗'}</span>
+      <span class="ck-tag ${!g.configured||g.ok===false?'bad':'ok'}" title="${esc(g.error||g.model||'')}">AI ${!g.configured?'no key':g.ok===false?'failing':'✓'}</span>
+      <span class="ck-tag ${h.points_bridge&&!h.check_points?'ok':h.check_points?'bad':'warn'}" title="${h.pending_sync} waiting to sync · ${h.check_points} need a check">Points → Game Portal ${!h.points_bridge?'not connected':h.check_points?h.check_points+' to check':'✓'}</span>
+      <span class="ck-tag ${tOk?'ok':'bad'}" title="${esc(h.timer.error||('Last run: '+(h.timer.last_tick||'never')))}">Timer ${h.timer.installed?(tOk?'✓ '+ago(h.timer.last_tick):'not running'):'not installed'}</span>
+      <span style="flex:1"></span>
+      <button class="btn ${s.test_mode?'btn-ghost':'btn-ghost'}" id="ckMode">${s.test_mode?'🚀 Go live in #general':'🧪 Back to test mode'}</button>
+      <button class="btn ${s.enabled?'btn-ghost':'btn-gold'}" id="ckOn">${s.enabled?'⏸ Pause':'▶ Turn on'}</button>
+    </div>
+    <div class="ck-grid"><div>
+      <div class="ck-sec"><div class="ck-h"><h4>${S.isTonight?'TONIGHT':'NIGHT OF '+esc(S.night)} · ${n?n.items.length:s.slots.length} CHECK-INS</h4>
+        <span class="row"><button class="btn btn-ghost" id="ckRegen" ${Object.keys(S.posted).some(k=>/^c\d+$/.test(k))?'disabled':''}>🔄 ${n?'Regenerate':'Generate now'}</button></span></div>
+        ${n?`<div class="row" style="margin-bottom:6px"><b style="color:var(--gold);font-size:15px">${esc(n.topic)}</b><span class="ck-tag ${n.source==='ai'?'ok':n.source==='mixed'?'warn':'bad'}">${{ai:'AI-written',mixed:'AI + backup',fallback:'Backup pool'}[n.source]||n.source}</span></div>
+          ${n.items.map((c,i)=>slot(c,i,nx)).join('')}`
+        :`<div class="muted" style="font-size:12.5px">Not generated yet — it writes itself 50 min before the first check-in. Click <b>Generate now</b> to preview.</div>`}
+      </div>
+      ${settingsForm(s)}
+    </div><div>
+      <div class="ck-sec"><div class="ck-h"><h4>LIVE ANSWERS</h4><button class="btn btn-ghost" id="ckSweep" style="padding:5px 10px;font-size:12px">↻ Score now</button></div>
+        <div class="ck-feed">${resp.length?resp.map(r=>`<div class="ck-ans"><div class="top"><span><b>${esc(nm(r))}</b> · #${r.idx+1}${portalByEmail(r.email)?'':' · <span title="No portal account with this Slack email ('+esc(r.email||'none')+') — points still count" style="color:var(--rose)">no portal match</span>'}</span><span class="ck-st">${'★'.repeat(r.score)}${'☆'.repeat(3-r.score)}</span></div>${esc(r.text)}<div class="muted" style="font-size:11px;margin-top:2px">+${r.points} pts · +${r.minutes}m · ${r.scored_by}${r.sync_state==='done'?'':r.sync_state==='pending'?' · ⏳ points not sent yet':''}</div>${r.sync_state==='sending'?`<div class="ck-al" style="border-left-color:var(--rose);margin-top:5px">⚠️ Points DB didn't answer — check marcus_points for <b>${esc(r.name)}</b> (+${r.points}).<div class="ck-acts"><button class="btn btn-ghost" data-rs="${esc(r.reply_ts)}" data-a="done">✅ They were added</button><button class="btn btn-ghost" data-rs="${esc(r.reply_ts)}" data-a="retry">↻ Not added — send again</button></div></div>`:''}</div>`).join(''):`<div class="muted" style="font-size:12.5px">Wala pang sagot. Replies in check-in threads appear here every 5 min.</div>`}</div></div>
+      <div class="ck-sec"><div class="ck-h"><h4>TOP BAYANI · ${S.isTonight?'TONIGHT':esc(S.night)}</h4><span class="muted" style="font-size:11px">5 pts = 1 🪙</span></div><div class="ck-board">${board(resp)}</div></div>
+      <div class="ck-sec"><div class="ck-h"><h4>LAST 7 NIGHTS</h4></div>${S.history.length?`<table style="font-size:12px"><thead><tr><th>Night</th><th>Topic</th><th>Sent</th><th>Ans.</th></tr></thead><tbody>${S.history.map(x=>`<tr><td class="mono">${esc(x.night.slice(5))}</td><td>${esc(x.topic)} <span class="ck-tag ${x.source==='ai'?'ok':x.source==='mixed'?'warn':'bad'}">${esc(x.source)}</span></td><td class="mono" style="color:${x.sent<s.slots.length&&x.night!==S.night?'var(--rose)':'var(--teal)'}">${x.sent}/${s.slots.length}</td><td class="mono">${x.answers}</td></tr>`).join('')}</tbody></table>`:'<div class="muted" style="font-size:12.5px">No nights yet.</div>'}</div>
+      <div class="ck-sec"><div class="ck-h"><h4>ALERTS</h4></div>${S.alerts.length?S.alerts.slice(0,6).map(a=>`<div class="ck-al"><time>${new Date(a.at).toLocaleString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})} PHT</time>${esc(a.text)}</div>`).join(''):'<div class="muted" style="font-size:12.5px">✅ No problems reported.</div>'}</div>
+    </div></div>`;
+    wire();
+  }
+  function slot(c,i,nx){
+    const done=!!S.posted['c'+i], ans=S.responses.filter(r=>r.idx===i).length, tm=t12(S.settings.slots[i]);
+    if(editing===i) return `<div class="ck-slot next"><div class="tm">${tm}</div><div class="ck-edit"><span class="ck-tag f">${esc(FMT[c.format]||c.format||'—')}</span>
+      <textarea id="ckEq" rows="2">${esc(c.question)}</textarea>${c.options.map((o,j)=>`<input id="ckEo${j}" value="${esc(o)}">`).join('')}
+      <div class="ck-acts"><button class="btn btn-gold" data-save="${i}">Save</button><button class="btn btn-ghost" data-cancel>Cancel</button></div></div></div>`;
+    return `<div class="ck-slot ${done?'done':i===nx&&S.isTonight?'next':''}"><div class="tm">${tm}</div><div>
+      <span class="ck-tag f">${esc(FMT[c.format]||c.format||'—')}</span>${c.edited?'<span class="ck-tag">Edited</span>':''}${done?`<span class="ck-tag ok">Posted · ${ans} ans</span>`:i===nx&&S.isTonight?'<span class="ck-tag warn">Next</span>':''}
+      <div class="ck-q">${esc(c.question)}</div><div class="ck-o"><span>🅰️ ${esc(c.options[0])}</span><span>🅱️ ${esc(c.options[1])}</span><span>🅲 ${esc(c.options[2])}</span></div>
+      ${done||!S.isTonight?'':`<div class="ck-acts"><button class="btn btn-ghost" data-edit="${i}">✏️ Edit</button><button class="btn btn-ghost" data-post="${i}">📤 Post now</button></div>`}</div></div>`;
+  }
+  function board(resp){
+    const by={}; resp.forEach(r=>{const u=by[r.slack_user]=by[r.slack_user]||{name:nm(r),pts:0,n:0}; u.pts+=r.points; u.n++;});
+    const rows=Object.values(by).map(u=>[u.name,u]).sort((a,b)=>b[1].pts-a[1].pts); const m=['🥇','🥈','🥉'];
+    return rows.length?rows.slice(0,10).map(([nm,u],i)=>`<div><span>${m[i]||'•'} ${esc(nm)}</span><span><b class="mono" style="color:var(--gold)">+${u.pts}</b> <span class="muted">· ${u.n}/${S.settings.slots.length}</span></span></div>`).join(''):'<div class="muted" style="border:none">—</div>';
+  }
+  function settingsForm(s){
+    return `<div class="ck-sec ck-form"><div class="ck-h"><h4>⚙️ SETTINGS</h4><button class="btn btn-gold" id="ckSave">Save settings</button></div>
+      <label>Topics for the week (shift start day) — blank = Bagani picks a fun wildcard</label>
+      <div class="g5">${DAYS.map(([k,l])=>`<div><div class="muted" style="font-size:11px;margin-bottom:3px">${l}</div><input id="ckT_${k}" value="${esc(s.topics[k]||'')}" placeholder="e.g. Puyat survival tips"></div>`).join('')}</div>
+      <label>Check-in times — tonight's PHT, 24-hour, comma-separated (after midnight = same shift)</label>
+      <div class="muted" style="font-size:11.5px;margin:-2px 0 5px">🕐 Follows the US clock like the shift: ${s.dst_shift_min?'US standard time now (+1 h vs summer) — shift 9 PM PHT.':'US summer time now — shift 8 PM PHT. From Nov 2 everything moves +1 h automatically.'} No need to edit for DST.</div>
+      <input id="ckSlots" value="${esc(s.slots.join(', '))}">
+      <div class="g3"><div><label>Opener</label><input id="ckOpener" value="${esc(s.opener)}" placeholder="${s.dst_shift_min?'21:15':'20:15'} (blank = off)"></div>
+        <div><label>Recap</label><input id="ckRecap" value="${esc(s.recap)}" placeholder="${s.dst_shift_min?'04:45':'03:45'}"></div>
+        <div><label>Send-off</label><input id="ckCloser" value="${esc(s.closer)}" placeholder="${s.dst_shift_min?'04:50':'03:50'}"></div></div>
+      <label>Points per answer (score 1 · 2 · 3) — Game Portal: 5 pts = 1 SMB Token</label>
+      <div class="g3">${[1,2,3].map(k=>`<input type="number" min="0" max="20" id="ckP${k}" value="${s.points[k]}">`).join('')}</div>
+      <label>Channels (Slack IDs)</label>
+      <div class="g3" style="grid-template-columns:1fr 1fr"><div><div class="muted" style="font-size:11px;margin-bottom:3px">Live</div><input id="ckCh" value="${esc(s.channel)}"></div><div><div class="muted" style="font-size:11px;margin-bottom:3px">Test mode</div><input id="ckTCh" value="${esc(s.test_channel)}"></div></div>
+      <label>Alert DMs go to (Slack user ID, blank = none)</label><input id="ckDm" value="${esc(s.admin_dm||'')}" placeholder="U0BCS577H9Q">
+      <label>Extras</label><span class="ck-sw"><input type="checkbox" id="ckShout" ${s.shoutouts?'checked':''}> 🏆 Shout-out the best answers in each thread (~50 min after)</span>
+      <div class="muted" style="font-size:11.5px;margin-top:10px">Runs Mon–Fri shifts. Only the first reply per person per check-in counts. No penalties for not answering.</div></div>`;
+  }
+  function wire(){
+    const q=s=>host.querySelector(s);
+    q('#ckOn').onclick=()=>save({enabled:!S.settings.enabled});
+    q('#ckMode').onclick=()=>{ if(S.settings.test_mode && !confirm('Go live? Check-ins will post in #general-all-smb-staff for everyone.')) return; save({test_mode:!S.settings.test_mode}); };
+    q('#ckRegen').onclick=async()=>{ q('#ckRegen').textContent='Writing…'; try{ await api('/regenerate',{method:'POST',body:'{}'}); }catch(e){ alert(e.message); } load(); };
+    q('#ckSweep').onclick=async()=>{ try{ const r=await api('/sweep',{method:'POST',body:'{}'}); alert(`Scored ${r.scored} new answer(s)${r.synced?`, synced ${r.synced}`:''}.`);}catch(e){alert(e.message)} load(); };
+    q('#ckSave').onclick=()=>save({
+      topics:Object.fromEntries(DAYS.map(([k])=>[k,q('#ckT_'+k).value.trim()])),
+      slots:q('#ckSlots').value.split(',').map(x=>x.trim()).filter(Boolean).map(x=>x.padStart(5,'0')),
+      opener:q('#ckOpener').value.trim(), recap:q('#ckRecap').value.trim(), closer:q('#ckCloser').value.trim(),
+      points:{1:+q('#ckP1').value,2:+q('#ckP2').value,3:+q('#ckP3').value},
+      channel:q('#ckCh').value.trim(), test_channel:q('#ckTCh').value.trim(), admin_dm:q('#ckDm').value.trim(), shoutouts:q('#ckShout').checked });
+    host.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{editing=+b.dataset.edit;render();});
+    host.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=()=>{editing=null;render();});
+    host.querySelectorAll('[data-save]').forEach(b=>b.onclick=async()=>{ const i=+b.dataset.save;
+      try{ await api('/item/'+i,{method:'PUT',body:JSON.stringify({question:q('#ckEq').value,options:[0,1,2].map(j=>q('#ckEo'+j).value)})}); editing=null; load(); }catch(e){alert(e.message)} });
+    host.querySelectorAll('[data-rs]').forEach(b=>b.onclick=async()=>{ const a=b.dataset.a;
+      if(!confirm(a==='done'?'Mark these points as already added (no new points)?':'Send these points again? Only do this if they are NOT in marcus_points.')) return;
+      try{ await api('/resync',{method:'POST',body:JSON.stringify({reply_ts:b.dataset.rs,action:a})}); load(); }catch(e){alert(e.message)} });
+    host.querySelectorAll('[data-post]').forEach(b=>b.onclick=async()=>{ const i=+b.dataset.post, dest=chName(S.settings.test_mode?S.settings.test_channel:S.settings.channel);
+      if(!confirm(`Post check-in #${i+1} to ${dest} right now?`)) return;
+      try{ await api('/post-now',{method:'POST',body:JSON.stringify({idx:i})}); load(); }catch(e){alert(e.message)} });
+  }
+  async function save(patch){ try{ await api('/settings',{method:'POST',body:JSON.stringify(patch)}); await load(); }catch(e){ alert(e.message); } }
+  async function load(){
+    if(!host||!document.body.contains(host)){ clearInterval(timer); return; }
+    try{ S=await api('/state'); render(); }
+    catch(e){ host.innerHTML=`<div class="note" style="border-color:var(--rose)"><b>Hourly check-in isn't reachable.</b> ${esc(e.message)}<div class="muted" style="margin-top:6px">Check: the <b>checkin</b> edge function is deployed in the check-in Supabase project with <b>Verify JWT OFF</b>, and <code>CHECKIN_URL</code> at the top of index.html is its URL.</div></div>`; }
+  }
+  function paint(body){
+    css(); host=body; editing=null; host.innerHTML='<div class="muted">Loading hourly check-in…</div>';
+    clearInterval(timer); timer=setInterval(()=>{ if(editing===null) load(); },30000); load();
+  }
+  window.Checkin={paint};
+})();
+
+</script>
 </body></html>
