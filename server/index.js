@@ -1067,7 +1067,7 @@ function tsPeriodsAround(now=new Date()){
   for(let back=0; back<2; back++){
     let yy=y, mm=m-back; if(mm<1){mm+=12;yy--;}
     const py = mm===1?yy-1:yy, pm = mm===1?12:mm-1;
-    out.push({start:ymd(py,pm,21), end:ymd(yy,mm,4), cutoff:ymd(yy,mm,15), sendDay:ymd(yy,mm,8)});
+    out.push({start:ymd(py,pm,21), end:ymd(yy,mm,4), cutoff:ymd(yy,mm,15), sendDay:ymd(yy,mm,7)});
     out.push({start:ymd(yy,mm,5), end:ymd(yy,mm,20), cutoff:lastDayIso(yy,mm), sendDay:ymd(yy,mm,23)});
   }
   return out.map(p=>{
