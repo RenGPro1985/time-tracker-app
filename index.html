@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="smb-build" content="2026-10-24-b26">
+<meta name="smb-build" content="2026-10-27-b30">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SMB VS Portal</title>
@@ -538,7 +538,7 @@ th.eg-new,td.eg-new{background:rgba(242,184,75,.07)}
     <div class="muted" id="corrReviewContext" style="font-size:12px;margin-bottom:12px"></div>
     <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px">
       <div><label>Recorded activity</label><select id="corrReviewEntry"></select></div>
-      <div><label>Resolution</label><select id="corrReviewAction"><option value="" selected disabled>Choose a resolution</option><option value="delete_duplicate">Delete confirmed duplicate record</option><option value="change_start">Change start time</option><option value="change_end">Change end time</option><option value="change_activity">Change activity</option><option value="split_entry">Split into a second activity</option><option value="extend_shift">Extend shift to (logged out early / missing logout)</option></select></div>
+      <div><label>Resolution</label><select id="corrReviewAction"><option value="" selected disabled>Choose a resolution</option><option value="delete_duplicate">Delete confirmed duplicate record</option><option value="change_start">Change start time</option><option value="change_end">Change end time</option><option value="waive_overbreak">Waive overbreak (trim break to its allowance, extra minutes become Working)</option><option value="change_activity">Change activity</option><option value="split_entry">Split into a second activity</option><option value="extend_shift">Extend shift to (logged out early / missing logout)</option></select></div>
       <div id="corrReviewStartWrap" class="hide"><label>Correct start time (PHT)</label><input type="datetime-local" id="corrReviewStart"></div>
       <div id="corrReviewEndWrap" class="hide"><label id="corrReviewEndLabel">Correct end time (PHT)</label><input type="datetime-local" id="corrReviewEnd"></div>
       <div id="corrReviewActWrap" class="hide"><label>Correct activity</label><select id="corrReviewActivity"></select></div>
@@ -4798,6 +4798,39 @@ async function openCorrectionReview(id){
   $('corrReviewAction').value=''; $('corrReviewStart').value=''; $('corrReviewEnd').value=''; $('corrReviewSplitAt').value=''; $('corrReviewEntry').disabled=!!corr.entry_id; $('corrReviewReason').value=''; $('corrReviewMsg').textContent='';
   await refreshCorrectionReview();
 }
+/* b30: helpers — mirror the DB gap-close rule (resolve_time_correction, b30) in the preview,
+   compute Waive overbreak, and warn before an approval cuts billable time. */
+const B30_FIXED_ALLOW={'15min Break':15,'30min Break':30,'60min Break':60};
+function b30AllowMin(act){ if(B30_FIXED_ALLOW[act]) return B30_FIXED_ALLOW[act]; const a=Number((allowance||{})[act]||0); return BREAK_ACTIVITIES.includes(act)&&a>0?a:0; }
+const b30Near=(a,b)=>a&&b&&Math.abs(new Date(a).getTime()-new Date(b).getTime())<=2000;
+/* change_end on a non-Working record: the next Working block that started exactly at the old end now starts at the new end. */
+function b30CloseAfter(list,target,oldEnd){
+  if(!target||target.activity==='Working') return;
+  const nx=list.find(e=>e!==target&&e.activity==='Working'&&b30Near(e.started_at,oldEnd)&&new Date(e.started_at)>new Date(target.ended_at));
+  if(nx) nx.started_at=target.ended_at;
+}
+/* change_start later on a non-Working record: the previous Working block that ended exactly at the old start now ends at the new start. */
+function b30CloseBefore(list,target,oldStart){
+  if(!target||target.activity==='Working'||!(new Date(target.started_at)>new Date(oldStart))) return;
+  const pv=list.find(e=>e!==target&&e.activity==='Working'&&b30Near(e.ended_at,oldStart));
+  if(pv) pv.ended_at=target.started_at;
+}
+function b30WaivePlan(entry,all){
+  const allow=b30AllowMin(entry.activity);
+  if(!allow) return {error:'Waive overbreak only works on a break record (15/30/60min, Personal, Bio, H2O with an allowance).'};
+  if(!entry.ended_at) return {error:'This break is still running.'};
+  const newEnd=new Date(new Date(entry.started_at).getTime()+allow*60000).toISOString();
+  if(!(new Date(newEnd)<new Date(entry.ended_at))) return {error:`This ${entry.activity} is ${hm(minutesOf(entry))}, not over its ${allow} min allowance. Nothing to waive.`};
+  const nx=(all||[]).filter(e=>e.shift_id===entry.shift_id&&e.active!==false&&e.id!==entry.id&&b30Near(e.started_at,entry.ended_at))[0];
+  if(!nx||nx.activity!=='Working') return {error:'The record right after this break is not Working, so the extra minutes have nowhere to go. Use "Split into a second activity" instead.'};
+  return {newEnd,allow};
+}
+function b30Billable(list,entry){
+  const shift=correctionReview.shiftsById[entry.shift_id], staff=staffList.find(s=>s.id===correctionReview.corr.staff_id), client=staff&&clients.find(c=>c.id===staff.client_id);
+  const shiftDate=shift?shiftAnchorDate(shift,client||null):phDate(new Date(entry.started_at));
+  const span=shift?buildShiftSpanMap([shift])[shift.id]:0, win=shiftWindowFor(client,shiftDate);
+  return summarize(list,null,win,span).billable;
+}
 async function refreshCorrectionReview(){
   if(!correctionReview)return;
   const entry=correctionReview.options.find(e=>e.id===$('corrReviewEntry').value);if(!entry)return;
@@ -4820,8 +4853,15 @@ async function refreshCorrectionReview(){
   const before=correctionReview.allEntries.filter(e=>e.shift_id===entry.shift_id&&e.active!==false);
   const after=before.map(e=>({...e})); const target=after.find(e=>e.id===entry.id);
   if(action==='delete_duplicate')after.splice(after.indexOf(target),1);
-  if(action==='change_start'&&roundedCorrectionDateTimeToIso($('corrReviewStart').value)){target.started_at=roundedCorrectionDateTimeToIso($('corrReviewStart').value);}
-  if(action==='change_end'&&roundedCorrectionDateTimeToIso($('corrReviewEnd').value)){target.ended_at=roundedCorrectionDateTimeToIso($('corrReviewEnd').value);}
+  if(action==='change_start'&&roundedCorrectionDateTimeToIso($('corrReviewStart').value)){const o=target.started_at;target.started_at=roundedCorrectionDateTimeToIso($('corrReviewStart').value);b30CloseBefore(after,target,o);}
+  if(action==='change_end'&&roundedCorrectionDateTimeToIso($('corrReviewEnd').value)){const o=target.ended_at;target.ended_at=roundedCorrectionDateTimeToIso($('corrReviewEnd').value);b30CloseAfter(after,target,o);}
+  if(action==='waive_overbreak'){
+    const wp=b30WaivePlan(entry,correctionReview.allEntries);
+    if(wp.error){$('corrReviewImpact').innerHTML=`<b style="color:var(--rose)">Can't waive:</b> ${escapeHtml(wp.error)}`;return;}
+    const o=target.ended_at; target.ended_at=wp.newEnd; b30CloseAfter(after,target,o);
+    $('corrReviewImpact').innerHTML=correctionImpactHtml(before,after,shift,correctionReview.corr.staff_id)+`<div style="margin-top:8px"><b>What will happen:</b> ${escapeHtml(entry.activity)} becomes exactly ${wp.allow}:00 min (ends ${escapeHtml(phTime(new Date(wp.newEnd)))} PHT, to the second) and the next Working block starts right then, so the extra minutes are billable.</div>`;
+    return;
+  }
   if(action==='change_activity')target.activity=$('corrReviewActivity').value;
   let extendNote='';
   if(action==='extend_shift'){
@@ -4893,7 +4933,12 @@ async function applyCorrectionResolution(status){
     if(!action)return alert('Choose a correction resolution.');
     const cause=window.CORR?CORR.pickedCause():'';
     if(window.CORR&&!cause){$('corrReviewMsg').textContent='';return alert('Choose whose error it was: Staff error, App / system issue or Outside cause.');}
-    const args={p_correction_id:corr.id,p_entry_id:entry,p_action:action,p_reason:reason,p_new_ended_at:null,p_new_activity:null,p_split_at:null,p_split_activity:null};
+    const args={p_correction_id:corr.id,p_entry_id:entry,p_action:action==='waive_overbreak'?'change_end':action,p_reason:reason,p_new_ended_at:null,p_new_activity:null,p_split_at:null,p_split_activity:null};
+    if(action==='waive_overbreak'){
+      const pk=correctionReview.options.find(e=>e.id===entry), wp=pk?b30WaivePlan(pk,correctionReview.allEntries):{error:'Select a recorded activity.'};
+      if(wp.error){$('corrReviewMsg').textContent='';return alert(wp.error);}
+      args.p_new_ended_at=wp.newEnd;
+    }
     if(action==='change_start'){
       if(!$('corrReviewStart').value)return alert('Enter the correct start time.');
       args.p_new_started_at=roundedCorrectionDateTimeToIso($('corrReviewStart').value);
@@ -4920,6 +4965,20 @@ async function applyCorrectionResolution(status){
       args.p_split_activity=$('corrReviewSplitActivity').value;
       const original=correctionReview.options.find(e=>e.id===entry);
       if(!args.p_split_at||!original||new Date(args.p_split_at)<=new Date(original.started_at)||new Date(args.p_split_at)>=new Date(original.ended_at))return alert('Split time must be inside the recorded activity.');
+    }
+    /* b30: stop typos like 20:01 -> 20:59 — confirm any approval that cuts 5+ billable minutes */
+    if(action==='change_start'||action==='change_end'||action==='delete_duplicate'||action==='change_activity'){
+      try{
+        const pk=correctionReview.options.find(e=>e.id===entry);
+        const before=correctionReview.allEntries.filter(e=>e.shift_id===pk.shift_id&&e.active!==false);
+        const after=before.map(e=>({...e})); const t=after.find(e=>e.id===pk.id);
+        if(action==='delete_duplicate') after.splice(after.indexOf(t),1);
+        if(action==='change_start'){const o=t.started_at;t.started_at=args.p_new_started_at;b30CloseBefore(after,t,o);}
+        if(action==='change_end'){const o=t.ended_at;t.ended_at=args.p_new_ended_at;b30CloseAfter(after,t,o);}
+        if(action==='change_activity') t.activity=args.p_new_activity;
+        const b=b30Billable(before,pk), a=b30Billable(after,pk);
+        if(b-a>=5&&!confirm(`Heads up: this approval CUTS ${hm(b-a)} of billable time for this shift (${hm(b)} → ${hm(a)}).\n\nOK = approve anyway. Cancel = go back and check the time you typed.`)){$('corrReviewMsg').textContent='';return;}
+      }catch(e){ console.warn('b30 billable check',e); }
     }
     if(cause){
       const {data:cd,error:ce}=await sb.from('corrections').update({cause}).eq('id',corr.id).eq('status','pending').select('id');
@@ -11612,7 +11671,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const when=t=>t?new Date(t).toLocaleString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
     const ask=`<button class="btn btn-ghost tsa-ask" data-tsask="${a.id}" title="Ask this person to review and acknowledge again (sends a new DM)">Ask again</button>`;
     if(a.status==='acknowledged') return `<span class="tsa-pill tsa-ok">✅ Acknowledged</span> <span class="muted">${esc(when(a.answered_at))}${a.hours!=null?' · '+Number(a.hours).toFixed(2)+'h':''}</span>`; // b28: no Ask again once accepted
-    if(a.status==='auto') return `<span class="tsa-pill tsa-ok">✅ No response</span> <span class="muted">auto after 48h</span>`;
+    if(a.status==='auto') return `<span class="tsa-pill tsa-ok">✅ No response</span> <span class="muted">auto after 48h</span>${ask}`; // b29: Ask again on No response
     if(a.status==='issue') return `<span class="tsa-pill tsa-is" title="${esc(a.issue_text||'')}">⚠️ Issue</span> <span class="muted" title="${esc(a.issue_text||'')}">${a.issue_date?esc(shortD(a.issue_date))+': ':''}"${esc(String(a.issue_text||'').slice(0,40))}${String(a.issue_text||'').length>40?'…':''}"</span>${ask}${window.B23?B23.ledgerClip(a):''}`;
     return `<span class="tsa-pill tsa-wt">⏳ Waiting</span> <span class="muted">${a.sent_at?'DM '+esc(when(a.sent_at)):'DM pending'}${Number(a.round)>1?' · round '+a.round:''}</span>`;
   }
