@@ -12591,4 +12591,300 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
 })();
 
 </script>
+<script>
+/* ======================= 🕒 SHIFT LOG (b31, Rendy 2026-10-29) =======================
+   Sub-tab inside Adherence & Breaks. Read-only list of every punch in one shift, to the second.
+   Admin: any staff. Everyone else (incl. ticked team leads): ONLY their own shifts.
+   Totals reuse summarize()/activityCapResult() so they match Timesheets/Adherence. */
+(function(){
+  const SL={staffId:'',date:'',data:null,inited:false,busy:0};
+  window.ShiftLog=SL;
+  const g=id=>document.getElementById(id);
+  const E=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const isAdmin=()=>!!me&&me.role==='admin';
+  function clock(ms){ // 12-hour PHT with seconds, e.g. 8:58:07 PM
+    const p=phParts(new Date(ms)); let h=+p.hour%24; const ap=h>=12?'PM':'AM'; h=h%12||12;
+    return `${h}:${p.minute}:${p.second} ${ap}`;
+  }
+  const dur=sec=>{sec=Math.max(0,Math.round(sec));return Math.floor(sec/3600)+':'+String(Math.floor(sec/60)%60).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');};
+  const mdur=min=>dur((Number(min)||0)*60);
+  const niceDate=iso=>{try{return new Date(iso+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'});}catch(_){return iso;}};
+  const COLORS={'Working':'#4fd1b5','Overtime':'#5B8DEF','60min Break':'#556070','Deducted (admin)':'#3a4252'};
+  const colorFor=a=>COLORS[a]||(BREAK_ACTS.includes(a)?'#d9a441':'#8fb8a8');
+
+  function css(){
+    if(g('slCss')) return;
+    const st=document.createElement('style'); st.id='slCss';
+    st.textContent=`.sl-sub{display:flex;gap:8px;flex-wrap:wrap}
+    .sl-tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:10px}
+    .sl-tile{border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+    .sl-tile span{font-size:11px;color:var(--muted)} .sl-tile b{display:block;font-family:'IBM Plex Mono',monospace;font-size:18px;margin-top:2px}
+    .sl-bar{display:flex;height:14px;border-radius:6px;overflow:hidden;margin:12px 0 4px;background:rgba(255,255,255,.04)}
+    .sl-bar div{height:100%;min-width:1px}
+    .sl-leg span{font-size:11px;color:var(--muted);margin-right:12px;white-space:nowrap} .sl-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}
+    .sl-t td.m{font-family:'IBM Plex Mono',monospace;white-space:nowrap} .sl-t td.r,.sl-t th.r{text-align:right}
+    .sl-t tr.lg td{color:var(--gold);background:rgba(217,164,65,.06)}
+    .sl-tag{font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap;display:inline-block}
+    .sl-ok{background:rgba(79,209,181,.14);color:#4fd1b5} .sl-mu{background:rgba(255,255,255,.07);color:var(--muted)} .sl-bad{background:rgba(240,122,138,.15);color:#f07a8a} .sl-warn{background:rgba(217,164,65,.15);color:var(--gold)}
+    .sl-ed{font-size:12.5px;border-left:3px solid var(--gold);padding:6px 10px;background:rgba(255,255,255,.03);border-radius:6px;margin-top:6px}
+    @media(max-width:760px){.sl-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}`;
+    document.head.appendChild(st);
+  }
+
+  /* ---------- sub-tab bar: wraps the existing Adherence content, adds the Shift Log pane ---------- */
+  function init(){
+    const sec=g('v-adherence'); if(!sec||!me) return false;
+    if(SL.inited) return true;
+    css();
+    const main=document.createElement('div'); main.id='adhMainPane'; main.className='grid'; main.style.gap='16px';
+    while(sec.firstChild) main.appendChild(sec.firstChild);
+    const bar=document.createElement('div'); bar.className='sl-sub'; bar.id='adhSubBar';
+    bar.innerHTML=`<button class="btn btn-gold" type="button" data-adh-sub="main">📊 Adherence &amp; Breaks</button><button class="btn btn-ghost" type="button" data-adh-sub="log">🕒 Shift Log</button>`;
+    const pane=document.createElement('div'); pane.id='slPane'; pane.className='grid hide'; pane.style.gap='16px';
+    sec.appendChild(bar); sec.appendChild(main); sec.appendChild(pane);
+    bar.addEventListener('click',e=>{const b=e.target.closest('[data-adh-sub]'); if(b) SL.sub(b.dataset.adhSub);});
+    SL.inited=true; return true;
+  }
+  SL.sub=function(which){
+    if(!init()) return;
+    g('adhMainPane').classList.toggle('hide',which!=='main');
+    g('slPane').classList.toggle('hide',which!=='log');
+    document.querySelectorAll('#adhSubBar [data-adh-sub]').forEach(b=>{const on=b.dataset.adhSub===which;b.classList.toggle('btn-gold',on);b.classList.toggle('btn-ghost',!on);});
+    if(which==='log') SL.open();
+  };
+
+  function people(){
+    if(!isAdmin()) return [me];                       // staff + team leads: own only
+    return (staffList||[]).filter(s=>s.role!=='admin').slice()
+      .sort((a,b)=>(b.active!==false)-(a.active!==false)||String(a.full_name).localeCompare(String(b.full_name)));
+  }
+  const staffById=id=>(id===me.id?me:(staffList||[]).find(s=>s.id===id))||null;
+  const clientOf=s=>s?(clients||[]).find(c=>c.id===s.client_id)||null:null;
+
+  function shell(){
+    const pane=g('slPane'); if(g('slStaff')||!pane) return;
+    const list=people();
+    pane.innerHTML=`<div class="card">
+      <div class="hdr"><h3 style="font-size:15px">🕒 Shift Log</h3><span class="muted" style="font-size:11.5px">${isAdmin()?'Every punch for one shift':'Every punch you made in one shift'} · read-only · Philippine time</span></div>
+      <div class="row" style="flex-wrap:wrap;gap:10px;align-items:flex-end">
+        <div ${isAdmin()?'':'class="hide"'}><label>Staff</label><select id="slStaff" style="width:auto;min-width:200px">${isAdmin()?'<option value="">Pick a staff member…</option>':''}${list.map(s=>`<option value="${E(s.id)}">${E(s.full_name)}${s.active===false?' (inactive)':''}</option>`).join('')}</select></div>
+        <div><label>Shift date</label><input type="date" id="slDate" style="width:auto"></div>
+        <button class="btn btn-ghost" type="button" id="slPrev">◀ Prev shift</button>
+        <button class="btn btn-ghost" type="button" id="slNext">Next shift ▶</button>
+        <button class="btn btn-ghost" type="button" id="slRefresh">↻ Refresh</button>
+        <span style="flex:1"></span>
+        <button class="btn btn-gold" type="button" id="slCsv" disabled>⬇ Download CSV</button>
+      </div></div>
+      <div id="slBody"></div>`;
+    if(!isAdmin()) g('slStaff').value=me.id;
+    g('slStaff').onchange=()=>{SL.staffId=g('slStaff').value;SL.date='';g('slDate').value='';SL.loadLatest();};
+    g('slDate').onchange=()=>{SL.date=g('slDate').value;SL.load();};
+    g('slPrev').onclick=()=>SL.step(-1); g('slNext').onclick=()=>SL.step(1);
+    g('slRefresh').onclick=()=>SL.load();
+    g('slCsv').onclick=SL.csv;
+  }
+  SL.open=function(){
+    shell();
+    if(!isAdmin()) SL.staffId=me.id;
+    if(!SL.staffId){ body('<div class="card"><div class="muted" style="font-size:12.5px">Pick a staff member to see their punches.</div></div>'); return; }
+    if(!SL.date) SL.loadLatest(); else if(!SL.data) SL.load();
+  };
+  const body=h=>{const b=g('slBody'); if(b) b.innerHTML=h;};
+  const ownId=()=>isAdmin()?SL.staffId:me.id;  // hard guard: non-admin queries are always pinned to me.id
+
+  async function anchorDatesAround(staffId,iso,dir){
+    // nearest shift date strictly before/after `iso` (shift date = PHT anchor, overnight-safe)
+    const pivot=new Date(iso+'T12:00:00+08:00');
+    let q=sb.from('shifts').select('id,staff_id,login_at,logout_at').eq('staff_id',staffId);
+    q=dir<0?q.lt('login_at',new Date(pivot.getTime()+86400000).toISOString()).order('login_at',{ascending:false})
+           :q.gt('login_at',new Date(pivot.getTime()-86400000).toISOString()).order('login_at',{ascending:true});
+    const {data,error}=await q.limit(12);
+    if(error) throw error;
+    const c=clientOf(staffById(staffId));
+    const ds=(data||[]).map(sh=>shiftAnchorDate(sh,c)).filter(d=>dir<0?d<iso:d>iso);
+    return ds.length?ds[0]:null;
+  }
+  SL.loadLatest=async function(){
+    const sid=ownId(); if(!sid) return SL.open();
+    body('<div class="card muted" style="font-size:12.5px">Loading…</div>');
+    try{
+      const tomorrow=addDays(phDate(new Date()),2);
+      const d=await anchorDatesAround(sid,tomorrow,-1);
+      if(!d){ SL.data=null; g('slCsv').disabled=true; body('<div class="card"><div class="muted" style="font-size:12.5px">No shifts recorded yet.</div></div>'); return; }
+      SL.date=d; g('slDate').value=d; await SL.load();
+    }catch(e){ body(`<div class="card" style="color:var(--rose)">Could not load: ${E(e.message||e)}</div>`); }
+  };
+  SL.step=async function(dir){
+    const sid=ownId(); if(!sid) return;
+    const from=SL.date||g('slDate').value||phDate(new Date());
+    try{
+      const d=await anchorDatesAround(sid,from,dir);
+      if(!d){ flash(dir<0?'No earlier shift.':'No later shift.'); return; }
+      SL.date=d; g('slDate').value=d; await SL.load();
+    }catch(e){ flash('Could not load: '+(e.message||e)); }
+  };
+  function flash(t){ const b=g('slBody'); if(!b) return; const n=document.createElement('div'); n.className='note'; n.style.marginBottom='8px'; n.textContent=t; b.prepend(n); setTimeout(()=>n.remove(),2500); }
+
+  SL.load=async function(){
+    const sid=ownId(), date=SL.date||g('slDate').value; if(!sid||!date) return;
+    const my=++SL.busy;
+    body('<div class="card muted" style="font-size:12.5px">Loading…</div>');
+    const staff=staffById(sid), client=clientOf(staff);
+    try{
+      const from=new Date(date+'T00:00:00+08:00').getTime()-36*3600000, to=new Date(date+'T23:59:59+08:00').getTime()+36*3600000;
+      const {data:shRaw,error:e1}=await sb.from('shifts').select('*').eq('staff_id',sid)
+        .gte('login_at',new Date(from).toISOString()).lte('login_at',new Date(to).toISOString()).order('login_at');
+      if(e1) throw e1;
+      const shifts=(shRaw||[]).filter(sh=>shiftAnchorDate(sh,client)===date);
+      let ents=[];
+      if(shifts.length){
+        const {data,error}=await sb.from('entries').select('*').eq('staff_id',sid).eq('active',true).in('shift_id',shifts.map(s=>s.id)).order('started_at');
+        if(error) throw error; ents=data||[];
+      }
+      const changes=await loadChanges(sid,date,shifts);
+      if(my!==SL.busy) return;
+      SL.data={staff,client,date,shifts,ents,changes,at:Date.now()};
+      render();
+    }catch(e){ if(my===SL.busy) body(`<div class="card" style="color:var(--rose)">Could not load: ${E(e.message||e)}</div>`); }
+  };
+
+  async function loadChanges(sid,date,shifts){
+    const ids=new Set(shifts.map(s=>s.id)), out=[];
+    const nameOf=id=>{const s=staffById(id);return s?s.full_name:'';};
+    const safe=async(fn)=>{try{return await fn();}catch(_){return null;}};
+    // staff-visible: their own correction requests for this shift date
+    await safe(async()=>{
+      const {data}=await sb.from('corrections').select('*').eq('staff_id',sid).eq('target_date',date).order('created_at');
+      (data||[]).forEach(c=>out.push({at:c.created_at,who:nameOf(c.staff_id)||'Staff',what:`Correction request (${c.status||'pending'})`,detail:c.message+(c.admin_note?` — Admin: ${c.admin_note}`:'')}));
+    });
+    if(!isAdmin()) return out.sort((a,b)=>String(a.at).localeCompare(String(b.at)));
+    // admin-only audit tables (RLS: admin read)
+    await safe(async()=>{
+      const {data}=await sb.from('shift_login_edits').select('*').eq('staff_id',sid).order('edited_at').limit(50);
+      (data||[]).filter(r=>r.shift_id?ids.has(r.shift_id):shifts.some(s=>Math.abs(new Date(s.login_at)-new Date(r.new_login))<60000))
+        .forEach(r=>out.push({at:r.edited_at,who:nameOf(r.edited_by),what:'Edit login time',detail:`${clock(new Date(r.old_login).getTime())} → ${clock(new Date(r.new_login).getTime())} · "${r.reason||''}"`}));
+    });
+    await safe(async()=>{
+      const {data}=await sb.from('shift_admin_log').select('*').eq('staff_id',sid).order('edited_at').limit(50);
+      (data||[]).filter(r=>(r.shift_id&&ids.has(r.shift_id))||r.shift_date===date).forEach(r=>out.push({at:r.edited_at,who:nameOf(r.edited_by),
+        what:r.action==='edit_logout'?'Edit logout time':'Shift added by admin',
+        detail:(r.action==='edit_logout'?`${r.old_logout?clock(new Date(r.old_logout).getTime()):'open'} → ${clock(new Date(r.new_logout).getTime())}`:`${r.new_login?clock(new Date(r.new_login).getTime()):''} – ${r.new_logout?clock(new Date(r.new_logout).getTime()):''}`)+(r.detail?` · ${r.detail}`:'')+` · "${r.reason||''}"`}));
+    });
+    await safe(async()=>{
+      const {data}=await sb.from('shift_tool_log').select('*').eq('staff_id',sid).order('done_at').limit(50);
+      const A={delete_shift:'Shift tools: delete shift',merge_shifts:'Shift tools: merge re-login',deduct_time:'Shift tools: deduct time'};
+      (data||[]).filter(r=>r.shift_date===date||(r.shift_id&&ids.has(r.shift_id))||(r.other_shift_id&&ids.has(r.other_shift_id)))
+        .forEach(r=>out.push({at:r.done_at,who:nameOf(r.done_by),what:(A[r.action]||r.action)+(r.undone_at?' (undone)':''),detail:(r.summary?r.summary+' · ':'')+`"${r.reason||''}"`}));
+    });
+    await safe(async()=>{
+      const {data}=await sb.from('corrections').select('*').eq('staff_id',sid).neq('target_date',date).in('shift_id',[...ids]).order('created_at');
+      (data||[]).forEach(c=>out.push({at:c.created_at,who:nameOf(c.staff_id)||'Staff',what:`Correction request (${c.status||'pending'})`,detail:c.message+(c.admin_note?` — Admin: ${c.admin_note}`:'')}));
+    });
+    return out.sort((a,b)=>String(a.at).localeCompare(String(b.at)));
+  }
+
+  /* ---------- per-punch status (same rules as summarize: window clip, per-instance caps) ---------- */
+  function statuses(ents,win,now){
+    const res={}, iv=e=>{const s=new Date(e.started_at).getTime(),t=e.ended_at?new Date(e.ended_at).getTime():now;return [s,Math.max(s,t)];};
+    const byAct={}; ents.forEach(e=>(byAct[e.activity]=byAct[e.activity]||[]).push(e));
+    Object.entries(byAct).forEach(([act,list])=>{
+      const rule=BREAK_INSTANCE_RULES[act]||{}, cap=Number(allowance[act]||0);
+      const groups=(act!==OVERTIME&&!NON_BILLABLE.includes(act))?groupActivityInstances(list.map(iv),act):[];
+      list.forEach(e=>{
+        const [s,t]=iv(e); let tag;
+        if(act==='60min Break') tag=['Unpaid break','sl-mu'];
+        else if(NON_BILLABLE.includes(act)) tag=['Not billable','sl-mu'];
+        else if(act===OVERTIME) tag=['Overtime · billable','sl-ok'];
+        else if(!win||t<=win.start.getTime()||s>=win.end.getTime()) tag=['Outside shift window','sl-warn'];
+        else{
+          const gi=groups.findIndex(gr=>gr.some(x=>x[0]===s&&x[1]===t));
+          if(gi<0&&BREAK_ACTS.includes(act)) tag=['Accidental tap · ignored','sl-mu'];
+          else if(gi>=0&&rule.maxInstances&&gi+1>rule.maxInstances) tag=['Over instance limit · not billable','sl-bad'];
+          else if(gi>=0&&cap>0){
+            const gr=groups[gi], over=unionMinutes(gr)-cap, last=gr[gr.length-1][0]===s;
+            tag=(over>0.0083&&last)?[`Billable · ${dur(over*60)} over${gr.length>1?' (combined)':''}`,'sl-bad']:['Billable','sl-ok'];
+          } else tag=['Billable','sl-ok'];
+          if(tag[1]==='sl-ok'&&(s<win.start.getTime()||t>win.end.getTime())) tag=['Partly outside shift window','sl-warn'];
+        }
+        res[e.id]=tag;
+      });
+    });
+    return res;
+  }
+
+  function render(){
+    const d=SL.data; if(!d) return;
+    g('slCsv').disabled=!d.shifts.length;
+    if(!d.shifts.length){ body(`<div class="card"><div class="muted" style="font-size:12.5px">No shift for ${E(d.staff?d.staff.full_name:'')} on ${E(niceDate(d.date))}. Use ◀ Prev / Next ▶ to jump to the nearest shift.</div></div>`); return; }
+    const now=Date.now(), win=shiftWindowFor(d.client,d.date);
+    const ssm=buildShiftSpanMap(d.shifts), sum=summarize(d.ents,null,win,spanFor(d.ents,ssm));
+    const loggedSec=d.shifts.reduce((a,sh)=>a+Math.max(0,((sh.logout_at?new Date(sh.logout_at).getTime():now)-new Date(sh.login_at).getTime())/1000),0);
+    const breakMin=BREAK_ACTS.reduce((a,k)=>a+(sum.per[k]||0),0), unpaid=(sum.per['60min Break']||0)+(sum.per['Deducted (admin)']||0);
+    const over=BREAK_ACTS.reduce((a,k)=>a+(sum.overByAct[k]||0),0);
+    const st=statuses(d.ents,win,now);
+    const open=d.shifts.some(sh=>!sh.logout_at);
+    const first=new Date(d.shifts[0].login_at).getTime(), lastSh=d.shifts[d.shifts.length-1];
+    const last=Math.max(lastSh.logout_at?new Date(lastSh.logout_at).getTime():now,...d.ents.map(e=>e.ended_at?new Date(e.ended_at).getTime():now));
+    const span=Math.max(1,last-first);
+    const segs=d.ents.map(e=>{const s=new Date(e.started_at).getTime(),t=e.ended_at?new Date(e.ended_at).getTime():now;return {s,t,a:e.activity,bad:(st[e.id]||[])[1]==='sl-bad'};}).sort((a,b)=>a.s-b.s);
+    let cur=first, bar='';
+    segs.forEach(x=>{ if(x.s>cur) bar+=`<div style="width:${(x.s-cur)/span*100}%;background:transparent" title="Gap ${dur((x.s-cur)/1000)}"></div>`;
+      const s=Math.max(x.s,cur); if(x.t>s){ bar+=`<div style="width:${(x.t-s)/span*100}%;background:${x.bad?'#f07a8a':colorFor(x.a)}" title="${E(x.a)} ${clock(x.s)} – ${clock(x.t)}"></div>`; cur=x.t; } });
+    const rows=[];
+    d.shifts.forEach((sh,i)=>{
+      const lin=new Date(sh.login_at).getTime();
+      rows.push({lg:1,ms:lin,act:i?'Login (re-login)':'Login'});
+      d.ents.filter(e=>e.shift_id===sh.id).forEach(e=>{const s=new Date(e.started_at).getTime(),t=e.ended_at?new Date(e.ended_at).getTime():null;
+        rows.push({ms:s,act:e.activity,s,t,sec:((t||now)-s)/1000,tag:st[e.id]||['','']});});
+      rows.push(sh.logout_at?{lg:1,ms:new Date(sh.logout_at).getTime(),act:'Logout'}:{lg:1,ms:now,act:'Still on shift',live:1});
+    });
+    SL.rows=rows;
+    const tr=rows.map(r=>r.lg
+      ?`<tr class="lg"><td class="m">${r.live?'—':clock(r.ms)}</td><td><b>${E(r.act)}</b></td><td class="m">—</td><td class="m">—</td><td class="m r"></td><td>${r.live?'<span class="sl-tag sl-ok">🟢 Live</span>':''}</td></tr>`
+      :`<tr><td class="m">${clock(r.s)}</td><td><b>${E(r.act)}</b></td><td class="m">${clock(r.s)}</td><td class="m">${r.t?clock(r.t):'<span style="color:var(--teal)">running</span>'}</td><td class="m r">${dur(r.sec)}</td><td>${r.tag[0]?`<span class="sl-tag ${r.tag[1]}">${E(r.tag[0])}</span>`:''}</td></tr>`).join('');
+    const sched=win?`${clock(win.start.getTime())} – ${clock(win.end.getTime())}`:'no shift time set';
+    const ch=d.changes||[];
+    const used=[...new Set(segs.map(x=>x.a))];
+    body(`<div class="card">
+      <div><b style="font-size:15px">${E(d.staff?d.staff.full_name:'')} — ${E(d.client?d.client.name:'No client')} · ${E(niceDate(d.date))} shift</b>
+      <div class="muted" style="font-size:12px;margin-top:2px">Scheduled ${E(sched)} · Login ${clock(first)} · ${open?'<b style="color:var(--teal)">still on shift</b>':'Logout '+clock(new Date(lastSh.logout_at).getTime())}${d.shifts.length>1?` · ${d.shifts.length} log-ins this shift`:''}</div></div>
+      <div class="sl-tiles">
+        <div class="sl-tile"><span>Logged in</span><b>${dur(loggedSec)}</b></div>
+        <div class="sl-tile"><span>Billable</span><b style="color:var(--teal)">${mdur(sum.billable)}</b><span title="Timesheets round to the nearest minute">Timesheet shows ${hm(sum.billable)}</span></div>
+        <div class="sl-tile"><span>Total breaks</span><b style="color:var(--gold)">${mdur(breakMin)}</b></div>
+        <div class="sl-tile"><span>Unpaid</span><b>${mdur(unpaid)}</b></div>
+        <div class="sl-tile"><span>Over-break</span><b style="color:${over>0.0083?'#f07a8a':'var(--ink)'}">${mdur(over)}</b></div>
+      </div>
+      <div class="sl-bar">${bar}</div>
+      <div class="sl-leg">${used.map(a=>`<span><i style="background:${colorFor(a)}"></i>${E(a)}</span>`).join('')}<span><i style="background:#f07a8a"></i>Over limit</span></div>
+    </div>
+    <div class="card"><div class="hdr"><h3 style="font-size:14px">Punches (${rows.filter(r=>!r.lg).length})</h3><span class="muted" style="font-size:11px">Times in PHT · durations h:mm:ss</span></div>
+      <div style="overflow-x:auto"><table class="sl-t"><thead><tr><th>Time</th><th>Punch</th><th>Start</th><th>End</th><th class="r">Duration</th><th>Status</th></tr></thead><tbody>${tr}</tbody></table></div></div>
+    <div class="card"><div class="hdr"><h3 style="font-size:14px">✏️ Changes to this shift</h3></div>
+      ${ch.length?ch.map(c=>`<div class="sl-ed"><b>${E(c.at?new Date(c.at).toLocaleString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' PHT':'')}${c.who?' · '+E(c.who):''}</b> — ${E(c.what)}<div class="muted" style="font-size:12px;margin-top:2px">${E(c.detail||'')}</div></div>`).join('')
+        :`<div class="muted" style="font-size:12.5px">No changes recorded for this shift.</div>`}
+      <div class="muted" style="font-size:11.5px;margin-top:8px">${isAdmin()?'Shows correction requests, login/logout edits, added shifts and Shift tools actions.':'Shows your correction requests for this shift.'}</div></div>`);
+  }
+
+  SL.csv=function(){
+    const d=SL.data; if(!d||!SL.rows) return;
+    const q=v=>{v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+    const name=d.staff?d.staff.full_name:'';
+    const lines=[['Staff','Client','Shift date','Punch','Start (PHT)','End (PHT)','Duration (h:mm:ss)','Status']];
+    SL.rows.forEach(r=>lines.push(r.lg?[name,d.client?d.client.name:'',d.date,r.act,r.live?'':clock(r.ms),'','','']
+      :[name,d.client?d.client.name:'',d.date,r.act,clock(r.s),r.t?clock(r.t):'running',dur(r.sec),r.tag[0]]));
+    const blob=new Blob([lines.map(l=>l.map(q).join(',')).join('\n')],{type:'text/csv'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=`shift-log_${String(name).replace(/[^a-z0-9]+/gi,'-')}_${d.date}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  };
+
+  // init as soon as the Adherence page exists and we know who is logged in
+  const tryInit=()=>{ try{ if(typeof me!=='undefined'&&me&&g('v-adherence')) init(); }catch(_){} };
+  const obs=new MutationObserver(tryInit);
+  const watch=()=>{ const s=g('v-adherence'); if(s) obs.observe(s,{attributes:true,attributeFilter:['class']}); tryInit(); };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',watch); else watch();
+  setTimeout(tryInit,1500); setTimeout(tryInit,5000);
+})();
+</script>
+
 </body></html>
