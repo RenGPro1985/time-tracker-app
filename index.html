@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="smb-build" content="2026-10-27-b30">
+<meta name="smb-build" content="2026-11-06-b32">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SMB VS Portal</title>
@@ -1063,7 +1063,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
     <section id="v-rewards" class="hide grid" style="gap:12px">
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Shift habits (Shadow)</h3><div class="row" style="gap:7px;flex-wrap:wrap;align-items:center"><label for="rwWeek" style="margin:0">Week</label><select id="rwWeek" style="width:auto;min-width:190px"></select><label for="rwClient" style="margin:0">Client</label><select id="rwClient" style="width:auto;min-width:150px"><option value="">All clients</option></select><button class="btn btn-ghost" id="rwCsv">Export CSV</button><button class="btn btn-gold" id="rwRescore" title="Re-scores the last 14 days now (same as the 7:00 AM PHT nightly job)">Re-score now</button></div></div>
-        <div class="rw-shadow"><b>SHADOW MODE</b><span>Staff can't see this page and no BINGO tokens move. These are the tokens each agent <i>would</i> earn.</span></div>
+        <div class="rw-shadow" style="border-color:var(--teal);background:rgba(63,191,174,.08)"><b style="color:var(--teal)">LIVE</b><span>Tokens from the week of Nov 2 on are real. Staff claim them into BINGO from the Clock in page every Monday, 7:00 AM PHT (first claim Nov 9). Weeks before Nov 2 were the trial. Staff can't see this admin page.</span></div>
         <div id="rwStatus" class="muted" role="status" aria-live="polite" style="font-size:12px;margin-bottom:9px">Loading…</div>
         <div class="rw-kpis" id="rwKpis"></div>
       </div>
@@ -1085,7 +1085,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
           <button class="btn btn-gold" id="cbRun">Run check</button>
           <button class="btn btn-ghost" id="cbCsv">Download CSV</button>
         </div>
-        <div class="note" style="margin-top:12px;font-size:12px"><b>Rule:</b> paid on the 15th for the <b>previous calendar month</b>. Eligible only if the staff worked the <b>full calendar month</b> (hired on or before the 1st), had <b>0 lates</b> (first log-in of the shift after shift start — any minute counts) and <b>0 unpaid absences</b>: Planned Absence (PA), Sick Leave (SL) or OUT (scheduled workday with no log-in and no approved leave). PTO and PCH do <b>not</b> break eligibility.</div>
+        <div class="note" style="margin-top:12px;font-size:12px"><b>Rule:</b> paid on the 15th for the <b>previous calendar month</b>. Eligible only if the staff worked the <b>full calendar month</b> (hired on or before the 1st), had <b>0 lates</b> (first log-in of the shift after shift start — any minute counts; this includes starting mid-shift), <b>0 days under 8 hours</b> (half days included), <b>0 early log-outs</b>, <b>0 over-breaks</b> (1 minute or more over a break allowance on a day) and <b>0 unpaid absences</b>: Planned Absence (PA), Sick Leave (SL) or OUT (scheduled workday with no log-in and no approved leave). PTO and PCH do <b>not</b> break eligibility. Oct 28 and Oct 30 short days (up to 20 min, app issue) are counted as full.</div>
         <div class="muted" id="cbStatus" role="status" aria-live="polite" style="font-size:12px;margin-top:9px">Pick a month and press Run check.</div>
       </div>
       <div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">
@@ -1096,7 +1096,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       </div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Staff</h3><div class="row" style="gap:12px;align-items:center;flex-wrap:wrap"><div class="cb-amt-box"><label for="cbAmount">Completion Bonus<br>per staff</label><span class="cb-peso">₱</span><input type="number" id="cbAmount" min="0" step="1"></div><button class="btn btn-teal hide" id="cbApproveOpen">Prepare Ledger fill →</button></div></div>
-        <div class="sticky-scroll"><table class="cb-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th style="text-align:center">Workdays</th><th style="text-align:center">Lates</th><th style="text-align:center">PA</th><th style="text-align:center">SL</th><th style="text-align:center">OUT</th><th style="text-align:center">PTO / PCH</th><th style="text-align:right">Bonus</th><th>Status</th><th>Why</th></tr></thead><tbody id="cbBody"><tr><td colspan="11" class="muted" style="text-align:center;padding:18px">Press Run check.</td></tr></tbody></table></div>
+        <div class="sticky-scroll"><table class="cb-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th style="text-align:center">Workdays</th><th style="text-align:center">Lates</th><th style="text-align:center">Under 8h</th><th style="text-align:center">Left early</th><th style="text-align:center">Over-break</th><th style="text-align:center">PA</th><th style="text-align:center">SL</th><th style="text-align:center">OUT</th><th style="text-align:center">PTO / PCH</th><th style="text-align:right">Bonus</th><th>Status</th><th>Why</th></tr></thead><tbody id="cbBody"><tr><td colspan="11" class="muted" style="text-align:center;padding:18px">Press Run check.</td></tr></tbody></table></div>
         <div class="muted" style="font-size:11.5px;margin-top:8px">Click a name to see the exact late / absence dates. Nothing goes into the Ledger until you approve it below.</div>
       </div>
       <div class="card hide" id="cbApprove" style="border-color:rgba(63,191,174,.35)">
@@ -3029,7 +3029,7 @@ async function start(){
   window.TsAck?.onStart();
   window.DocTodo?.load();
   window.BreakNudge?.start();
-  window.Ratings?.loadMine();
+  window.Ratings?.loadMine();window.RewardsClaim?.loadMine();
 }
 
 /* ---------- in-app notifications bell ---------- */
@@ -3084,7 +3084,7 @@ const PAGES={
   'v-cbonus':['🏅 Completion Bonus','Completion Bonus','Previous month: full month, no lates, no unpaid absences — review, then approve into the 15th payout'],
   'v-earning':['💰 SMB PH Earning','SMB PH Earning','Admin-only immutable per-semi-monthly-period FX + VSPH/ROI/margin LOCK IN'],
   'v-files':['📎 Files','Staff & Clients · Files','Every staff medcert, receipt and EOD attachment — filter, open, zip-download, or upload on their behalf'],
-  'v-policy':['⚙️ Rules','Staff & Clients · Rules','Billable rules, break allowances and activities by client'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Requests','Requests','Review and approve staff requests — SA/CA and PTO'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-eod':['📝 EOD & Weekly','EOD & Weekly Reports','Daily EOD and Friday weekly report — only you and Sir Rendy can see them'], 'v-rewards':['🎟️ SMB Rewards','SMB Rewards','Shift habits, weekly ratings and tokens — one currency, paid into BINGO (shadow until Mon Nov 2)'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','Staff & Clients · PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
+  'v-policy':['⚙️ Rules','Staff & Clients · Rules','Billable rules, break allowances and activities by client'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Requests','Requests','Review and approve staff requests — SA/CA and PTO'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-eod':['📝 EOD & Weekly','EOD & Weekly Reports','Daily EOD and Friday weekly report — only you and Sir Rendy can see them'], 'v-rewards':['🎟️ SMB Rewards','SMB Rewards','Shift habits, weekly ratings and tokens — live since Mon Nov 2 · staff claim into BINGO every Monday 7 AM PHT'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','Staff & Clients · PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
 };
 let view='v-punch';
 /* sub-tab groups (Rendy 2026-10-19): Rules + PTO Credits live in Staff & Clients; payroll tabs live under Contractor Ledger ("Payroll") for admins */
@@ -3233,7 +3233,7 @@ function go(v){
   if(v==='v-earning'){initEarningFilters();}
   if(v==='v-cbonus'){window.CompletionBonus?.init();}
   if(v==='v-files'){window.RFA?.load();}
-  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-rewards'){window.RewardsShadow?.init();window.Ratings?.initAdmin();} if(v==='v-punch'&&me&&me.role!=='admin'){window.Ratings?.loadMine();} if(v==='v-eod'){window.EOD?.init();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();window.Reliability?.initProfile();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-rewards'){window.RewardsShadow?.init();window.Ratings?.initAdmin()?.then?.(()=>window.RewardsClaim?.initAdmin());} if(v==='v-punch'&&me&&me.role!=='admin'){window.Ratings?.loadMine();window.RewardsClaim?.loadMine();} if(v==='v-eod'){window.EOD?.init();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();window.Reliability?.initProfile();}
 }
 
 /* clocks + running timers */
@@ -10506,9 +10506,21 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       else if(t==='pto')out.pto++; else if(t==='pch')out.pch++;
     });
     out.out=(row?.outDates||[]).filter(d=>d>=start&&d<=end);
+    /* b32 (Sir Rendy 2026-11-06): under 8h, early log-out and over-break also disqualify */
+    out.short=[];out.early=[];out.over=[];out.excused=[];
+    (data.days||[]).forEach(x=>{
+      if(x.date<start||x.date>end)return; if(hire&&x.date<hire)return; if(term&&x.date>term)return;
+      if(x.over>=1)out.over.push(x);
+      if(x.excused&&(x.short||x.early)){out.excused.push(x);return;}
+      if(x.short)out.short.push(x);
+      if(x.early)out.early.push(x);
+    });
     for(let d=start;d<=end;d=addDays(d,1)){const w=dowOf(d);if(w>=1&&w<=5&&(!hire||d>=hire)&&(!term||d<=term))out.workdays++;}
     const bad=[];
     if(out.lates.length)bad.push(`${out.lates.length} late${out.lates.length>1?'s':''}`);
+    if(out.short.length)bad.push(`${out.short.length} day${out.short.length>1?'s':''} under 8h`);
+    if(out.early.length)bad.push(`${out.early.length} early log-out${out.early.length>1?'s':''}`);
+    if(out.over.length)bad.push(`over-break on ${out.over.length} day${out.over.length>1?'s':''}`);
     if(out.pa.length)bad.push(`${out.pa.length} planned absence${out.pa.length>1?'s':''}`);
     if(out.sl.length)bad.push(`${out.sl.length} sick leave${out.sl.length>1?'s':''}`);
     if(out.out.length)bad.push(`${out.out.length} OUT (no log-in)`);
@@ -10524,7 +10536,35 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       else if(start<autoStart){out.status='review';out.why.push(`OUT days are only tracked from ${fmtNice(autoStart)} — confirm no absences before that`);}
     }
     if(end>=todayIso)out.flags.push('month not finished');
-    if(out.status==='eligible'){const n=[];if(out.pto)n.push('PTO');if(out.pch)n.push('PCH');out.why.push(n.length?`No lates or unpaid absences (${n.join(' & ')} ${n.length>1?'don\'t':'doesn\'t'} count against)`:'No lates, no unpaid absences');}
+    if(out.status==='eligible'){const n=[];if(out.pto)n.push('PTO');if(out.pch)n.push('PCH');out.why.push(n.length?`Clean month (${n.join(' & ')} ${n.length>1?'don\'t':'doesn\'t'} count against)`:'No lates, short days, over-breaks or unpaid absences');}
+    return out;
+  }
+  /* b32: per shift-date hours / early log-out / over-break, same math as Timesheets + Adherence */
+  const CB_APP_ISSUE_DATES=['2026-10-28','2026-10-30'], CB_APP_ISSUE_MAX_SHORT=20;
+  function dayCheck(client,date,ents,shs,spanMap,override){
+    const win=shiftWindowFor(client,date); if(!win||!ents.length)return null;
+    if(shs.some(sh=>!sh.logout_at))return null;                       // shift still open
+    if(ents.every(e=>e.activity===OVERTIME))return null;              // Overtime-only day (e.g. weekend)
+    const sum=summarize(ents,null,win,spanFor(ents,spanMap));
+    const reg=Math.min(sum.regularBillable,REGULAR_DAILY_CAP_MIN);
+    let over=0;const overActs=[];BREAK_ACTS.forEach(a=>{const m=sum.overByAct[a]||0;if(m>0){over+=m;if(m>=0.5)overActs.push(`${a} +${Math.round(m)}m`);}});
+    const shortH=Math.round(reg/60*100)/100<8 && !(override!=null&&Number(override)>=8);
+    const lastOut=shs.reduce((m,sh)=>Math.max(m,new Date(sh.logout_at).getTime()),0);
+    const early=lastOut&&lastOut<win.end.getTime()-60000?{logout:new Date(lastOut),end:win.end}:null;
+    const excused=CB_APP_ISSUE_DATES.includes(date)&&reg>=REGULAR_DAILY_CAP_MIN-CB_APP_ISSUE_MAX_SHORT;
+    return {date,reg,short:shortH,early:!!early,logout:early?.logout,end:early?.end,over,overActs:overActs.join(', '),excused};
+  }
+  async function dayChecks(people,clientsById,start,end){
+    const ids=people.map(s=>s.id); if(!ids.length)return {};
+    const [ents,shs,adj]=await Promise.all([fetchEntriesRange(start,end,ids),fetchShiftsRange(start,end,ids),
+      sb.from('timesheet_adjustments').select('staff_id,work_date,hours').gte('work_date',start).lte('work_date',end).then(r=>r.data||[],()=>[])]);
+    const sdm=buildShiftDateMap(shs), ssm=buildShiftSpanMap(shs), out={};
+    const adjBy={};(adj||[]).forEach(a=>{const k=a.staff_id+'|'+a.work_date;adjBy[k]=(adjBy[k]||0)+Number(a.hours||0);});
+    people.forEach(s=>{
+      const client=clientsById[s.client_id]; if(!client)return;
+      const byDay={};ents.filter(e=>e.staff_id===s.id).forEach(e=>{const d=shiftDateOf(e,sdm);(byDay[d]=byDay[d]||[]).push(e);});
+      out[s.id]=Object.keys(byDay).sort().filter(d=>d>=start&&d<=end).map(d=>dayCheck(client,d,byDay[d],shs.filter(sh=>sh.staff_id===s.id&&sdm[sh.id]===d),ssm,adjBy[s.id+'|'+d])).filter(Boolean);
+    });
     return out;
   }
   function filtered(){
@@ -10539,18 +10579,22 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     $('cbStatTotal').textContent=rows.length;$('cbStatOk').textContent=c.eligible;$('cbStatNo').textContent=c.no;$('cbStatRev').textContent=c.review;
     const body=rows.map(r=>{
       const id=r.staff.id, open=cbOpen.has(id);
-      let html=`<tr class="cb-row" data-cb-open="${esc(id)}" style="cursor:pointer"><td class="sticky-col">${open?'▾':'▸'} ${esc(r.staff.full_name)}${r.hire&&r.hire>cbMeta.start?`<span class="cb-tag">hired ${esc(fmtNice(r.hire))}</span>`:''}</td><td>${esc(r.client?.name||'—')}</td><td class="mono" style="text-align:center">${r.workdays}</td>${num(r.lates.length)}${num(r.pa.length)}${num(r.sl.length)}${num(r.out.length)}<td class="mono" style="text-align:center">${r.pto} / ${r.pch}</td><td class="mono cb-bonus">${r.status==='eligible'?peso(Number($('cbAmount').value)||0):r.status==='review'?'<span class="muted" style="font-size:12px;font-weight:600">check</span>':'<span class="muted" style="font-size:13px">—</span>'}</td><td>${pill(r.status)}</td><td style="font-size:12px">${esc(r.why.join(' · '))}</td></tr>`;
+      let html=`<tr class="cb-row" data-cb-open="${esc(id)}" style="cursor:pointer"><td class="sticky-col">${open?'▾':'▸'} ${esc(r.staff.full_name)}${r.hire&&r.hire>cbMeta.start?`<span class="cb-tag">hired ${esc(fmtNice(r.hire))}</span>`:''}</td><td>${esc(r.client?.name||'—')}</td><td class="mono" style="text-align:center">${r.workdays}</td>${num(r.lates.length)}${num(r.short.length)}${num(r.early.length)}${num(r.over.length)}${num(r.pa.length)}${num(r.sl.length)}${num(r.out.length)}<td class="mono" style="text-align:center">${r.pto} / ${r.pch}</td><td class="mono cb-bonus">${r.status==='eligible'?peso(Number($('cbAmount').value)||0):r.status==='review'?'<span class="muted" style="font-size:12px;font-weight:600">check</span>':'<span class="muted" style="font-size:13px">—</span>'}</td><td>${pill(r.status)}</td><td style="font-size:12px">${esc(r.why.join(' · '))}</td></tr>`;
       if(open){
         const parts=[];
-        if(r.lates.length)parts.push('<b>Late:</b> '+r.lates.map(l=>`${esc(fmtNice(l.date))} (shift ${esc(clock(l.start))}, log-in ${esc(clock(l.login))} · ${l.min<1?'<1':Math.round(l.min)} min)`).join(' · '));
+        if(r.lates.length)parts.push('<b>Late:</b> '+r.lates.map(l=>`${esc(fmtNice(l.date))} (shift ${esc(clock(l.start))}, log-in ${esc(clock(l.login))} · ${l.min<1?'<1':Math.round(l.min)} min${l.min>=60?' — started mid-shift':''})`).join(' · '));
+        if(r.short.length)parts.push('<b>Under 8 hours:</b> '+r.short.map(x=>`${esc(fmtNice(x.date))} (${esc(hm(x.reg))})`).join(' · '));
+        if(r.early.length)parts.push('<b>Left early:</b> '+r.early.map(x=>`${esc(fmtNice(x.date))} (log-out ${esc(clock(x.logout))}, shift ends ${esc(clock(x.end))})`).join(' · '));
+        if(r.over.length)parts.push('<b>Over-break:</b> '+r.over.map(x=>`${esc(fmtNice(x.date))} (+${esc(hm(x.over))}${x.overActs?' '+esc(x.overActs):''})`).join(' · '));
+        if(r.excused.length)parts.push('<span class="muted"><b>Counted as full (app issue):</b> '+r.excused.map(x=>esc(fmtNice(x.date))).join(', ')+'</span>');
         if(r.pa.length)parts.push('<b>Planned absence:</b> '+r.pa.map(d=>esc(fmtNice(d))).join(', '));
         if(r.sl.length)parts.push('<b>Sick leave:</b> '+r.sl.map(d=>esc(fmtNice(d))).join(', '));
         if(r.out.length)parts.push('<b>OUT (no log-in):</b> '+r.out.map(d=>esc(fmtNice(d))).join(', '));
-        if(!parts.length)parts.push('Nothing to show — no lates or unpaid absences this month.');
-        html+=`<tr class="cb-det"><td colspan="11">${parts.join('<br>')}</td></tr>`;
+        if(!parts.length)parts.push('Nothing to show — clean month.');
+        html+=`<tr class="cb-det"><td colspan="14">${parts.join('<br>')}</td></tr>`;
       }
       return html;
-    }).join('')||'<tr><td colspan="11" class="muted" style="text-align:center;padding:18px">No staff match these filters.</td></tr>';
+    }).join('')||'<tr><td colspan="14" class="muted" style="text-align:center;padding:18px">No staff match these filters.</td></tr>';
     $('cbBody').innerHTML=body;
     document.querySelectorAll('[data-cb-open]').forEach(tr=>tr.onclick=()=>{const id=tr.dataset.cbOpen;cbOpen.has(id)?cbOpen.delete(id):cbOpen.add(id);render();});
   }
@@ -10566,7 +10610,9 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       const rows=M.computeRows(people,clientsById,{start,end},att,[],[]);
       const byStaff={};rows.forEach(r=>byStaff[r.staff.id]=r);
       const shiftsBy={};(att.shifts||[]).forEach(sh=>(shiftsBy[sh.staff_id]=shiftsBy[sh.staff_id]||[]).push(sh));
-      cbRows=people.filter(s=>!ncHideNow(s)||(shiftsBy[s.id]||[]).length).map(s=>classify(s,clientsById[s.client_id],ym,{row:byStaff[s.id],shifts:shiftsBy[s.id]||[]},today))
+      $('cbStatus').textContent='Checking hours and breaks…';
+      const daysBy=await dayChecks(people,clientsById,start,end);
+      cbRows=people.filter(s=>!ncHideNow(s)||(shiftsBy[s.id]||[]).length).map(s=>classify(s,clientsById[s.client_id],ym,{row:byStaff[s.id],shifts:shiftsBy[s.id]||[],days:daysBy[s.id]||[]},today))
         .sort((a,b)=>({eligible:0,review:1,no:2}[a.status]-{eligible:0,review:1,no:2}[b.status])||String(a.staff.full_name).localeCompare(String(b.staff.full_name)));
       const cutoff=payoutFor(ym);
       cbMeta={ym,start,end,cutoff,finished:end<today};
@@ -10643,8 +10689,8 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   function csv(){
     if(!cbRows.length||!cbMeta)return alert('Press Run check first.');
     const q=v=>{const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
-    const lines=[['Staff','Client','Hire date','Workdays','Lates','Late dates','PA','SL','OUT','OUT dates','PTO','PCH','Status','Why'].join(',')];
-    filtered().forEach(r=>lines.push([r.staff.full_name,r.client?.name||'',r.hire||'',r.workdays,r.lates.length,r.lates.map(l=>l.date).join(' '),r.pa.length,r.sl.length,r.out.length,r.out.join(' '),r.pto,r.pch,{eligible:'Eligible',no:'Not eligible',review:'Review'}[r.status],r.why.join('; ')].map(q).join(',')));
+    const lines=[['Staff','Client','Hire date','Workdays','Lates','Late dates','Under 8h','Under 8h dates','Left early','Left early dates','Over-break days','Over-break dates','PA','SL','OUT','OUT dates','PTO','PCH','Status','Why'].join(',')];
+    filtered().forEach(r=>lines.push([r.staff.full_name,r.client?.name||'',r.hire||'',r.workdays,r.lates.length,r.lates.map(l=>l.date).join(' '),r.short.length,r.short.map(x=>x.date).join(' '),r.early.length,r.early.map(x=>x.date).join(' '),r.over.length,r.over.map(x=>x.date).join(' '),r.pa.length,r.sl.length,r.out.length,r.out.join(' '),r.pto,r.pch,{eligible:'Eligible',no:'Not eligible',review:'Review'}[r.status],r.why.join('; ')].map(q).join(',')));
     const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`completion-bonus-${cbMeta.ym}.csv`;a.click();URL.revokeObjectURL(a.href);
   }
@@ -10663,7 +10709,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const oldC=$('cbClient').value;fill('cbClient','All clients',clients.map(c=>[c.id,c.name]));if([...$('cbClient').options].some(o=>o.value===oldC))$('cbClient').value=oldC;
     $('cbPayout').textContent=fmtNice(payoutFor($('cbMonth').value))+' payout';
   }
-  window.CompletionBonus={init,run,_classify:classify,_payoutFor:payoutFor,_monthRange:monthRange};
+  window.CompletionBonus={init,run,_classify:classify,_dayCheck:dayCheck,_payoutFor:payoutFor,_monthRange:monthRange};
 })();
 </script>
 
@@ -11352,7 +11398,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
         <div class="l"><span>Reliability · ${esc(scored?w.rel_band:'not scored')}</span><b>${scored?w.rel_tokens:0}</b></div>
         <div class="l"><span>Compliance · ${esc(scored?w.comp_band:'not scored')}</span><b>${scored?w.comp_tokens:0}</b></div>
         ${adjTok?`<div class="l"><span>Approved dispute (earlier week)</span><b>+${adjTok}</b></div>`:''}
-        <div class="rt-note">${scored?'':esc(w.note||'')+' · '}🔥 Streak ${Math.min(w.streak||0,cfg.streak_weeks||4)} / ${cfg.streak_weeks||4} weeks at Exceeds or better${w.multiplier>1?` → rating tokens ×${w.multiplier}`:''} · claim in BINGO Mon ${esc(md(addDays(w.week_start,7)))}, 7:00 AM PHT</div></div>
+        <div class="rt-note">${scored?'':esc(w.note||'')+' · '}🔥 Streak ${Math.min(w.streak||0,cfg.streak_weeks||4)} / ${cfg.streak_weeks||4} weeks at Exceeds or better${w.multiplier>1?` → rating tokens ×${w.multiplier}`:''} · ready to claim Mon ${esc(md(addDays(w.week_start,7)))}, 7:00 AM PHT</div></div>
       ${nd.length?`<div class="rt-nd">${nd.join('')}</div>`:''}`;
     card.querySelectorAll('[data-rt-open]').forEach(b=>b.onclick=()=>openDrawer(b.dataset.rtOpen,w,mine.events,mine.disputes,mine.weeks,{}));
     card.querySelectorAll('[data-rt-go]').forEach(a=>a.onclick=()=>go(a.dataset.rtGo));
@@ -12884,6 +12930,139 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   const watch=()=>{ const s=g('v-adherence'); if(s) obs.observe(s,{attributes:true,attributeFilter:['class']}); tryInit(); };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',watch); else watch();
   setTimeout(tryInit,1500); setTimeout(tryInit,5000);
+})();
+</script>
+
+<script>
+/* ============================================================
+   b32 · SMB Rewards Phase 2 — My Tokens (staff) + Claims (admin)
+   Tokens live from the week of Nov 2; a week is claimable the following Monday 07:00 PHT.
+   Claim = portal rpc rw_claim_create (via BINGO edge fn portal-rewards) → BINGO wallet.
+   ============================================================ */
+(function(){
+  'use strict';
+  const FN='https://ebeggngsggwnxufovkco.supabase.co/functions/v1/portal-rewards';
+  const esc=v=>escapeHtml(String(v??''));
+  const md=iso=>{const d=new Date(String(iso).slice(0,10)+'T00:00:00Z');return d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'});};
+  const whenPH=ts=>new Date(ts).toLocaleString('en-US',{timeZone:'Asia/Manila',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  const errMsg=e=>e?.message||e?.error||String(e||'Error');
+  let busy=false, players=null, adm={rows:[],q:''};
+  if(!document.getElementById('rcStyle')){const st=document.createElement('style');st.id='rcStyle';st.textContent=`
+    .rc-card .rc-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+    .rc-card .rc-t{border:1px solid var(--line,rgba(255,255,255,.1));border-radius:12px;padding:9px 10px}
+    .rc-card .rc-t .k{font-size:11px;color:var(--slate)} .rc-card .rc-t .v{font-size:22px;font-weight:800;font-family:var(--mono,monospace)}
+    .rc-card .rc-t.ready .v{color:var(--gold)} .rc-card .rc-btn{width:100%;font-weight:700}
+    .rc-card .rc-h{font-size:12px;margin-top:10px;display:grid;gap:4px} .rc-card .rc-h div{display:flex;justify-content:space-between;gap:8px}
+    .rc-ok{color:var(--teal)} .rc-pend{color:var(--gold)} .rc-note{font-size:11.5px;color:var(--slate);margin-top:8px;line-height:1.5}
+    .rc-adm table td,.rc-adm table th{white-space:nowrap} .rc-adm select{width:auto;min-width:130px;margin:0;padding:4px 6px}`;document.head.appendChild(st);}
+
+  async function token(){const s=await sb.auth.getSession();return s?.data?.session?.access_token||'';}
+  async function call(action){
+    const r=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await token()},body:JSON.stringify({action})});
+    return r.json();
+  }
+
+  /* ---------------- staff: My Tokens card ---------------- */
+  async function loadMine(){
+    if(!me||me.role==='admin'||!sb)return;
+    const {data,error}=await sb.rpc('rw_my_tokens');
+    if(error){document.getElementById('rcMyCard')?.remove();return;}   // SQL not run yet → stay hidden
+    if(data?.pending&&!busy){ busy=true; try{await call('sync');}catch(_){} busy=false; const again=await sb.rpc('rw_my_tokens'); if(!again.error) return paint(again.data); }
+    paint(data);
+  }
+  function paint(s){
+    const sec=document.getElementById('v-punch'); if(!sec||!s)return;
+    const R=[...sec.children].filter(c=>c.id!=='docTodoBanner')[1]; if(!R)return;
+    let card=document.getElementById('rcMyCard');
+    if(!card){card=document.createElement('div');card.className='card rc-card';card.id='rcMyCard';}
+    const rt=document.getElementById('rtMyCard');
+    if(rt&&rt.parentElement===R){ if(rt.nextSibling!==card)R.insertBefore(card,rt.nextSibling); }
+    else if(card.parentElement!==R) R.insertBefore(card,R.firstChild);
+    const ready=Number(s.available)||0, live=!!s.live;
+    let btn;
+    if(!live) btn=`<button class="btn btn-ghost rc-btn" disabled>Claims open ${esc(whenPH(s.first_claim_at))} PHT</button>`;
+    else if(!s.player_id) btn=`<button class="btn btn-ghost rc-btn" disabled>BINGO player not linked yet — message Sir Rendy</button>`;
+    else if(s.claimed_this_week&&!s.pending) btn=`<button class="btn btn-ghost rc-btn" disabled>✅ Claimed this week · next claim ${esc(whenPH(s.next_unlock_at))}</button>`;
+    else if(ready>0||s.pending) btn=`<button class="btn btn-gold rc-btn" id="rcClaim">🎟️ Claim ${ready||''} token${ready===1?'':'s'} to BINGO${s.player_name?' ('+esc(s.player_name)+')':''}</button>`;
+    else btn=`<button class="btn btn-ghost rc-btn" disabled>Nothing ready yet · next unlock ${esc(whenPH(s.next_unlock_at))}</button>`;
+    const hist=(s.claims||[]).slice(0,4).map(c=>`<div><span>${esc(md(c.created_at))} · ${c.amount} 🪙 → BINGO</span><span class="${c.status==='credited'?'rc-ok':'rc-pend'}">${c.status==='credited'?'✓ received'+(c.balance_after!=null?` · balance ${c.balance_after}`:''):'⏳ sending…'}</span></div>`).join('');
+    card.innerHTML=`<div class="hdr"><h3 style="font-size:15px">🪙 My Tokens</h3><span class="badge">${s.player_name?'BINGO: '+esc(s.player_name):'BINGO not linked'}</span></div>
+      <div class="rc-tiles">
+        <div class="rc-t ready"><div class="k">Ready to claim</div><div class="v">${ready}</div></div>
+        <div class="rc-t"><div class="k">Earning this week</div><div class="v">${Number(s.this_week)||0}</div></div>
+        <div class="rc-t"><div class="k">Claimed so far</div><div class="v">${Number(s.claimed_total)||0}</div></div>
+      </div>
+      ${btn}<div id="rcMsg" class="rc-note" role="status" aria-live="polite"></div>
+      ${hist?`<div class="rc-h">${hist}</div>`:''}
+      <div class="rc-note">This week's tokens unlock ${esc(whenPH(s.next_unlock_at))} PHT. One claim per week moves everything that's ready.${Number(s.carry_debt)>0?` <b>${s.carry_debt} token${s.carry_debt>1?'s':''}</b> were removed after your last claim (time correction) and will come off your next claim.`:''}</div>`;
+    const b=document.getElementById('rcClaim'); if(b) b.onclick=claim;
+  }
+  async function claim(){
+    if(busy)return; busy=true;
+    const b=document.getElementById('rcClaim'), m=document.getElementById('rcMsg');
+    if(b){b.disabled=true;b.textContent='Sending to BINGO…';}
+    try{
+      const j=await call('claim');
+      if(j.ok){ m.innerHTML=`<span class="rc-ok">✅ ${j.amount} tokens added to BINGO${j.player?' ('+esc(j.player)+')':''}. New balance: <b>${j.balance}</b> 🪙</span>`; }
+      else { m.innerHTML=`<span style="color:var(--rose)">${esc(j.error||'Claim failed.')}</span>`; }
+    }catch(e){ m.innerHTML=`<span style="color:var(--rose)">Network error — try again. (${esc(errMsg(e))})</span>`; }
+    busy=false;
+    const keep=m?.innerHTML; const {data}=await sb.rpc('rw_my_tokens'); if(data){paint(data); const m2=document.getElementById('rcMsg'); if(m2&&keep)m2.innerHTML=keep;}
+  }
+
+  /* ---------------- admin: 🎟️ Claims sub-tab ---------------- */
+  function initAdmin(){
+    if(!me||me.role!=='admin')return;
+    const bar=document.getElementById('rtTabs'), sec=document.getElementById('v-rewards'); if(!bar||!sec)return;
+    if(!document.getElementById('rcTabBtn')){
+      const btn=document.createElement('button'); btn.className='btn btn-ghost'; btn.id='rcTabBtn'; btn.dataset.rtTab='claims'; btn.textContent='🎟️ Claims';
+      bar.appendChild(btn);
+      const p=document.createElement('div'); p.id='rcAdmPanel'; p.dataset.rtPanel='claims'; p.className='grid hide rc-adm'; p.style.gap='12px'; sec.appendChild(p);
+      btn.onclick=()=>{window.Ratings?.showTab('claims');loadAdmin();};
+    }
+    if(!document.getElementById('rcAdmPanel').classList.contains('hide'))loadAdmin();
+  }
+  async function loadAdmin(){
+    const host=document.getElementById('rcAdmPanel'); if(!host)return;
+    host.innerHTML='<div class="card muted">Loading claims…</div>';
+    const [ov,pl]=await Promise.all([sb.rpc('admin_claims_overview'), players?Promise.resolve({ok:true,players}):call('players').catch(e=>({ok:false,error:errMsg(e)}))]);
+    if(ov.error){host.innerHTML=`<div class="card note">Claims aren't set up yet — run the b32 SQL first. (${esc(errMsg(ov.error))})</div>`;return;}
+    if(pl.ok)players=pl.players;
+    adm.rows=ov.data||[]; renderAdmin();
+  }
+  function renderAdmin(){
+    const host=document.getElementById('rcAdmPanel'); const rows=adm.rows; const s0=rows[0]||{};
+    const sum=k=>rows.reduce((n,r)=>n+(Number(r[k])||0),0);
+    const unlinked=rows.filter(r=>!r.player_id).length, pend=rows.filter(r=>r.pending).length;
+    const opts=cur=>`<option value="">— not linked —</option>`+(players||[]).map(p=>`<option value="${esc(p.id)}" data-n="${esc(p.name)}" ${p.id===cur?'selected':''}>${esc(p.name)}</option>`).join('');
+    const q=adm.q.toLowerCase();
+    host.innerHTML=`<div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">
+        <div class="stat"><div class="k">Ready to claim now</div><div class="v" style="color:var(--gold)">${sum('available')}</div></div>
+        <div class="stat"><div class="k">Earning this week</div><div class="v">${sum('this_week')}</div></div>
+        <div class="stat"><div class="k">Claimed into BINGO</div><div class="v" style="color:var(--teal)">${sum('claimed_total')}</div></div>
+        <div class="stat"><div class="k">Not linked · stuck</div><div class="v" style="color:${unlinked||pend?'var(--rose)':'var(--slate)'}">${unlinked} · ${pend}</div></div></div>
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">Claims & BINGO links</h3><div class="row" style="gap:8px;flex-wrap:wrap">
+        <input id="rcQ" placeholder="Search staff" value="${esc(adm.q)}" style="width:170px;margin:0"><button class="btn btn-ghost" id="rcRetry" ${pend?'':'disabled'}>Retry stuck claims (${pend})</button><button class="btn btn-ghost" id="rcReload">Reload</button></div></div>
+        <div class="muted" style="font-size:12px;margin-bottom:8px">${s0.live?'Claims are open.':`Claims open ${esc(s0.first_claim_at?whenPH(s0.first_claim_at):'Mon Nov 9, 7:00 AM')} PHT.`} Each staff member must be linked to their BINGO player before they can claim. Changing a link only affects future claims. <span id="rcAdmMsg"></span></div>
+        <div class="sticky-scroll"><table><thead><tr><th class="sticky-col">Staff</th><th>BINGO player</th><th style="text-align:right">Ready</th><th style="text-align:right">This week</th><th style="text-align:right">Claimed</th><th>Last claim</th></tr></thead><tbody>
+        ${rows.filter(r=>!q||String(r.name).toLowerCase().includes(q)).map(r=>`<tr><td class="sticky-col">${esc(r.name)}</td><td><select data-rc-link="${esc(r.staff_id)}">${opts(r.player_id)}</select></td>
+          <td class="mono" style="text-align:right;color:var(--gold);font-weight:700">${r.available}${r.carry_debt>0?` <span class="muted" title="removed after last claim">(−${r.carry_debt})</span>`:''}</td><td class="mono" style="text-align:right">${r.this_week}</td><td class="mono" style="text-align:right">${r.claimed_total}</td>
+          <td style="font-size:12px">${r.last_claim?`${esc(md(r.last_claim.at))} · ${r.last_claim.amount} 🪙 ${r.last_claim.status==='credited'?'<span class="rc-ok">✓</span>':'<span class="rc-pend">⏳ stuck</span>'}`:'<span class="muted">—</span>'}</td></tr>`).join('')}
+        </tbody></table></div></div>`;
+    host.querySelectorAll('[data-rc-link]').forEach(sel=>sel.onchange=async()=>{
+      const o=sel.selectedOptions[0], m=document.getElementById('rcAdmMsg');
+      const {error}=await sb.rpc('admin_set_bingo_link',{p_staff:sel.dataset.rcLink,p_player:sel.value||null,p_player_name:sel.value?o.dataset.n:null});
+      if(error){alert(errMsg(error));return loadAdmin();}
+      const r=adm.rows.find(x=>x.staff_id===sel.dataset.rcLink); if(r){r.player_id=sel.value||null;r.player_name=sel.value?o.dataset.n:null;}
+      if(m)m.innerHTML=`<b class="rc-ok">✅ Saved.</b>`;
+    });
+    const qi=document.getElementById('rcQ'); qi.oninput=()=>{adm.q=qi.value;renderAdmin();const n=document.getElementById('rcQ');n.focus();n.setSelectionRange(n.value.length,n.value.length);};
+    document.getElementById('rcReload').onclick=loadAdmin;
+    document.getElementById('rcRetry').onclick=async()=>{const m=document.getElementById('rcAdmMsg');m.textContent='Retrying…';
+      try{const j=await call('sync');m.innerHTML=j.ok?`<b class="rc-ok">✅ Sent ${j.done.length}.</b>${j.failed.length?` <span style="color:var(--rose)">${j.failed.length} failed: ${esc(j.failed.map(f=>f.name+' — '+f.error).join('; '))}</span>`:''}`:`<span style="color:var(--rose)">${esc(j.error)}</span>`;}
+      catch(e){m.textContent='Retry failed: '+errMsg(e);} setTimeout(loadAdmin,1500);};
+  }
+  window.RewardsClaim={loadMine,initAdmin,loadAdmin,_paint:paint};
 })();
 </script>
 
