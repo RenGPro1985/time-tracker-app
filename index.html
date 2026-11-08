@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="smb-build" content="2026-11-08-b34">
+<meta name="smb-build" content="2026-11-08-b35">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SMB VS Portal</title>
@@ -13128,7 +13128,31 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     .ga-tag{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700;white-space:nowrap}
     .ga-tag.add{background:rgba(63,191,174,.14);color:var(--teal)} .ga-tag.paid{background:rgba(255,255,255,.08);color:var(--slate)}
     .ga-tag.rem{background:rgba(226,104,95,.15);color:var(--rose)} .ga-tag.link{background:rgba(227,166,62,.15);color:var(--gold)}
+    .ga2 .ga-hot{border-color:rgba(227,166,62,.6);background:linear-gradient(135deg,rgba(227,166,62,.16),rgba(227,166,62,.03))}
+    .ga2 .rt-b{cursor:default} .ga2 .ga-medal{width:58px;height:58px;flex:0 0 58px;font-size:28px}
+    .ga2 .ga-m2{background:rgba(47,183,163,.18);box-shadow:0 0 0 4px rgba(47,183,163,.10)}
+    .ga2 .ga-big{font-size:28px} .ga2 .ga-w{color:#5fd6c3}
+    .ga2 .rt-tok .l{align-items:center;gap:8px;padding:4px 0} .ga2 .rt-tok .l>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .ga2 .ga-d{color:var(--muted);font-size:11px} .ga2 .ga-r{display:flex;gap:8px;align-items:center;flex:0 0 auto}
     .ga-note{font-size:11.5px;color:var(--slate);margin-top:8px;line-height:1.5}
+    /* b35 treasure vault: game-wallet SMB Tokens under the peso boxes [Sir Rendy 2026-11-08] */
+    .ga2 .ga-hot{background:radial-gradient(120% 140% at 0% 0%,rgba(255,214,102,.28),rgba(227,166,62,.06) 55%,rgba(227,166,62,.02));box-shadow:inset 0 0 0 1px rgba(255,214,102,.25),0 6px 22px -12px rgba(227,166,62,.7)}
+    .ga2 .ga-hot .ga-big{background:linear-gradient(180deg,#ffe9a8,#e3a63e 60%,#b97a1d);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+    .ga-vault{position:relative;overflow:hidden;display:flex;align-items:center;gap:14px;margin:10px 0 0;padding:12px 14px;border-radius:14px;
+      border:1px solid rgba(255,214,102,.45);background:linear-gradient(135deg,#3a2a0c 0%,#1d1608 45%,#2b1f09 100%);box-shadow:inset 0 1px 0 rgba(255,233,168,.18),0 8px 24px -14px rgba(227,166,62,.8)}
+    .ga-vault::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,233,168,.16) 50%,transparent 65%);transform:translateX(-100%);animation:gaShine 4.5s ease-in-out infinite}
+    @keyframes gaShine{0%,55%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+    @media (prefers-reduced-motion:reduce){.ga-vault::after{animation:none;display:none}}
+    .ga-vault .ga-coins{position:relative;width:58px;height:58px;flex:0 0 58px;font-size:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;
+      background:radial-gradient(circle at 35% 30%,#ffe9a8,#e3a63e 55%,#9c6514);box-shadow:0 0 0 4px rgba(255,214,102,.16),0 0 18px rgba(255,200,80,.45)}
+    .ga-vault .ga-coins small{position:absolute;right:-4px;top:-6px;font-size:16px}
+    .ga-vault .rt-k{color:#f3d68a;letter-spacing:.06em;text-transform:uppercase;font-size:11px}
+    .ga-vault .ga-tok{font-size:28px;font-weight:800;font-family:var(--mono,monospace);line-height:1.15;color:#ffe08a;text-shadow:0 0 14px rgba(255,200,80,.35)}
+    .ga-vault .ga-tok span{font-size:13px;font-weight:700;color:#f3d68a;font-family:inherit;margin-left:4px}
+    .ga-vault .rt-s{color:#d9c08a}
+    .ga-vault .ga-vr{margin-left:auto;text-align:right;font-size:11.5px;color:#d9c08a;line-height:1.5;flex:0 0 auto}
+    .ga-vault .ga-vr b{color:#ffe08a;font-family:var(--mono,monospace);font-size:15px}
+    @media(max-width:520px){.ga-vault .ga-vr{display:none}}
     .ga-adm .ga-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
     .ga-adm .ga-strip .stat .v{font-size:20px}
     .ga-adm table td,.ga-adm table th{white-space:nowrap} .ga-adm td.wrap{white-space:normal;min-width:180px}
@@ -13159,15 +13183,35 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
 
   /* ---------------- staff: 🏆 card ---------------- */
   let mine=null;
+  /* b35: SMB Tokens in the game wallet (BINGO app), via portal-rewards action 'wallet' */
+  let wallet=null, walletAt=0;
+  async function loadWallet(){
+    if(!me||me.role==='admin'||!sb||Date.now()-walletAt<60000)return;
+    walletAt=Date.now();
+    try{
+      const s=await sb.auth.getSession(); const t=s?.data?.session?.access_token||''; if(!t)return;
+      const r=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify({action:'wallet'})});
+      const j=await r.json(); if(j&&j.ok){wallet=j; if(mine)paint();}
+    }catch(_){}
+  }
+  function vaultHtml(){
+    if(!wallet) return '';
+    if(!wallet.player_id) return `<div class="ga-vault"><div class="ga-coins">🪙</div><div><div class="rt-k">SMB Tokens · game wallet</div><div class="rt-s">Your BINGO player isn't linked yet — message Sir Rendy.</div></div></div>`;
+    const n=Number(wallet.balance)||0;
+    return `<div class="ga-vault"><div class="ga-coins">🪙<small>✨</small></div>
+      <div><div class="rt-k">SMB Tokens · game wallet</div><div class="ga-tok">${n.toLocaleString('en-US')}<span>tokens</span></div>
+      <div class="rt-s">Your treasure in BINGO, Pet Race &amp; more</div></div>
+      <div class="ga-vr">${wallet.player_name?esc(wallet.player_name)+' · BINGO':'BINGO'}<br>${wallet.rank?`<b>#${wallet.rank}</b> richest of ${wallet.of}`:''}</div></div>`;
+  }
   async function loadMine(){
     if(!me||me.role==='admin'||!sb)return;
     const {data,error}=await sb.rpc('game_awards_list',{p_from:null});
     if(error){document.getElementById('gaMyCard')?.remove();return;}   // SQL not run yet → stay hidden
-    mine=data||[]; paint();
+    mine=data||[]; paint(); loadWallet();
   }
   function rightCol(){const sec=document.getElementById('v-punch'); if(!sec)return null; return [...sec.children].filter(c=>c.id!=='docTodoBanner')[1]||null;}
-  /* Right column order (Sir Rendy 2026-11-08): My Ratings → My Tokens → 🏆 Incentive → Bulletin Board → the rest */
-  const ORDER=['rtMyCard','rcMyCard','gaMyCard','bbMini'];
+  /* Right column order (Sir Rendy 2026-11-08, b35): 🏆 Incentive → My Ratings → My Tokens → Bulletin Board → the rest */
+  const ORDER=['gaMyCard','rtMyCard','rcMyCard','bbMini'];  /* b35: 🏆 on top */
   function arrange(){
     const R=rightCol(); if(!R)return;
     const want=ORDER.map(id=>document.getElementById(id)).filter(el=>el&&el.parentElement===R);
@@ -13178,30 +13222,43 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   let obs=null;
   function watch(){
     const R=rightCol(); if(!R||obs)return;
-    obs=new MutationObserver(()=>arrange()); obs.observe(R,{childList:true});
+    obs=new MutationObserver(()=>{arrange();watchSize();matchSize();}); obs.observe(R,{childList:true});
   }
   function paint(){
     const R=rightCol(); if(!R||!mine)return;
     let card=document.getElementById('gaMyCard');
-    if(!card){card=document.createElement('div');card.className='card ga-card';card.id='gaMyCard';R.appendChild(card);}
+    if(!card){card=document.createElement('div');card.id='gaMyCard';R.appendChild(card);}
+    card.className='card rt-card ga-card ga2';
     const open=mine.filter(l=>!l.paid&&l.payout_cutoff), year=todayPH().slice(0,4), month=todayPH().slice(0,7);
     const payouts=[...new Set(open.map(l=>l.payout_cutoff))].sort();
     const next=payouts[0]||null, nextAmt=open.filter(l=>l.payout_cutoff===next).reduce((n,l)=>n+Number(l.amount),0);
     const later=open.filter(l=>l.payout_cutoff!==next).reduce((n,l)=>n+Number(l.amount),0);
-    const yr=mine.filter(l=>String(l.won_date).slice(0,4)===year), mo=mine.filter(l=>String(l.won_date).slice(0,7)===month);
     const sum=a=>a.reduce((n,l)=>n+Number(l.amount),0);
+    const yr=mine.filter(l=>String(l.won_date).slice(0,4)===year), mo=mine.filter(l=>String(l.won_date).slice(0,7)===month);
     const nWin=open.filter(l=>l.payout_cutoff===next).length;
-    const list=mine.slice(0,6).map(l=>`<div class="ga-l"><div><b>${icon(l.source)} ${esc(gameName(l))}</b>${l.detail?` · ${esc(l.detail)}`:''}<div class="muted" style="font-size:11.5px">${esc(md(l.won_date))}</div></div>
-      <div style="text-align:right"><div class="mono" style="font-weight:800">${peso(l.amount)}</div>${l.paid?`<span class="ga-tag paid">✓ Paid ${esc(md(l.payout_cutoff))}</span>`:l.payout_cutoff?`<span class="ga-tag add">➕ ${esc(md(l.payout_cutoff))} payout</span>`:''}</div></div>`).join('');
-    card.innerHTML=`<div class="hdr"><h3 style="font-size:15px">🏆 Incentive/Contest Award</h3><span class="badge">${year}</span></div>
-      <div class="ga-hero"><div class="ga-medal">🏆</div><div><div class="ga-k">${next?`Going to your ${esc(md(next))} Contractor Fee`:'Going to your next Contractor Fee'}</div>
-        <div class="ga-big">${peso(nextAmt)}</div><div class="muted" style="font-size:12px">${next?`${nWin} win${nWin===1?'':'s'} · added automatically`:'No new winnings yet — good luck in the next game!'}${later>0?` · +${peso(later)} on a later payout`:''}</div></div></div>
-      <div class="ga-tiles"><div class="ga-t"><div class="ga-k">This month</div><div class="v">${peso(sum(mo))}</div></div>
-        <div class="ga-t"><div class="ga-k">${year} total</div><div class="v">${peso(sum(yr))}</div></div>
-        <div class="ga-t"><div class="ga-k">Wins</div><div class="v">${yr.length}</div></div></div>
-      ${list||''}
-      <div class="ga-note">Peso prizes from BINGO, Pet Race and other SMB games land here and are added to your next Contractor Fee. Once that payout is sent, the line shows <span class="ga-tag paid">✓ Paid</span>.</div>`;
-    watch(); arrange();
+    const recent=[...mine].sort((a,b)=>String(b.won_date).localeCompare(String(a.won_date))).slice(0,3);
+    const lines=recent.map(l=>`<div class="l"><span>${icon(l.source)} ${esc(gameName(l))}${l.detail?' · '+esc(l.detail):''} <span class="ga-d">${esc(md(l.won_date))}</span></span><span class="ga-r">${l.paid?`<span class="ga-tag paid">✓ Paid</span>`:l.payout_cutoff?`<span class="ga-tag add">➕ ${esc(md(l.payout_cutoff))}</span>`:''}<b>${peso(l.amount)}</b></span></div>`).join('');
+    card.innerHTML=`<div class="hdr"><h3 style="font-size:15px">🏆 Incentive/Contest Award</h3><span class="badge">${next?`${esc(md(next))} payout`:year}</span></div>
+      <div class="rt-row">
+        <div class="rt-b ga-hot"><div class="ga-medal">🏆</div><div><div class="rt-k">${next?`Going to your ${esc(md(next))} Contractor Fee`:'Next Contractor Fee'}</div><div class="ga-big">${peso(nextAmt)}</div><div class="rt-s">${next?`${nWin} win${nWin===1?'':'s'} · added automatically`:'No new winnings yet — good luck next game!'}${later>0?` · +${peso(later)} later`:''}</div></div></div>
+        <div class="rt-b"><div class="ga-medal ga-m2">💰</div><div><div class="rt-k">${year} winnings</div><div class="ga-big ga-w">${peso(sum(yr))}</div><div class="rt-s">${yr.length} win${yr.length===1?'':'s'} · ${peso(sum(mo))} this month</div></div></div>
+      </div>
+      ${vaultHtml()}
+      <div class="rt-tok"><div class="h"><span>🎮 Latest wins</span><b>${peso(sum(recent))}</b></div>
+        ${lines||'<div class="l"><span>No wins yet — BINGO and Pet Race peso prizes show up here.</span></div>'}
+        <div class="rt-note">Peso prizes from BINGO, Pet Race and other SMB games are added to your next Contractor Fee automatically.</div></div>`;
+    watch(); arrange(); matchSize();
+  }
+  /* same height as My Ratings · SMB Rewards (Sir Rendy 2026-11-08) */
+  function matchSize(){
+    const ga=document.getElementById('gaMyCard'), rt=document.getElementById('rtMyCard'); if(!ga)return;
+    ga.style.minHeight=''; if(rt) rt.style.minHeight='';
+    if(rt&&rt.offsetHeight&&window.innerWidth>820){ const h=Math.max(ga.offsetHeight,rt.offsetHeight)+'px'; ga.style.minHeight=h; rt.style.minHeight=h; }
+  }
+  let szObs=null;
+  function watchSize(){
+    const rt=document.getElementById('rtMyCard'); if(!rt||szObs||!window.ResizeObserver)return;
+    szObs=new ResizeObserver(()=>matchSize()); szObs.observe(rt);
   }
 
   /* ---------------- admin: Payroll → 🏆 Incentive/Contest Award ---------------- */
