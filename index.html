@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="smb-build" content="2026-11-08-b33">
+<meta name="smb-build" content="2026-11-08-b34">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SMB VS Portal</title>
@@ -4813,7 +4813,7 @@ async function openCorrectionReview(id){
   correctionReview={corr,options,shiftsById,allEntries:entries||[]};
   if(window.CORR)CORR.reviewExtras(corr);
   $('corrReviewEntry').innerHTML=options.map(e=>`<option value="${e.id}"${e.id===corr.entry_id?' selected':''}>${escapeHtml(entryLabel(e))}</option>`).join('');
-  $('corrReviewActivity').innerHTML=CORRECTION_ACTIVITIES.map(a=>`<option value="${a}">${a}</option>`).join('');
+  $('corrReviewActivity').innerHTML=CORRECTION_ACTIVITIES.map(a=>`<option value="${a}">${a}</option>`).join('');$('corrReviewActivity').dataset.forEntry='';
   $('corrReviewSplitActivity').innerHTML=CORRECTION_ACTIVITIES.map(a=>`<option value="${a}">${a}</option>`).join('');
   $('corrReviewAction').value=''; $('corrReviewStart').value=''; $('corrReviewEnd').value=''; $('corrReviewSplitAt').value=''; $('corrReviewEntry').disabled=!!corr.entry_id; $('corrReviewReason').value=''; $('corrReviewMsg').textContent='';
   await refreshCorrectionReview();
@@ -4866,8 +4866,13 @@ async function refreshCorrectionReview(){
     const midpoint=new Date((new Date(entry.started_at).getTime()+new Date(entry.ended_at).getTime())/2);
     $('corrReviewSplitAt').value=phtDateTimeLocal(midpoint);
   }
-  $('corrReviewActivity').value=entry.activity;
-  $('corrReviewSplitActivity').value='Working';
+  /* b34: only reset the activity pickers when a different record is picked,
+     otherwise the admin's choice snapped back on every refresh */
+  if($('corrReviewActivity').dataset.forEntry!==entry.id){
+    $('corrReviewActivity').value=entry.activity;
+    $('corrReviewSplitActivity').value='Working';
+    $('corrReviewActivity').dataset.forEntry=entry.id;
+  }
   $('corrReviewOriginal').innerHTML=`<b>Original record</b><br>${escapeHtml(entryLabel(entry))}<br><span class="muted">Multiple breaks are permitted. Delete only if this specific record is confirmed duplicate.</span>`;
   const shift=correctionReview.shiftsById[entry.shift_id];
   const before=correctionReview.allEntries.filter(e=>e.shift_id===entry.shift_id&&e.active!==false);
