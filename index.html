@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="smb-build" content="2026-11-08-b35">
+<meta name="smb-build" content="2026-11-08-b36">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SMB VS Portal</title>
@@ -884,7 +884,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 
     <!-- ---------- ADMIN: TIMESHEETS ---------- -->
     <section id="v-sheets" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_sheets" style="gap:6px;flex-wrap:wrap"><button class="btn btn-gold" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button></div>
+      <div class="row pay-sub hide" id="paySub_sheets" style="gap:6px;flex-wrap:wrap"><button class="btn btn-gold" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button><button class="btn btn-ghost" onclick="go('v-expense')">🧾 SMBVS Expense</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button></div>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">Timesheets</h3>
           <div class="row">
@@ -989,15 +989,15 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
           <div class="cr-legend"><span><i class="cr-se"></i>Staff error</span><span><i class="cr-ap"></i>App issue</span><span><i class="cr-rj"></i>Other / pending / rejected</span></div>
           <label style="margin-top:16px">Most common reasons</label><table><tbody id="crReasons"></tbody></table></div></div>
       </div></section><section id="v-ledger" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_ledger" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-gold" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="align-items:flex-start;gap:18px;margin-bottom:8px;flex-wrap:nowrap"><div id="lgTotBox" style="flex:0 0 auto;min-width:260px;background:rgba(242,184,75,.08);border:1px solid rgba(242,184,75,.45);border-radius:12px;padding:10px 14px"><div class="muted" style="font-size:12px">Period total</div><b class="mono" style="color:var(--gold);font-size:22px" id="lgTotal">₱0.00</b><div id="lgHours" style="margin-top:6px"></div></div><span class="muted" style="font-size:12px;flex:1;min-width:0">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout and is added only by approving it in Payroll → 🏅 Completion Bonus (highlighted in gold when paid); the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span></div><div id="lgQrBanner" class="hide" style="background:rgba(91,141,239,.12);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgTsAckTh" title="Timesheet acknowledgement by the staff member for this hours period">Timesheet</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div class="sticky-scroll"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_invoice" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-gold" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
+      <div class="row pay-sub hide" id="paySub_ledger" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-gold" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button><button class="btn btn-ghost" onclick="go('v-expense')">🧾 SMBVS Expense</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Contractor Ledger</h3><div class="row"><select id="lgPeriod" style="width:auto"></select><select id="lgClient" style="width:auto"></select><select id="lgStaff" style="width:auto"></select><button class="btn btn-ghost" id="runLedger">Run</button><button class="btn btn-teal hide" id="lgMarkAllPaid" title="Mark every unpaid staff row currently shown as PAID">Mark all as paid</button><button class="btn btn-gold" id="dlLedger">Download Summary CSV</button><button class="btn btn-ghost" id="dlLedgerDetail">Download Shift Detail CSV</button></div></div><div class="row" style="align-items:flex-start;gap:18px;margin-bottom:8px;flex-wrap:nowrap"><div id="lgTotBox" style="flex:0 0 auto;min-width:260px;background:rgba(242,184,75,.08);border:1px solid rgba(242,184,75,.45);border-radius:12px;padding:10px 14px"><div class="muted" style="font-size:12px">Period total</div><b class="mono" style="color:var(--gold);font-size:22px" id="lgTotal">₱0.00</b><div id="lgHours" style="margin-top:6px"></div></div><span class="muted" style="font-size:12px;flex:1;min-width:0">Period: <b class="mono" id="lgRangeLabel">—</b> · Extended-Hours Fee Differential (Night Diff) is earned only on payable time from 10PM–6AM PHT. A 60min Break is excluded. Unpaid-lunch clients: night shifts with no 60min Break logged get a flat 60-min deduction and a ⚠ flag. It's 10% on top of Total Contract Fee/Extended-Hours pay. PCH/PTO Pay = daily rate (Contract Fee ÷ 22) × approved PCH/PTO days — no hours or differential attached. Completion Bonus only applies on the 15th payout and is added only by approving it in Payroll → 🏅 Completion Bonus (highlighted in gold when paid); the other bonus/allowance fields only apply on the end-of-month payout. Fee Advance auto-fills from scheduled Salary/Cash Advance deductions for this cutoff but is editable.</span></div><div id="lgQrBanner" class="hide" style="background:rgba(91,141,239,.12);border:1px solid #5B8DEF;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div id="lgSentEarlyBanner" class="hide" style="background:rgba(242,184,75,.12);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Contract Fee (₱)</th><th>Contracted Hours</th><th>Extended-Hours Fee Differential (Hrs)</th><th>Extended-Hours (Hrs)</th><th>Total Contract Fee</th><th>Extended-Hours Fee Differential (Pay)</th><th>Extended-Hours (Pay)</th><th>PCH/PTO Days</th><th>PCH/PTO Pay</th><th>Completion Bonus</th><th>Relationship-Milestone Bonus</th><th>Meal/Rice Allowance</th><th>Statutory Contribution Support Allowance</th><th>Workspace/Facilities Allowance</th><th>Scope Differential Fee</th><th>Ad Hoc Project Fee</th><th>Incentive/Contest Award</th><th>Reimbursable Expenses</th><th>Other Contracted Fee Items</th><th>Sub Total</th><th>Fee Advance</th><th>Adjustments</th><th>Adjustments Subtotal</th><th>Net Amount Payable</th><th id="lgTsAckTh" title="Timesheet acknowledgement by the staff member for this hours period">Timesheet</th><th>PAID</th></tr></thead><tbody id="ledgerTable"></tbody></table></div><div class="card" style="margin-top:16px"><div class="hdr"><h3 style="font-size:15px">Shift-by-shift payroll detail</h3><span class="muted" style="font-size:12px">Timesheets-style daily grid · click a shift cell for exact login/logout and earnings</span></div><div class="sticky-scroll"><table class="sheet-grid ledger-grid freeze-table"><thead><tr id="ledgerGridHead"></tr></thead><tbody id="ledgerDetailTable"></tbody></table></div><div id="ledgerShiftInspector" class="note hide" style="margin-top:12px"></div></div></div></section><section id="v-invoice" class="hide grid" style="gap:16px">
+      <div class="row pay-sub hide" id="paySub_invoice" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-gold" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button><button class="btn btn-ghost" onclick="go('v-expense')">🧾 SMBVS Expense</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">Client Invoice</h3><div class="row"><select id="civPeriod" style="width:auto"></select><select id="civClient" style="width:auto"></select><button class="btn btn-ghost" id="civRun">Run</button><button class="btn btn-ghost" id="civSettingsBtn">⚙️ Client Invoice Settings</button><button class="btn btn-gold" id="civPdfBtn" disabled title="Run an invoice first">⬇ Download PDF</button><button class="btn btn-ghost" id="ctsOpenBtn">📊 SMB Client Timesheet</button></div></div><div class="muted" style="font-size:12px;margin-bottom:8px">Always bi-weekly (Wed–Tue), built from the same hours the Contractor Ledger and Timesheets use. Hours are capped/validated the same way as the Ledger — this never shows raw uncapped clock time.</div><div id="civStatus" class="note" style="margin-bottom:8px"></div><div id="civBody" class="hide"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700" id="civTitle">—</div><div class="muted" style="font-size:12px" id="civSub">—</div></div></div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">Task and Service Description · one task, one rate row per distinct hourly rate on this client</div><table><thead><tr><th>Task</th><th>Rate</th><th>Hours</th><th>Staff</th><th style="text-align:right">Total</th></tr></thead><tbody id="civTaskTable"></tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px">Pay Items (from Client Invoice Settings)</div><table><tbody id="civPayTable"></tbody></table><table style="margin-top:6px"><tbody><tr><td style="font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)">TOTAL DUE</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:15px;border-top:1px solid var(--line)" id="civTotal">$0.00</td></tr></tbody></table><div class="note" style="margin-top:10px">13th Month: staff employed the whole cutoff get the full per-staff amount; new (or termed) staff get (13th month rate ÷ 10) × days present in this cutoff. Enter a per-staff override above if needed. Set term/resignation dates under Staff &amp; Clients to prorate a final period.</div></div></div><div class="card hide" id="civGridCard"><div class="hdr"><h3 style="font-size:15px">Daily Hours Grid</h3><span class="muted" style="font-size:12px" id="civGridSub">Same grid as Timesheets, filtered to this client + bi-weekly period</span></div><div style="overflow-x:auto"><table class="freeze-table"><thead><tr id="civGridHead"></tr></thead><tbody id="civGridBody"></tbody></table></div></div></section>
 <div class="hide" id="civSettingsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60"><div class="card" style="max-width:720px;width:92vw;max-height:88vh;overflow-y:auto"><div class="hdr"><h3 style="font-size:15px" id="civSettingsTitle">Client Invoice Settings</h3><button class="btn btn-ghost" id="civSettingsClose">✕ Close</button></div><div class="muted" style="font-size:12px;margin-bottom:12px">Controls exactly what appears on this client's bi-weekly invoice. Nothing here changes payroll (Contractor Ledger) math.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Task Description</div><input type="text" id="civTaskDescription" placeholder="e.g. Back Office CRM tasks" style="margin-bottom:6px"><div class="muted" style="font-size:11px;margin-bottom:14px">One label for everyone on this client. Rate rows on the invoice come straight from each staff member's live hourly rate \u2014 nothing to configure here for that.</div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Recurring Pay Items</div><table><tbody>
 <tr><td style="width:26px"><input type="checkbox" id="civInternetOn"></td><td><b>Internet / Fiber Share</b><div class="muted" style="font-size:11px">Flat cost line on every invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civInternetAmt" style="width:110px" placeholder="$/period"></td></tr>
 <tr><td><input type="checkbox" id="civThirteenthOn"></td><td><b>13th Month Pay Portion</b><div class="muted" style="font-size:11px">Per-staff amount for each bi-weekly invoice. New/termed staff: (this amount ÷ 10) \u00d7 days present in the cutoff.</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civThirteenthAmt" style="width:110px" placeholder="$/staff / cutoff"></td></tr>
 <tr><td><input type="checkbox" id="civAllowanceOn"></td><td><b>Allowance</b><div class="muted" style="font-size:11px">Per staff, per month, prorated to cutoff — auto-calculated, editable per invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civAllowanceRate" style="width:110px" placeholder="$/mo"></td></tr>
 <tr><td><input type="checkbox" id="civHolidayOn"></td><td><b>Holiday Pay</b><div class="muted" style="font-size:11px">Rate per staff — admin types the staff count on the invoice itself, total = count × rate</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civHolidayRate" style="width:110px" placeholder="$/staff"></td></tr>
 </tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px">Invoice Numbering</div><div class="row" style="gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase" id="civStartingNumLbl">Invoice # for the selected pay period</label><input type="number" min="1" step="1" id="civStartingNum" style="width:100%"><div class="muted" style="font-size:11px;margin-top:4px">Goes up by 1 every bi-weekly period after this one.</div></div><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Last invoice issued for this client</label><input type="text" id="civNextNum" disabled style="width:100%"></div></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn btn-ghost" id="civSettingsCancel">Cancel</button><button class="btn btn-gold" id="civSettingsSave">Save Settings</button></div><div class="muted" id="civSettingsMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div></div></div><section id="v-earning" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_earning" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-gold" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div id="egTilesSlot"></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egAggMargin" class="eg-tiles"><span class="muted" style="font-size:12px">—</span></div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th title="Hours × USD rate × FX">Hourly VSPH</th><th class="eg-new" title="Client-invoice staff allowance, split by days across the bi-weekly invoices that overlap this period, each at that invoice's cutoff FX (₱60 if no FX saved). 13th month is not included here — see YTD &amp; YEB.">Allowance<br><span style="font-weight:400;font-size:10.5px">split by days</span></th><th class="eg-new">VSPH Total</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="sick_leave">🤒 Sick Leave</option><option value="half_day">🌓 Half Day</option><option value="reimbursement">🧾 Reimbursement</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div id="rfSickNote" class="hide note" style="margin-top:10px;font-size:12.5px">Sick days are <b>unpaid</b>. This is for your record and for client documentation — the days show as <b>SL</b>.</div><div id="rfPickWrap" class="hide" style="margin-top:10px"><label id="rfPickLbl">Files</label><input type="file" id="rfPick" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%"><div id="rfPickList"></div><div class="muted" style="font-size:11.5px;margin-top:4px">🔒 Only you and Sir Rendy can open your files · photo or PDF · max 10 MB each</div></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="rfMyFilesCard"><div class="hdr"><h3 style="font-size:15px">📎 My files</h3><span class="muted" style="font-size:12px">Medcerts, receipts and EOD attachments · only you and Sir Rendy can open them</span></div><table><thead><tr><th>Uploaded</th><th>File</th><th>For</th><th>Status</th></tr></thead><tbody id="rfMyFiles"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="req-sub" id="reqSubBar"><button class="btn btn-gold" data-req-sub="money">💸 SA/CA Requests<span class="bb-badge hide" id="reqSubCnt_money"></span></button><button class="btn btn-ghost" data-req-sub="leave">🏖️ PTO Requests<span class="bb-badge hide" id="reqSubCnt_leave"></span></button></div><div class="card"><div class="hdr"><h3 style="font-size:15px" id="reqAdminTitle">SA/CA requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></div><div class="card" id="dedAdminCard"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances under PHP Adjustments → 💳 Fee Advances.</div><div class="sticky-scroll"><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+      <div class="row pay-sub hide" id="paySub_earning" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button><button class="btn btn-ghost" onclick="go('v-expense')">🧾 SMBVS Expense</button><button class="btn btn-gold" onclick="go('v-earning')">💰 SMB PH Earning</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div id="egTilesSlot"></div><div id="egTrueRoi"></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egAggMargin" class="eg-tiles"><span class="muted" style="font-size:12px">—</span></div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th title="Hours × USD rate × FX">Hourly VSPH</th><th class="eg-new" title="Client-invoice staff allowance, split by days across the bi-weekly invoices that overlap this period, each at that invoice's cutoff FX (₱60 if no FX saved). 13th month is not included here — see YTD &amp; YEB.">Allowance<br><span style="font-weight:400;font-size:10.5px">split by days</span></th><th class="eg-new">VSPH Total</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="sick_leave">🤒 Sick Leave</option><option value="half_day">🌓 Half Day</option><option value="reimbursement">🧾 Reimbursement</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div id="rfSickNote" class="hide note" style="margin-top:10px;font-size:12.5px">Sick days are <b>unpaid</b>. This is for your record and for client documentation — the days show as <b>SL</b>.</div><div id="rfPickWrap" class="hide" style="margin-top:10px"><label id="rfPickLbl">Files</label><input type="file" id="rfPick" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%"><div id="rfPickList"></div><div class="muted" style="font-size:11.5px;margin-top:4px">🔒 Only you and Sir Rendy can open your files · photo or PDF · max 10 MB each</div></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="rfMyFilesCard"><div class="hdr"><h3 style="font-size:15px">📎 My files</h3><span class="muted" style="font-size:12px">Medcerts, receipts and EOD attachments · only you and Sir Rendy can open them</span></div><table><thead><tr><th>Uploaded</th><th>File</th><th>For</th><th>Status</th></tr></thead><tbody id="rfMyFiles"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="req-sub" id="reqSubBar"><button class="btn btn-gold" data-req-sub="money">💸 SA/CA Requests<span class="bb-badge hide" id="reqSubCnt_money"></span></button><button class="btn btn-ghost" data-req-sub="leave">🏖️ PTO Requests<span class="bb-badge hide" id="reqSubCnt_leave"></span></button></div><div class="card"><div class="hdr"><h3 style="font-size:15px" id="reqAdminTitle">SA/CA requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></div><div class="card" id="dedAdminCard"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances under PHP Adjustments → 💳 Fee Advances.</div><div class="sticky-scroll"><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></div></section><section id="v-portal" class="hide grid" style="gap:16px">
   <!-- PM BULLETIN BOARD (announcements) -->
   <div id="bbBoard" class="grid" style="gap:16px"></div>
   <div class="bb-docs-hdr"><h3>📁 Documents &amp; Signatures</h3><span class="muted" style="font-size:12.5px">Contracts, house rules, and anything that needs your signature</span></div>
@@ -1075,11 +1075,15 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 
     <!-- ---------- ADMIN: COMPLETION BONUS CHECK ---------- -->
     <section id="v-incentive" class="hide grid" style="gap:12px">
-      <div class="row pay-sub hide" id="paySub_incentive" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-gold" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button></div>
+      <div class="row pay-sub hide" id="paySub_incentive" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-gold" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button><button class="btn btn-ghost" onclick="go('v-expense')">🧾 SMBVS Expense</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button></div>
       <div id="gaAdmin" class="grid ga-adm" style="gap:12px"></div>
     </section>
+    <section id="v-expense" class="hide grid" style="gap:12px">
+      <div class="row pay-sub hide" id="paySub_expense" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button><button class="btn btn-gold" onclick="go('v-expense')">🧾 SMBVS Expense</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button></div>
+      <div id="sxRoot" class="grid" style="gap:12px"></div>
+    </section>
     <section id="v-cbonus" class="hide grid" style="gap:12px">
-      <div class="row pay-sub hide" id="paySub_cbonus" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button><button class="btn btn-gold" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button></div>
+      <div class="row pay-sub hide" id="paySub_cbonus" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-gold" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button><button class="btn btn-ghost" onclick="go('v-expense')">🧾 SMBVS Expense</button><button class="btn btn-ghost" onclick="go('v-earning')">💰 SMB PH Earning</button></div>
       <div class="card">
         <div class="row" style="flex-wrap:wrap;gap:10px;align-items:flex-end">
           <div><label>Attendance month</label><input type="month" id="cbMonth" style="width:auto"></div>
@@ -3101,13 +3105,14 @@ const PAGES={
   'v-invoice':['📄 Client Invoice','Client Invoice','Bi-weekly invoice built from the Timesheets Daily Hours Grid, per client'],
   'v-incentive':['🏆 Incentive/Contest Award','Incentive/Contest Award','PHP game winnings, auto-added to the next payout that isn\'t marked PAID'],
   'v-cbonus':['🏅 Completion Bonus','Completion Bonus','Previous month: full month, no lates, no unpaid absences — review, then approve into the 15th payout'],
+  'v-expense':['🧾 SMBVS Expense','SMBVS Expense','Contest awards, food treats, supplies — taken off SMB PH Earning to show True ROI'],
   'v-earning':['💰 SMB PH Earning','SMB PH Earning','Admin-only immutable per-semi-monthly-period FX + VSPH/ROI/margin LOCK IN'],
   'v-files':['📎 Files','Staff & Clients · Files','Every staff medcert, receipt and EOD attachment — filter, open, zip-download, or upload on their behalf'],
   'v-policy':['⚙️ Rules','Staff & Clients · Rules','Billable rules, break allowances and activities by client'], 'v-req':['🧾 Request','Request','Request PTO, salary advance, or cash advance'], 'v-reqadmin':['💸 Requests','Requests','Review and approve staff requests — SA/CA and PTO'], 'v-portal':['📌 PM Bulletin Board','PM Bulletin Board','Announcements from your project manager, plus documents, contracts, and signatures'], 'v-perf':['🌱 Annual Performance','Annual Performance','Three-way annual review: self, peers, and admin'], 'v-eod':['📝 EOD & Weekly','EOD & Weekly Reports','Daily EOD and Friday weekly report — only you and Sir Rendy can see them'], 'v-rewards':['🎟️ SMB Rewards','SMB Rewards','Shift habits, weekly ratings and tokens — live since Mon Nov 2 · staff claim into BINGO every Monday 7 AM PHT'], 'v-ytd':['📅 YTD Attendance & YEB','YTD Attendance & YEB','Calendar-year attendance and Year End Bonus estimate'], 'v-pto':['🏖️ PTO Credits','Staff & Clients · PTO Credits','PTO balances, earned and used for active staff'], 'v-profile':['👤 Contractor Profile','Contractor Profile','Your details and PTO balance']
 };
 let view='v-punch';
 /* sub-tab groups (Rendy 2026-10-19): Rules + PTO Credits live in Staff & Clients; payroll tabs live under Contractor Ledger ("Payroll") for admins */
-function navParentOf(v){ if(v==='v-policy'||v==='v-pto'||v==='v-files')return 'v-staff'; if(v==='v-feeadv')return 'v-adjustments'; if(me?.role==='admin'&&(v==='v-sheets'||v==='v-invoice'||v==='v-earning'||v==='v-cbonus'||v==='v-incentive'))return 'v-ledger'; return v; }
+function navParentOf(v){ if(v==='v-policy'||v==='v-pto'||v==='v-files')return 'v-staff'; if(v==='v-feeadv')return 'v-adjustments'; if(me?.role==='admin'&&(v==='v-sheets'||v==='v-invoice'||v==='v-earning'||v==='v-cbonus'||v==='v-incentive'||v==='v-expense'))return 'v-ledger'; return v; }
 const ADMIN_NAV_DEFAULT=['v-rewards','v-status','v-punch','v-eod','v-staff','v-benefits','v-adjustments','v-adherence','v-corr','v-ledger','v-reqadmin','v-portal','v-perf','v-ytd'];
 let adminNavOrder=null, navArranging=false, navArrDraft=null, navFirstBuild=true;
 /* saved order -> valid order: drop unknown/duplicate ids, append any new tabs at the end */
@@ -3232,7 +3237,7 @@ function ncToggle(){
   }catch(e){ console.error('ncToggle',e); }
 }
 function go(v){
-  if((v==='v-ytd'||v==='v-pto'||v==='v-rewards'||v==='v-files'||v==='v-cbonus'||v==='v-incentive'||v==='v-feeadv')&&me?.role!=='admin')v='v-punch';
+  if((v==='v-ytd'||v==='v-pto'||v==='v-rewards'||v==='v-files'||v==='v-cbonus'||v==='v-incentive'||v==='v-expense'||v==='v-earning'||v==='v-feeadv')&&me?.role!=='admin')v='v-punch';
   view=v;
   try{ncPaintChip(v);}catch(_){}
   Object.keys(PAGES).forEach(id=>{const el=$(id); if(el) el.classList.add('hide');});
@@ -3252,6 +3257,7 @@ function go(v){
   if(v==='v-earning'){initEarningFilters();}
   if(v==='v-cbonus'){window.CompletionBonus?.init();}
   if(v==='v-incentive'){window.GameAwards?.initAdmin();}
+  if(v==='v-expense'){window.SMBVSExpense?.init();}
   if(v==='v-files'){window.RFA?.load();}
   if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-rewards'){window.RewardsShadow?.init();window.Ratings?.initAdmin()?.then?.(()=>window.RewardsClaim?.initAdmin());} if(v==='v-punch'&&me&&me.role!=='admin'){window.Ratings?.loadMine();window.RewardsClaim?.loadMine();window.GameAwards?.loadMine();} if(v==='v-eod'){window.EOD?.init();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();window.Reliability?.initProfile();}
 }
@@ -6235,6 +6241,7 @@ function renderEarningRows(rows) {
       <td class="num mono" style="color:${marginColor(f.margin)}">${f.margin === null ? '\u2014' : f.margin.toFixed(2) + '%'}</td></tr>`;
   }).join('') : `<tr><td colspan="10" class="muted">No relevant staff for this period.</td></tr>`;
   $('egAggMargin').innerHTML = periodTotalsHtml(rows);
+  try { window.SMBVSExpense?.paintTrueRoi(rows); } catch (e) { console.error('trueRoi', e); }
 }
 
 function renderEarningLocked(snap) {
@@ -6281,7 +6288,7 @@ async function runEarningPreview() {
     $('egFx').value = fxRow ? fxRow.rate : '';
     if (!fxRow) {
       $('egStatus').innerHTML = 'No FX rate saved for this period yet \u2014 set it above, then press "Run preview".';
-      $('egTable').innerHTML = ''; $('egAggMargin').textContent = '\u2014';
+      $('egTable').innerHTML = ''; $('egAggMargin').textContent = '\u2014'; if ($('egTrueRoi')) $('egTrueRoi').innerHTML = '';
       egRows = [];
       return;
     }
@@ -6296,6 +6303,7 @@ async function runEarningPreview() {
     if (myGen !== egGen) return;
     const payableRows = await computeLedgerRowsForPeriod(relevant, start, end);
     if (myGen !== egGen) return;
+    window.egLedgerRowsCache = { key: `${start}|${end}`, rows: payableRows };
     const allowanceByStaff = await egAllowanceForPeriod(relevant, start, end);
     if (myGen !== egGen) return;
     const payableByStaff = {}; const hoursByStaff = {};
@@ -6325,7 +6333,7 @@ async function runEarningPreview() {
   } catch (e) {
     if (myGen !== egGen) return;
     $('egStatus').innerHTML = `<b>Could not load \u2014 showing nothing.</b> ${escapeHtml(e.message)}`;
-    $('egTable').innerHTML = ''; $('egAggMargin').textContent = '\u2014';
+    $('egTable').innerHTML = ''; $('egAggMargin').textContent = '\u2014'; if ($('egTrueRoi')) $('egTrueRoi').innerHTML = '';
     egRows = [];
   }
 }
@@ -13111,7 +13119,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   const errMsg=e=>e?.message||e?.error||String(e||'Error');
   const notReady=e=>isMissingTableError(e)||/game_awards|could not find the function|schema cache/i.test(errMsg(e));
   const todayPH=()=>new Date(Date.now()+8*3600000).toISOString().slice(0,10);
-  const ICON={bingo:'🎱',pet_race:'🐾'};
+  const ICON={bingo:'🎱',pet_race:'🐾',office:'🎉'};
   const icon=src=>ICON[src]||'🎮';
   const gameName=l=>l.source==='bingo'?'BINGO':(l.source_label||l.source||'Game');
 
@@ -13153,13 +13161,22 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     .ga-vault .ga-vr{margin-left:auto;text-align:right;font-size:11.5px;color:#d9c08a;line-height:1.5;flex:0 0 auto}
     .ga-vault .ga-vr b{color:#ffe08a;font-family:var(--mono,monospace);font-size:15px}
     @media(max-width:520px){.ga-vault .ga-vr{display:none}}
-    .ga-adm .ga-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .ga-adm .ga-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .ga-og .og-grid{display:grid;grid-template-columns:minmax(0,2fr) 150px 130px auto;gap:10px;align-items:end}
+    .ga-og .og-seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+    .ga-og .og-seg button{all:unset;cursor:pointer;padding:8px 12px;font-size:12.5px;background:var(--card2);white-space:nowrap}
+    .ga-og .og-seg button.on{background:var(--gold);color:#151515;font-weight:700}
+    .ga-og .og-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow:auto;margin-top:6px}
+    .ga-og .og-chip{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12.5px}
+    .ga-og .og-chip.on{border-color:var(--teal);background:rgba(63,191,174,.12);color:#bff3ea}
+    .ga-og .og-prev{background:rgba(63,191,174,.07);border:1px dashed rgba(63,191,174,.45);border-radius:12px;padding:10px 12px;font-size:13px;margin-top:12px}
+    @media(max-width:820px){.ga-og .og-grid{grid-template-columns:1fr 1fr}}
     .ga-adm .ga-strip .stat .v{font-size:20px}
     .ga-adm table td,.ga-adm table th{white-space:nowrap} .ga-adm td.wrap{white-space:normal;min-width:180px}
     .ga-adm select,.ga-adm input[type=date]{width:auto;margin:0}
     .ga-adm tr.ga-off td{opacity:.6} .ga-adm tr.ga-off td:last-child,.ga-adm tr.ga-off td:nth-last-child(2){opacity:1}
     .ga-led-note{display:block;font-size:10.5px;color:var(--gold);white-space:nowrap;margin-top:2px;cursor:help}
-    @media(max-width:820px){.ga-adm .ga-strip{grid-template-columns:1fr}}`;document.head.appendChild(st);}
+    @media(max-width:820px){.ga-adm .ga-strip{grid-template-columns:1fr 1fr}}`;document.head.appendChild(st);}
 
   /* ---------------- Contractor Ledger hook ---------------- */
   async function forCutoff(cutoffIso,ids){
@@ -13262,7 +13279,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   }
 
   /* ---------------- admin: Payroll → 🏆 Incentive/Contest Award ---------------- */
-  const A={rows:[],manual:{},payout:'',game:'',staff:'',status:'',start:null,msg:''};
+  const A={rows:[],manual:{},payout:'',game:'',staff:'',status:'',start:null,msg:'',og:{game:'',date:'',prize:'',mode:'split',sel:[],note:'',q:''}};
   async function initAdmin(){
     if(!me||me.role!=='admin')return;
     const host=document.getElementById('gaAdmin'); if(!host)return;
@@ -13329,20 +13346,20 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const lbl=A.payout==='all'?'all payouts':md(A.payout);
     // per staff
     const per={};
-    inPay.filter(r=>r.staff_id).forEach(r=>{const p=per[r.staff_id]=per[r.staff_id]||{name:r.staff_name,bingo:0,pet:0,other:0,removed:0,paid:false};
+    inPay.filter(r=>r.staff_id).forEach(r=>{const p=per[r.staff_id]=per[r.staff_id]||{name:r.staff_name,bingo:0,pet:0,office:0,other:0,removed:0,paid:false};
       if(r.status==='removed'){p.removed+=Number(r.amount);return;}
       if(r.paid)p.paid=true;
-      if(r.source==='bingo')p.bingo+=Number(r.amount); else if(r.source==='pet_race')p.pet+=Number(r.amount); else p.other+=Number(r.amount);});
-    if(A.payout!=='all') Object.keys(A.manual).forEach(id=>{ if(!per[id]&&A.manual[id]){const s=(staffList||[]).find(x=>x.id===id); per[id]={name:s?.full_name||id,bingo:0,pet:0,other:0,removed:0,paid:false};} });
-    const perRows=Object.entries(per).map(([id,p])=>({id,...p,manual:A.manual[id]||0,total:p.bingo+p.pet+p.other+(A.manual[id]||0)})).sort((a,b)=>b.total-a.total||String(a.name).localeCompare(String(b.name)));
+      if(r.source==='bingo')p.bingo+=Number(r.amount); else if(r.source==='pet_race')p.pet+=Number(r.amount); else if(r.source==='office')p.office+=Number(r.amount); else p.other+=Number(r.amount);});
+    if(A.payout!=='all') Object.keys(A.manual).forEach(id=>{ if(!per[id]&&A.manual[id]){const s=(staffList||[]).find(x=>x.id===id); per[id]={name:s?.full_name||id,bingo:0,pet:0,office:0,other:0,removed:0,paid:false};} });
+    const perRows=Object.entries(per).map(([id,p])=>({id,...p,manual:A.manual[id]||0,total:p.bingo+p.pet+p.office+p.other+(A.manual[id]||0)})).sort((a,b)=>b.total-a.total||String(a.name).localeCompare(String(b.name)));
     const d=v=>v?peso(v):'<span class="muted">—</span>';
-    host.innerHTML=`<div class="card"><div class="hdr"><h3 style="font-size:15px">Winnings going to payout</h3><div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">
+    host.innerHTML=officeCard()+`<div class="card"><div class="hdr"><h3 style="font-size:15px">Winnings going to payout</h3><div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">
         <select id="gaPay"><option value="all"${A.payout==='all'?' selected':''}>All payouts</option>${pays.map(c=>`<option value="${c}"${c===A.payout?' selected':''}>Payout ${md(c)} · cut-off ${periodFor(c)}${payoutState(c)?' · '+payoutState(c):''}</option>`).join('')}</select>
-        <select id="gaGame"><option value="">Game: All</option>${games.map(g=>`<option value="${esc(g)}"${g===A.game?' selected':''}>${icon(g)} ${esc(g==='bingo'?'BINGO':g==='pet_race'?'Pet Race':g)}</option>`).join('')}</select>
+        <select id="gaGame"><option value="">Game: All</option>${games.map(g=>`<option value="${esc(g)}"${g===A.game?' selected':''}>${icon(g)} ${esc(g==='bingo'?'BINGO':g==='pet_race'?'Pet Race':g==='office'?'Office games':g)}</option>`).join('')}</select>
         <select id="gaStaff"><option value="">Staff: All</option>${staffOpts.map(([id,n])=>`<option value="${esc(id)}"${id===A.staff?' selected':''}>${esc(n)}</option>`).join('')}<option value="__none"${A.staff==='__none'?' selected':''}>⚠ Not linked</option></select>
         <select id="gaStatus"><option value="">Status: All</option><option value="included"${A.status==='included'?' selected':''}>Included</option><option value="removed"${A.status==='removed'?' selected':''}>Removed</option><option value="paid"${A.status==='paid'?' selected':''}>Paid</option><option value="link"${A.status==='link'?' selected':''}>Needs a staff link</option></select>
         <button class="btn btn-ghost" id="gaCsv">⬇ CSV</button><button class="btn btn-ghost" id="gaSync">↻ Sync now</button></div></div>
-      <div class="muted" style="font-size:12.5px;line-height:1.55">Every PHP prize from BINGO, Pet Race and future games drops in here by itself (checked every 5 minutes). It goes to the <b>oldest payout that isn't marked PAID</b> for that person, no matter which cut-off the win happened in. Lines are <b>included by default</b>. Click <b>Remove</b> to keep a line out (reason required); <b>Restore</b> puts it back. Once you tick PAID on the Contractor Ledger, the lines lock and new wins roll to the next payout. Token prizes are never counted.</div>
+      <div class="muted" style="font-size:12.5px;line-height:1.55">Every PHP prize from BINGO, Pet Race and future games drops in here by itself (checked every 5 minutes). Live office games are added with the 🎉 card above. It goes to the <b>oldest payout that isn't marked PAID</b> for that person, no matter which cut-off the win happened in. Lines are <b>included by default</b>. Click <b>Remove</b> to keep a line out (reason required); <b>Restore</b> puts it back. Once you tick PAID on the Contractor Ledger, the lines lock and new wins roll to the next payout. Token prizes are never counted.</div>
       <div class="row" style="gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap"><label style="margin:0">Count wins from</label><input type="date" id="gaStart" value="${esc(A.start||'')}"><button class="btn btn-ghost" id="gaStartSave" style="padding:4px 10px">Save</button><span class="muted" style="font-size:11.5px">Wins before this date are ignored (already paid outside the portal).</span><span id="gaMsg" style="font-size:12px">${A.msg||''}</span></div></div>
     <div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">
       <div class="stat"><div class="k">Added to ${esc(lbl)}</div><div class="v" style="color:var(--gold)">${peso(sum(inc))}</div></div>
@@ -13351,7 +13368,8 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       <div class="stat"><div class="k">Needs a staff link</div><div class="v" style="color:${unl.length?'var(--gold)':'var(--teal)'}">${unl.length}</div></div></div>
     <div class="ga-strip"><div class="stat"><div class="k">🎱 BINGO</div><div class="v" style="color:var(--gold)">${peso(bySrc('bingo'))}</div></div>
       <div class="stat"><div class="k">🐾 Pet Race</div><div class="v" style="color:var(--teal)">${peso(bySrc('pet_race'))}</div></div>
-      <div class="stat"><div class="k">🎮 Other games</div><div class="v">${peso(sum(inc.filter(r=>r.source!=='bingo'&&r.source!=='pet_race')))}</div></div></div>
+      <div class="stat"><div class="k">🎉 Office games</div><div class="v" style="color:#f0a6d8">${peso(bySrc('office'))}</div></div>
+      <div class="stat"><div class="k">🎮 Other games</div><div class="v">${peso(sum(inc.filter(r=>r.source!=='bingo'&&r.source!=='pet_race'&&r.source!=='office')))}</div></div></div>
     <div class="card"><div class="hdr"><h3 style="font-size:15px">Award lines</h3><span class="badge">${rows.length} line${rows.length===1?'':'s'}</span></div>
       <div class="sticky-scroll"><table><thead><tr><th>Won (PHT)</th><th class="sticky-col">Staff</th><th>Game</th><th>Detail</th><th style="text-align:right">Amount</th><th>Payout</th><th>Status</th><th></th></tr></thead><tbody>
       ${rows.map(r=>`<tr class="${r.status==='removed'?'ga-off':''}"><td>${esc(md(r.won_date))}</td><td class="sticky-col">${r.staff_id?esc(r.staff_name||'—')+(r.player_name&&r.staff_name&&!String(r.staff_name).toLowerCase().startsWith(String(r.player_name).toLowerCase())?` <span class="muted">(${esc(r.player_name)})</span>`:''):`<span style="color:var(--gold)">⚠ ${esc(r.player_name||'?')}</span>`}</td>
@@ -13360,9 +13378,9 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       </tbody></table></div>
       <div class="muted" style="font-size:11.5px;margin-top:8px">Wins by a BINGO player who isn't linked to a staff member show as <b style="color:var(--gold)">⚠ Needs a staff link</b> and stay out of the Ledger. Link them in SMB Rewards → 🎟️ Claims, then press <b>↻ Sync now</b>.</div></div>
     ${A.payout!=='all'?`<div class="card"><div class="hdr"><h3 style="font-size:15px">Per staff → goes into the Ledger “Incentive/Contest Award” column</h3><span class="badge">${esc(md(A.payout))} payout</span></div>
-      <div class="sticky-scroll"><table><thead><tr><th class="sticky-col">Staff</th><th style="text-align:right">BINGO</th><th style="text-align:right">Pet Race</th><th style="text-align:right">Other games</th><th style="text-align:right">Removed</th><th style="text-align:right">Manual (Ledger)</th><th style="text-align:right">Ledger total</th><th></th></tr></thead><tbody>
-      ${perRows.map(p=>`<tr><td class="sticky-col">${esc(p.name)}</td><td class="mono" style="text-align:right">${d(p.bingo)}</td><td class="mono" style="text-align:right">${d(p.pet)}</td><td class="mono" style="text-align:right">${d(p.other)}</td><td class="mono" style="text-align:right;color:var(--rose)">${p.removed?peso(p.removed):'<span class="muted">—</span>'}</td><td class="mono" style="text-align:right">${d(p.manual)}</td><td class="mono" style="text-align:right;color:var(--gold);font-weight:800">${peso(p.total)}</td><td>${p.paid?'<span class="ga-tag paid">✓ Paid</span>':''}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:16px">Nothing for this payout yet.</td></tr>`}
-      ${perRows.length?`<tr><td class="sticky-col"><b>Total</b></td><td class="mono" style="text-align:right"><b>${peso(perRows.reduce((n,p)=>n+p.bingo,0))}</b></td><td class="mono" style="text-align:right"><b>${peso(perRows.reduce((n,p)=>n+p.pet,0))}</b></td><td class="mono" style="text-align:right"><b>${peso(perRows.reduce((n,p)=>n+p.other,0))}</b></td><td class="mono" style="text-align:right;color:var(--rose)"><b>${peso(perRows.reduce((n,p)=>n+p.removed,0))}</b></td><td class="mono" style="text-align:right"><b>${peso(perRows.reduce((n,p)=>n+p.manual,0))}</b></td><td class="mono" style="text-align:right;color:var(--gold)"><b>${peso(perRows.reduce((n,p)=>n+p.total,0))}</b></td><td></td></tr>`:''}
+      <div class="sticky-scroll"><table><thead><tr><th class="sticky-col">Staff</th><th style="text-align:right">BINGO</th><th style="text-align:right">Pet Race</th><th style="text-align:right">Office</th><th style="text-align:right">Other games</th><th style="text-align:right">Removed</th><th style="text-align:right">Manual (Ledger)</th><th style="text-align:right">Ledger total</th><th></th></tr></thead><tbody>
+      ${perRows.map(p=>`<tr><td class="sticky-col">${esc(p.name)}</td><td class="mono" style="text-align:right">${d(p.bingo)}</td><td class="mono" style="text-align:right">${d(p.pet)}</td><td class="mono" style="text-align:right">${d(p.office)}</td><td class="mono" style="text-align:right">${d(p.other)}</td><td class="mono" style="text-align:right;color:var(--rose)">${p.removed?peso(p.removed):'<span class="muted">—</span>'}</td><td class="mono" style="text-align:right">${d(p.manual)}</td><td class="mono" style="text-align:right;color:var(--gold);font-weight:800">${peso(p.total)}</td><td>${p.paid?'<span class="ga-tag paid">✓ Paid</span>':''}</td></tr>`).join('')||`<tr><td colspan="9" class="muted" style="text-align:center;padding:16px">Nothing for this payout yet.</td></tr>`}
+      ${perRows.length?`<tr><td class="sticky-col"><b>Total</b></td><td class="mono" style="text-align:right"><b>${peso(perRows.reduce((n,p)=>n+p.bingo,0))}</b></td><td class="mono" style="text-align:right"><b>${peso(perRows.reduce((n,p)=>n+p.pet,0))}</b></td><td class="mono" style="text-align:right"><b>${peso(perRows.reduce((n,p)=>n+p.office,0))}</b></td><td class="mono" style="text-align:right"><b>${peso(perRows.reduce((n,p)=>n+p.other,0))}</b></td><td class="mono" style="text-align:right;color:var(--rose)"><b>${peso(perRows.reduce((n,p)=>n+p.removed,0))}</b></td><td class="mono" style="text-align:right"><b>${peso(perRows.reduce((n,p)=>n+p.manual,0))}</b></td><td class="mono" style="text-align:right;color:var(--gold)"><b>${peso(perRows.reduce((n,p)=>n+p.total,0))}</b></td><td></td></tr>`:''}
       </tbody></table></div>
       <div class="muted" style="font-size:11.5px;margin-top:8px">Manual (Ledger) = an amount you typed in the Ledger's Incentive/Contest Award cell for this payout. An SMB Benefits rule for this field still adds on top as before. Hover the cell on the Contractor Ledger to see which wins make it up.</div></div>`:''}`;
     const on=(id,fn)=>{const el=document.getElementById(id); if(el) el.onchange=fn;};
@@ -13373,9 +13391,86 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     document.getElementById('gaCsv').onclick=()=>csv(rows);
     document.getElementById('gaSync').onclick=sync;
     document.getElementById('gaStartSave').onclick=saveStart;
+    bindOffice();
     host.querySelectorAll('[data-ga-remove]').forEach(b=>b.onclick=()=>setLine(b.dataset.gaRemove,false));
     host.querySelectorAll('[data-ga-restore]').forEach(b=>b.onclick=()=>setLine(b.dataset.gaRestore,true));
   }
+  /* ---------------- b36: 🎉 live office games (admin) ---------------- */
+  function ogStaff(){ return (staffList||[]).filter(s=>s.active&&s.role!=='admin').map(s=>({id:s.id,name:s.full_name||'—'})).sort((a,b)=>a.name.localeCompare(b.name)); }
+  function ogSplit(){
+    const O=A.og, n=O.sel.length, prize=Math.round(Number(O.prize||0)*100)/100;
+    if(!n||!(prize>0)) return null;
+    if(O.mode==='each') return {n,prize,base:prize,first:prize,total:Math.round(prize*n*100)/100};
+    const base=Math.floor(prize*100/n)/100, first=Math.round((prize-base*(n-1))*100)/100;
+    return {n,prize,base,first,total:prize};
+  }
+  function ogPreview(){
+    const O=A.og, sp=ogSplit(), names=ogStaff(), nm=id=>(names.find(x=>x.id===id)||{}).name||'?';
+    if(!O.sel.length) return '<span class="muted">Pick at least one winner.</span>';
+    if(!sp) return `<span class="muted">${O.sel.length} winner${O.sel.length===1?'':'s'} picked — enter the prize.</span>`;
+    if(sp.n>1&&O.mode==='split'&&sp.base<=0) return `<span style="color:var(--rose)">₱${peso2(sp.prize)} is too small to split ${sp.n} ways.</span>`;
+    const each=sp.first===sp.base?`<b>${sp.n} winner${sp.n===1?'':'s'} × ₱${peso2(sp.base)}</b>`:`<b>${sp.n} winners × ₱${peso2(sp.base)}</b> (${esc(nm(O.sel[0]))} gets ₱${peso2(sp.first)} — odd centavos go to the first winner)`;
+    return `Preview: ${each} = <b>₱${peso2(sp.total)}</b> total · each goes to that person's <b>next payout that isn't PAID</b> · shows on their 🏆 card as “🎉 ${esc(O.game||'game name')}”`;
+  }
+  function officeCard(){
+    const O=A.og; if(!O.date) O.date=todayPH();
+    return `<div class="card ga-og"><div class="hdr"><h3 style="font-size:15px">🎉 Add a live office game</h3><span class="badge">Goes to each winner's next payout that isn't PAID</span></div>
+      <div class="og-grid">
+        <div><label>Game played</label><input id="ogGame" maxlength="80" placeholder="e.g. Friday Trivia Night" value="${esc(O.game)}"></div>
+        <div><label>Date held</label><input type="date" id="ogDate" max="${todayPH()}" value="${esc(O.date)}"></div>
+        <div><label>Prize (₱)</label><input type="number" id="ogPrize" min="1" step="0.01" placeholder="0.00" value="${esc(O.prize)}"></div>
+        <div><label>Prize is</label><div class="og-seg"><button type="button" data-og-mode="each" class="${O.mode==='each'?'on':''}">Each winner gets</button><button type="button" data-og-mode="split" class="${O.mode==='split'?'on':''}">Split between winners</button></div></div></div>
+      <div style="margin-top:12px"><div class="row" style="gap:10px;align-items:center;flex-wrap:wrap"><label style="margin:0">Winner(s) · tap one or more</label><input id="ogQ" placeholder="🔍 search name" value="${esc(O.q)}" style="width:200px;padding:6px 10px"><span id="ogCount" class="muted" style="font-size:12px"></span><button type="button" class="btn btn-ghost" id="ogClear" style="padding:4px 10px">Clear</button></div>
+        <div class="og-chips" id="ogChips"></div></div>
+      <div style="margin-top:10px"><label>Note (optional)</label><input id="ogNote" maxlength="200" placeholder="e.g. 3-way tie, final round" value="${esc(O.note)}"></div>
+      <div class="og-prev" id="ogPrev"></div>
+      <div class="row" style="margin-top:12px;gap:10px;flex-wrap:wrap"><button class="btn btn-gold" id="ogAdd">Add to payouts</button><span class="muted" style="font-size:12px">Each winner becomes their own line below, with Remove/Restore like BINGO and Pet Race wins.</span></div></div>`;
+  }
+  function ogPaint(){
+    const O=A.og, list=ogStaff(), q=O.q.trim().toLowerCase();
+    const chips=document.getElementById('ogChips'); if(!chips) return;
+    const shown=list.filter(s=>O.sel.includes(s.id)||!q||s.name.toLowerCase().includes(q));
+    // picked winners first, in the order they were picked (1st = gets odd centavos)
+    shown.sort((a,b)=>{const ia=O.sel.indexOf(a.id), ib=O.sel.indexOf(b.id); if(ia>=0||ib>=0) return (ia<0?999:ia)-(ib<0?999:ib); return a.name.localeCompare(b.name);});
+    chips.innerHTML=shown.map(s=>{const i=O.sel.indexOf(s.id);return `<button type="button" class="og-chip${i>=0?' on':''}" data-og-pick="${esc(s.id)}">${i>=0?'✓ ':''}${esc(s.name)}</button>`;}).join('')||'<span class="muted" style="font-size:12px">No staff match.</span>';
+    chips.querySelectorAll('[data-og-pick]').forEach(b=>b.onclick=()=>{const id=b.dataset.ogPick, i=O.sel.indexOf(id); if(i>=0)O.sel.splice(i,1); else O.sel.push(id); ogPaint();});
+    document.querySelectorAll('[data-og-mode]').forEach(b=>b.classList.toggle('on',b.dataset.ogMode===O.mode));
+    const c=document.getElementById('ogCount'); if(c) c.textContent=O.sel.length?`${O.sel.length} picked`:'';
+    const p=document.getElementById('ogPrev'); if(p) p.innerHTML=ogPreview();
+  }
+  function bindOffice(){
+    const O=A.og, on=(id,ev,fn)=>{const el=document.getElementById(id); if(el) el[ev]=fn;};
+    on('ogGame','oninput',e=>{O.game=e.target.value;ogPaint();});
+    on('ogDate','oninput',e=>{O.date=e.target.value;});
+    on('ogPrize','oninput',e=>{O.prize=e.target.value;ogPaint();});
+    on('ogNote','oninput',e=>{O.note=e.target.value;});
+    on('ogQ','oninput',e=>{O.q=e.target.value;ogPaint();});
+    on('ogClear','onclick',()=>{O.sel=[];ogPaint();});
+    on('ogAdd','onclick',addOffice);
+    document.querySelectorAll('[data-og-mode]').forEach(b=>b.onclick=()=>{O.mode=b.dataset.ogMode;ogPaint();});
+    ogPaint();
+  }
+  async function addOffice(){
+    const O=A.og, sp=ogSplit(), game=O.game.trim();
+    if(!game) return alert('Type the name of the game.');
+    if(!O.date) return alert('Pick the date the game was held.');
+    if(O.date>todayPH()) return alert('The date can\'t be in the future.');
+    if(!O.sel.length) return alert('Pick at least one winner.');
+    if(!sp) return alert('Enter a prize amount above ₱0.');
+    if(O.mode==='split'&&sp.base<=0) return alert(`The prize is too small to split ${sp.n} ways.`);
+    const names=ogStaff(), nm=id=>(names.find(x=>x.id===id)||{}).name||'?';
+    const lines=O.sel.map((id,i)=>`• ${nm(id)}: ₱${peso2(i===0?sp.first:sp.base)}`).join('\n');
+    if(!confirm(`Add “${game}” (${md(O.date)}) to payouts?\n\n${lines}\n\nTotal ₱${peso2(sp.total)}. Each line goes to that person's next payout that isn't PAID.`)) return;
+    const b=document.getElementById('ogAdd'); if(b){b.disabled=true;b.textContent='Adding…';}
+    const {data,error}=await sb.rpc('admin_office_game_add',{p_game:game,p_held:O.date,p_prize:sp.prize,p_mode:O.mode,p_staff:O.sel,p_note:O.note.trim()||null});
+    if(error){ if(b){b.disabled=false;b.textContent='Add to payouts';} return alert(/could not find the function|schema cache/i.test(errMsg(error))?'Run the b36 SQL in the Supabase SQL Editor first.':errMsg(error)); }
+    const pays=[...new Set((data?.lines||[]).map(l=>l.payout_cutoff))].map(md).join(', ');
+    A.msg=`<b class="rc-ok">✅ “${esc(game)}” added · ${data?.winners||O.sel.length} winner${(data?.winners||O.sel.length)===1?'':'s'} → ${esc(pays)} payout.</b>`;
+    A.og={game:'',date:O.date,prize:'',mode:O.mode,sel:[],note:'',q:''};
+    const lp=(data?.lines||[])[0]?.payout_cutoff; if(lp&&A.payout!=='all') A.payout=lp;
+    await reload();
+  }
+
   async function setLine(id,include){
     const r=A.rows.find(x=>x.id===id); if(!r)return;
     let reason=null;
@@ -13409,6 +13504,236 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   }
 
   window.GameAwards={forCutoff,ledgerTitle,loadMine,initAdmin,arrange,_state:A};
+})();
+</script>
+
+<script>
+/* ============================================================
+   b36 SMBVS Expense (admin) + True ROI box on SMB PH Earning [Rendy, 2026-11-08]
+   - Contest awards = the Contractor Ledger "Incentive/Contest Award" column for the
+     payout that belongs to the period (game lines + anything typed in the Ledger / SMB Benefits).
+   - Food treats / Supplies / Other = smbvs_expenses rows dated inside the period (5–20 / 21–4).
+   - Staff Earning on SMB PH Earning ALREADY contains the contest awards, so True ROI =
+     ROI − (food + supplies + other). The box shows the awards added back and taken out
+     again so they're visible without being counted twice.
+   ============================================================ */
+(function(){
+  'use strict';
+  const BUCKET='smbvs-receipts', MAX=10*1024*1024;
+  const esc=v=>escapeHtml(String(v??''));
+  const peso=n=>'₱'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const peso0=n=>'₱'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+  const md=iso=>iso?new Date(String(iso).slice(0,10)+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'}):'—';
+  const errMsg=e=>e?.message||e?.error||String(e||'Error');
+  const notReady=e=>isMissingTableError(e)||/smbvs_expenses|schema cache/i.test(errMsg(e));
+  const todayPH=()=>new Date(Date.now()+8*3600000).toISOString().slice(0,10);
+  const r2=n=>Math.round(Number(n||0)*100)/100;
+  const CAT={food:['🍗','Food treats'],supplies:['📦','Supplies'],other:['🧾','Other']};
+  const SRC={bingo:['🎱','BINGO'],pet_race:['🐾','Pet Race'],office:['🎉','Office games']};
+  const srcKey=s=>SRC[s]?s:'game';
+  const srcLbl=k=>k==='game'?['🎮','Other games']:SRC[k];
+
+  if(!document.getElementById('sxStyle')){const st=document.createElement('style');st.id='sxStyle';st.textContent=`
+    .sx .sx-tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+    .sx .sx-tiles .stat .v{font-size:22px}
+    .sx .sx-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:12px;align-items:start}
+    .sx .sx-sub{background:var(--card2)}
+    .sx .r{text-align:right} .sx td,.sx th{white-space:nowrap} .sx td.wrap{white-space:normal;min-width:160px}
+    .sx select,.sx input{margin:0}
+    .sx .sx-form{display:grid;grid-template-columns:140px 130px minmax(0,1fr) 120px;gap:8px;align-items:end}
+    .sx .sx-n{font-size:12px;color:var(--muted);line-height:1.55;margin-top:8px}
+    .sx .sx-link{cursor:pointer;color:var(--gold);text-decoration:underline}
+    .sx .sx-ic{all:unset;cursor:pointer;padding:2px 6px;border-radius:6px;color:var(--muted)} .sx .sx-ic:hover{background:var(--card);color:var(--ink)}
+    .tr-box{border:1px solid rgba(63,191,174,.45);background:linear-gradient(135deg,rgba(63,191,174,.10),rgba(63,191,174,.02));border-radius:16px;padding:14px 16px;margin:10px 0 12px}
+    .tr-box .tr-wf{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 22px;font-size:14px;max-width:620px;flex:1 1 420px}
+    .tr-box .tr-tot{border-top:1px solid rgba(255,255,255,.18);padding-top:8px;font-weight:700;font-size:16px}
+    .tr-box .tr-m{min-width:200px}
+    @media(max-width:980px){.sx .sx-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.sx .sx-two{grid-template-columns:1fr}.sx .sx-form{grid-template-columns:1fr 1fr}}`;document.head.appendChild(st);}
+
+  /* ---------- shared: contest awards for a period (= Ledger column) ---------- */
+  async function awardsFor(start,end,ledgerRows){
+    let rows=ledgerRows;
+    if(!rows){
+      const cutoffIso=EarningsLoader.payoutCutoffFor(end);
+      const relevant=await EarningsData.fetchRelevantStaffForPeriodStrict(sb,cutoffIso);
+      rows=await computeLedgerRowsForPeriod(relevant,start,end);
+    }
+    const by={}; let total=0, games=0, working=0;
+    (rows||[]).forEach(r=>{
+      const inc=Number((r.extras||{}).incentive_award||0); total+=inc;
+      if((Number(r.regularHrs)||0)+(Number(r.otHrs)||0)>0) working++;
+      (r.gaLines||[]).forEach(l=>{ const k=srcKey(l.source); const b=by[k]=by[k]||{n:0,amt:0}; b.n++; b.amt+=Number(l.amount||0); games+=Number(l.amount||0); });
+    });
+    return {total:r2(total), by, manual:r2(total-games), working, cutoff:EarningsLoader.payoutCutoffFor(end)};
+  }
+  async function expensesFor(start,end){
+    const {data,error}=await sb.from('smbvs_expenses').select('*').gte('spent_on',start).lte('spent_on',end).order('spent_on',{ascending:false}).order('created_at',{ascending:false}).range(0,1999);
+    if(error) throw error;
+    return data||[];
+  }
+  const catSum=(exp,c)=>r2(exp.filter(e=>e.category===c).reduce((n,e)=>n+Number(e.amount||0),0));
+
+  /* ---------- SMBVS Expense tab ---------- */
+  const S={period:'',aw:null,exp:[],gen:0,edit:null,msg:'',err:''};
+  function periodOpts(){
+    const list=periodList('semi',24);
+    if(!S.period||!list.some(p=>`${p.start}|${p.end}`===S.period)) S.period=`${list[0].start}|${list[0].end}`;
+    return list.map(p=>`<option value="${p.start}|${p.end}"${`${p.start}|${p.end}`===S.period?' selected':''}>Period ${fmtNice(p.start)} – ${fmtNice(p.end)} · payout ${md(EarningsLoader.payoutCutoffFor(p.end))}</option>`).join('');
+  }
+  async function init(){
+    if(!me||me.role!=='admin')return;
+    const host=document.getElementById('sxRoot'); if(!host)return;
+    periodOpts(); await load();
+  }
+  async function load(){
+    const host=document.getElementById('sxRoot'); if(!host)return;
+    const my=++S.gen; const [start,end]=S.period.split('|');
+    host.innerHTML=`<div class="card muted">Loading expenses for ${esc(fmtNice(start))} – ${esc(fmtNice(end))}…</div>`;
+    S.err=''; S.aw=null; S.exp=[];
+    try{ S.exp=await expensesFor(start,end); }catch(e){ if(my!==S.gen)return; if(notReady(e)){host.innerHTML='<div class="card note">SMBVS Expense isn\'t set up yet — run the b36 SQL in the Supabase SQL Editor first.</div>';return;} S.err='Expenses: '+errMsg(e); }
+    try{ S.aw=await awardsFor(start,end); }catch(e){ S.err=(S.err?S.err+' · ':'')+'Contest awards: '+errMsg(e); }
+    if(my!==S.gen)return;
+    render();
+  }
+  function render(){
+    const host=document.getElementById('sxRoot'); if(!host)return;
+    const [start,end]=S.period.split('|');
+    const aw=S.aw||{total:0,by:{},manual:0,working:0,cutoff:EarningsLoader.payoutCutoffFor(end)};
+    const food=catSum(S.exp,'food'), sup=catSum(S.exp,'supplies'), oth=catSum(S.exp,'other');
+    const total=r2(aw.total+food+sup+oth);
+    const nFood=S.exp.filter(e=>e.category==='food').length;
+    const e=S.edit?S.exp.find(x=>x.id===S.edit):null;
+    const srcRows=['bingo','pet_race','office','game'].filter(k=>aw.by[k]).map(k=>{const [i,l]=srcLbl(k);return `<tr><td>${i} ${l}</td><td class="r">${aw.by[k].n}</td><td class="r mono">${peso0(aw.by[k].amt)}</td></tr>`;}).join('');
+    host.innerHTML=`<div class="sx grid" style="gap:12px">
+      <div class="card"><div class="hdr"><h3 style="font-size:15px">SMBVS Expense</h3><div class="row" style="gap:8px;flex-wrap:wrap"><select id="sxPeriod">${periodOpts()}</select><button class="btn btn-ghost" id="sxCsv">⬇ CSV</button><button class="btn btn-ghost" id="sxReload">↻</button></div></div>
+        <div class="muted" style="font-size:12.5px;line-height:1.55">What SMB spends on the team besides the Contractor Fee. <b>Contest awards</b> come in by themselves from the 🏆 Incentive/Contest Award column of the <b>${esc(md(aw.cutoff))}</b> payout. <b>Food treats, Supplies and Other</b> are what you log below, placed in this period by date. All of it is taken off SMB PH Earning's ROI to show the <b>True ROI</b>.</div>
+        ${S.err?`<div class="note" style="margin-top:8px;color:var(--rose)">⚠ ${esc(S.err)}</div>`:''}</div>
+      <div class="sx-tiles">
+        <div class="stat"><div class="k">Total expenses · period</div><div class="v" style="color:var(--rose)">${peso0(total)}</div></div>
+        <div class="stat"><div class="k">🏆 Contest awards</div><div class="v" style="color:var(--gold)">${S.aw?peso0(aw.total):'—'}</div><div class="sub muted" style="font-size:12px">auto · ${esc(md(aw.cutoff))} payout</div></div>
+        <div class="stat"><div class="k">🍗 Food treats</div><div class="v">${peso0(food)}</div><div class="sub muted" style="font-size:12px">${nFood} order${nFood===1?'':'s'}</div></div>
+        <div class="stat"><div class="k">📦 Supplies · 🧾 Other</div><div class="v">${peso0(sup+oth)}</div><div class="sub muted" style="font-size:12px">${peso0(sup)} · ${peso0(oth)}</div></div>
+        <div class="stat"><div class="k">Per working staff${aw.working?` (${aw.working})`:''}</div><div class="v">${aw.working?peso0(total/aw.working):'—'}</div><div class="sub muted" style="font-size:12px">staff with hours this period</div></div></div>
+      <div class="sx-two">
+        <div class="card sx-sub"><div class="hdr"><h3 style="font-size:14px">🏆 Contest awards <span class="muted" style="font-weight:400;font-size:12px">· read-only</span></h3><button class="btn btn-ghost" style="padding:4px 10px" onclick="go('v-incentive')">Open 🏆 tab</button></div>
+          <table><thead><tr><th>Source</th><th class="r">Lines</th><th class="r">Amount</th></tr></thead><tbody>
+          ${srcRows}${aw.manual?`<tr><td>✍️ Typed in Ledger / SMB Benefits</td><td class="r">—</td><td class="r mono">${peso0(aw.manual)}</td></tr>`:''}
+          ${srcRows||aw.manual?'':'<tr><td colspan="3" class="muted" style="text-align:center;padding:14px">No contest awards on this payout.</td></tr>'}
+          <tr><td><b>Total</b></td><td></td><td class="r mono" style="color:var(--gold)"><b>${peso0(aw.total)}</b></td></tr></tbody></table>
+          <div class="sx-n">Same number as the Ledger's Incentive/Contest Award column for the ${esc(md(aw.cutoff))} payout. Removed wins are left out.</div></div>
+        <div class="card sx-sub"><div class="hdr"><h3 style="font-size:14px">${e?'✏️ Edit expense':'➕ Log an expense'}</h3><span class="badge">food treats, supplies, other</span></div>
+          <div class="sx-form">
+            <div><label>Date</label><input type="date" id="sxDate" max="${todayPH()}" value="${esc(e?e.spent_on:(todayPH()>=start&&todayPH()<=end?todayPH():end))}"></div>
+            <div><label>Category</label><select id="sxCat">${Object.entries(CAT).map(([k,[i,l]])=>`<option value="${k}"${(e?e.category:'food')===k?' selected':''}>${i} ${l}</option>`).join('')}</select></div>
+            <div><label>What / where</label><input id="sxDesc" maxlength="200" placeholder="e.g. Jollibee — Friday merienda" value="${esc(e?e.description:'')}"></div>
+            <div><label>Amount ₱</label><input type="number" id="sxAmt" min="0.01" step="0.01" placeholder="0.00" value="${e?esc(e.amount):''}"></div></div>
+          <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><label style="margin:0">Receipt (optional)</label><input type="file" id="sxFile" accept="image/*,application/pdf" style="width:auto;flex:1;min-width:180px">${e&&e.receipt_path?'<span class="muted" style="font-size:12px">📎 has a receipt — pick a file to replace it</span>':''}
+            <button class="btn btn-gold" id="sxSave">${e?'Save changes':'Add'}</button>${e?'<button class="btn btn-ghost" id="sxCancel">Cancel</button>':''}<span id="sxMsg" style="font-size:12px">${S.msg||''}</span></div>
+          <div class="sticky-scroll" style="margin-top:10px"><table><thead><tr><th>Date</th><th>Category</th><th>What / where</th><th class="r">Amount</th><th></th></tr></thead><tbody>
+          ${S.exp.map(x=>`<tr><td>${esc(md(x.spent_on))}</td><td>${(CAT[x.category]||['🧾',x.category])[0]} ${esc((CAT[x.category]||['',x.category])[1])}</td><td class="wrap">${esc(x.description)}${x.receipt_path?` <span class="sx-link" data-sx-rcpt="${esc(x.id)}" title="Open receipt">📎</span>`:''}</td><td class="r mono"><b>${peso(x.amount)}</b></td><td><button class="sx-ic" data-sx-edit="${esc(x.id)}" title="Edit">✏️</button><button class="sx-ic" data-sx-del="${esc(x.id)}" title="Delete">🗑</button></td></tr>`).join('')||'<tr><td colspan="5" class="muted" style="text-align:center;padding:14px">Nothing logged for this period yet.</td></tr>'}
+          ${S.exp.length?`<tr><td colspan="3"><b>Total logged</b></td><td class="r mono"><b>${peso(food+sup+oth)}</b></td><td></td></tr>`:''}</tbody></table></div>
+          <div class="sx-n">Periods match SMB PH Earning (5–20 and 21–4). An order dated Nov 13 counts in Nov 5 – 20. Every add, edit and delete is logged.</div></div></div></div>`;
+    document.getElementById('sxPeriod').onchange=ev=>{S.period=ev.target.value;S.edit=null;S.msg='';load();};
+    document.getElementById('sxReload').onclick=()=>{S.msg='';load();};
+    document.getElementById('sxCsv').onclick=csv;
+    document.getElementById('sxSave').onclick=save;
+    const c=document.getElementById('sxCancel'); if(c) c.onclick=()=>{S.edit=null;S.msg='';render();};
+    host.querySelectorAll('[data-sx-edit]').forEach(b=>b.onclick=()=>{S.edit=b.dataset.sxEdit;S.msg='';render();document.getElementById('sxDesc')?.focus();});
+    host.querySelectorAll('[data-sx-del]').forEach(b=>b.onclick=()=>del(b.dataset.sxDel));
+    host.querySelectorAll('[data-sx-rcpt]').forEach(b=>b.onclick=()=>openReceipt(b.dataset.sxRcpt));
+  }
+  async function save(){
+    const date=document.getElementById('sxDate').value, cat=document.getElementById('sxCat').value;
+    const desc=document.getElementById('sxDesc').value.trim(), amt=r2(document.getElementById('sxAmt').value);
+    const file=document.getElementById('sxFile').files[0]||null;
+    const msg=t=>{const m=document.getElementById('sxMsg'); if(m) m.innerHTML=t;};
+    if(!date) return msg('<span style="color:var(--rose)">Pick a date.</span>');
+    if(date>todayPH()) return msg('<span style="color:var(--rose)">The date can\'t be in the future.</span>');
+    if(!desc) return msg('<span style="color:var(--rose)">Say what it was for.</span>');
+    if(!(amt>0)) return msg('<span style="color:var(--rose)">Enter an amount above ₱0.</span>');
+    if(file&&file.size>MAX) return msg('<span style="color:var(--rose)">Receipt is over 10 MB.</span>');
+    const btn=document.getElementById('sxSave'); btn.disabled=true; msg('Saving…');
+    const old=S.edit?S.exp.find(x=>x.id===S.edit):null;
+    let path=old?old.receipt_path:null, newPath=null;
+    try{
+      if(file){
+        const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,5)||'jpg';
+        newPath=`${date.slice(0,7)}/${(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2))}.${ext}`;
+        const up=await sb.storage.from(BUCKET).upload(newPath,file,{contentType:file.type||undefined,upsert:false});
+        if(up.error) throw new Error('Receipt upload failed: '+errMsg(up.error));
+        path=newPath;
+      }
+      const row={spent_on:date,category:cat,description:desc,amount:amt,receipt_path:path};
+      const res=old?await sb.from('smbvs_expenses').update(row).eq('id',old.id).select('id'):await sb.from('smbvs_expenses').insert(row).select('id');
+      if(res.error) throw new Error(errMsg(res.error));
+      if(!res.data||!res.data.length) throw new Error('Not saved — admin access needed.');
+      if(old&&newPath&&old.receipt_path) sb.storage.from(BUCKET).remove([old.receipt_path]).catch(()=>{});
+      const [s,e]=S.period.split('|');
+      S.msg=`<b class="rc-ok">✅ ${old?'Saved':'Added'}${date<s||date>e?` — it's in the ${esc(fmtNice(semiPeriod(date).start))} – ${esc(fmtNice(semiPeriod(date).end))} period`:''}.</b>`;
+      S.edit=null; await load();
+    }catch(err){
+      if(newPath) sb.storage.from(BUCKET).remove([newPath]).catch(()=>{});
+      btn.disabled=false; msg(`<span style="color:var(--rose)">${esc(errMsg(err))}</span>`);
+    }
+  }
+  async function del(id){
+    const x=S.exp.find(r=>r.id===id); if(!x)return;
+    if(!confirm(`Delete ${peso(x.amount)} · ${x.description} (${md(x.spent_on)})?`))return;
+    const {data,error}=await sb.from('smbvs_expenses').delete().eq('id',id).select('id');
+    if(error) return alert(errMsg(error));
+    if(!data||!data.length) return alert('Not deleted — admin access needed.');
+    if(x.receipt_path) sb.storage.from(BUCKET).remove([x.receipt_path]).catch(()=>{});
+    S.msg='<b class="rc-ok">✅ Deleted.</b>'; if(S.edit===id) S.edit=null; await load();
+  }
+  async function openReceipt(id){
+    const x=S.exp.find(r=>r.id===id); if(!x||!x.receipt_path)return;
+    const w=window.open('','_blank');
+    const {data,error}=await sb.storage.from(BUCKET).createSignedUrl(x.receipt_path,900);
+    if(error||!data?.signedUrl){ if(w) w.close(); return alert('Could not open the receipt: '+errMsg(error)); }
+    if(w) w.location=data.signedUrl; else window.location.href=data.signedUrl;
+  }
+  function csv(){
+    const q=v=>{const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+    const [start,end]=S.period.split('|'); const aw=S.aw||{by:{},manual:0,total:0,cutoff:''};
+    const L=[['Type','Date','Category','What / where','Amount (PHP)','Receipt']];
+    ['bingo','pet_race','office','game'].filter(k=>aw.by[k]).forEach(k=>L.push(['Contest award',aw.cutoff,srcLbl(k)[1],`${aw.by[k].n} line(s) · ${md(aw.cutoff)} payout`,r2(aw.by[k].amt).toFixed(2),'']));
+    if(aw.manual) L.push(['Contest award',aw.cutoff,'Typed in Ledger / SMB Benefits','',aw.manual.toFixed(2),'']);
+    S.exp.slice().reverse().forEach(x=>L.push(['Expense',x.spent_on,(CAT[x.category]||['',x.category])[1],x.description,Number(x.amount).toFixed(2),x.receipt_path?'yes':'']));
+    const blob=new Blob([L.map(l=>l.map(q).join(',')).join('\n')],{type:'text/csv'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`smbvs-expense-${start}_${end}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  }
+
+  /* ---------- True ROI box on SMB PH Earning ---------- */
+  let trGen=0;
+  async function paintTrueRoi(rows){
+    const host=document.getElementById('egTrueRoi'); if(!host)return;
+    const my=++trGen; const pv=document.getElementById('egPeriod')?.value||''; const [start,end]=pv.split('|');
+    const ok=(rows||[]).filter(r=>!r.row.missing);
+    if(!start||!ok.length){ host.innerHTML=''; return; }
+    let vsph=0, roi=0; ok.forEach(r=>{vsph+=Number(r.row.vsph||0); roi+=Number(r.row.roi||0);});
+    host.innerHTML='<div class="tr-box muted" style="font-size:12.5px">True ROI · loading expenses…</div>';
+    let aw=null, exp=null, err='';
+    try{ exp=await expensesFor(start,end); }catch(e){ err=notReady(e)?'Run the b36 SQL to turn on SMBVS Expense.':'Expenses: '+errMsg(e); }
+    try{ const c=window.egLedgerRowsCache; aw=await awardsFor(start,end,c&&c.key===pv&&!egLocked?c.rows:null); }catch(e){ err=(err?err+' · ':'')+'Contest awards: '+errMsg(e); }
+    if(my!==trGen||(document.getElementById('egPeriod')?.value||'')!==pv) return;
+    const food=exp?catSum(exp,'food'):0, sup=exp?catSum(exp,'supplies'):0, oth=exp?catSum(exp,'other'):0;
+    const awT=aw?aw.total:0, other=r2(food+sup+oth);
+    const before=r2(roi+awT), trueRoi=r2(roi-other);
+    const m=v=>vsph?((v/vsph)*100).toFixed(2)+'%':'—';
+    const line=(lbl,v,neg)=>`<div>${lbl}</div><div class="mono r" style="text-align:right;${neg?'color:var(--rose)':''}">${neg?'−':''}${peso(Math.abs(v))}</div>`;
+    host.innerHTML=`<div class="tr-box"><div class="hdr" style="margin-bottom:8px"><h3 style="font-size:15px">True ROI · ${esc(fmtNice(start))} – ${esc(fmtNice(end))}</h3><span class="badge">${egLocked?'ROI from the LOCKED snapshot · expenses live':'Preview · updates when expenses change'}</span></div>
+      <div class="row" style="align-items:flex-start;gap:28px;flex-wrap:wrap">
+      <div class="tr-wf">
+        <div>ROI before contest awards <span class="muted" style="font-size:12px">(Total ROI + awards already inside Staff Earning)</span></div><div class="mono" style="text-align:right">${peso(before)}</div>
+        ${line(`− 🏆 Incentive/Contest awards <span class="muted" style="font-size:12px">(${aw?esc(md(aw.cutoff))+' payout':'not loaded'})</span>`,awT,true)}
+        ${line(`− 🍗 Food treats`,food,true)}
+        ${sup?line('− 📦 Supplies',sup,true):''}${oth?line('− 🧾 Other',oth,true):''}
+        <div class="tr-tot">= True ROI</div><div class="tr-tot mono" style="text-align:right;color:${trueRoi<0?'var(--rose)':'var(--teal)'}">${peso(trueRoi)}</div></div>
+      <div class="stat tr-m"><div class="k">True margin</div><div class="v" style="color:${marginColor(vsph?trueRoi/vsph*100:null)}">${m(trueRoi)}</div><div class="muted" style="font-size:12px">${m(before)} before awards &amp; expenses<br>${m(roi)} after awards only</div></div></div>
+      <div class="muted" style="font-size:11.5px;margin-top:8px">Staff Earning already includes contest awards (they're in the Ledger's Net Amount Payable), so they're added back and taken out once here — never twice. Expenses come from 🧾 SMBVS Expense.${egLocked?' LOCK IN is not changed by this box.':''}${err?` <span style="color:var(--rose)">⚠ ${esc(err)}</span>`:''}</div></div>`;
+  }
+
+  window.SMBVSExpense={init,load,awardsFor,paintTrueRoi,_state:S};
 })();
 </script>
 
