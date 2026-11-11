@@ -43,9 +43,10 @@ const fmtWhen = ev => {
 
 export function registerCalendar(ctx) {
   const { app, admin, requireAdmin, requireActiveUser, sendDmOnce, dmBlocks, safeSlack, PORTAL_URL, SLACK_BOT_TOKEN, STATE_SECRET } = ctx;
-  const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-  const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
-  const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || DEFAULT_REDIRECT;
+  // .trim(): values pasted into Render can carry an invisible trailing newline → Google "invalid_client"
+  const CLIENT_ID = String(process.env.GOOGLE_CLIENT_ID || '').trim();
+  const CLIENT_SECRET = String(process.env.GOOGLE_CLIENT_SECRET || '').trim();
+  const REDIRECT_URI = String(process.env.GOOGLE_REDIRECT_URI || DEFAULT_REDIRECT).trim();
   // only this Google account may be connected (override with GOOGLE_CALENDAR_ACCOUNT on Render)
   const ACCOUNT = String(process.env.GOOGLE_CALENDAR_ACCOUNT || 'smb.ph.virtual.staffing@gmail.com').trim().toLowerCase();
   const stats = { last: null, lastError: null, pushed: 0, pulled: 0, leave: 0, dms: 0 };
