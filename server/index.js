@@ -13,6 +13,7 @@ import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 import multer from 'multer';
 import { randomUUID } from 'crypto';
+import { registerCalendar } from './calendar.js';
 
 const {
   SUPABASE_URL,
@@ -1409,6 +1410,7 @@ async function tsSweep(since){
 
 // pinger + portal "kick" (idempotent; rate limited)
 async function dmSweepRoute(_req,res){
+  calendar?.calendarSweep().catch(e=>console.error('Calendar sweep:', e.message)); // the hourly pinger keeps Google sync + reminders moving
   const r = await dmSweep(false);
   res.json({ok:true, bot:!!SLACK_BOT_TOKEN, ...r, last:dmStats.last, lastError:dmStats.lastError});
 }
@@ -1460,6 +1462,10 @@ app.post('/api/dm/test', notificationRateLimit, async (req,res)=>{
     res.json({ok:true});
   }catch(e){ console.error('Test DM failed:',e); res.status(502).json({error:e.slack==='missing_scope'?'Bagani is missing a Slack permission (scope). Re-check step 2 and reinstall.':(e.message||'Test DM failed.')}); }
 });
+
+// ---------- Calendar (My Calendar / Team Calendar) + Google Calendar sync → server/calendar.js ----------
+var calendar = registerCalendar({ app, admin, requireAdmin, requireActiveUser, sendDmOnce, dmBlocks, safeSlack,
+  PORTAL_URL, SLACK_BOT_TOKEN, STATE_SECRET: SUPABASE_SERVICE_ROLE_KEY });
 
 setInterval(()=>dmSweep(true), 5*60*1000);
 setTimeout(()=>dmSweep(true), 15000); // once shortly after boot
