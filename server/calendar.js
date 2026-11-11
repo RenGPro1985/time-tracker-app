@@ -46,6 +46,8 @@ export function registerCalendar(ctx) {
   const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
   const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
   const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || DEFAULT_REDIRECT;
+  // only this Google account may be connected (override with GOOGLE_CALENDAR_ACCOUNT on Render)
+  const ACCOUNT = String(process.env.GOOGLE_CALENDAR_ACCOUNT || 'smb.ph.virtual.staffing@gmail.com').trim().toLowerCase();
   const stats = { last: null, lastError: null, pushed: 0, pulled: 0, leave: 0, dms: 0 };
 
   // ---------------------------------------------------------------- Google plumbing
@@ -365,7 +367,8 @@ export function registerCalendar(ctx) {
       if (!CLIENT_ID || !CLIENT_SECRET) return res.status(409).json({ error: 'GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not set on Render yet.' });
       const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
         client_id: CLIENT_ID, redirect_uri: REDIRECT_URI, response_type: 'code', scope: SCOPES.join(' '),
-        access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true', state: makeState(a.id)
+        access_type: 'offline', prompt: 'select_account consent', include_granted_scopes: 'true', state: makeState(a.id),
+        ...(ACCOUNT ? { login_hint: ACCOUNT } : {})
       });
       res.json({ ok: true, url });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -379,6 +382,10 @@ export function registerCalendar(ctx) {
       const tok = await tokenRequest({ grant_type: 'authorization_code', code: String(req.query.code || ''), redirect_uri: REDIRECT_URI });
       if (!tok.refresh_token) return back('Google did not return offline access — remove the app at myaccount.google.com/permissions and connect again.', false);
       const who = await fetch('https://openidconnect.googleapis.com/v1/userinfo', { headers: { Authorization: 'Bearer ' + tok.access_token } }).then(r => r.json()).catch(() => ({}));
+      if (ACCOUNT && String(who.email || '').toLowerCase() !== ACCOUNT) {
+        fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(tok.refresh_token), { method: 'POST' }).catch(() => {});
+        return back(`You picked ${who.email || 'a different Google account'}. Click Connect Google again and choose ${ACCOUNT} (use "Use another account" if it is not listed).`, false);
+      }
       const link = { refresh_token: tok.refresh_token, calendar_id: 'primary' };
       tokenCache = { token: tok.access_token, exp: Date.now() + (tok.expires_in || 3600) * 1000, rt: tok.refresh_token };
       // reuse the "SMB VS Team" calendar if it already exists on this account, else create it
