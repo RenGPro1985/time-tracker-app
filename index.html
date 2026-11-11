@@ -740,7 +740,14 @@ th.eg-new,td.eg-new{background:rgba(242,184,75,.07)}
     </section>
 
     <!-- ---------- LIVE STATUS (admin, plus staff granted view access) ---------- -->
+    <!-- ---------- CALENDAR: staff My Calendar + admin Live Status → Team Calendar ---------- -->
+    <section id="v-cal" class="hide"><div id="tcRootStaff"></div></section>
+    <section id="v-teamcal" class="hide grid" style="gap:16px">
+      <div class="row status-sub hide"><button class="btn btn-ghost" onclick="go('v-status')">📡 Live Roster</button><button class="btn btn-gold" onclick="go('v-teamcal')">📅 Team Calendar</button></div>
+      <div id="tcRootAdmin"></div>
+    </section>
     <section id="v-status" class="hide grid" style="gap:16px">
+      <div class="row status-sub hide"><button class="btn btn-gold" onclick="go('v-status')">📡 Live Roster</button><button class="btn btn-ghost" onclick="go('v-teamcal')">📅 Team Calendar</button></div>
       <div class="grid" style="grid-template-columns:repeat(5,1fr)">
         <div class="stat"><div class="k">On shift now</div><div class="v" id="stOn">—</div></div>
         <div class="stat"><div class="k">On break</div><div class="v" style="color:var(--gold)" id="stBreak">—</div></div>
@@ -3131,6 +3138,7 @@ async function start(){
   setInterval(()=>{ if(me&&document.getElementById('v-dash').classList.contains('hide')===false) renderPayPeriod(); },300000);
   await refreshNotifications();
   setInterval(refreshNotifications,60000);
+  window.TeamCal?.start();
   window.Bulletin?.onStart();
   window.TsAck?.onStart();
   window.DocTodo?.load();
@@ -3178,6 +3186,8 @@ document.addEventListener('click',e=>{ if(!$('notifPanel').contains(e.target)&&e
 const PAGES={
   'v-punch' :['🕒 Time Tracker','Time Tracker','Your shift, activities and totals'],
   'v-status':['📡 Live Status','Live Status','Who is on shift right now'],
+  'v-cal':['📅 My Calendar','My Calendar','Team schedule — meetings, coaching sessions and time off'],
+  'v-teamcal':['📅 Team Calendar','Live Status · Team Calendar','Meetings, coaching and time off — synced with Google Calendar'],
   'v-staff' :['👥 Staff & Clients','Staff & Clients','Add or remove staff, manage client shifts · Rules tab for activity & billing rules'],
   'v-benefits':['🎁 SMB Benefits','SMB Benefits','Nominate standing allowance & bonus rules — amount, payout window, and eligible staff'],
   'v-adjustments':['➕ PHP Adjustments','PHP Adjustments','Five adjustment rules · Fee Advances is the next sub-tab'],
@@ -3196,7 +3206,7 @@ const PAGES={
 };
 let view='v-punch';
 /* sub-tab groups (Rendy 2026-10-19): Rules + PTO Credits live in Staff & Clients; payroll tabs live under Contractor Ledger ("Payroll") for admins */
-function navParentOf(v){ if(v==='v-policy'||v==='v-pto'||v==='v-files')return 'v-staff'; if(v==='v-feeadv')return 'v-adjustments'; if(me?.role==='admin'&&(v==='v-sheets'||v==='v-invoice'||v==='v-earning'||v==='v-cbonus'||v==='v-incentive'||v==='v-expense'))return 'v-ledger'; return v; }
+function navParentOf(v){ if(v==='v-teamcal')return 'v-status'; if(v==='v-policy'||v==='v-pto'||v==='v-files')return 'v-staff'; if(v==='v-feeadv')return 'v-adjustments'; if(me?.role==='admin'&&(v==='v-sheets'||v==='v-invoice'||v==='v-earning'||v==='v-cbonus'||v==='v-incentive'||v==='v-expense'))return 'v-ledger'; return v; }
 const ADMIN_NAV_DEFAULT=['v-rewards','v-status','v-punch','v-eod','v-staff','v-benefits','v-adjustments','v-adherence','v-corr','v-ledger','v-reqadmin','v-portal','v-perf','v-ytd'];
 let adminNavOrder=null, navArranging=false, navArrDraft=null, navFirstBuild=true;
 /* saved order -> valid order: drop unknown/duplicate ids, append any new tabs at the end */
@@ -3229,7 +3239,7 @@ function adherenceOwnOnly(){ return !!me&&me.role!=='admin'&&!me.can_view_adhere
 function buildNav(){
   PAGES['v-adherence']=adherenceOwnOnly()?ADH_PAGE_MINE:ADH_PAGE_TEAM;
   PAGES['v-ledger'][0]=me?.role==='admin'?'💰 Payroll':'🧾 Contractor Ledger'; // admins: Ledger is the Payroll group (sub-tabs inside)
-  const staffIds = ['v-punch','v-eod','v-adherence',...(me.can_view_live_status?['v-status']:[]),'v-ledger','v-req','v-profile','v-portal','v-perf'];
+  const staffIds = ['v-punch','v-cal','v-eod','v-adherence',...(me.can_view_live_status?['v-status']:[]),'v-ledger','v-req','v-profile','v-portal','v-perf'];
   const isAdmin=me.role==='admin';
   const ids = isAdmin ? adminNavIds() : staffIds;
   if(navFirstBuild){ navFirstBuild=false; if(isAdmin) view='v-status'; }
@@ -3322,11 +3332,15 @@ function ncToggle(){
 }
 function go(v){
   if((v==='v-ytd'||v==='v-pto'||v==='v-rewards'||v==='v-files'||v==='v-cbonus'||v==='v-incentive'||v==='v-expense'||v==='v-earning'||v==='v-feeadv')&&me?.role!=='admin')v='v-punch';
+  if(v==='v-teamcal'&&me?.role!=='admin')v='v-cal';
+  if(v==='v-cal'&&me?.role==='admin')v='v-teamcal';
   view=v;
   try{ncPaintChip(v);}catch(_){}
   Object.keys(PAGES).forEach(id=>{const el=$(id); if(el) el.classList.add('hide');});
   $(v).classList.remove('hide');
   document.querySelectorAll('.pay-sub').forEach(el=>el.classList.toggle('hide',me?.role!=='admin'));
+  document.querySelectorAll('.status-sub').forEach(el=>el.classList.toggle('hide',me?.role!=='admin'));
+  if(v==='v-cal'||v==='v-teamcal'){window.TeamCal?.open(v);}
   $('pageTitle').textContent=PAGES[v][1]; $('pageSub').textContent=PAGES[v][2];
   $('nav').querySelectorAll('button').forEach(b=>b.className=(b.dataset.v===v||(b.dataset.v===navParentOf(v))?'on':''));
   if(v==='v-status'){initFilters();loadRoster();}
@@ -13969,5 +13983,391 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   window.StaffCompletion={init,run};
 })();
 
+</script>
+<style>
+/* ============ Calendar: staff "My Calendar" + admin "Live Status → Team Calendar" ============ */
+.tc-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.tc-bar select{width:auto}
+.tc-seg{display:inline-flex;border-radius:10px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--line)}
+.tc-seg button{background:var(--card2);border:0;color:var(--muted);padding:7px 11px;cursor:pointer;font:inherit;font-size:12.5px}
+.tc-seg button.on{background:#262b3d;color:var(--ink)}
+.tc-chip{display:inline-flex;gap:6px;align-items:center;border-radius:999px;padding:5px 10px;font-size:11.5px;color:var(--muted);box-shadow:inset 0 0 0 1px var(--line);white-space:nowrap}
+.tc-chip i{width:7px;height:7px;border-radius:50%;background:var(--slate)}
+.tc-chip.ok i{background:var(--teal)}.tc-chip.bad i{background:var(--rose)}
+.tc-grid2{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:14px;align-items:start}
+.tc-month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.tc-dow{padding:6px;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.tc-day{min-height:96px;padding:4px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.tc-day.adm{cursor:pointer}.tc-day.adm:hover{background:rgba(255,255,255,.025)}
+.tc-day.out{opacity:.35}
+.tc-day .n{font-size:11px;color:var(--muted);margin-bottom:2px}
+.tc-day.today .n{background:var(--gold);color:#151515;border-radius:10px;padding:0 6px;display:inline-block;font-weight:700}
+.tc-ev{display:block;width:100%;text-align:left;border:0;border-radius:5px;padding:2px 5px;margin-bottom:2px;font:inherit;font-size:10.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 16%,transparent);cursor:pointer}
+.tc-ev.pend{font-style:italic;background-image:repeating-linear-gradient(45deg,transparent 0 5px,rgba(255,255,255,.07) 5px 10px)}
+.tc-more{font-size:10px;color:var(--muted);padding-left:4px;cursor:pointer}
+.tc-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:10px}
+.tc-legend span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px;background:var(--c)}
+.tc-li{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer}.tc-li:last-child{border-bottom:0}
+.tc-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none;background:var(--c)}
+.tc-li small{display:block;color:var(--muted);font-size:11px}
+.tc-ag{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:10px;padding:9px 6px;border-bottom:1px solid var(--line);align-items:center;cursor:pointer}
+.tc-ag:hover{background:rgba(255,255,255,.025)}
+.tc-tag{font-size:10.5px;border-radius:10px;padding:1px 8px;box-shadow:inset 0 0 0 1px var(--c);color:var(--c);white-space:nowrap}
+.tc-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.tc-ov{position:fixed;inset:0;background:rgba(3,6,12,.72);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}
+.tc-ov .card{width:100%;max-width:560px;max-height:90vh;overflow:auto}
+.tc-ov h3{font-size:16px;margin-bottom:4px}
+.tc-fld{margin:10px 0}.tc-fld>label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px}
+.tc-fld input,.tc-fld select,.tc-fld textarea{width:100%}
+.tc-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.tc-pills{display:flex;flex-wrap:wrap;gap:5px;max-height:170px;overflow:auto}
+.tc-pill{border:0;border-radius:14px;padding:4px 9px;font:inherit;font-size:11.5px;background:var(--card2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line);cursor:pointer}
+.tc-pill.on{background:rgba(167,139,250,.2);box-shadow:inset 0 0 0 1px #a78bfa;color:#ddd6fe}
+.tc-checks label{display:inline-flex;gap:6px;align-items:center;margin:0 14px 6px 0;font-size:12.5px;color:var(--ink)}
+.tc-checks input{width:auto}
+.tc-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.tc-toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:210}
+.tc-toast{background:var(--card2);border-radius:12px;padding:10px 12px;width:330px;max-width:calc(100vw - 32px);box-shadow:0 10px 28px rgba(0,0,0,.5),inset 0 0 0 1px var(--line);border-left:4px solid var(--c,#a78bfa);animation:tcIn .25s ease;font-size:12.5px}
+.tc-toast b{display:block;margin-bottom:2px}.tc-toast .tc-foot{justify-content:flex-start;margin-top:8px}
+@keyframes tcIn{from{transform:translateY(10px);opacity:0}}
+.tc-alert{text-align:center;max-width:420px!important}.tc-alert .big{font-size:36px}
+.status-sub{gap:6px;flex-wrap:wrap}
+@media(max-width:1000px){.tc-grid2{grid-template-columns:1fr}.tc-stats{grid-template-columns:repeat(2,1fr)}.tc-day{min-height:62px}.tc-ag{grid-template-columns:90px minmax(0,1fr)}.tc-ag .tc-tag{display:none}}
+</style>
+<script>
+/* ============================================================
+   CALENDAR — My Calendar (staff, after Time Tracker) and
+   Live Status → 📅 Team Calendar (admin). Data lives in Supabase
+   (calendar_events + leave_days + requests) behind the Render server,
+   which keeps the "SMB VS Team" Google Calendar on
+   smb.ph.virtual.staffing@gmail.com in sync both ways.
+   Notifications: bell rows + toast pop-ups for invites/changes/cancels,
+   full-screen pop-up 15 min before start, toasts at 1 h; Slack DMs from the server.
+   ============================================================ */
+(function(){
+  const T={meeting:['Meeting','#60a5fa'],coaching:['Coaching / 1:1','#a78bfa'],holiday:['Client holiday','#fb7185'],
+    pto:['PTO','#3FBFAE'],pch:['Paid Client Holiday','#2dd4bf'],planned_absence:['Planned Absence','#E3A63E'],sick_leave:['Sick Leave','#E2685F'],out:['Out','#E2685F'],half_day:['Half Day','#8B90A0']};
+  const LEAVE=new Set(['pto','pch','planned_absence','sick_leave','out','half_day']);
+  const S={feed:null,cur:null,mode:'month',client:'all',type:'all',mine:false,view:null,loading:false,err:''};
+  const esc=s=>escapeHtml(s==null?'':String(s));
+  const pad=n=>String(n).padStart(2,'0');
+  const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  const pd=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c);};
+  const addD=(s,n)=>{const d=pd(s);d.setDate(d.getDate()+n);return ymd(d);};
+  const phD=iso=>new Date(new Date(iso).getTime()+8*3600000).toISOString().slice(0,10);
+  const today=()=>phD(new Date().toISOString());
+  const fmtD=s=>pd(s).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  const fmtT=(iso,tz)=>new Intl.DateTimeFormat('en-US',{timeZone:tz||'Asia/Manila',hour:'numeric',minute:'2-digit',hour12:true}).format(new Date(iso));
+  const fmtTz=(iso,tz)=>new Intl.DateTimeFormat('en-US',{timeZone:tz,weekday:'short',hour:'numeric',minute:'2-digit',hour12:true,timeZoneName:'short'}).format(new Date(iso));
+  const isAdmin=()=>me?.role==='admin';
+  const myId=()=>String(me?.id||'');
+  const evSpan=e=>({s:phD(e.start_at),e:phD(new Date(new Date(e.end_at).getTime()-1).toISOString())});
+  const staffName=id=>(S.feed?.staff||[]).find(s=>String(s.id)===String(id))?.name||'Staff';
+  const staffClient=id=>(S.feed?.staff||[]).find(s=>String(s.id)===String(id))?.client_id||null;
+  const clientName=id=>(S.feed?.clients||[]).find(c=>String(c.id)===String(id))?.name||'';
+  function clientTz(){ const cid=isAdmin()?null:me?.client_id; const c=(S.feed?.clients||clients||[]).find(x=>String(x.id)===String(cid)); return c?.timezone||'America/New_York'; }
+  const invited=e=>!e.attendee_ids?.length||e.attendee_ids.map(String).includes(myId());
+  const durMin=e=>Math.round((new Date(e.end_at)-new Date(e.start_at))/60000);
+
+  /* ---------------- data ---------------- */
+  function monthRange(){ const y=S.cur.getFullYear(),m=S.cur.getMonth(); const a=new Date(y,m,1); a.setDate(1-a.getDay()); const b=new Date(y,m+1,0); b.setDate(b.getDate()+(6-b.getDay())); return [ymd(a),ymd(b)]; }
+  async function load(){
+    const [from,to]=S.mode==='agenda'?[today(),addD(today(),90)]:monthRange();
+    S.loading=true;S.err='';
+    try{ S.feed=await api(`/api/calendar/feed?from=${from}&to=${to}`); }
+    catch(e){ S.err=e.message; }
+    S.loading=false; paint();
+  }
+  function items(){
+    const f=S.feed; if(!f) return [];
+    const out=[];
+    for(const e of f.events){
+      if(S.mine&&!isAdmin()&&!invited(e)&&e.type!=='holiday') continue;
+      if(isAdmin()&&S.type!=='all'&&e.type!==S.type) continue;
+      if(S.client!=='all'){
+        if(e.type==='holiday'){ if(e.client_ids?.length&&!e.client_ids.map(String).includes(S.client)) continue; }
+        else if(e.attendee_ids?.length&&!e.attendee_ids.some(a=>String(staffClient(a))===S.client)) continue;
+      }
+      const sp=evSpan(e); out.push({k:'ev',id:e.id,type:e.type,s:sp.s,e:sp.e,e0:e,sort:e.all_day?'0':e.start_at});
+    }
+    for(const l of f.leave){
+      if(S.mine&&!isAdmin()&&String(l.staff_id)!==myId()) continue;
+      if(isAdmin()&&S.type!=='all'&&S.type!=='leave') continue;
+      if(S.client!=='all'&&String(staffClient(l.staff_id))!==S.client) continue;
+      out.push({k:'lv',id:l.key,type:l.type,s:l.start,e:l.end,l,sort:'1'+l.type});
+    }
+    return out.sort((a,b)=>a.sort.localeCompare(b.sort));
+  }
+  function label(it){
+    if(it.k==='lv'){ const who=String(it.l.staff_id)===myId()?'My':staffName(it.l.staff_id).split(' ')[0]; return who+' — '+T[it.type][0]; }
+    const e=it.e0; return (e.all_day?'':fmtT(e.start_at).replace(':00','')+' ')+e.title;
+  }
+
+  /* ---------------- render ---------------- */
+  function root(){ return document.getElementById(S.view==='v-teamcal'?'tcRootAdmin':'tcRootStaff'); }
+  function paint(){
+    const el=root(); if(!el) return;
+    const f=S.feed, adm=isAdmin();
+    let h='';
+    if(adm&&f){
+      const wkEnd=addD(today(),7);
+      const meet=f.events.filter(e=>e.type!=='holiday'&&phD(e.start_at)>=today()&&phD(e.start_at)<wkEnd).length;
+      const out=f.leave.filter(l=>l.status==='approved'&&l.start<=today()&&l.end>=today()).length;
+      const pend=f.leave.filter(l=>l.status==='pending').length;
+      const g=f.google;
+      const gTxt=!g.configured?'<span style="color:var(--rose)">Not set up on Render</span>':g.connected?(g.last_error?`<span style="color:var(--rose)" title="${esc(g.last_error)}">⚠ Sync error</span>`:`<span style="color:var(--teal)">● Live</span><span class="muted" style="font-size:11px"> · ${g.last_sync_at?ago(g.last_sync_at):'starting…'}</span>`):'<span style="color:var(--gold)">Not connected</span>';
+      h+=`<div class="tc-stats"><div class="stat"><div class="k">Meetings next 7 days</div><div class="v">${meet}</div></div><div class="stat"><div class="k">Out today</div><div class="v" style="color:var(--teal)">${out}</div></div><div class="stat"><div class="k">Pending leave</div><div class="v" style="color:var(--gold)">${pend}</div></div><div class="stat"><div class="k">Google Calendar</div><div class="v" style="font-size:14px;margin-top:6px">${gTxt}</div>
+        <div class="row" style="gap:6px;margin-top:6px">${g.connected?`<button class="btn btn-ghost" data-tc="sync" style="padding:4px 8px;font-size:11px">Sync now</button><button class="btn btn-ghost" data-tc="gdisc" style="padding:4px 8px;font-size:11px">Disconnect</button>`:`<button class="btn btn-gold" data-tc="gconn" style="padding:4px 10px;font-size:11.5px">Connect Google</button>`}</div></div></div>`;
+    }
+    const mLabel=S.mode==='agenda'?'Next 90 days':S.cur.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    h+=`<div class="tc-bar">${S.mode==='month'?`<button class="btn btn-ghost" data-tc="prev">‹</button>`:''}<b style="min-width:130px;text-align:center">${mLabel}</b>${S.mode==='month'?`<button class="btn btn-ghost" data-tc="next">›</button><button class="btn btn-ghost" data-tc="today">Today</button>`:''}
+      <span class="tc-seg"><button data-tc="m-month" class="${S.mode==='month'?'on':''}">Month</button><button data-tc="m-agenda" class="${S.mode==='agenda'?'on':''}">Agenda</button></span>
+      <select data-tcsel="client"><option value="all">All clients</option>${(f?.clients||clients||[]).map(c=>`<option value="${c.id}" ${S.client===String(c.id)?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`;
+    if(adm) h+=`<select data-tcsel="type"><option value="all">All types</option><option value="meeting" ${S.type==='meeting'?'selected':''}>Meetings</option><option value="coaching" ${S.type==='coaching'?'selected':''}>Coaching / 1:1</option><option value="holiday" ${S.type==='holiday'?'selected':''}>Client holidays</option><option value="leave" ${S.type==='leave'?'selected':''}>Time off</option></select>`;
+    else h+=`<label class="muted" style="display:flex;gap:6px;align-items:center;font-size:12px;margin:0"><input type="checkbox" data-tc="mine" ${S.mine?'checked':''} style="width:auto"> Only my events</label>`;
+    h+=`<span style="flex:1"></span>`;
+    if(f?.google?.connected) h+=`<span class="tc-chip ok" title="Every event is also on this Google Calendar"><i></i>Synced · ${esc(f.google.email||'Google Calendar')}</span>`;
+    h+=adm?`<button class="btn btn-gold" data-tc="new">+ Schedule</button>`:`<button class="btn btn-gold" data-tc="leave">+ Request time off</button>`;
+    h+='</div>';
+    if(S.err) h+=`<div class="note" style="color:var(--rose);margin-bottom:10px">Could not load the calendar: ${esc(S.err)}${/relation|calendar_events|schema cache/i.test(S.err)?' — run supabase/calendar.sql in the Supabase SQL Editor.':''}</div>`;
+    h+=`<div class="tc-grid2"><div class="card">${!f?'<div class="muted">Loading calendar…</div>':S.mode==='month'?monthHtml():agendaHtml()}
+      <div class="tc-legend">${['meeting','coaching','holiday','pto','pch','planned_absence','sick_leave','half_day'].map(k=>`<span style="--c:${T[k][1]}">${T[k][0]}</span>`).join('')}<span style="--c:repeating-linear-gradient(45deg,#777 0 2px,transparent 2px 4px)">Pending approval</span></div></div><div>${f?sideHtml():''}</div></div>`;
+    el.innerHTML=h; bind(el);
+  }
+  function ago(iso){ const m=Math.round((Date.now()-new Date(iso))/60000); return m<1?'just now':m<60?m+'m ago':Math.round(m/60)+'h ago'; }
+  function monthHtml(){
+    const [a,b]=monthRange(), its=items(), m=S.cur.getMonth(), td=today(), adm=isAdmin();
+    let h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="tc-dow">${d}</div>`).join('');
+    for(let d=a;d<=b;d=addD(d,1)){
+      const list=its.filter(it=>it.s<=d&&it.e>=d);
+      h+=`<div class="tc-day ${pd(d).getMonth()!==m?'out':''} ${d===td?'today':''} ${adm?'adm':''}" data-day="${d}"><div class="n">${pd(d).getDate()}</div>${list.slice(0,3).map(chip).join('')}${list.length>3?`<div class="tc-more" data-more="${d}">+${list.length-3} more</div>`:''}</div>`;
+    }
+    return `<div class="tc-month">${h}</div>`;
+  }
+  const chip=it=>`<button class="tc-ev ${it.l?.status==='pending'?'pend':''}" style="--c:${T[it.type]?.[1]||'#888'}" data-open="${it.k}:${it.id}" title="${esc(label(it))}">${esc(label(it))}</button>`;
+  function agendaHtml(){
+    const its=items().filter(it=>it.e>=today());
+    if(!its.length) return '<div class="muted">Nothing scheduled in the next 90 days.</div>';
+    return its.sort((x,y)=>(x.s+(x.e0?.start_at||'')).localeCompare(y.s+(y.e0?.start_at||''))).map(it=>{
+      const e=it.e0, c=T[it.type]?.[1]||'#888';
+      const when=e&&!e.all_day?`${fmtT(e.start_at)} PHT`:(it.e!==it.s?'to '+fmtD(it.e):'All day');
+      const sub=e&&!e.all_day?`${fmtTz(e.start_at,clientTz())} · ${durMin(e)} min · ${e.attendee_ids?.length?e.attendee_ids.length+' attendee'+(e.attendee_ids.length>1?'s':''):'Everyone'}`:it.l?clientName(staffClient(it.l.staff_id)):'';
+      return `<div class="tc-ag" data-open="${it.k}:${it.id}"><div><b>${fmtD(it.s)}</b><div class="muted" style="font-size:11px">${when}</div></div><div style="min-width:0"><b>${esc(it.l?staffName(it.l.staff_id)+' — '+T[it.type][0]:e.title)}</b><div class="muted" style="font-size:11px">${esc(sub)}</div></div><span class="tc-tag" style="--c:${c}">${it.l?.status==='pending'?'Pending':T[it.type][0]}</span></div>`;
+    }).join('');
+  }
+  function sideHtml(){
+    const f=S.feed, adm=isAdmin(), now=new Date().toISOString();
+    const up=f.events.filter(e=>!e.all_day&&e.end_at>now&&(adm||invited(e))).slice(0,5);
+    let h=`<div class="card"><h3 style="font-size:14px;margin-bottom:6px">${adm?'Upcoming sessions':'Up next for you'}</h3>${up.length?up.map(e=>`<div class="tc-li" data-open="ev:${e.id}"><span class="tc-dot" style="--c:${T[e.type][1]}"></span><div style="min-width:0"><b>${esc(e.title)}</b><small>${fmtD(phD(e.start_at))} · ${fmtT(e.start_at)} PHT</small><small>${fmtTz(e.start_at,clientTz())}</small>${!adm&&e.rsvp?.[myId()]?`<small>You ${e.rsvp[myId()]}</small>`:''}</div></div>`).join(''):'<div class="muted" style="font-size:12px">Nothing coming up.</div>'}</div>`;
+    if(adm){
+      const pend=f.leave.filter(l=>l.status==='pending');
+      h+=`<div class="card" style="margin-top:12px"><h3 style="font-size:14px;margin-bottom:6px">Leave awaiting approval</h3>${pend.length?pend.map(l=>`<div class="tc-li" data-open="lv:${l.key}"><span class="tc-dot" style="--c:${T[l.type][1]}"></span><div><b>${esc(staffName(l.staff_id))}</b><small>${T[l.type][0]} · ${fmtD(l.start)}${l.end!==l.start?' – '+fmtD(l.end):''}</small></div></div>`).join('')+`<button class="btn btn-ghost" data-tc="reqs" style="margin-top:8px;width:100%">Review in Requests →</button>`:'<div class="muted" style="font-size:12px">All caught up.</div>'}</div>`;
+    }
+    const wk=addD(today(),6);
+    const outs=f.leave.filter(l=>l.status==='approved'&&l.start<=wk&&l.end>=today());
+    h+=`<div class="card" style="margin-top:12px"><h3 style="font-size:14px;margin-bottom:6px">Who's out this week</h3>${outs.length?outs.map(l=>`<div class="tc-li" data-open="lv:${l.key}"><span class="tc-dot" style="--c:${T[l.type][1]}"></span><div><b>${esc(staffName(l.staff_id))}</b><small>${esc(clientName(staffClient(l.staff_id))||'')} · ${T[l.type][0]} · ${fmtD(l.start)}${l.end!==l.start?' – '+fmtD(l.end):''}</small></div></div>`).join(''):'<div class="muted" style="font-size:12px">No one.</div>'}</div>`;
+    if(!adm){
+      const mine=f.leave.filter(l=>String(l.staff_id)===myId());
+      h+=`<div class="card" style="margin-top:12px"><h3 style="font-size:14px;margin-bottom:6px">My time off</h3>${me?.pto_balance!=null?`<div class="muted" style="font-size:12px;margin-bottom:4px">PTO balance: <b style="color:var(--teal)">${esc(me.pto_balance)}</b></div>`:''}${mine.length?mine.map(l=>`<div class="tc-li" data-open="lv:${l.key}"><span class="tc-dot" style="--c:${T[l.type][1]}"></span><div><b>${T[l.type][0]}</b><small>${fmtD(l.start)}${l.end!==l.start?' – '+fmtD(l.end):''} · ${l.status}</small></div></div>`).join(''):'<div class="muted" style="font-size:12px">None this month.</div>'}</div>`;
+    }
+    return h;
+  }
+
+  /* ---------------- events ---------------- */
+  function bind(el){
+    el.querySelectorAll('[data-tc]').forEach(b=>{
+      const k=b.dataset.tc;
+      if(k==='mine'){ b.onchange=()=>{S.mine=b.checked;paint();}; return; }
+      b.onclick=async ev=>{ ev.stopPropagation();
+        if(k==='prev'){S.cur=new Date(S.cur.getFullYear(),S.cur.getMonth()-1,1);load();}
+        if(k==='next'){S.cur=new Date(S.cur.getFullYear(),S.cur.getMonth()+1,1);load();}
+        if(k==='today'){const t=pd(today());S.cur=new Date(t.getFullYear(),t.getMonth(),1);load();}
+        if(k==='m-month'){S.mode='month';load();} if(k==='m-agenda'){S.mode='agenda';load();}
+        if(k==='new') editor(null,null);
+        if(k==='leave') go('v-req');
+        if(k==='reqs'){ try{ reqSub='leave'; localStorage.setItem('reqAdminSub','leave'); }catch(_){} go('v-reqadmin'); }
+        if(k==='gconn'){ b.disabled=true; try{ const r=await api('/api/google/connect',{method:'POST'}); location.href=r.url; }catch(e){ alert(e.message); b.disabled=false; } }
+        if(k==='gdisc'){ if(!confirm('Disconnect Google Calendar? Events stay in the portal; they just stop syncing to Google.')) return; try{ await api('/api/google/disconnect',{method:'POST'}); load(); }catch(e){ alert(e.message); } }
+        if(k==='sync'){ b.disabled=true; b.textContent='Syncing…'; try{ await api('/api/calendar/sync',{method:'POST'}); }catch(e){ alert(e.message); } load(); }
+      };
+    });
+    el.querySelectorAll('[data-tcsel]').forEach(s=>s.onchange=()=>{ S[s.dataset.tcsel]=s.value; paint(); });
+    el.querySelectorAll('[data-open]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); const [k,...r]=b.dataset.open.split(':'); detail(k,r.join(':')); });
+    el.querySelectorAll('[data-more]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); S.mode='agenda'; load(); });
+    if(isAdmin()) el.querySelectorAll('[data-day]').forEach(d=>d.onclick=()=>editor(null,d.dataset.day));
+  }
+
+  /* ---------------- modals ---------------- */
+  function modal(html,cls=''){ close(); const ov=document.createElement('div'); ov.className='tc-ov'; ov.id='tcModal'; ov.innerHTML=`<div class="card ${cls}">${html}</div>`; ov.onclick=e=>{ if(e.target===ov) close(); }; document.body.appendChild(ov); ov.querySelectorAll('[data-x]').forEach(b=>b.onclick=close); return ov; }
+  function close(){ document.getElementById('tcModal')?.remove(); }
+  function detail(k,id){
+    const f=S.feed; if(!f) return;
+    if(k==='lv'){
+      const l=f.leave.find(x=>x.key===id); if(!l) return; const c=T[l.type][1];
+      const ov=modal(`<span class="tc-tag" style="--c:${c}">${T[l.type][0]}${l.status==='pending'?' · Pending approval':''}</span><h3 style="margin-top:8px">${esc(staffName(l.staff_id))}</h3>
+        <div class="muted" style="font-size:12.5px">${esc(clientName(staffClient(l.staff_id)))} · ${fmtD(l.start)}${l.end!==l.start?' – '+fmtD(l.end):''}</div>${l.reason?`<p style="font-size:13px">${esc(l.reason)}</p>`:''}
+        <div class="tc-foot">${isAdmin()&&l.status==='pending'?'<button class="btn btn-gold" data-go="reqs">Review in Requests →</button>':''}<button class="btn btn-ghost" data-x>Close</button></div>`);
+      ov.querySelector('[data-go]')?.addEventListener('click',()=>{ close(); try{ reqSub='leave'; localStorage.setItem('reqAdminSub','leave'); }catch(_){} go('v-reqadmin'); });
+      return;
+    }
+    const e=f.events.find(x=>x.id===id); if(!e) return; const c=T[e.type][1], adm=isAdmin();
+    const ppl=e.attendee_ids?.length?e.attendee_ids:null;
+    const r=e.rsvp?.[myId()];
+    let h=`<span class="tc-tag" style="--c:${c}">${T[e.type][0]}${e.source==='google'?' · added in Google':''}</span><h3 style="margin-top:8px">${esc(e.title)}</h3>
+      <div class="muted" style="font-size:12.5px">${e.all_day?`${fmtD(evSpan(e).s)}${evSpan(e).e!==evSpan(e).s?' – '+fmtD(evSpan(e).e):''} · All day`:`${fmtD(phD(e.start_at))} · ${fmtT(e.start_at)} PHT (${durMin(e)} min) · ${fmtTz(e.start_at,clientTz())}`}</div>`;
+    if(e.type==='holiday'&&e.client_ids?.length) h+=`<div class="muted" style="font-size:12px;margin-top:4px">Clients: ${e.client_ids.map(clientName).map(esc).join(', ')}</div>`;
+    if(e.notes) h+=`<p style="font-size:13px;white-space:pre-wrap">${esc(e.notes)}</p>`;
+    if(e.meet_link) h+=`<p><a href="${esc(e.meet_link)}" target="_blank" rel="noopener">🎥 Join Google Meet</a></p>`;
+    if(e.type!=='holiday') h+=`<div class="tc-fld"><label>Attendees (${ppl?ppl.length:'everyone'})</label><div class="tc-pills">${ppl?ppl.map(a=>{const s=e.rsvp?.[a];return `<span class="tc-pill">${esc(staffName(a))} ${s==='accepted'?'✅':s==='declined'?'❌':'⏳'}</span>`;}).join(''):'<span class="tc-pill">Everyone</span>'}</div></div>`;
+    h+='<div class="tc-foot">';
+    if(e.type!=='holiday'&&invited(e)&&!adm) h+=`<span class="muted" style="margin-right:auto;align-self:center;font-size:12px">Your RSVP: <b>${r||'not yet'}</b></span><button class="btn btn-rose" data-rsvp="declined">Decline</button><button class="btn btn-teal" data-rsvp="accepted">Accept</button>`;
+    if(adm) h+=`<button class="btn btn-rose" data-cancel>Cancel event</button><button class="btn btn-ghost" data-edit>Edit</button>`;
+    h+='<button class="btn btn-ghost" data-x>Close</button></div>';
+    const ov=modal(h);
+    ov.querySelectorAll('[data-rsvp]').forEach(b=>b.onclick=async()=>{ b.disabled=true; try{ await rsvp(e.id,b.dataset.rsvp); close(); toast('RSVP sent',`You ${b.dataset.rsvp} “${e.title}”.`,'#60a5fa'); load(); }catch(x){ alert(x.message); b.disabled=false; } });
+    ov.querySelector('[data-edit]')?.addEventListener('click',()=>editor(e,null));
+    ov.querySelector('[data-cancel]')?.addEventListener('click',async ev=>{ if(!confirm(`Cancel “${e.title}”? Attendees are notified and it is removed from Google Calendar.`)) return; ev.target.disabled=true;
+      try{ const r=await api('/api/calendar/events/'+e.id,{method:'DELETE'}); close(); toast('Cancelled',r.google_error?'Removed here, but Google said: '+r.google_error:'Removed from Google Calendar; attendees notified.','#E2685F'); load(); }catch(x){ alert(x.message); ev.target.disabled=false; } });
+  }
+  async function rsvp(id,status){ await api('/api/calendar/events/'+id+'/rsvp',{method:'POST',body:JSON.stringify({status})}); }
+
+  function editor(e,date){
+    const f=S.feed; if(!f) return;
+    const staff=f.staff.filter(s=>s.role!=='admin'||String(s.id)!==myId());
+    const sel=new Set((e?.attendee_ids||[]).map(String));
+    let everyone=!!e&&e.type!=='holiday'&&!e.attendee_ids?.length;
+    const csel=new Set((e?.client_ids||[]).map(String));
+    const d0=e?evSpan(e).s:(date||addD(today(),1));
+    const st=e&&!e.all_day?new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Manila',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(e.start_at)):'22:30';
+    const rem=new Set((e?.reminders||[1440,60,15]).map(Number));
+    const byClient={}; staff.forEach(s=>{ const k=clientName(s.client_id)||'No client'; (byClient[k]=byClient[k]||[]).push(s); });
+    const ov=modal(`<h3>${e?'Edit event':'Schedule a meeting or coaching'}</h3><div class="muted" style="font-size:12px">Saved in the portal and on the SMB VS Team Google Calendar${f.google.connected?'':' (once Google is connected)'}.</div>
+      <div class="tc-fld"><label>Type</label><select id="tcType"><option value="coaching">Coaching / 1:1</option><option value="meeting">Meeting</option><option value="holiday">Client holiday (all day)</option></select></div>
+      <div class="tc-fld"><label>Title</label><input id="tcTitle" maxlength="300" value="${esc(e?.title||'Coaching session')}"></div>
+      <div class="tc-fld" id="tcAttWrap"><label>Attendees — tap a client to add the whole team</label>
+        <div class="tc-pills" style="margin-bottom:6px"><button class="tc-pill" data-all>Everyone</button>${Object.keys(byClient).sort().map(c=>`<button class="tc-pill" data-cl="${esc(c)}">+ ${esc(c)}</button>`).join('')}<button class="tc-pill" data-none>Clear</button></div>
+        <div class="tc-pills" id="tcPeople">${staff.map(s=>`<button class="tc-pill" data-p="${s.id}">${esc(s.name)}</button>`).join('')}</div></div>
+      <div class="tc-fld hide" id="tcCliWrap"><label>Which clients are closed? (none = all)</label><div class="tc-pills">${f.clients.map(c=>`<button class="tc-pill" data-cc="${c.id}">${esc(c.name)}</button>`).join('')}</div></div>
+      <div class="tc-row3" id="tcTimed"><div class="tc-fld"><label>Date</label><input type="date" id="tcDate" value="${d0}"></div><div class="tc-fld"><label>Start (PHT)</label><input type="time" id="tcStart" value="${st}"></div><div class="tc-fld"><label>Duration</label><select id="tcDur">${[15,30,45,60,90,120].map(m=>`<option value="${m}">${m} min</option>`).join('')}</select></div></div>
+      <div class="tc-row3 hide" id="tcAllDay"><div class="tc-fld"><label>From</label><input type="date" id="tcFrom" value="${d0}"></div><div class="tc-fld"><label>To</label><input type="date" id="tcTo" value="${e?evSpan(e).e:d0}"></div></div>
+      <div class="muted" id="tcClientTime" style="font-size:12px"></div>
+      <div id="tcNotify"><div class="tc-fld tc-checks" style="margin-top:12px"><label><input type="checkbox" id="tcMeet" ${e?.want_meet===false?'':'checked'}> Google Meet link</label><label><input type="checkbox" id="tcEmail" ${e?.email_invites===false?'':'checked'}> Email Google invite</label><label><input type="checkbox" id="tcSlack" ${e?.notify_slack===false?'':'checked'}> Slack DM</label></div>
+      <div class="tc-fld"><label>Reminders (portal pop-up + Slack DM + Google)</label><div class="tc-checks">${[[1440,'1 day before'],[60,'1 hour before'],[15,'15 min before']].map(([m,t])=>`<label><input type="checkbox" data-rem="${m}" ${rem.has(m)?'checked':''}> ${t}</label>`).join('')}</div></div></div>
+      <div class="tc-fld"><label>Agenda / notes</label><textarea id="tcNotes" rows="2" maxlength="2000" placeholder="What will you cover?">${esc(e?.notes||'')}</textarea></div>
+      <div id="tcWarn" style="font-size:12px;color:var(--gold);min-height:16px"></div>
+      <div class="tc-foot"><button class="btn btn-ghost" data-x>Cancel</button><button class="btn btn-gold" id="tcSave">${e?'Save changes':'Schedule & notify'}</button></div>`);
+    const $m=s=>ov.querySelector(s);
+    $m('#tcType').value=e?.type||'coaching';
+    if(e&&!e.all_day){ const dm=durMin(e); if(![...$m('#tcDur').options].some(o=>+o.value===dm)) $m('#tcDur').insertAdjacentHTML('beforeend',`<option value="${dm}">${dm} min</option>`); $m('#tcDur').value=String(dm); } else $m('#tcDur').value='30';
+    if(e?.type==='holiday') e.client_ids?.forEach(id=>csel.add(String(id)));
+    const upd=()=>{
+      const type=$m('#tcType').value, hol=type==='holiday';
+      $m('#tcAttWrap').classList.toggle('hide',hol); $m('#tcCliWrap').classList.toggle('hide',!hol);
+      $m('#tcTimed').classList.toggle('hide',hol); $m('#tcAllDay').classList.toggle('hide',!hol); $m('#tcNotify').classList.toggle('hide',hol);
+      ov.querySelectorAll('[data-p]').forEach(b=>b.classList.toggle('on',everyone||sel.has(b.dataset.p)));
+      $m('[data-all]').classList.toggle('on',everyone);
+      ov.querySelectorAll('[data-cc]').forEach(b=>b.classList.toggle('on',csel.has(b.dataset.cc)));
+      const date=$m('#tcDate').value, t=$m('#tcStart').value;
+      if(!hol&&date&&t){ const iso=new Date(`${date}T${t}:00+08:00`).toISOString(); const tzs=[...new Set((f.clients||[]).map(c=>c.timezone).filter(Boolean))].slice(0,3); $m('#tcClientTime').textContent='Client time: '+(tzs.length?tzs:['America/New_York']).map(z=>fmtTz(iso,z)).join(' · '); } else $m('#tcClientTime').textContent='';
+      const d=hol?null:date, ids=everyone?staff.map(s=>String(s.id)):[...sel];
+      const clash=d?ids.filter(id=>f.leave.some(l=>String(l.staff_id)===id&&l.status==='approved'&&l.start<=d&&l.end>=d)).map(staffName):[];
+      $m('#tcWarn').textContent=clash.length?'⚠ On leave that day: '+clash.join(', '):'';
+    };
+    ov.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{ if(everyone){ everyone=false; staff.forEach(s=>sel.add(String(s.id))); } sel.has(b.dataset.p)?sel.delete(b.dataset.p):sel.add(b.dataset.p); upd(); });
+    ov.querySelectorAll('[data-cl]').forEach(b=>b.onclick=()=>{ everyone=false; (byClient[b.dataset.cl]||[]).forEach(s=>sel.add(String(s.id))); upd(); });
+    $m('[data-all]').onclick=()=>{ everyone=!everyone; if(everyone) sel.clear(); upd(); };
+    $m('[data-none]').onclick=()=>{ everyone=false; sel.clear(); upd(); };
+    ov.querySelectorAll('[data-cc]').forEach(b=>b.onclick=()=>{ csel.has(b.dataset.cc)?csel.delete(b.dataset.cc):csel.add(b.dataset.cc); upd(); });
+    let lastAuto=e?null:'Coaching session';
+    $m('#tcType').onchange=()=>{ const v=$m('#tcType').value; const auto={coaching:'Coaching session',meeting:'Team meeting',holiday:'Client holiday'}[v]; if(!e&&$m('#tcTitle').value===lastAuto){ $m('#tcTitle').value=auto; lastAuto=auto; } upd(); };
+    ['#tcDate','#tcStart'].forEach(s=>$m(s).oninput=upd);
+    upd();
+    $m('#tcSave').onclick=async()=>{
+      const type=$m('#tcType').value, hol=type==='holiday';
+      if(!hol&&!everyone&&!sel.size) return $m('#tcWarn').textContent='Pick at least one attendee (or Everyone).';
+      const body={type,title:$m('#tcTitle').value.trim(),notes:$m('#tcNotes').value,
+        date:hol?$m('#tcFrom').value:$m('#tcDate').value,end_date:hol?$m('#tcTo').value:undefined,start:$m('#tcStart').value,duration_min:+$m('#tcDur').value,
+        attendee_ids:everyone?[]:[...sel],client_ids:[...csel],meet:$m('#tcMeet').checked,email_invites:$m('#tcEmail').checked,notify_slack:$m('#tcSlack').checked,
+        reminders:[...ov.querySelectorAll('[data-rem]')].filter(x=>x.checked).map(x=>+x.dataset.rem)};
+      const btn=$m('#tcSave'); btn.disabled=true; btn.textContent='Saving…';
+      try{
+        const r=await api('/api/calendar/events'+(e?'/'+e.id:''),{method:e?'PUT':'POST',body:JSON.stringify(body)});
+        close();
+        const n=hol?0:everyone?staff.length:sel.size;
+        toast(e?'Saved':'Scheduled',(r.google_error?'Saved in the portal. Google sync will retry: '+r.google_error:(f.google.connected?'Synced to Google Calendar. ':''))+(n?` ${n} staff notified.`:''),r.google_error?'#E3A63E':'#3FBFAE');
+        load();
+      }catch(x){ $m('#tcWarn').textContent=x.message; btn.disabled=false; btn.textContent=e?'Save changes':'Schedule & notify'; }
+    };
+  }
+
+  /* ---------------- toasts + pop-ups ---------------- */
+  function toast(t,b,c,acts){
+    let box=document.querySelector('.tc-toasts'); if(!box){ box=document.createElement('div'); box.className='tc-toasts'; document.body.appendChild(box); }
+    const d=document.createElement('div'); d.className='tc-toast'; d.style.setProperty('--c',c||'#a78bfa');
+    d.innerHTML=`<b>${esc(t)}</b><div class="muted" style="color:var(--ink);opacity:.85">${esc(b)}</div>${acts?`<div class="tc-foot">${acts}</div>`:''}`;
+    box.appendChild(d); setTimeout(()=>d.remove(),acts?20000:7000); return d;
+  }
+  const seen=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem('tcSeen')||'[]')); }catch(_){ return new Set(); } })();
+  function markSeen(k){ seen.add(k); try{ localStorage.setItem('tcSeen',JSON.stringify([...seen].slice(-300))); }catch(_){} }
+  // new invites / changes / cancellations arrive as bell notifications → also pop a toast once
+  function watchBell(){
+    if(typeof notifications==='undefined') return;
+    for(const n of notifications){
+      if(n.related_type!=='calendar_event'||n.read_at||seen.has('n:'+n.id)) continue;
+      if(Date.now()-new Date(n.created_at)>3*86400000){ markSeen('n:'+n.id); continue; }
+      markSeen('n:'+n.id);
+      const isNew=/^📅 New/.test(n.title), canRsvp=isNew&&!isAdmin();
+      const t=toast(n.title,n.body,/^❌/.test(n.title)?'#E2685F':/^🔁/.test(n.title)?'#E3A63E':'#a78bfa',
+        (canRsvp?`<button class="btn btn-teal" data-a="accepted">Accept</button><button class="btn btn-rose" data-a="declined">Decline</button>`:'')+`<button class="btn btn-ghost" data-a="view">View</button>`);
+      t.querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{
+        try{ markNotifRead(n.id); }catch(_){}
+        if(b.dataset.a==='view'){ t.remove(); openCal(n.related_id); return; }
+        try{ await rsvp(n.related_id,b.dataset.a); t.remove(); toast('RSVP sent','You '+b.dataset.a+'.','#60a5fa'); if(S.view) load(); }catch(x){ alert(x.message); }
+      });
+    }
+  }
+  // reminders: toast at 1 hour, full-screen pop-up at 15 min
+  let soon=[];
+  async function loadSoon(){ try{ const f=await api(`/api/calendar/feed?from=${addD(today(),-1)}&to=${addD(today(),1)}`); soon=f.events.filter(e=>!e.all_day&&e.type!=='holiday'&&invited(e)&&e.rsvp?.[myId()]!=='declined'); }catch(_){} }
+  function checkSoon(){
+    const now=Date.now();
+    for(const e of soon){
+      const mins=(new Date(e.start_at)-now)/60000, key=e.id+':'+e.start_at;
+      if(mins<=15&&mins>-5&&!seen.has('r15:'+key)){ markSeen('r15:'+key); markSeen('r60:'+key); popup(e,mins); }
+      else if(mins<=60&&mins>15&&!seen.has('r60:'+key)){ markSeen('r60:'+key);
+        const t=toast('⏰ In about an hour: '+e.title,`${fmtT(e.start_at)} PHT`,T[e.type][1],`<button class="btn btn-ghost" data-v>View</button>`); t.querySelector('[data-v]').onclick=()=>{ t.remove(); openCal(e.id); }; }
+    }
+  }
+  function popup(e,mins){
+    const m=Math.max(0,Math.round(mins));
+    const ov=modal(`<div class="big">⏰</div><h3>${m?`${esc(T[e.type][0])} starts in ${m} minute${m===1?'':'s'}`:'Starting now'}</h3><p><b>${esc(e.title)}</b><br><span class="muted" style="font-size:12.5px">${fmtT(e.start_at)} PHT · ${durMin(e)} min</span></p>
+      <div class="tc-foot" style="justify-content:center"><button class="btn btn-ghost" data-x>Dismiss</button>${e.meet_link?`<a class="btn btn-gold" href="${esc(e.meet_link)}" target="_blank" rel="noopener" data-x>🎥 Join Google Meet</a>`:''}</div>`,'tc-alert');
+    try{ if(window.Notification&&Notification.permission==='granted') new Notification(T[e.type][0]+' starts soon',{body:e.title}); }catch(_){}
+    return ov;
+  }
+  function openCal(eventId){
+    go(isAdmin()?'v-teamcal':'v-cal');
+    if(eventId){ const tryOpen=(n)=>{ if(S.feed?.events.some(x=>x.id===eventId)) detail('ev',eventId); else if(n>0) setTimeout(()=>tryOpen(n-1),400); }; tryOpen(10); }
+  }
+
+  /* ---------------- public ---------------- */
+  window.TeamCal={
+    open(v){ S.view=v; if(!S.cur){ const t=pd(today()); S.cur=new Date(t.getFullYear(),t.getMonth(),1); } paint(); load(); },
+    start(){
+      // back from Google's consent screen
+      const h=location.hash||'';
+      if(h.startsWith('#calendar-')){
+        history.replaceState(null,'',location.pathname+location.search);
+        if(isAdmin()){ setTimeout(()=>{ go('v-teamcal'); if(h==='#calendar-connected') toast('Google Calendar connected','Everything will now show on the SMB VS Team calendar on your phone. First sync runs in a few seconds.','#3FBFAE'); else toast('Google connect failed',decodeURIComponent(h.split('error=')[1]||''),'#E2685F'); },300); }
+      }
+      loadSoon(); setInterval(loadSoon,3*60000);
+      setInterval(()=>{ checkSoon(); watchBell(); },20000);
+      setTimeout(()=>{ checkSoon(); watchBell(); },4000);
+      setInterval(()=>{ if(S.view&&!document.getElementById(S.view)?.classList.contains('hide')&&!document.getElementById('tcModal')) load(); },120000);
+      try{ if(window.Notification&&Notification.permission==='default'&&!isAdmin()) document.addEventListener('click',()=>Notification.requestPermission().catch(()=>{}),{once:true}); }catch(_){}
+    },
+    reload(){ loadSoon(); if(S.view) load(); }
+  };
+})();
 </script>
 </body></html>
