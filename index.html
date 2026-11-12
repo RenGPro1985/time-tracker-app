@@ -227,6 +227,17 @@ button.btn{padding:7px 12px;font-size:12px}
 .ad-productivity-table .bh{background:rgba(90,200,235,.10)}.ad-productivity-table th.bh{color:rgb(90,200,235)}.ad-productivity-table th.bh.grp{background:rgba(90,200,235,.22);border-top:3px solid rgb(90,200,235)}.ad-productivity-table .bh.first{border-left:2px solid rgba(90,200,235,.7)}
 
 /* PTO Credits + Contractor Profile */
+.cp-chip{display:inline-block;font-size:10.5px;font-weight:600;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:1px;white-space:nowrap}
+.cp-chip.bd{background:rgba(255,111,174,.14);color:#ff8cc0}.cp-chip.an{background:rgba(63,191,174,.14);color:var(--teal)}
+.cp-chip.miss{background:rgba(227,166,62,.14);color:var(--gold)}.cp-chip.term{background:rgba(226,104,95,.14);color:var(--rose)}
+.cp-det{margin-top:5px;max-width:260px}.cp-det summary{cursor:pointer;color:var(--gold);font-size:11.5px;list-style:none;user-select:none;width:max-content}
+.cp-det summary::-webkit-details-marker{display:none}.cp-det summary::before{content:'▸ '}.cp-det[open] summary::before{content:'▾ '}
+.cp-box{margin-top:5px;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:7px 9px;display:grid;gap:3px;font-size:11.5px;white-space:normal}
+.cp-box b{display:block;color:var(--muted);font-weight:500;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase}.cp-box span{overflow-wrap:anywhere}.cp-miss{color:var(--gold)}
+.md-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.md-grid .full{grid-column:1/-1}.md-grid label{display:grid;gap:4px;font-size:11.5px;color:var(--muted);margin:0}
+@media(max-width:640px){.md-grid{grid-template-columns:1fr}}
+.md-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:grid;place-items:center;padding:16px}
+.md-ov .card{max-width:480px;width:100%}
 .pto-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
 .pto-table td,.pto-table th{white-space:nowrap}.pto-table th.c,.pto-table td.c{text-align:center}.mono{font-family:'IBM Plex Mono'}
 .pto-tag{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono'}
@@ -1223,6 +1234,10 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card">
         <div class="row" style="gap:14px;align-items:center"><div class="pf-avatar" id="pfAvatar">—</div><div><h3 style="font-size:19px" id="pfName">—</h3><div class="muted" style="font-size:12.5px" id="pfSub">Contractor</div></div></div>
         <div class="pf-facts" id="pfFacts"></div>
+      </div>
+      <div class="card" id="mdCard">
+        <div class="hdr"><div><h3 style="font-size:15px">🪪 My Details</h3><div class="muted" style="font-size:12.5px;margin-top:3px">Only you and the admin can see your address and contact number.</div></div><span id="mdBadge"></span></div>
+        <div id="mdBody"><div class="muted">Loading…</div></div>
       </div>
       <div class="card hide" id="pfRelCard"></div>
       <div class="card" id="pfQrCard">
@@ -3357,7 +3372,7 @@ function go(v){
   if(v==='v-incentive'){window.GameAwards?.initAdmin();}
   if(v==='v-expense'){window.SMBVSExpense?.init();}
   if(v==='v-files'){window.RFA?.load();}
-  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-rewards'){window.RewardsShadow?.init();window.Ratings?.initAdmin()?.then?.(()=>window.RewardsClaim?.initAdmin());} if(v==='v-punch'&&me&&me.role!=='admin'){window.Ratings?.loadMine();window.RewardsClaim?.loadMine();window.GameAwards?.loadMine();} if(v==='v-eod'){window.EOD?.init();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();window.Reliability?.initProfile();}
+  if(v==='v-policy'){renderPolicy();} if(v==='v-req'){loadMyRequests();} if(v==='v-reqadmin'){loadReqAdmin();} if(v==='v-portal'){window.Bulletin?.load();loadPortal();} if(v==='v-perf'){window.PerfReview?.init();} if(v==='v-ytd'){window.initYtdAttendance?.();} if(v==='v-rewards'){window.RewardsShadow?.init();window.Ratings?.initAdmin()?.then?.(()=>window.RewardsClaim?.initAdmin());} if(v==='v-punch'&&me&&me.role!=='admin'){window.Ratings?.loadMine();window.RewardsClaim?.loadMine();window.GameAwards?.loadMine();} if(v==='v-eod'){window.EOD?.init();} if(v==='v-pto'){window.PTOCredits?.initPtoCredits();} if(v==='v-profile'){window.MyDetails?.init();window.PTOCredits?.initContractorProfile();window.ContractFee?.init();window.SalaryQR?.initProfile();window.Reliability?.initProfile();}
 }
 
 /* clocks + running timers */
@@ -3772,7 +3787,7 @@ function fill(id,blank,pairs){$(id).innerHTML=`<option value="">${blank}</option
 async function loadRoster(){
   await ensureStatusRosterStaff();
   const admin=iAmLiveStatusAdmin();
-  const rosterStaff=statusRosterStaff.filter(s=>s.active);
+  const rosterStaff=statusRosterStaff.filter(s=>s.active&&!cpPastTerm(s)); // terminated staff disappear the day after their last day
   const staffIds=rosterStaff.map(s=>s.id);
   const from=new Date(Date.now()-36*3600*1000).toISOString();
   const today=phDate(new Date());
@@ -3961,6 +3976,42 @@ function refreshPhpRates(){
     el.textContent='₱'+phpHourlyRate(monthly?monthly.value:0);
   });
 }
+/* Contractor Profile details (DOB / address / contact) — collapsible under the Name cell so the
+   roster keeps its width. Chips: birthday / workiversary coming up, profile not filled in yet. */
+function cpDaysUntil(iso,today){
+  if(!iso)return null;
+  const y=Number(today.slice(0,4)),md=String(iso).slice(5,10);
+  const leap=yy=>(yy%4===0&&yy%100!==0)||yy%400===0;
+  const on=yy=>md==='02-29'&&!leap(yy)?`${yy}-02-28`:`${yy}-${md}`;
+  let d=on(y); if(d<today)d=on(y+1);
+  return {date:d,days:Math.round((Date.parse(d+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/86400000)};
+}
+function cpChips(s){
+  if(s.role==='admin')return '';
+  const today=phDate(new Date()),out=[];
+  const b=cpDaysUntil(s.birth_date,today);
+  if(b&&b.days===0)out.push('<span class="cp-chip bd" title="Birthday today — +500 SMB tokens">🎂 Today</span>');
+  else if(b&&b.days<=7)out.push(`<span class="cp-chip bd" title="Birthday">🎂 ${escapeHtml(fmtNice(b.date).replace(/, \d{4}$/,''))}</span>`);
+  if(s.hire_date&&s.hire_date<today){
+    const w=cpDaysUntil(s.hire_date,today);
+    const yrs=w?Number(w.date.slice(0,4))-Number(s.hire_date.slice(0,4)):0;
+    if(w&&yrs>=1&&w.days<=30)out.push(`<span class="cp-chip an" title="Workiversary — +500 SMB tokens">🎉 ${yrs} yr${yrs>1?'s':''} · ${w.days===0?'Today':escapeHtml(fmtNice(w.date).replace(/, \d{4}$/,''))}</span>`);
+  }
+  if(s.active&&(!s.birth_date||!s.address||!s.contact_no))out.push('<span class="cp-chip miss" title="Staff has not completed their Contractor Profile">⚠ Profile incomplete</span>');
+  if(s.termination_date&&s.termination_date<today)out.push(`<span class="cp-chip term">Last day ${escapeHtml(fmtNice(s.termination_date))}</span>`);
+  return out.join('');
+}
+function cpDetailsHtml(s){
+  if(s.role==='admin')return '';
+  const v=(x,f)=>x?escapeHtml(f?f(x):x):'<span class="cp-miss">Not yet filled</span>';
+  return `<details class="cp-det"><summary>Profile details</summary><div class="cp-box">
+    <div><b>DOB</b><span>${v(s.birth_date,fmtNice)}</span></div>
+    <div><b>Address</b><span>${v(s.address)}</span></div>
+    <div><b>Contact</b><span>${v(s.contact_no)}</span></div>
+    ${s.profile_updated_at?`<div><b>Updated</b><span class="muted">${escapeHtml(fmtNice(phDate(new Date(s.profile_updated_at))))}</span></div>`:''}
+  </div></details>`;
+}
+function cpPastTerm(s){ return !!s.termination_date&&s.termination_date<phDate(new Date()); }
 function renderStaffAdmin(){
   /* client-assignment filter, populated fresh each render so newly added clients show up */
   const prevFilter=$('staffClientFilter').value;
@@ -3971,11 +4022,11 @@ function renderStaffAdmin(){
 
   const fs=$('staffStatusFilter')?$('staffStatusFilter').value:'all';
   const ordered=tenureSortedStaff(staffList)
-    .filter(s=>fs==='all'||(fs==='active'?!!s.active:!s.active))
+    .filter(s=>fs==='all'||(fs==='active'?(!!s.active&&!cpPastTerm(s)):(!s.active||cpPastTerm(s))))
     .filter(s=>!fc||(fc==='__none__'?!s.client_id:s.client_id===fc));
 
   $('staffTable').innerHTML=ordered.length?ordered.map(s=>{
-    return `<tr><td><b>${escapeHtml(s.full_name)}</b><div class="muted" style="font-size:11.5px">${escapeHtml(s.email)}</div></td>
+    return `<tr><td><b>${escapeHtml(s.full_name)}</b>${cpChips(s)}<div class="muted" style="font-size:11.5px">${escapeHtml(s.email)}</div>${cpDetailsHtml(s)}</td>
     <td class="mono">${escapeHtml(capFirst(s.username))}</td>
     <td><input type="date" data-hire="${s.id}" value="${s.hire_date||''}" style="width:140px"></td>
     <td><input type="date" data-term="${s.id}" value="${s.termination_date||''}" style="width:140px" aria-label="Term / resignation date for ${escapeHtml(s.full_name)}"></td>
@@ -14046,7 +14097,8 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
    ============================================================ */
 (function(){
   const T={meeting:['Meeting','#60a5fa'],coaching:['Coaching / 1:1','#a78bfa'],holiday:['Client holiday','#fb7185'],
-    pto:['PTO','#3FBFAE'],pch:['Paid Client Holiday','#2dd4bf'],planned_absence:['Planned Absence','#E3A63E'],sick_leave:['Sick Leave','#E2685F'],out:['Out','#E2685F'],half_day:['Half Day','#8B90A0']};
+    pto:['PTO','#3FBFAE'],pch:['Paid Client Holiday','#2dd4bf'],planned_absence:['Planned Absence','#E3A63E'],sick_leave:['Sick Leave','#E2685F'],out:['Out','#E2685F'],half_day:['Half Day','#8B90A0'],
+    birthday:['Birthday','#ff6fae'],workiversary:['Workiversary','#22c39a']};
   const LEAVE=new Set(['pto','pch','planned_absence','sick_leave','out','half_day']);
   const S={feed:null,cur:null,mode:'month',client:'all',type:'all',mine:false,view:null,loading:false,err:''};
   const esc=s=>escapeHtml(s==null?'':String(s));
@@ -14096,9 +14148,16 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       if(S.client!=='all'&&String(staffClient(l.staff_id))!==S.client) continue;
       out.push({k:'lv',id:l.key,type:l.type,s:l.start,e:l.end,l,sort:'1'+l.type});
     }
+    for(const c of f.celebrations||[]){
+      if(S.mine&&!isAdmin()&&String(c.staff_id)!==myId()) continue;
+      if(isAdmin()&&S.type!=='all'&&S.type!=='celebrate') continue;
+      if(S.client!=='all'&&String(staffClient(c.staff_id))!==S.client) continue;
+      out.push({k:'cb',id:c.key,type:c.type,s:c.date,e:c.date,c,sort:'2'+c.type});
+    }
     return out.sort((a,b)=>a.sort.localeCompare(b.sort));
   }
   function label(it){
+    if(it.k==='cb'){ const n=String(it.c.staff_id)===myId()?'My':staffName(it.c.staff_id).split(' ')[0]; return it.type==='birthday'?`🎂 ${n} birthday`:`🎉 ${n} · ${it.c.years} yr${it.c.years>1?'s':''}`; }
     if(it.k==='lv'){ const who=String(it.l.staff_id)===myId()?'My':staffName(it.l.staff_id).split(' ')[0]; return who+' — '+T[it.type][0]; }
     const e=it.e0; return (e.all_day?'':fmtT(e.start_at).replace(':00','')+' ')+e.title;
   }
@@ -14123,7 +14182,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     h+=`<div class="tc-bar">${S.mode==='month'?`<button class="btn btn-ghost" data-tc="prev">‹</button>`:''}<b style="min-width:130px;text-align:center">${mLabel}</b>${S.mode==='month'?`<button class="btn btn-ghost" data-tc="next">›</button><button class="btn btn-ghost" data-tc="today">Today</button>`:''}
       <span class="tc-seg"><button data-tc="m-month" class="${S.mode==='month'?'on':''}">Month</button><button data-tc="m-agenda" class="${S.mode==='agenda'?'on':''}">Agenda</button></span>
       <select data-tcsel="client"><option value="all">All clients</option>${(f?.clients||clients||[]).map(c=>`<option value="${c.id}" ${S.client===String(c.id)?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`;
-    if(adm) h+=`<select data-tcsel="type"><option value="all">All types</option><option value="meeting" ${S.type==='meeting'?'selected':''}>Meetings</option><option value="coaching" ${S.type==='coaching'?'selected':''}>Coaching / 1:1</option><option value="holiday" ${S.type==='holiday'?'selected':''}>Client holidays</option><option value="leave" ${S.type==='leave'?'selected':''}>Time off</option></select>`;
+    if(adm) h+=`<select data-tcsel="type"><option value="all">All types</option><option value="meeting" ${S.type==='meeting'?'selected':''}>Meetings</option><option value="coaching" ${S.type==='coaching'?'selected':''}>Coaching / 1:1</option><option value="holiday" ${S.type==='holiday'?'selected':''}>Client holidays</option><option value="leave" ${S.type==='leave'?'selected':''}>Time off</option><option value="celebrate" ${S.type==='celebrate'?'selected':''}>Birthdays &amp; workiversaries</option></select>`;
     else h+=`<label class="muted" style="display:flex;gap:6px;align-items:center;font-size:12px;margin:0"><input type="checkbox" data-tc="mine" ${S.mine?'checked':''} style="width:auto"> Only my events</label>`;
     h+=`<span style="flex:1"></span>`;
     if(f?.google?.connected) h+=`<span class="tc-chip ok" title="Every event is also on this Google Calendar"><i></i>Synced · ${esc(f.google.email||'Google Calendar')}</span>`;
@@ -14131,7 +14190,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     h+='</div>';
     if(S.err) h+=`<div class="note" style="color:var(--rose);margin-bottom:10px">Could not load the calendar: ${esc(S.err)}${/relation|calendar_events|schema cache/i.test(S.err)?' — run supabase/calendar.sql in the Supabase SQL Editor.':''}</div>`;
     h+=`<div class="tc-grid2"><div class="card">${!f?'<div class="muted">Loading calendar…</div>':S.mode==='month'?monthHtml():agendaHtml()}
-      <div class="tc-legend">${['meeting','coaching','holiday','pto','pch','planned_absence','sick_leave','half_day'].map(k=>`<span style="--c:${T[k][1]}">${T[k][0]}</span>`).join('')}<span style="--c:repeating-linear-gradient(45deg,#777 0 2px,transparent 2px 4px)">Pending approval</span></div></div><div>${f?sideHtml():''}</div></div>`;
+      <div class="tc-legend">${['meeting','coaching','holiday','pto','pch','planned_absence','sick_leave','half_day','birthday','workiversary'].map(k=>`<span style="--c:${T[k][1]}">${T[k][0]}</span>`).join('')}<span style="--c:repeating-linear-gradient(45deg,#777 0 2px,transparent 2px 4px)">Pending approval</span></div></div><div>${f?sideHtml():''}</div></div>`;
     el.innerHTML=h; bind(el);
   }
   function ago(iso){ const m=Math.round((Date.now()-new Date(iso))/60000); return m<1?'just now':m<60?m+'m ago':Math.round(m/60)+'h ago'; }
@@ -14144,7 +14203,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     }
     return `<div class="tc-month">${h}</div>`;
   }
-  const chip=it=>`<button class="tc-ev ${it.l?.status==='pending'?'pend':''}" style="--c:${T[it.type]?.[1]||'#888'}" data-open="${it.k}:${it.id}" title="${esc(label(it))}">${esc(label(it))}</button>`;
+  const chip=it=>`<button class="tc-ev ${it.l?.status==='pending'?'pend':''}" style="--c:${T[it.type]?.[1]||'#888'}" ${it.k==='cb'?'':`data-open="${it.k}:${it.id}"`} title="${esc(it.k==='cb'?(it.type==='birthday'?'Birthday':'Work anniversary')+' — '+staffName(it.c.staff_id)+' (+500 SMB tokens)':label(it))}">${esc(label(it))}</button>`;
   function agendaHtml(){
     const its=items().filter(it=>it.e>=today());
     if(!its.length) return '<div class="muted">Nothing scheduled in the next 90 days.</div>';
@@ -14152,6 +14211,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       const e=it.e0, c=T[it.type]?.[1]||'#888';
       const when=e&&!e.all_day?`${fmtT(e.start_at)} PHT`:(it.e!==it.s?'to '+fmtD(it.e):'All day');
       const sub=e&&!e.all_day?`${fmtTz(e.start_at,clientTz())} · ${durMin(e)} min · ${e.attendee_ids?.length?e.attendee_ids.length+' attendee'+(e.attendee_ids.length>1?'s':''):'Everyone'}`:it.l?clientName(staffClient(it.l.staff_id)):'';
+      if(it.k==='cb') return `<div class="tc-ag"><div><b>${fmtD(it.s)}</b><div class="muted" style="font-size:11px">All day</div></div><div style="min-width:0"><b>${esc(staffName(it.c.staff_id)+' — '+(it.type==='birthday'?'🎂 Birthday':`🎉 ${it.c.years}-year Workiversary`))}</b><div class="muted" style="font-size:11.5px">Greeted in #general · +500 SMB tokens</div></div></div>`;
       return `<div class="tc-ag" data-open="${it.k}:${it.id}"><div><b>${fmtD(it.s)}</b><div class="muted" style="font-size:11px">${when}</div></div><div style="min-width:0"><b>${esc(it.l?staffName(it.l.staff_id)+' — '+T[it.type][0]:e.title)}</b><div class="muted" style="font-size:11px">${esc(sub)}</div></div><span class="tc-tag" style="--c:${c}">${it.l?.status==='pending'?'Pending':T[it.type][0]}</span></div>`;
     }).join('');
   }
@@ -14368,6 +14428,70 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     },
     reload(){ loadSoon(); if(S.view) load(); }
   };
+})();
+</script>
+
+<script>
+/* ============================================================
+   Contractor Profile: My Details (DOB / address / contact no.) [Sir Rendy 2026-11-12]
+   Staff fill these on My Profile (rpc update_my_profile). A one-time pop-up asks staff who
+   haven't filled them in yet. Admin sees them under each name on the Staff roster.
+   DOB drives the 🎂 birthday post in #general + 500 SMB tokens (server/celebrations.js) and the
+   yearly event on the SMB VS Team Google Calendar (month + day only).
+   ============================================================ */
+(function(){
+  'use strict';
+  const esc=v=>escapeHtml(String(v??''));
+  const missing=m=>!m||!m.birth_date||!m.address||!m.contact_no;
+  const maxDob=()=>{const d=new Date();d.setFullYear(d.getFullYear()-15);return d.toISOString().slice(0,10);};
+  function formHtml(p,prefix){
+    return `<div class="md-grid">
+      <label>Date of birth<input type="date" id="${prefix}Dob" value="${esc(p.birth_date||'')}" min="1940-01-01" max="${maxDob()}"></label>
+      <label>Contact number<input id="${prefix}Tel" inputmode="tel" maxlength="20" placeholder="0917 123 4567" value="${esc(p.contact_no||'')}"></label>
+      <label class="full">Address<input id="${prefix}Addr" maxlength="300" placeholder="House no., street, barangay, city, province" value="${esc(p.address||'')}"></label>
+      <div class="full muted" style="font-size:12px">🎂 Your birthday is greeted in #general and earns you <b style="color:var(--gold)">500 SMB tokens</b>. Your work anniversary does too. 🎉</div>
+      <div class="full row" style="gap:8px;align-items:center"><button class="btn btn-gold" id="${prefix}Save">Save my details</button><span id="${prefix}Msg" class="muted" style="font-size:12px" role="status" aria-live="polite"></span></div>
+    </div>`;
+  }
+  async function save(prefix,onDone){
+    const g=id=>document.getElementById(prefix+id);
+    const btn=g('Save'),msg=g('Msg');
+    const dob=g('Dob').value,addr=g('Addr').value.trim(),tel=g('Tel').value.trim();
+    if(!dob||!addr||!tel){msg.innerHTML='<span style="color:var(--rose)">Please fill in all three fields.</span>';return;}
+    btn.disabled=true;msg.textContent='Saving…';
+    const {error}=await sb.rpc('update_my_profile',{p_birth_date:dob,p_address:addr,p_contact_no:tel});
+    btn.disabled=false;
+    if(error){msg.innerHTML=`<span style="color:var(--rose)">${esc(/update_my_profile|schema cache/i.test(error.message)?'This feature is still being set up — please try again later.':error.message)}</span>`;return;}
+    Object.assign(me,{birth_date:dob,address:addr,contact_no:tel,profile_updated_at:new Date().toISOString()});
+    msg.innerHTML='<span style="color:var(--teal)">✅ Saved.</span>';
+    onDone&&onDone();
+  }
+  function badge(){const b=document.getElementById('mdBadge');if(b)b.innerHTML=missing(me)?'<span class="cp-chip miss">⚠ Please complete</span>':'<span class="cp-chip an">✓ Complete</span>';}
+  function init(){
+    const body=document.getElementById('mdBody');
+    if(!body||!me)return;
+    if(me.role==='admin'){document.getElementById('mdCard')?.classList.add('hide');return;}
+    document.getElementById('mdCard')?.classList.remove('hide');
+    body.innerHTML=formHtml(me,'md');badge();
+    document.getElementById('mdSave').onclick=()=>save('md',badge);
+  }
+  /* one-time pop-up for staff whose details are missing ("Later" = asks again next login) */
+  let prompted=false;
+  function prompt(){
+    if(prompted||!me||me.role==='admin'||me.active===false||!missing(me))return;
+    if(!('address' in me))return; // columns not added yet (SQL not run) → stay quiet
+    try{if(sessionStorage.getItem('mdLater')==='1')return;}catch(_){}
+    prompted=true;
+    const ov=document.createElement('div');ov.className='md-ov';ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-label','Complete your Contractor Profile');
+    ov.innerHTML=`<div class="card"><div class="hdr"><h3 style="font-size:16px">🪪 Complete your Contractor Profile</h3></div>
+      <div class="muted" style="font-size:12.5px;margin-bottom:10px">We're adding a few details to your profile. Only you and the admin can see your address and contact number.</div>
+      ${formHtml(me,'mdp')}<div style="text-align:right;margin-top:8px"><button class="btn btn-ghost" id="mdpLater">Later</button></div></div>`;
+    document.body.appendChild(ov);
+    document.getElementById('mdpSave').onclick=()=>save('mdp',()=>{setTimeout(()=>ov.remove(),700);init();});
+    document.getElementById('mdpLater').onclick=()=>{try{sessionStorage.setItem('mdLater','1');}catch(_){}ov.remove();};
+  }
+  let tries=0;const t=setInterval(()=>{tries++;if(typeof me!=='undefined'&&me){clearInterval(t);setTimeout(prompt,2500);}else if(tries>120)clearInterval(t);},1000);
+  window.MyDetails={init,prompt};
 })();
 </script>
 </body></html>
