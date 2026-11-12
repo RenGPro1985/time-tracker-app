@@ -248,6 +248,76 @@ export function registerCalendar(ctx) {
     }
   }
 
+  // ---------------------------------------------------------------- birthdays + workiversaries → Google
+  // One yearly recurring all-day event per active staff member (month + day only, never the year of birth).
+  // Removed automatically when they're deactivated / terminated or the date is cleared.
+  const isLeapY = y => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const occurs = (iso, y) => (String(iso).slice(5, 10) === '02-29' && !isLeapY(y)) ? `${y}-02-28` : `${y}-${String(iso).slice(5, 10)}`;
+  const yearlyRule = iso => String(iso).slice(5, 10) === '02-29' ? 'RRULE:FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=-1' : 'RRULE:FREQ=YEARLY';
+  function celebrationWants(staff) {
+    const out = [];
+    for (const s of staff) {
+      if (s.role === 'admin') continue;
+      if (s.birth_date) {
+        const y = Number(phDateOf(new Date()).slice(0, 4));
+        out.push({ key: 'bday:' + s.id, summary: `🎂 Birthday — ${s.full_name}`, start: occurs(s.birth_date, y), rrule: yearlyRule(s.birth_date) });
+      }
+      if (s.hire_date) {
+        const first = occurs(s.hire_date, Number(s.hire_date.slice(0, 4)) + 1);
+        out.push({ key: 'wiv:' + s.id, summary: `🎉 Workiversary — ${s.full_name} (hired ${s.hire_date.slice(0, 4)})`, start: first, rrule: yearlyRule(s.hire_date) });
+      }
+    }
+    return out;
+  }
+  async function syncCelebrations(link, budget) {
+    const { data: staff, error } = await admin.from('staff').select('id, full_name, role, birth_date, hire_date').eq('active', true);
+    if (error) throw error;
+    const { data: synced, error: se } = await admin.from('calendar_celebration_sync').select('*');
+    if (se) { if (/calendar_celebration_sync/.test(se.message)) return; throw se; } // SQL not run yet
+    const have = new Map((synced || []).map(r => [r.celebrate_key, r]));
+    const want = new Set();
+    for (const w of celebrationWants(staff || [])) {
+      want.add(w.key);
+      const sig = `${w.summary}|${w.start}|${w.rrule}`;
+      const prev = have.get(w.key);
+      if (prev && prev.signature === sig) continue;
+      if (budget.n <= 0) break;
+      const body = { summary: w.summary, start: { date: w.start }, end: { date: addDays(w.start, 1) }, recurrence: [w.rrule], transparency: 'transparent',
+        extendedProperties: { private: { smbCelebrate: w.key } }, reminders: { useDefault: false, overrides: [] } };
+      let gid = prev?.google_event_id, ok = false;
+      if (gid) {
+        try { await gcal(link, 'PUT', calPath(link) + '/events/' + encodeURIComponent(gid), { body }); ok = true; }
+        catch (e) { if (e.status !== 404 && e.status !== 410) throw e; }
+      }
+      if (!ok) gid = (await gcal(link, 'POST', calPath(link) + '/events', { body })).id;
+      budget.n--;
+      await admin.from('calendar_celebration_sync').upsert({ celebrate_key: w.key, google_event_id: gid, signature: sig, updated_at: new Date().toISOString() });
+    }
+    for (const r of synced || []) {
+      if (want.has(r.celebrate_key) || budget.n <= 0) continue;
+      try { await gcal(link, 'DELETE', calPath(link) + '/events/' + encodeURIComponent(r.google_event_id)); }
+      catch (e) { if (e.status !== 404 && e.status !== 410) throw e; }
+      budget.n--;
+      await admin.from('calendar_celebration_sync').delete().eq('celebrate_key', r.celebrate_key);
+    }
+  }
+  // portal feed: birthday / workiversary occurrences between from..to (month + day only)
+  function celebrationsBetween(staff, from, to) {
+    const out = [];
+    const y0 = Number(from.slice(0, 4)), y1 = Number(to.slice(0, 4));
+    for (const s of staff) {
+      if (s.role === 'admin') continue;
+      for (let y = y0; y <= y1; y++) {
+        if (s.birth_date) { const d = occurs(s.birth_date, y); if (d >= from && d <= to) out.push({ key: `bday:${s.id}:${d}`, type: 'birthday', staff_id: s.id, date: d }); }
+        if (s.hire_date && y > Number(s.hire_date.slice(0, 4))) {
+          const d = occurs(s.hire_date, y);
+          if (d >= from && d <= to) out.push({ key: `wiv:${s.id}:${d}`, type: 'workiversary', staff_id: s.id, date: d, years: y - Number(s.hire_date.slice(0, 4)) });
+        }
+      }
+    }
+    return out;
+  }
+
   // ---------------------------------------------------------------- Google → portal
   function gTimes(item) {
     if (item.start?.date) return { all_day: true, start_at: phMidnight(item.start.date).toISOString(), end_at: phMidnight(item.end?.date || addDays(item.start.date, 1)).toISOString() };
@@ -264,7 +334,7 @@ export function registerCalendar(ctx) {
       const j = await gcal(link, 'GET', calPath(link) + '/events', { query });
       for (const item of j.items || []) {
         const priv = item.extendedProperties?.private || {};
-        if (priv.smbLeave) continue;
+        if (priv.smbLeave || priv.smbCelebrate) continue;
         const cancelled = item.status === 'cancelled';
         let row = null;
         if (priv.smbId && uuidRe.test(priv.smbId)) row = (await admin.from('calendar_events').select('*').eq('id', priv.smbId).maybeSingle()).data;
@@ -325,6 +395,7 @@ export function registerCalendar(ctx) {
           const { data: unsynced } = await admin.from('calendar_events').select('*').is('google_event_id', null).is('cancelled_at', null).eq('source', 'portal').gt('end_at', new Date(Date.now() - 86400000).toISOString()).limit(20);
           if (unsynced?.length) { const staff = await activeStaff(); for (const ev of unsynced) { if (budget.n-- <= 0) break; await pushEvent(ev, staff); } }
           await syncLeave(link, budget);
+          await syncCelebrations(link, budget);
           await pullFromGoogle(link);
           await admin.from('google_calendar_link').update({ last_sync_at: new Date().toISOString(), last_error: null }).eq('id', 1);
         } catch (e) {
@@ -436,7 +507,7 @@ export function registerCalendar(ctx) {
       const fromTs = phMidnight(from).toISOString(), toTs = phMidnight(addDays(to, 1)).toISOString();
       const [evQ, staffQ, clientsQ, leaveQ, pendQ, linkQ] = await Promise.all([
         admin.from('calendar_events').select('*').is('cancelled_at', null).lt('start_at', toTs).gt('end_at', fromTs).order('start_at').limit(1500),
-        admin.from('staff').select('id, full_name, client_id, role').eq('active', true).order('full_name'),
+        admin.from('staff').select('id, full_name, client_id, role, birth_date, hire_date').eq('active', true).order('full_name'),
         admin.from('clients').select('id, name, timezone'),
         admin.from('leave_days').select('request_id, staff_id, date, type').in('type', LEAVE_TYPES).gte('date', from).lte('date', to).limit(5000),
         (() => { let q = admin.from('requests').select('id, staff_id, type, start_date, end_date, reason, status, created_at').eq('status', 'pending').in('type', LEAVE_TYPES).lte('start_date', to).gte('end_date', from).limit(500); if (!isAdmin) q = q.eq('staff_id', myId); return q; })(),
@@ -458,7 +529,8 @@ export function registerCalendar(ctx) {
         type: (!isAdmin && g.type === 'sick_leave' && String(g.staff_id) !== myId) ? 'out' : g.type }));
       for (const p of pendQ.data || []) leave.push({ key: 'p:' + p.id, request_id: p.id, staff_id: p.staff_id, start: p.start_date, end: p.end_date || p.start_date, status: 'pending', type: p.type, reason: isAdmin || String(p.staff_id) === myId ? p.reason : null });
       const link = linkQ.data;
-      res.json({ ok: true, me: { id: myId, role: meRow.role, name: meRow.full_name, client_id: meRow.client_id }, events, leave,
+      const celebrations = celebrationsBetween(staffQ.data || [], from, to);
+      res.json({ ok: true, me: { id: myId, role: meRow.role, name: meRow.full_name, client_id: meRow.client_id }, events, leave, celebrations,
         staff: (staffQ.data || []).map(s => ({ id: s.id, name: s.full_name, client_id: s.client_id, role: s.role })),
         clients: clientsQ.data || [],
         google: { configured: !!(CLIENT_ID && CLIENT_SECRET), connected: !!link?.refresh_token, email: link?.account_email || null, last_sync_at: isAdmin ? link?.last_sync_at : undefined, last_error: isAdmin ? link?.last_error : undefined } });

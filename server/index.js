@@ -14,6 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 import multer from 'multer';
 import { randomUUID } from 'crypto';
 import { registerCalendar } from './calendar.js';
+import { registerCelebrations } from './celebrations.js';
 
 const {
   SUPABASE_URL,
@@ -1411,6 +1412,7 @@ async function tsSweep(since){
 // pinger + portal "kick" (idempotent; rate limited)
 async function dmSweepRoute(_req,res){
   calendar?.calendarSweep().catch(e=>console.error('Calendar sweep:', e.message)); // the hourly pinger keeps Google sync + reminders moving
+  celebrations?.sweep().catch(e=>console.error('Celebration sweep:', e.message)); // birthdays, workiversaries, auto-hide terminated
   const r = await dmSweep(false);
   res.json({ok:true, bot:!!SLACK_BOT_TOKEN, ...r, last:dmStats.last, lastError:dmStats.lastError});
 }
@@ -1466,6 +1468,11 @@ app.post('/api/dm/test', notificationRateLimit, async (req,res)=>{
 // ---------- Calendar (My Calendar / Team Calendar) + Google Calendar sync → server/calendar.js ----------
 var calendar = registerCalendar({ app, admin, requireAdmin, requireActiveUser, sendDmOnce, dmBlocks, safeSlack,
   PORTAL_URL, SLACK_BOT_TOKEN, STATE_SECRET: SUPABASE_SERVICE_ROLE_KEY });
+
+// ---------- Birthdays / Workiversaries (+500 SMB tokens) + auto-hide terminated staff → server/celebrations.js ----------
+var celebrations = registerCelebrations({ app, admin, requireAdmin, sendSlackOnce, safeSlack, slackUserIdFor, SLACK_BOT_TOKEN, SLACK_GENERAL_WEBHOOK_URL });
+setInterval(()=>celebrations.sweep(), 5*60*1000);
+setTimeout(()=>celebrations.sweep(), 20000); // once shortly after boot
 
 setInterval(()=>dmSweep(true), 5*60*1000);
 setTimeout(()=>dmSweep(true), 15000); // once shortly after boot
