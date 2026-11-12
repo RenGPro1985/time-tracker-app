@@ -14544,4 +14544,83 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   window.MyDetails={init,prompt};
 })();
 </script>
+
+<script>
+/* ============================================================
+   Free-tier usage check-in (admin) [Sir Rendy 2026-11-12]
+   Every 7 days an admin pop-up asks for two numbers from the Supabase Usage page and the
+   Render Billing page, projects them to the end of the cycle and flags anything heading over
+   the free limits. Saved in settings.usage_check (no extra tables, ~1 tiny request per login).
+   ============================================================ */
+(function(){
+  'use strict';
+  const KEY='usage_check', EVERY_DAYS=7;
+  const LINKS={supabase:'https://supabase.com/dashboard/org/afbqjhmxxtqmwwtozmob/usage',render:'https://dashboard.render.com/billing'};
+  const LIMIT={egress:5,hours:750};
+  const esc=v=>escapeHtml(String(v??''));
+  const pht=()=>new Date(Date.now()+8*3600000);
+  // Supabase cycle runs from the 30th (or the month's last day if shorter) to the next one
+  function sbCycle(now=pht()){
+    const anchor=(y,m)=>{const last=new Date(Date.UTC(y,m+1,0)).getUTCDate();return Date.UTC(y,m,Math.min(30,last));};
+    let y=now.getUTCFullYear(),m=now.getUTCMonth(),start=anchor(y,m);
+    if(now.getTime()<start){m--;if(m<0){m=11;y--;}start=anchor(y,m);}
+    let ny=y,nm=m+1;if(nm>11){nm=0;ny++;}
+    return {start,end:anchor(ny,nm)};
+  }
+  function project(used,start,end,now=pht().getTime()){const el=Math.max(0.25,(now-start)/86400000),len=(end-start)/86400000;return used/el*len;}
+  function renderMonth(now=pht()){const y=now.getUTCFullYear(),m=now.getUTCMonth();return {start:Date.UTC(y,m,1),end:Date.UTC(y,m+1,1)};}
+  function verdict(proj,limit){const r=proj/limit;return r>=1?['🔴 Will go over','var(--rose)']:r>=0.8?['🟡 Close — watch it','var(--gold)']:['🟢 Safe','var(--teal)'];}
+  async function read(){const {data,error}=await sb.from('settings').select('value').eq('key',KEY).maybeSingle();if(error)throw error;return data?.value||{checks:[]};}
+  async function write(v){const {error}=await sb.from('settings').upsert({key:KEY,value:v});if(error)throw error;}
+  let shown=false;
+  async function maybeShow(force){
+    if(shown&&!force)return;
+    if(typeof me==='undefined'||!me||me.role!=='admin')return;
+    let v;try{v=await read();}catch(_){return;}
+    const last=(v.checks||[])[0];
+    const due=!last||(Date.now()-new Date(last.at).getTime())>EVERY_DAYS*86400000;
+    if(!due&&!force)return;
+    try{if(!force&&sessionStorage.getItem('usageLater')==='1')return;}catch(_){}
+    shown=true;open(v);
+  }
+  function open(v){
+    document.getElementById('usageOv')?.remove();
+    const last=(v.checks||[])[0];
+    const ov=document.createElement('div');ov.id='usageOv';ov.className='md-ov';ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-label','Free plan usage check');
+    ov.innerHTML=`<div class="card" style="max-width:540px"><div class="hdr"><h3 style="font-size:16px">📊 Weekly free-plan usage check</h3></div>
+      <div class="muted" style="font-size:12.5px;margin-bottom:10px">Keeps the portal on the free plans. Open each page, copy one number, and the portal tells you if you're heading over.${last?` Last check: <b>${esc(new Date(last.at).toLocaleDateString('en-US',{month:'short',day:'numeric'}))}</b> (egress ${esc(last.egress)} GB · Render ${esc(last.hours)} h).`:''}</div>
+      <div class="md-grid">
+        <label>Supabase egress used (GB)<input id="usEg" type="number" step="0.01" min="0" placeholder="e.g. 2.59"><a href="${LINKS.supabase}" target="_blank" rel="noopener" style="font-size:11.5px;color:var(--gold)">Open Supabase Usage ↗</a></label>
+        <label>Render free instance hours used<input id="usHr" type="number" step="0.1" min="0" placeholder="e.g. 239.6"><a href="${LINKS.render}" target="_blank" rel="noopener" style="font-size:11.5px;color:var(--gold)">Open Render Billing ↗</a></label>
+        <div class="full" id="usOut" style="font-size:12.5px"></div>
+        <div class="full row" style="gap:8px;flex-wrap:wrap"><button class="btn btn-gold" id="usSave">Save check</button><button class="btn btn-ghost" id="usLater">Remind me later</button><span id="usMsg" class="muted" style="font-size:12px" role="status" aria-live="polite"></span></div>
+        <div class="full muted" style="font-size:11px">Free limits: Supabase egress ${LIMIT.egress} GB per cycle (resets on the 30th) · Render ${LIMIT.hours} instance hours per calendar month. Other Supabase items (database size, storage, logins) are far below their limits.</div>
+      </div></div>`;
+    document.body.appendChild(ov);
+    const eg=ov.querySelector('#usEg'),hr=ov.querySelector('#usHr'),out=ov.querySelector('#usOut');
+    function calc(){
+      const lines=[];
+      if(eg.value!==''){const c=sbCycle(),p=project(Number(eg.value),c.start,c.end),[t,col]=verdict(p,LIMIT.egress);lines.push(`<div>Supabase egress → about <b>${p.toFixed(1)} GB</b> by ${new Date(c.end).toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'})} of ${LIMIT.egress} GB · <b style="color:${col}">${t}</b></div>`);}
+      if(hr.value!==''){const c=renderMonth(),p=project(Number(hr.value),c.start,c.end),[t,col]=verdict(p,LIMIT.hours);lines.push(`<div>Render hours → about <b>${Math.round(p)} h</b> by month end of ${LIMIT.hours} h · <b style="color:${col}">${t}</b></div>`);}
+      out.innerHTML=lines.join('')||'<span class="muted">Enter the numbers to see the projection.</span>';
+    }
+    eg.oninput=calc;hr.oninput=calc;calc();
+    ov.querySelector('#usLater').onclick=()=>{try{sessionStorage.setItem('usageLater','1');}catch(_){}ov.remove();};
+    ov.querySelector('#usSave').onclick=async()=>{
+      const msg=ov.querySelector('#usMsg');
+      if(eg.value===''||hr.value===''){msg.innerHTML='<span style="color:var(--rose)">Enter both numbers.</span>';return;}
+      const c1=sbCycle(),c2=renderMonth();
+      const entry={at:new Date().toISOString(),by:me.full_name||'',egress:Number(eg.value),hours:Number(hr.value),
+        egress_proj:+project(Number(eg.value),c1.start,c1.end).toFixed(2),hours_proj:Math.round(project(Number(hr.value),c2.start,c2.end))};
+      try{const cur=await read().catch(()=>({checks:[]}));await write({checks:[entry,...(cur.checks||[])].slice(0,26)});}
+      catch(e){msg.innerHTML=`<span style="color:var(--rose)">${esc(e.message)}</span>`;return;}
+      const over=entry.egress_proj>=LIMIT.egress||entry.hours_proj>=LIMIT.hours;
+      msg.innerHTML=over?'<span style="color:var(--rose)">Saved. ⚠ Something is heading over — ask Claude to trim usage.</span>':'<span style="color:var(--teal)">✅ Saved. Next check in 7 days.</span>';
+      setTimeout(()=>ov.remove(),over?4000:1500);
+    };
+  }
+  let tries=0;const t=setInterval(()=>{tries++;if(typeof me!=='undefined'&&me){clearInterval(t);setTimeout(()=>maybeShow(false),6000);}else if(tries>120)clearInterval(t);},1000);
+  window.UsageCheck={open:()=>maybeShow(true),_project:project,_sbCycle:sbCycle};
+})();
+</script>
 </body></html>
