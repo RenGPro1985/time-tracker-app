@@ -1205,6 +1205,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
       <div class="card">
         <div class="hdr"><h3 style="font-size:15px">YTD Attendance &amp; Year End Bonus</h3><div class="row" style="gap:7px"><label for="ytdYear" style="margin:0">Calendar year</label><select id="ytdYear" style="width:auto;min-width:92px"></select><button class="btn btn-gold" id="ytdRun">Run report</button></div></div>
         <div class="muted" id="ytdRange" style="font-size:12px;margin-bottom:9px"></div>
+        <div class="note" id="ytdUsage" style="margin-bottom:9px;border-color:var(--gold)">📦 Checking saved data…</div>
         <div class="note" style="margin-bottom:9px">Year End Bonus estimate follows the standard 13th-month-pay rule: total basic salary earned during the year ÷ 12. Basic salary earned per employed calendar day = that day's applicable monthly rate ÷ the number of days in that calendar month; days outside the employment window (before hire / after termination) earn nothing. A rate change mid-month splits automatically at its effective date. Attendance (Days Present/PTO/PCH/PA/OUT) is tracked separately in this table and no longer affects the bonus calculation. Sir Rendy identified Unhappy Day leave in the legacy tracker as OUT; the attached workbook is preserved for later reconciliation and is not imported in this build.</div>
         <div id="ytdStatus" class="note" role="status" aria-live="polite" style="margin-bottom:9px">Choose a calendar year and run the report.</div>
         <div class="ytd-summary" id="ytdSummary"></div>
@@ -3149,9 +3150,9 @@ async function start(){
      also performs a catch-up check, so this catches threshold crossings without sending
      four backend requests per minute throughout the entire shift. */
   setInterval(()=>{ if(curShift&&curEntry&&Number(allowance[curEntry.activity]||0)>0) syncOverbreakAlerts(curShift.id); },15000);
-  setInterval(()=>{ if(document.getElementById('v-status').classList.contains('hide')===false) loadRoster(); },60000);
+  setInterval(()=>{ if(!document.hidden&&document.getElementById('v-status').classList.contains('hide')===false) loadRoster(); },60000); // paused while the tab is hidden
   setInterval(()=>{ if(me&&document.getElementById('v-dash').classList.contains('hide')===false) renderPayPeriod(); },300000);
-  await refreshNotifications();
+  await refreshNotifications(true);
   setInterval(refreshNotifications,60000);
   window.TeamCal?.start();
   window.Bulletin?.onStart();
@@ -3163,12 +3164,21 @@ async function start(){
 
 /* ---------- in-app notifications bell ---------- */
 let notifications=[];
-async function refreshNotifications(){
-  const {data,error}=await sb.from('in_app_notifications').select('*').order('created_at',{ascending:false}).limit(30);
+/* Usage saver: skipped while the tab is hidden; between full reloads (every 10 min) only rows newer
+   than the newest one we have are fetched — usually an empty reply instead of 30 rows a minute. */
+let notifFullAt=0;
+async function refreshNotifications(force){
+  if(force!==true&&document.hidden)return;
+  const full=force===true||!notifications.length||Date.now()-notifFullAt>10*60000;
+  let q=sb.from('in_app_notifications').select('*').order('created_at',{ascending:false}).limit(30);
+  if(!full)q=q.gt('created_at',notifications[0].created_at);
+  const {data,error}=await q;
   if(error){ if(!isMissingTableError(error)) console.warn('in_app_notifications:',error.message); return; }
-  notifications=data||[];
+  if(full){notifications=data||[];notifFullAt=Date.now();}
+  else if(data&&data.length){const have=new Set(notifications.map(n=>n.id));notifications=[...data.filter(n=>!have.has(n.id)),...notifications].slice(0,30);}
   renderNotifBell();
 }
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&typeof me!=='undefined'&&me){ refreshNotifications(); if(!document.getElementById('v-status').classList.contains('hide')) loadRoster(); } });
 function renderNotifBell(){
   const unread=notifications.filter(n=>!n.read_at).length;
   $('notifBadge').classList.toggle('hide',unread===0);
@@ -7683,19 +7693,59 @@ const C13=(function(){
     document.querySelectorAll('[data-c13-open]').forEach(btn=>btn.onclick=()=>C13.open(btn.dataset.c13Open));
     window.Reliability?.bindRows();
   }
-  async function ytdRun(){
+  /* ---- Usage saver [Sir Rendy 2026-11-12]: this report downloads every time entry of the year.
+     It now runs from a saved copy (this browser) and the heavy download only happens when the admin
+     clicks "Refresh data" — at most once every 7 days per year (lock shared across devices via
+     settings.ytd_heavy_refresh). Rate / attendance-count edits recompute from the saved copy. */
+  const YTD_LOCK_DAYS=7, YTD_LOCK_KEY='ytd_heavy_refresh', ytdMem={};
+  function ytdIdb(){return new Promise((res,rej)=>{try{const r=indexedDB.open('smb-ytd',1);r.onupgradeneeded=()=>r.result.createObjectStore('att');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e);}});}
+  async function ytdCacheGet(year){if(ytdMem[year])return ytdMem[year];try{const db=await ytdIdb();const v=await new Promise(res=>{const q=db.transaction('att').objectStore('att').get(String(year));q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null);});if(v)ytdMem[year]=v;return v;}catch(_){return null;}}
+  async function ytdCachePut(year,val){ytdMem[year]=val;try{const db=await ytdIdb();await new Promise(res=>{const tx=db.transaction('att','readwrite');tx.objectStore('att').put(val,String(year));tx.oncomplete=res;tx.onerror=res;tx.onabort=res;});}catch(_){}}
+  async function ytdLockRead(){const {data,error}=await sb.from('settings').select('value').eq('key',YTD_LOCK_KEY).maybeSingle();if(error)throw error;return data?.value||{};}
+  async function ytdLockWrite(year){const v=await ytdLockRead().catch(()=>({}));v[String(year)]=new Date().toISOString();await sb.from('settings').upsert({key:YTD_LOCK_KEY,value:v});}
+  const ytdNextAllowed=iso=>iso?new Date(new Date(iso).getTime()+YTD_LOCK_DAYS*86400000):null;
+  const ytdWhen=d=>new Date(d).toLocaleString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})+' PHT';
+  async function ytdUsageLine(year,cached){
+    const el=$('ytdUsage');if(!el)return;
+    let lock={};try{lock=await ytdLockRead();}catch(_){}
+    const last=lock[String(year)],next=ytdNextAllowed(last),locked=next&&next>new Date();
+    el.innerHTML=(cached?`📦 Showing saved data as of <b>${ytdEscape(ytdWhen(cached.at))}</b> (attendance through ${ytdEscape(fmtNice(cached.range.end))}). `:'📦 No saved data on this device yet. ')
+      +(locked?`Next heavy refresh available <b>${ytdEscape(ytdWhen(next))}</b>.`:'<b style="color:var(--teal)">Heavy refresh available.</b>');
+  }
+  async function ytdRefreshClick(){
+    if(ytdBusy)return;
+    const year=ytdSelectedYear();
+    let lock={};try{lock=await ytdLockRead();}catch(e){return alert('Could not check the refresh limit: '+e.message);}
+    const last=lock[String(year)],next=ytdNextAllowed(last);
+    if(next&&next>new Date()){
+      const typed=prompt(`⚠️ Weekly limit reached.\n\nYTD data for ${year} was last refreshed ${ytdWhen(last)}.\nNext refresh: ${ytdWhen(next)}.\n\nEach refresh downloads the whole year of time entries and uses a big part of the free Supabase data allowance.\n\nOnly for emergencies: type REFRESH to override.`);
+      if(String(typed||'').trim().toUpperCase()!=='REFRESH')return;
+    }else if(!confirm(`⚠️ Heavy refresh\n\nThis downloads every time entry for ${year} for all staff. It uses a big part of the free Supabase data allowance, so it can only be done once every ${YTD_LOCK_DAYS} days.\n\nRefresh now?`))return;
+    ytdRun({refresh:true});
+  }
+  async function ytdRun(opts={}){
     if(me?.role!=='admin'){ytdStatus('This report is available to admins only.',true);return;}
     if(ytdBusy)return;ytdBusy=true;
     ytdComputedRows=[];ytdCurrentYear=null;ytdRows=[];
     {const rc=$('relChartCard');if(rc)rc.style.display='none';}
     $('ytdRun').disabled=true;$('ytdRun').textContent='Loading…';$('ytdTable').innerHTML='<tr><td colspan="11" class="muted">Loading report data…</td></tr>';$('ytdSummary').innerHTML='';
     try{
-      const year=ytdSelectedYear(),range=ytdRangeForYear(year),people=staffList.filter(s=>s.active);
+      const year=ytdSelectedYear(),people=staffList.filter(s=>s.active);
+      let range=ytdRangeForYear(year),cached=opts.refresh?null:await ytdCacheGet(year);
+      if(!opts.refresh&&!cached){
+        ytdRows=[];ytdComputedRows=[];ytdPopulateClientFilter([]);
+        $('ytdTable').innerHTML='<tr><td colspan="11" class="muted">No saved data yet. Click <b>🔄 Refresh data</b> when you need this report (heavy download, once a week).</td></tr>';
+        ytdStatus('Not loaded yet. To save the free data allowance, this report only downloads when you click Refresh data.',false);
+        await ytdUsageLine(year,null);return;
+      }
+      if(cached)range=cached.range;
       if(!range.end||range.start>range.end)throw new Error('Selected year does not have a reportable date range.');
       $('ytdRange').textContent=`${fmtNice(range.start)} – ${fmtNice(range.end)} (${year===Number(phDate(new Date()).slice(0,4))?'year to date':'full calendar year'})`;
       if(!people.length){ytdRows=[];ytdComputedRows=[];ytdCurrentYear=year;ytdPopulateClientFilter([]);ytdApplyClientFilter();ytdStatus('No active employees are available in the current portal roster.',false);return;}
       let rates=await ytdFetchRates(people);rates=await ytdSeedRates(people,year,rates);ytdRows=rates;
-      const [attendance,manualCounts]=await Promise.all([ytdLoadAttendance(range.start,range.end,people),ytdFetchManualCounts(people,year)]);
+      const [attendance,manualCounts]=await Promise.all([cached?Promise.resolve(cached.attendance):ytdLoadAttendance(range.start,range.end,people),ytdFetchManualCounts(people,year)]);
+      if(!cached){await ytdCachePut(year,{at:new Date().toISOString(),range,attendance});await ytdLockWrite(year).catch(e=>console.warn('ytd lock',e));}
+      ytdUsageLine(year,cached||ytdMem[year]);
       const clientsById=Object.fromEntries(clients.map(c=>[c.id,c]));
       const rows=ytdComputeRows(people,clientsById,range,attendance,rates,manualCounts);
       try{await C13.attach(rows,year,range);}catch(c13Err){console.error('Collected 13th',c13Err);rows.forEach(r=>r.c13={total:0,lines:[],error:c13Err.message});}
@@ -7712,14 +7762,14 @@ const C13=(function(){
       ytdComputedRows=[];ytdCurrentYear=null;ytdRows=[];ytdPopulateClientFilter([]);
       $('ytdTable').innerHTML='<tr><td colspan="11" class="muted">Report could not be calculated; no partial totals shown.</td></tr>';
       $('ytdSummary').innerHTML='';ytdStatus(`Could not load a complete report: ${e.message}. Check the YTD rate and attendance-count migrations and data permissions, then rerun.`,true);
-    }finally{ytdBusy=false;$('ytdRun').disabled=false;$('ytdRun').textContent='Run report';}
+    }finally{ytdBusy=false;$('ytdRun').disabled=false;$('ytdRun').textContent='🔄 Refresh data';}
   }
   function initYtdAttendance(){
     if(me?.role!=='admin'){go('v-punch');return;}
     if(!ytdInitDone){
       const year=Number(phDate(new Date()).slice(0,4));
       $('ytdYear').innerHTML=Array.from({length:9},(_,i)=>year-i).map(y=>`<option value="${y}">${y}</option>`).join('');
-      $('ytdYear').value=String(year);$('ytdRun').onclick=ytdRun;$('ytdYear').onchange=ytdRun;$('ytdClientFilter').onchange=ytdApplyClientFilter;ytdInitDone=true;
+      $('ytdYear').value=String(year);$('ytdRun').textContent='🔄 Refresh data';$('ytdRun').onclick=ytdRefreshClick;$('ytdYear').onchange=()=>ytdRun();$('ytdClientFilter').onchange=ytdApplyClientFilter;ytdInitDone=true;
     }
     ytdRun();
   }
@@ -14423,7 +14473,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       loadSoon(); setInterval(loadSoon,3*60000);
       setInterval(()=>{ checkSoon(); watchBell(); },20000);
       setTimeout(()=>{ checkSoon(); watchBell(); },4000);
-      setInterval(()=>{ if(S.view&&!document.getElementById(S.view)?.classList.contains('hide')&&!document.getElementById('tcModal')) load(); },120000);
+      setInterval(()=>{ if(!document.hidden&&S.view&&!document.getElementById(S.view)?.classList.contains('hide')&&!document.getElementById('tcModal')) load(); },120000);
       try{ if(window.Notification&&Notification.permission==='default'&&!isAdmin()) document.addEventListener('click',()=>Notification.requestPermission().catch(()=>{}),{once:true}); }catch(_){}
     },
     reload(){ loadSoon(); if(S.view) load(); }
