@@ -397,7 +397,9 @@ export function registerCalendar(ctx) {
           await syncLeave(link, budget);
           await syncCelebrations(link, budget);
           await pullFromGoogle(link);
-          await admin.from('google_calendar_link').update({ last_sync_at: new Date().toISOString(), last_error: null }).eq('id', 1);
+          // usage saver: only write when clearing an error or every 30 min (was every sweep)
+          if (link.last_error || !link.last_sync_at || Date.now() - new Date(link.last_sync_at) > 30 * 60000)
+            await admin.from('google_calendar_link').update({ last_sync_at: new Date().toISOString(), last_error: null }).eq('id', 1);
         } catch (e) {
           console.error('Google Calendar sync failed:', e.message);
           stats.lastError = e.message;

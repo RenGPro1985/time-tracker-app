@@ -253,7 +253,15 @@ async function postSlackWebhook(url,payload){
   }
   throw lastError || new Error('Slack notification failed.');
 }
+/* Usage saver (2026-11-12): the 5-minute sweeps re-offer every already-sent notification, and each
+   one used to cost a failed INSERT (409) + a SELECT on slack_notification_log — ~1,400 wasted
+   Supabase requests an hour. 'sent' is final, so remember it in memory and skip the database.
+   (Per Render instance; after a restart the first sweep re-learns them from the log.) */
+const sentNotificationKeys=new Set();
+function rememberSent(eventKey){ if(sentNotificationKeys.size>50000) sentNotificationKeys.clear(); sentNotificationKeys.add(eventKey); }
+const noSlackUntil=new Map(); // DM keys for staff with no matching Slack user → retry at most every 6 h
 async function claimNotification(eventKey,destination,eventType,entityId){
+  if(sentNotificationKeys.has(eventKey)) return {claimed:false,duplicate:true};
   const now=new Date().toISOString();
   const row={event_key:eventKey,destination,event_type:eventType,entity_id:String(entityId),status:'sending',attempts:1,claimed_at:now,updated_at:now};
   const {error}=await admin.from('slack_notification_log').insert(row);
@@ -261,7 +269,7 @@ async function claimNotification(eventKey,destination,eventType,entityId){
   if(error.code!=='23505') throw error;
   const {data:existing,error:readErr}=await admin.from('slack_notification_log').select('*').eq('event_key',eventKey).single();
   if(readErr) throw readErr;
-  if(existing.status==='sent') return {claimed:false,duplicate:true};
+  if(existing.status==='sent'){ rememberSent(eventKey); return {claimed:false,duplicate:true}; }
   const stale=existing.status==='sending' && (Date.now()-new Date(existing.claimed_at).getTime()>5*60*1000);
   if(existing.status!=='failed'&&!stale) return {claimed:false,processing:true};
   let q=admin.from('slack_notification_log').update({status:'sending',attempts:Number(existing.attempts||0)+1,claimed_at:now,last_error:null,updated_at:now})
@@ -279,6 +287,7 @@ async function sendSlackOnce({eventKey,destination,eventType,entityId,webhook,pa
     await postSlackWebhook(webhook,payload);
     const now=new Date().toISOString();
     await admin.from('slack_notification_log').update({status:'sent',sent_at:now,last_error:null,updated_at:now}).eq('event_key',eventKey);
+    rememberSent(eventKey);
     return {sent:true};
   }catch(e){
     await admin.from('slack_notification_log').update({status:'failed',last_error:String(e.message||e).slice(0,1000),updated_at:new Date().toISOString()}).eq('event_key',eventKey);
@@ -1035,6 +1044,7 @@ function dmBlocks(lines, context){
 }
 // Sends one DM once (event key). Returns {sent}|{duplicate}|{noSlack}. Throws on Slack errors.
 async function sendDmOnce({eventKey, entityId, staff, text, blocks}){
+  if((noSlackUntil.get(eventKey)||0) > Date.now()) return {sent:false,noSlack:true};
   const claim = await claimNotification(eventKey,'dm','dm',entityId);
   if(!claim.claimed) return {sent:false,...claim};
   const now = () => new Date().toISOString();
@@ -1042,10 +1052,13 @@ async function sendDmOnce({eventKey, entityId, staff, text, blocks}){
     const uid = await slackUserIdFor(staff.email);
     if(!uid){
       await admin.from('slack_notification_log').update({status:'failed',last_error:'No Slack user with email '+String(staff.email||'(none)').slice(0,120),updated_at:now()}).eq('event_key',eventKey);
+      if(noSlackUntil.size>20000) noSlackUntil.clear();
+      noSlackUntil.set(eventKey, Date.now()+6*3600000);
       return {sent:false,noSlack:true};
     }
     await slackApi('chat.postMessage',{channel:uid,text:String(text).slice(0,2900),blocks,unfurl_links:false,unfurl_media:false});
     await admin.from('slack_notification_log').update({status:'sent',sent_at:now(),last_error:null,updated_at:now()}).eq('event_key',eventKey);
+    rememberSent(eventKey);
     await sleep(350); // stay well under Slack's per-second posting limit
     return {sent:true};
   }catch(e){
