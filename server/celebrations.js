@@ -139,9 +139,11 @@ export function registerCelebrations(ctx) {
     if (insErr && insErr.code !== '23505') throw insErr;
     if (!insErr) { stats.awarded++; console.log(`Celebration award: ${o.kind} ${s.full_name} ${day}`); }
     // 2) Slack once (a failed post is retried on the next sweep for up to CATCHUP_DAYS)
+    // [2026-11-17 fix] slack_notification_log has CHECK constraints on destination/event_type: 'general' / 'birthday' /
+    // 'workiversary' were rejected, so the insert failed and nothing ever posted. Use the values login notices use.
     if (!SLACK_GENERAL_WEBHOOK_URL) throw new Error('SLACK_GENERAL_WEBHOOK_URL is not set on Render');
     const payload = celebrationMessage(o.kind, safeSlack(s.full_name, 80), await mentionFor(s), today, { years: o.years, hire_date: s.hire_date, occasion: day });
-    const r = await sendSlackOnce({ eventKey: `celebrate:${o.kind}:${s.id}:${day}`, destination: 'general', eventType: o.kind, entityId: s.id, webhook: SLACK_GENERAL_WEBHOOK_URL, payload });
+    const r = await sendSlackOnce({ eventKey: `celebrate:${o.kind}:${s.id}:${day}`, destination: 'SMB general', eventType: 'activity', entityId: s.id, webhook: SLACK_GENERAL_WEBHOOK_URL, payload });
     if (r.sent) {
       stats.posted++;
       await admin.from('celebration_awards').update({ slack_posted_at: new Date().toISOString() }).eq('staff_id', s.id).eq('kind', o.kind).eq('occasion_date', day);
