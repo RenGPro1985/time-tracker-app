@@ -13,10 +13,16 @@
 
 const TOKENS = 500;
 const TZ = 'Asia/Manila';
+// [2026-11-17 fix] catch-up: re-check the last 7 PH days every sweep, so a date the server missed
+// (asleep, restarted, hire date / DOB entered late, a failed Slack post) is still awarded + greeted (belated).
+// Safe: unique (staff_id, kind, occasion_date) + the Slack event key mean nothing is ever paid or posted twice.
+const CATCHUP_DAYS = 7;
+const STUCK_MS = 3 * 60 * 1000; // a sweep that hangs longer than this no longer blocks every later sweep
 
 const phToday = (now = new Date()) => new Date(now.getTime() + 8 * 3600000).toISOString().slice(0, 10);
 const isLeap = y => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 // Monday of the week (reward_ledger weeks start Monday)
+export function addDaysIso(iso, n) { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 export function mondayOf(iso) { const d = new Date(iso + 'T00:00:00Z'); const dow = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - dow); return d.toISOString().slice(0, 10); }
 // The date a yearly MM-DD falls on in `year` (Feb 29 → Feb 28 in non-leap years)
 export function occursOn(isoDate, year) {
@@ -57,13 +63,25 @@ const WIV = [
 ];
 const niceDate = iso => new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: '2-digit', year: 'numeric' }).format(new Date(iso + 'T00:00:00Z'));
 
+// When celebration tokens can be claimed into BINGO: the Monday 07:00 PHT after the occasion's week (same as rw_claim_state)
+export function claimOpensAt(occasionIso) { return new Date(addDaysIso(mondayOf(occasionIso), 7) + 'T07:00:00+08:00'); }
+const niceDay = iso => new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(iso + 'T00:00:00Z'));
+
 export function celebrationMessage(kind, name, mention, today, extra = {}) {
   const who = mention || name;
-  const pick = (list, salt) => list[hash(salt + today) % list.length];
+  const occasion = extra.occasion || today;
+  const pick = (list, salt) => list[hash(salt + occasion) % list.length];
   const body = kind === 'birthday'
     ? pick(BDAY, name)(who)
     : pick(WIV, name)(who, extra.years, niceDate(extra.hire_date));
-  const text = `${body}\n🎁 *+${TOKENS} SMB tokens* have been added to your SMB Rewards wallet.`;
+  const late = occasion < today;
+  const belated = late ? `_(Belated greeting for ${niceDay(occasion)} — sorry we're late!)_\n` : '';
+  const text0 = late ? body.replace(' today (since', ' (since').replace('Today marks', 'This week marks').replace("birthday today!", 'birthday!').replace('Enjoy your day', 'Hope you had a great day') : body;
+  const opens = claimOpensAt(occasion);
+  const when = Date.now() >= opens.getTime()
+    ? 'Claim them into BINGO now in *My Tokens*.'
+    : `They're in *My Tokens* and can be claimed into BINGO from *${niceDay(addDaysIso(mondayOf(occasion), 7))}, 7 AM PHT*.`;
+  const text = `${belated}${text0}\n🎁 *+${TOKENS} SMB tokens* for you! ${when}`;
   return {
     text: (kind === 'birthday' ? 'Happy Birthday, ' : 'Happy Workiversary, ') + name + '!',
     blocks: [
@@ -75,8 +93,9 @@ export function celebrationMessage(kind, name, mention, today, extra = {}) {
 
 export function registerCelebrations(ctx) {
   const { app, admin, requireAdmin, sendSlackOnce, safeSlack, slackUserIdFor, SLACK_BOT_TOKEN, SLACK_GENERAL_WEBHOOK_URL } = ctx;
-  const stats = { last: null, lastError: null, deactivated: 0, awarded: 0, posted: 0 };
-  let running = false;
+  const stats = { last: null, lastError: null, lastErrorAt: null, deactivated: 0, awarded: 0, posted: 0, checked: 0, skippedRunning: 0 };
+  let running = false, runningSince = 0;
+  const noteError = (where, e) => { const m = `${where}: ${e && e.message || e}`; console.error('Celebrations', m); stats.lastError = m; stats.lastErrorAt = new Date().toISOString(); };
 
   async function mentionFor(s) {
     if (!SLACK_BOT_TOKEN || !s.email) return null;
@@ -85,7 +104,7 @@ export function registerCelebrations(ctx) {
 
   async function autoDeactivate(today) {
     const { data, error } = await admin.from('staff').select('id, full_name, termination_date')
-      .eq('active', true).neq('role', 'admin').not('termination_date', 'is', null).lt('termination_date', today);
+      .eq('active', true).or('role.is.null,role.neq.admin').not('termination_date', 'is', null).lt('termination_date', today);
     if (error) throw error;
     for (const s of data || []) {
       const { error: e } = await admin.from('staff').update({ active: false }).eq('id', s.id).eq('active', true);
@@ -96,44 +115,51 @@ export function registerCelebrations(ctx) {
   }
 
   async function celebrate(today) {
+    // [2026-11-17 fix] .or(role is null / not admin): .neq('role','admin') alone silently drops staff whose role is blank
     const { data: staff, error } = await admin.from('staff')
-      .select('id, full_name, email, role, active, birth_date, hire_date, termination_date').eq('active', true).neq('role', 'admin');
+      .select('id, full_name, email, role, active, birth_date, hire_date, termination_date').eq('active', true).or('role.is.null,role.neq.admin');
     if (error) throw error;
+    stats.checked = (staff || []).length;
+    const days = []; for (let i = CATCHUP_DAYS; i >= 0; i--) days.push(addDaysIso(today, -i));
     for (const s of staff || []) {
-      if (s.termination_date && s.termination_date < today) continue;
-      for (const o of occasionsFor(s, today)) {
-        // 1) tokens first — unique (staff_id, kind, occasion_date) makes this safe to repeat
-        const { error: insErr } = await admin.from('celebration_awards').insert({
-          staff_id: s.id, kind: o.kind, occasion_date: today, years: o.years || null, tokens: TOKENS, week_start: mondayOf(today)
-        });
-        if (insErr && insErr.code !== '23505') { console.error('Celebration award failed:', insErr.message); stats.lastError = insErr.message; continue; }
-        if (!insErr) stats.awarded++;
-        // 2) Slack once
-        if (!SLACK_GENERAL_WEBHOOK_URL) continue;
-        const payload = celebrationMessage(o.kind, safeSlack(s.full_name, 80), await mentionFor(s), today, { years: o.years, hire_date: s.hire_date });
-        try {
-          const r = await sendSlackOnce({ eventKey: `celebrate:${o.kind}:${s.id}:${today}`, destination: 'general', eventType: o.kind, entityId: s.id, webhook: SLACK_GENERAL_WEBHOOK_URL, payload });
-          if (r.sent) {
-            stats.posted++;
-            await admin.from('celebration_awards').update({ slack_posted_at: new Date().toISOString() }).eq('staff_id', s.id).eq('kind', o.kind).eq('occasion_date', today);
-          }
-        } catch (e) { console.error('Celebration Slack post failed:', e.message); stats.lastError = e.message; }
+      for (const day of days) {
+        if (s.termination_date && s.termination_date < day) continue;
+        for (const o of occasionsFor(s, day)) {
+          try { await award(s, o, day, today); } catch (e) { noteError(`${o.kind} ${s.full_name} ${day}`, e); }
+        }
       }
     }
   }
 
+  async function award(s, o, day, today) {
+    // 1) tokens first — unique (staff_id, kind, occasion_date) makes this safe to repeat
+    const { error: insErr } = await admin.from('celebration_awards').insert({
+      staff_id: s.id, kind: o.kind, occasion_date: day, years: o.years || null, tokens: TOKENS, week_start: mondayOf(day)
+    });
+    if (insErr && insErr.code !== '23505') throw insErr;
+    if (!insErr) { stats.awarded++; console.log(`Celebration award: ${o.kind} ${s.full_name} ${day}`); }
+    // 2) Slack once (a failed post is retried on the next sweep for up to CATCHUP_DAYS)
+    if (!SLACK_GENERAL_WEBHOOK_URL) throw new Error('SLACK_GENERAL_WEBHOOK_URL is not set on Render');
+    const payload = celebrationMessage(o.kind, safeSlack(s.full_name, 80), await mentionFor(s), today, { years: o.years, hire_date: s.hire_date, occasion: day });
+    const r = await sendSlackOnce({ eventKey: `celebrate:${o.kind}:${s.id}:${day}`, destination: 'general', eventType: o.kind, entityId: s.id, webhook: SLACK_GENERAL_WEBHOOK_URL, payload });
+    if (r.sent) {
+      stats.posted++;
+      await admin.from('celebration_awards').update({ slack_posted_at: new Date().toISOString() }).eq('staff_id', s.id).eq('kind', o.kind).eq('occasion_date', day);
+    }
+  }
+
   async function sweep() {
-    if (running) return { skipped: 'running' };
-    running = true;
+    if (running && Date.now() - runningSince < STUCK_MS) { stats.skippedRunning++; return { skipped: 'running' }; }
+    running = true; runningSince = Date.now();
     try {
       const today = phToday();
-      await autoDeactivate(today);
+      // [2026-11-17 fix] separate try blocks: a failure in auto-hide no longer stops birthdays/workiversaries
+      try { await autoDeactivate(today); } catch (e) { noteError('auto-deactivate', e); }
       await celebrate(today);
       stats.last = new Date().toISOString();
       return { ok: true, ...stats };
     } catch (e) {
-      stats.lastError = e.message;
-      console.error('Celebration sweep failed:', e.message);
+      noteError('sweep', e);
       return { ok: false, error: e.message };
     } finally { running = false; }
   }
