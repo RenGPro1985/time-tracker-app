@@ -13306,7 +13306,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
    5 min by the BINGO server) → added on top of the Contractor Ledger "Incentive/Contest
    Award" cell of the payout they are assigned to (oldest payout not marked PAID).
    Admin: Payroll → 🏆 Incentive/Contest Award (Remove / Restore until PAID).
-   Staff: 🏆 card on Time Tracker, under My Tokens; Bulletin Board moves below the rewards group.
+   Staff: 🏆 card on Time Tracker; PM Bulletin Board sits above the rewards group (b36, 2026-11-18).
    ============================================================ */
 (function(){
   'use strict';
@@ -13426,8 +13426,9 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     mine=data||[]; paint(); loadWallet();
   }
   function rightCol(){const sec=document.getElementById('v-punch'); if(!sec)return null; return [...sec.children].filter(c=>c.id!=='docTodoBanner')[1]||null;}
-  /* Right column order (Sir Rendy 2026-11-08, b35): 🏆 Incentive → My Ratings → My Tokens → Bulletin Board → the rest */
-  const ORDER=['gaMyCard','rtMyCard','rcMyCard','bbMini'];  /* b35: 🏆 on top */
+  /* Right column order (Sir Rendy 2026-11-18, b36): 📌 Bulletin Board → 🏆 Incentive → My Ratings → My Tokens → the rest
+     (announcements matter most, so they sit at the very top) */
+  const ORDER=['bbMini','gaMyCard','rtMyCard','rcMyCard'];  /* b36: 📌 on top */
   function arrange(){
     const R=rightCol(); if(!R)return;
     const want=ORDER.map(id=>document.getElementById(id)).filter(el=>el&&el.parentElement===R);
