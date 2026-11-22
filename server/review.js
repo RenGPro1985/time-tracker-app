@@ -206,7 +206,7 @@ export function registerReview(ctx) {
       const caller = await requireAdmin(req, res); if (!caller) return;
       const c = await currentCycle(); if (!c) throw bad('No review cycle.');
       const b = req.body || {};
-      const { data: part } = await admin.from('review_participants').select('released_at').eq('cycle_id', c.id).eq('staff_id', b.staff_id).maybeSingle();
+      const { data: part } = await admin.from('review_participants').select('released_at, rate_manual, applied_at').eq('cycle_id', c.id).eq('staff_id', b.staff_id).maybeSingle();
       if (!part) throw bad('Not in this cycle.');
       if (part.released_at && !b.allow_after_release) throw bad('Already released to the contractor.');
       const ov = b.override_pct === '' || b.override_pct == null ? null : Number(b.override_pct);
@@ -220,6 +220,8 @@ export function registerReview(ctx) {
         finalized_at: b.finalize ? new Date().toISOString() : null, updated_at: new Date().toISOString()
       };
       if (b.finalize && Object.keys(upd.admin_ratings).length !== CRIT_ALL.length) throw bad('Rate all six items before finalizing.');
+      if (part.applied_at) throw bad('The new rate was already applied — scoring is locked.');
+      if (part.rate_manual) { delete upd.new_rate; delete upd.increase_pct; delete upd.override_reason; delete upd.override_pct; }
       const { error } = await admin.from('review_participants').update(upd).eq('cycle_id', c.id).eq('staff_id', b.staff_id);
       if (error) throw error;
       res.json({ ok: true });
@@ -295,24 +297,50 @@ export function registerReview(ctx) {
     } catch (e) { fail(res, e); }
   });
 
-  // Apply new contract fees to the roster (only on/after fee_effective; once per person)
+  // Admin types an exact new rate for one person (or clears it back to the band/override %).
+  app.post('/api/review/admin/rate', async (req, res) => {
+    try {
+      const caller = await requireAdmin(req, res); if (!caller) return;
+      const c = await currentCycle(); if (!c) throw bad('No review cycle.');
+      const { staff_id, new_rate, reason } = req.body || {};
+      const { data: p } = await admin.from('review_participants').select('finalized_at, applied_at, current_rate, override_reason').eq('cycle_id', c.id).eq('staff_id', staff_id).maybeSingle();
+      if (!p) throw bad('Not in this cycle.');
+      if (!p.finalized_at) throw bad('Finalize the score first.');
+      if (p.applied_at) throw bad('This rate was already applied to the roster.');
+      const upd = { updated_at: new Date().toISOString() };
+      if (new_rate === null || new_rate === '') { upd.rate_manual = false; }
+      else {
+        const nr = Math.round(Number(new_rate) * 100) / 100, cur = Number(p.current_rate || 0);
+        if (!Number.isFinite(nr) || nr <= 0) throw bad('Enter a valid monthly rate.');
+        if (nr < cur) throw bad('Fees never go down — the new rate must be at least the current rate.');
+        if (!String(reason || '').trim()) throw bad('A manual rate needs a reason.');
+        Object.assign(upd, { rate_manual: true, new_rate: nr, increase_pct: cur ? Math.round((nr / cur - 1) * 10000) / 100 : null, override_reason: String(reason).slice(0, 1000) });
+      }
+      const { error } = await admin.from('review_participants').update(upd).eq('cycle_id', c.id).eq('staff_id', staff_id);
+      if (error) throw error;
+      res.json({ ok: true });
+    } catch (e) { fail(res, e); }
+  });
+
+  // Admin approves one person's new rate → written to the roster (once; never lower).
   app.post('/api/review/admin/apply', async (req, res) => {
     try {
       const caller = await requireAdmin(req, res); if (!caller) return;
       const c = await currentCycle(); if (!c) throw bad('No review cycle.');
-      if (today() < c.fee_effective) throw bad(`New fees can be applied from ${c.fee_effective}.`);
-      const { data: parts } = await admin.from('review_participants').select('staff_id, new_rate, current_rate, released_at, applied_at').eq('cycle_id', c.id);
-      const todo = (parts || []).filter(p => p.released_at && !p.applied_at && Number(p.new_rate) > Number(p.current_rate || 0));
-      let n = 0;
-      for (const p of todo) {
-        const { data: st } = await admin.from('staff').select('monthly_rate').eq('id', p.staff_id).single();
-        if (Number(st?.monthly_rate) >= Number(p.new_rate)) continue; // never lower, never double-apply
-        const { error } = await admin.from('staff').update({ monthly_rate: Number(p.new_rate) }).eq('id', p.staff_id);
-        if (error) throw error;
-        await admin.from('review_participants').update({ applied_at: new Date().toISOString() }).eq('cycle_id', c.id).eq('staff_id', p.staff_id);
-        n++;
-      }
-      res.json({ ok: true, applied: n });
+      const { staff_id } = req.body || {};
+      if (!staff_id) throw bad('Pick a contractor.');
+      const { data: p } = await admin.from('review_participants').select('staff_id, new_rate, current_rate, finalized_at, applied_at').eq('cycle_id', c.id).eq('staff_id', staff_id).maybeSingle();
+      if (!p) throw bad('Not in this cycle.');
+      if (!p.finalized_at) throw bad('Finalize the score first.');
+      if (p.applied_at) throw bad('Already applied.');
+      const nr = Number(p.new_rate);
+      const { data: st } = await admin.from('staff').select('monthly_rate').eq('id', staff_id).single();
+      if (!(nr > 0)) throw bad('No new rate to apply.');
+      if (Number(st?.monthly_rate) > nr) throw bad(`The roster rate (${st.monthly_rate}) is already higher than ${nr}. Nothing applied.`);
+      if (Number(st?.monthly_rate) !== nr) { const { error } = await admin.from('staff').update({ monthly_rate: nr }).eq('id', staff_id); if (error) throw error; }
+      const { error: e2 } = await admin.from('review_participants').update({ applied_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('cycle_id', c.id).eq('staff_id', staff_id);
+      if (e2) throw e2;
+      res.json({ ok: true, staff_id, monthly_rate: nr, previous: st?.monthly_rate ?? null });
     } catch (e) { fail(res, e); }
   });
 
