@@ -9206,8 +9206,8 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     return m;
   }
   const fmtD=iso=>iso?new Date(iso+'T00:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric',year:'numeric'}):'';
-  function roster(){
-    const c=cycle();
+  function roster(asOf){
+    const c={...cycle(),...(asOf?{asOf}:{})};
     const list=(staffList||[]).filter(s=>s.active&&s.role!=='admin').map(s=>{
       const hire=s.hire_date?String(s.hire_date).slice(0,10):null;
       const months=hire?monthsBetween(hire,c.asOf):null;
@@ -9260,11 +9260,13 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       <div class="muted" style="font-size:12px;margin-bottom:8px">Tenure is measured on ${esc(fmtD(c.asOf))} (end of the review window). Suggested peers: up to 3 from the same client first, then other clients; nobody reviews more than 4 people. Suggestions only — peer approval comes in the next build.</div>
       <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Client</th><th>Hire date</th><th>Tenure</th><th>Review type</th><th>Suggested peers</th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="muted">No active staff.</td></tr>'}</tbody></table></div></div>`;
   }
-  /* ===== Annual Service Review — ADMIN PREVIEW / MOCKUP (2026-11-22, Rendy approved plan) =====
-     Dec 7–14 self + peer · Dec 14–21 admin + 1-on-1 · by Dec 28 acknowledge · new fees at first Jan cutoff.
-     Weights: Admin 50 · Peer 20 (needs 3+, else → Admin) · Self 10 · Reliability 20.
-     Bands (same as Reliability): Outstanding 4.50+ +8% · Exceeds 3.75–4.49 +5% · Meets 3.00–3.74 +3% · Developing <3.00 0%.
-     Nothing here is saved; ratings shown for staff are SAMPLE numbers (Reliability is real when the YTD tab has computed it). */
+  /* ===== Annual Service Review — LIVE (2026-11-22, Rendy) =====
+     Server: /api/review/* (server/review.js) · tables: supabase/review.sql.
+     Phases come from the cycle dates (PHT): setup → open (self + peer) → scoring → released per person.
+     Weights Admin 50 · Peer 20 (needs 3+, else → Admin) · Self 10 (missing → Admin) · Reliability 20.
+     Bands: Outstanding 4.50+ +10% · Exceeds 3.75–4.49 +5% · Meets 3.00–3.74 +3% · Developing 0%.
+     ROI guard: margin = (176 h × SMB rate × cycle FX − Monthly Contract Fee at the new rate) ÷ billing; flag under 50%.
+     Overrides need a reason and are flagged on Results. Fees never go down. */
   const CRIT=[
     {k:'quality',t:'Quality & accuracy of work',d:'Deliverables are complete, accurate and need little rework.',peer:true},
     {k:'comm',t:'Communication & responsiveness',d:'Clear updates, quick acknowledgments, flags issues early.',peer:true},
@@ -9272,139 +9274,361 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     {k:'team',t:'Teamwork & collaboration',d:'Helps teammates, shares knowledge, easy to work with.',peer:true},
     {k:'client',t:'Client focus',d:'Understands the client’s needs and protects the account.',peer:false},
     {k:'growth',t:'Growth & learning',d:'Picks up new tools/tasks, acts on feedback.',peer:false}];
+  const PEER_CRIT=CRIT.filter(c=>c.peer);
   const SCALE=[[1,'Rarely meets'],[2,'Developing'],[3,'Meets'],[4,'Exceeds'],[5,'Outstanding']];
-  const BANDS=[{min:4.5,name:'Outstanding',pct:8,col:'var(--teal)'},{min:3.75,name:'Exceeds',pct:5,col:'#7FA7F5'},{min:3,name:'Meets',pct:3,col:'var(--gold)'},{min:0,name:'Developing',pct:0,col:'var(--rose)'}];
-  const W={admin:.5,peer:.2,self:.1,rel:.2};
-  const band=sc=>BANDS.find(b=>sc>=b.min)||BANDS[3];
+  const DEF_BANDS=[{min:4.5,name:'Outstanding',pct:10},{min:3.75,name:'Exceeds',pct:5},{min:3,name:'Meets',pct:3},{min:0,name:'Developing',pct:0}];
+  const BAND_COL={Outstanding:'var(--teal)',Exceeds:'#7FA7F5',Meets:'var(--gold)',Developing:'var(--rose)'};
+  const DEF_W={admin:.5,peer:.2,self:.1,rel:.2};
+  const ROI_FLOOR=50, HOURS=176;
   const r2=n=>Math.round(n*100)/100;
   const php=v=>'₱'+Number(v||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
-  function seed(str){let h=2166136261;for(const ch of String(str)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return ()=>{h^=h<<13;h^=h>>>17;h^=h<<5;return ((h>>>0)%1000)/1000;};}
-  const pick=(rnd,lo,hi)=>Math.round((lo+rnd()*(hi-lo))*2)/2;
-  function sample(s){ /* deterministic SAMPLE ratings per person */
-    const rnd=seed(s.id), base=2.8+rnd()*1.9;
-    const self={},admin={};CRIT.forEach(c=>{self[c.k]=Math.min(5,Math.max(1,pick(rnd,base,base+0.9)));admin[c.k]=Math.min(5,Math.max(1,pick(rnd,base-0.6,base+0.5)));});
-    const nPeers=rnd()<0.18?2:3, peers=[];for(let i=0;i<nPeers;i++){const o={};CRIT.filter(c=>c.peer).forEach(c=>o[c.k]=Math.min(5,Math.max(1,pick(rnd,base-0.5,base+0.6))));peers.push(o);}
-    const relReal=window.Reliability?._byStaff?.()[s.id]?.score;
-    return {self,admin,peers,rel:relReal!=null?relReal:Math.min(5,r2(base+0.2+rnd()*0.6)),relReal:relReal!=null};
+  const avg=a=>{const v=a.filter(x=>Number.isFinite(x));return v.length?v.reduce((x,y)=>x+y,0)/v.length:null;};
+  const fmtDay=iso=>iso?fmtD(String(iso).slice(0,10)):'—';
+  const todayPH=()=>phDate(new Date());
+
+  /* final score, band and fee change — the one formula used everywhere */
+  function computeScore({adminR,selfR,peerOverall,peerCount,rel,weights,bands,type,overridePct,currentRate}){
+    const W=weights||DEF_W, B=(bands||DEF_BANDS).slice().sort((a,b)=>b.min-a.min);
+    const a=avg(CRIT.map(c=>Number(adminR?.[c.k])));
+    const sf=selfR?avg(CRIT.map(c=>Number(selfR[c.k]))):null;
+    const pv=peerCount>=3&&peerOverall!=null?peerOverall:null;
+    const relOk=Number.isFinite(Number(rel))&&rel!==''&&rel!=null;
+    if(a==null||!relOk) return {ready:false,a,sf,pv};
+    const wA=W.admin+(pv==null?W.peer:0)+(sf==null?W.self:0), wP=pv==null?0:W.peer, wS=sf==null?0:W.self;
+    const total=r2(a*wA+(pv||0)*wP+(sf||0)*wS+Number(rel)*W.rel);
+    const band=B.find(b=>total>=b.min)||B[B.length-1];
+    const bandPct=type==='dev'?0:Number(band.pct||0);
+    const pct=overridePct!=null&&overridePct!==''?Math.max(0,Number(overridePct)):bandPct;
+    const cur=Number(currentRate||0), nw=Math.round(cur*(1+pct/100));
+    return {ready:true,a:r2(a),sf:sf==null?null:r2(sf),pv:pv==null?null:r2(pv),rel:Number(rel),wA,wP,wS,wR:W.rel,total,band:band.name,bandPct,pct,overridden:pct!==bandPct,current:cur,newRate:nw};
   }
-  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
-  function score(sm,adminOverride){
-    const adm=adminOverride||sm.admin;
-    const a=avg(CRIT.map(c=>adm[c.k])), sf=avg(CRIT.map(c=>sm.self[c.k]));
-    const pv=sm.peers.length>=3?avg(sm.peers.map(p=>avg(Object.values(p)))):null;
-    const wA=W.admin+(pv==null?W.peer:0), wP=pv==null?0:W.peer;
-    const total=r2(a*wA+(pv||0)*wP+sf*W.self+sm.rel*W.rel);
-    return {a:r2(a),sf:r2(sf),pv:pv==null?null:r2(pv),rel:sm.rel,wA,wP,total,b:band(total)};
+
+  let D=null, ST=null, tab='overview', selId=null, edits={}, loading=false, feeCtx=null, msg='';
+  const call=(path,body)=>api(path,body?{method:'POST',body:JSON.stringify(body)}:{});
+  const staffById=id=>(staffList||[]).find(s=>s.id===id);
+  const nameOf=id=>staffById(id)?.full_name||'—';
+  const clientOf=id=>{const s=staffById(id);return (clients.find(c=>c.id===s?.client_id)||{}).name||'— No client —';};
+  const relFor=id=>{const v=window.Reliability?._byStaff?.()[id]?.score;return v==null?null:Number(v);};
+
+  async function loadFeeCtx(){
+    if(feeCtx) return feeCtx;
+    const CF=window.ContractFee; if(!CF?._fetchRules) return null;
+    try{const [rules,ex]=await Promise.all([CF._fetchRules(),CF._fetchExtras(null)]);feeCtx={rules,extras:Object.fromEntries(ex.rows.map(r=>[r.staff_id,r]))};}catch(e){feeCtx=null;}
+    return feeCtx;
   }
-  let tab='overview', selId=null, adminEdit={}, budgetCap=15000;
-  const TABS=[['overview','🧭 Overview'],['self','📝 Self review (staff view)'],['peer','🤝 Peer feedback (staff view)'],['admin','🧑‍⚖️ Admin scoring'],['results','💰 Results & fee review'],['ack','✅ Result & acknowledge (staff view)'],['setup','⚙️ Review type & peers']];
-  const rateRow=(name,val,dis)=>`<div class="pr-q"><div><b>${esc(name.t)}</b><div class="muted" style="font-size:12px">${esc(name.d)}</div></div><div class="pr-scale">${SCALE.map(([n,l])=>`<label title="${l}"><input type="radio" name="${dis}${name.k}" ${val===n?'checked':''}><span>${n}</span><small>${l}</small></label>`).join('')}</div></div>`;
-  function overviewHtml(){
-    return `<div class="card"><div class="hdr"><h3 style="font-size:15px">Annual Service Review — ${cycle().year} cycle</h3></div>
-      <div class="pr-w"><div><b>50%</b><span>Admin / PM review</span></div><div><b>20%</b><span>Peer feedback (anonymous · needs 3+ responses, else moves to Admin)</span></div><div><b>10%</b><span>Self review</span></div><div><b>20%</b><span>Reliability (automatic)</span></div></div>
-      <div class="bb-sec" style="margin:16px 0 8px">Timeline</div>
-      <div class="pr-tl"><div><b>Dec 7 – 14</b>Self review + peer feedback open</div><div><b>Dec 14 – 21</b>Admin scoring + 1-on-1s</div><div><b>By Dec 28</b>Staff see result · 7 days to acknowledge or ask for reconsideration</div><div><b>Late Dec</b>Rates updated → Statements of Work issued</div><div><b>First Jan cutoff</b>New contract fees take effect</div></div>
-      <div class="bb-sec" style="margin:16px 0 8px">Score bands &amp; contract fee review</div>
-      <table><thead><tr><th>Final score</th><th>Band</th><th style="text-align:right">Fee increase</th></tr></thead><tbody>
-      ${BANDS.map((b,i)=>`<tr><td class="mono">${i===0?'4.50 – 5.00':i===1?'3.75 – 4.49':i===2?'3.00 – 3.74':'below 3.00'}</td><td><b style="color:${b.col}">${b.name}</b></td><td class="mono" style="text-align:right">+${b.pct}%</td></tr>`).join('')}
-      <tr><td class="muted" colspan="2">Under 6 months of service by ${esc(fmtD(cycle().asOf))} (development-only review)</td><td class="mono" style="text-align:right">no change</td></tr></tbody></table>
-      <div class="muted" style="font-size:12px;margin-top:10px;line-height:1.5">Fees never go down. Year End Bonus is separate. Rating criteria (1–5): ${CRIT.map(c=>esc(c.t)).join(' · ')}. Peers rate the first four only.</div></div>`;
+  /* ROI guard for one person at a given monthly rate */
+  function roi(staffId,rate){
+    const s=staffById(staffId), smb=Number(smbRates?.[staffId]||0), fx=Number(D?.cycle?.fx||60);
+    if(!s||!smb) return null;
+    const billing=HOURS*smb*fx;
+    let cost=Number(rate||0);
+    if(feeCtx&&window.ContractFee?._compute){try{const cl=clients.find(c=>c.id===s.client_id)||null;cost=window.ContractFee._compute({...s,monthly_rate:rate},cl,feeCtx.rules,feeCtx.extras[staffId]||null,todayPH()).total;}catch(_){}}
+    return {billing,cost,margin:r2((billing-cost)/billing*100),maxPct:null};
   }
-  function selfHtml(){
-    const s=(staffList||[]).find(x=>x.role!=='admin'&&x.active)||{full_name:'Juan Dela Cruz'};
-    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">📝 My Self Review — ${cycle().year}</h3><div class="muted" style="font-size:12.5px">${esc(s.full_name)} · due Dec 14 · counts for 10% · only you and Sir Rendy see this</div></div><span class="pr-pill pr-dev">Preview</span></div>
-      ${CRIT.map(c=>rateRow(c,null,'sf_')).join('')}
-      <label style="margin-top:12px">What went well this year? Your proudest wins</label><textarea rows="3" style="width:100%" placeholder="e.g. took over the H2H inbox while Ana was on PTO…"></textarea>
-      <label style="margin-top:8px">What would you like to improve, and what support would help?</label><textarea rows="3" style="width:100%"></textarea>
-      <label style="margin-top:8px">Your goals for next year (1–3)</label><textarea rows="2" style="width:100%"></textarea>
-      <div class="row" style="margin-top:10px;gap:8px"><button class="btn btn-ghost" disabled>Save draft</button><button class="btn btn-gold" disabled>Submit self review</button><span class="muted" style="font-size:12px">Disabled in preview · drafts save automatically in the real form</span></div></div>`;
+  function maxPctForFloor(staffId){ /* largest increase that keeps margin ≥ floor */
+    const s=staffById(staffId); if(!s||!smbRates?.[staffId]) return null;
+    let lo=0,hi=200; const cur=Number(s.monthly_rate||0);
+    for(let i=0;i<30;i++){const mid=(lo+hi)/2;const r=roi(staffId,cur*(1+mid/100));if(r&&r.margin>=ROI_FLOOR)lo=mid;else hi=mid;}
+    return Math.floor(lo*10)/10;
   }
-  function peerHtml(){
-    const others=(staffList||[]).filter(x=>x.role!=='admin'&&x.active).slice(1,4);
-    const names=others.length?others.map(x=>x.full_name):['Teammate A','Teammate B','Teammate C'];
-    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">🤝 Peer Feedback — ${cycle().year}</h3><div class="muted" style="font-size:12.5px">You've been asked to give feedback on ${names.length} teammates · due Dec 14 · <b>anonymous</b>: they and Sir Rendy see only combined results, never who wrote what</div></div><span class="pr-pill pr-dev">Preview</span></div>
-      <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">${names.map((n,i)=>`<span class="pr-pill ${i===0?'pr-ann':'pr-x'}">${esc(n)}${i===0?' · in progress':' · to do'}</span>`).join('')}</div>
-      <div style="font-weight:700;margin:4px 0 8px">Feedback for ${esc(names[0])}</div>
-      ${CRIT.filter(c=>c.peer).map(c=>rateRow(c,null,'pf_')).join('')}
-      <label style="margin-top:10px">One thing they do really well</label><textarea rows="2" style="width:100%"></textarea>
-      <label style="margin-top:8px">One thing that would make them even better</label><textarea rows="2" style="width:100%"></textarea>
+  function scoreFor(p){
+    const e=edits[p.staff_id]||{};
+    const adminR=e.admin_ratings||p.admin_ratings||{};
+    const rel=e.reliability!==undefined?e.reliability:(p.reliability!=null?p.reliability:relFor(p.staff_id));
+    const ov=e.override_pct!==undefined?e.override_pct:p.override_pct;
+    const cur=p.applied_at?Number(p.current_rate):Number(staffById(p.staff_id)?.monthly_rate||p.current_rate||0);
+    return computeScore({adminR,selfR:p.self?.ratings||null,peerOverall:p.peer?.overall,peerCount:p.peer?.count||0,rel,weights:D.cycle.weights,bands:D.cycle.bands,type:p.review_type,overridePct:ov,currentRate:cur});
+  }
+
+  const scaleInputs=(name,val,attr,small)=>`<div class="pr-scale${small?' sm':''}">${SCALE.map(([n,l])=>`<label title="${l}"><input type="radio" name="${name}" value="${n}" ${attr} ${Number(val)===n?'checked':''}><span>${n}</span>${small?'':`<small>${l}</small>`}</label>`).join('')}</div>`;
+  const qRow=(c,val,name,attr)=>`<div class="pr-q"><div><b>${esc(c.t)}</b><div class="muted" style="font-size:12px">${esc(c.d)}</div></div>${scaleInputs(name,val,attr)}</div>`;
+
+  /* ======================= STAFF ======================= */
+  function staffView(){
+    if(!ST) return '<div class="card muted">Loading…</div>';
+    if(!ST.cycle||!ST.participant&&!ST.peers.length) return staffHtml();
+    const c=ST.cycle, ph=ST.phase;
+    const head=`<div class="card"><div class="hdr"><div><h3 style="font-size:15px">🌱 ${c.year} Annual Service Review</h3><div class="muted" style="font-size:12.5px">Self review + peer feedback: <b>${fmtDay(c.self_open)} – ${fmtDay(c.self_due)}</b> · results by ${fmtDay(c.admin_due)} · new contract fees from ${fmtDay(c.fee_effective)}</div></div></div>${msg?`<div class="note">${esc(msg)}</div>`:''}</div>`;
+    if(ST.result) return head+resultView(ST.result,c);
+    if(ph==='setup') return head+`<div class="card"><b>Opens ${fmtDay(c.self_open)}.</b><div class="muted" style="margin-top:6px">You’ll write a short self review${ST.peers.length?` and give anonymous feedback on ${ST.peers.length} teammate${ST.peers.length===1?'':'s'}`:''}. It takes about 15–20 minutes.</div></div>`;
+    if(ph==='scoring') return head+`<div class="card"><b>The self review and peer feedback window has closed.</b><div class="muted" style="margin-top:6px">Sir Rendy is reviewing now. You’ll get a Slack message when your result is ready.</div></div>`;
+    const selfDone=ST.self?.status==='submitted';
+    const peerTodo=ST.peers.filter(p=>p.sub?.status!=='submitted');
+    return head+(ST.participant?selfForm(selfDone):'')+peerSection(peerTodo);
+  }
+  function selfForm(done){
+    const s=ST.self||{}, r=s.ratings||{}, a=s.answers||{};
+    if(done) return `<div class="card"><h3 style="font-size:15px">📝 My self review</h3><div class="note" style="margin-top:8px">✅ Submitted ${fmtDay(s.submitted_at)}. Thank you!</div></div>`;
+    return `<div class="card" id="prSelf"><div class="hdr"><div><h3 style="font-size:15px">📝 My self review</h3><div class="muted" style="font-size:12.5px">Due ${fmtDay(ST.cycle.self_due)} · counts for 10% · only you and Sir Rendy see this</div></div></div>
+      ${CRIT.map(c=>qRow(c,r[c.k],'sf_'+c.k,`data-sfk="${c.k}"`)).join('')}
+      <label style="margin-top:12px">What went well this year? Your proudest wins</label><textarea rows="3" style="width:100%" data-sfa="wins">${esc(a.wins||'')}</textarea>
+      <label style="margin-top:8px">What would you like to improve, and what support would help?</label><textarea rows="3" style="width:100%" data-sfa="improve">${esc(a.improve||'')}</textarea>
+      <label style="margin-top:8px">Your goals for next year (1–3)</label><textarea rows="2" style="width:100%" data-sfa="goals">${esc(a.goals||'')}</textarea>
+      <div class="row" style="margin-top:10px;gap:8px"><button class="btn btn-ghost" id="prSelfSave">Save draft</button><button class="btn btn-gold" id="prSelfSubmit">Submit self review</button><span class="muted" id="prSelfMsg" style="font-size:12px"></span></div></div>`;
+  }
+  let peerSel=null;
+  function peerSection(todo){
+    if(!ST.peers.length) return '';
+    const doneN=ST.peers.length-todo.length;
+    if(!todo.length) return `<div class="card"><h3 style="font-size:15px">🤝 Peer feedback</h3><div class="note" style="margin-top:8px">✅ All ${ST.peers.length} done. Thank you!</div></div>`;
+    if(!peerSel||!todo.find(p=>p.id===peerSel)) peerSel=todo[0].id;
+    const p=ST.peers.find(x=>x.id===peerSel), r=p.sub?.ratings||{}, a=p.sub?.answers||{};
+    return `<div class="card" id="prPeer"><div class="hdr"><div><h3 style="font-size:15px">🤝 Peer feedback</h3><div class="muted" style="font-size:12.5px">${doneN} of ${ST.peers.length} done · due ${fmtDay(ST.cycle.self_due)} · <b>anonymous</b>: they and Sir Rendy see only combined results, never who wrote what</div></div></div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">${ST.peers.map(x=>{const d=x.sub?.status==='submitted';return `<button class="btn ${x.id===peerSel?'btn-gold':'btn-ghost'}" ${d?'disabled':''} data-peersel="${x.id}">${esc(x.full_name)}${d?' ✓':''}</button>`;}).join('')}</div>
+      <div style="font-weight:700;margin:4px 0 8px">Feedback for ${esc(p.full_name)}</div>
+      ${PEER_CRIT.map(c=>qRow(c,r[c.k],'pf_'+c.k,`data-pfk="${c.k}"`)).join('')}
+      <label style="margin-top:10px">One thing they do really well</label><textarea rows="2" style="width:100%" data-pfa="strength">${esc(a.strength||'')}</textarea>
+      <label style="margin-top:8px">One thing that would make them even better</label><textarea rows="2" style="width:100%" data-pfa="improve">${esc(a.improve||'')}</textarea>
       <div class="muted" style="font-size:11.5px;margin-top:6px">Keep it about the work. Comments are shown to the person word-for-word but without your name.</div>
-      <div class="row" style="margin-top:10px;gap:8px"><button class="btn btn-gold" disabled>Submit &amp; next teammate</button><button class="btn btn-ghost" disabled>I haven't worked with them enough</button></div></div>`;
+      <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" id="prPeerSave">Save draft</button><button class="btn btn-gold" id="prPeerSubmit">Submit &amp; next teammate</button><button class="btn btn-ghost" id="prPeerDecline">I haven't worked with them enough</button><span class="muted" id="prPeerMsg" style="font-size:12px"></span></div></div>`;
   }
-  function eligibleRows(){return roster().filter(r=>r.type!=='missing');}
-  function adminScoreHtml(){
-    const rows=eligibleRows(); if(!rows.length)return '<div class="card muted">No active staff.</div>';
-    if(!selId||!rows.find(r=>r.s.id===selId))selId=rows[0].s.id;
-    const r=rows.find(x=>x.s.id===selId), sm=sample(r.s), ad=adminEdit[selId]||(adminEdit[selId]={...sm.admin}), sc=score(sm,ad);
-    const peerAvg=k=>sm.peers.length?r2(avg(sm.peers.map(p=>p[k]))):null;
-    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">🧑‍⚖️ Admin scoring</h3><div class="muted" style="font-size:12.5px">Self and peer numbers below are <b>SAMPLE</b> data${sm.relReal?'; Reliability is the real score':'; Reliability is sample (open YTD Attendance first to load real scores)'}. Change your ratings to see the score move.</div></div>
-      <select id="prSel" style="width:auto">${rows.map(x=>`<option value="${x.s.id}" ${x.s.id===selId?'selected':''}>${esc(x.s.full_name)} · ${esc(x.client)}</option>`).join('')}</select></div>
-      ${r.type==='dev'?'<div class="note">Under 6 months of service: development-only review — scored for feedback, no fee change this cycle.</div>':''}
-      <div class="pr-kpis" style="margin:8px 0 12px"><div class="stat"><div class="k">Final score</div><div class="v" style="color:${sc.b.col}">${sc.total.toFixed(2)}</div></div><div class="stat"><div class="k">Band</div><div class="v" style="color:${sc.b.col};font-size:20px">${sc.b.name}</div></div><div class="stat"><div class="k">Fee increase</div><div class="v">${r.type==='dev'?'—':'+'+sc.b.pct+'%'}</div></div><div class="stat"><div class="k">Peer responses</div><div class="v" style="color:${sm.peers.length>=3?'var(--ink)':'var(--rose)'}">${sm.peers.length}/3</div></div></div>
+  function resultView(r,c){
+    const col=BAND_COL[r.band]||'var(--ink)';
+    const ack=r.ack_status==='acknowledged'?`<div class="note">✅ You acknowledged this review on ${fmtDay(r.ack_at)}.</div>`
+      :r.ack_status==='reconsideration'?`<div class="note">📨 You asked for reconsideration on ${fmtDay(r.ack_at)}: “${esc(r.ack_note||'')}”${r.admin_reply?`<br><b>Sir Rendy:</b> ${esc(r.admin_reply)}`:'<br>Sir Rendy will reply before the January cutoff.'}</div>${r.admin_reply?'<div class="row" style="margin-top:8px"><button class="btn btn-gold" id="prAck">I acknowledge my review</button></div>':''}`
+      :`<label style="margin-top:12px">Optional note, or your reason if you ask for reconsideration</label><textarea rows="2" style="width:100%" id="prAckNote"></textarea>
+        <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="btn btn-gold" id="prAck">I acknowledge my review</button><button class="btn btn-ghost" id="prRecon">Ask for reconsideration</button><span class="muted" style="font-size:12px">Please respond by ${fmtDay(c.ack_due)}.</span></div>`;
+    return `<div class="card"><div class="hdr"><h3 style="font-size:15px">Your result</h3></div>
+      <div class="pr-kpis" style="margin:8px 0 12px"><div class="stat"><div class="k">Final score</div><div class="v" style="color:${col}">${Number(r.final_score).toFixed(2)}</div></div><div class="stat"><div class="k">Band</div><div class="v" style="color:${col};font-size:20px">${esc(r.band)}</div></div><div class="stat"><div class="k">New monthly contract fee</div><div class="v" style="font-size:18px">${Number(r.new_rate)>Number(r.current_rate)?php(r.new_rate):'No change'}</div></div><div class="stat"><div class="k">Takes effect</div><div class="v" style="font-size:16px">${fmtDay(c.fee_effective)}</div></div></div>
+      <table><thead><tr><th>Criterion</th><th style="text-align:center">You</th><th style="text-align:center">Peers</th><th style="text-align:center">Sir Rendy</th></tr></thead><tbody>
+      ${CRIT.map(x=>`<tr><td>${esc(x.t)}</td><td class="mono" style="text-align:center">${r.self?.[x.k]??'—'}</td><td class="mono" style="text-align:center">${x.peer&&r.peer?.count>=3&&r.peer.per?.[x.k]!=null?r.peer.per[x.k]:'—'}</td><td class="mono" style="text-align:center">${r.admin_ratings?.[x.k]??'—'}</td></tr>`).join('')}</tbody></table>
+      ${r.peer?.count>=3?`<div class="bb-sec" style="margin:12px 0 6px">What your teammates said (anonymous)</div><div class="note" style="font-size:13px">${[...(r.peer.strengths||[]).map(t=>'👍 '+esc(t)),...(r.peer.improve||[]).map(t=>'🌱 '+esc(t))].join('<br>')||'<span class="muted">No written comments.</span>'}</div>`:'<div class="muted" style="font-size:12px;margin-top:8px">Fewer than 3 teammates gave feedback, so peer results are not shown (to keep them anonymous) and that part of the score moved to Sir Rendy’s review.</div>'}
+      ${r.admin_summary?`<div class="bb-sec" style="margin:12px 0 6px">From Sir Rendy</div><div class="note" style="font-size:13px;white-space:pre-wrap">${esc(r.admin_summary)}</div>`:''}
+      ${ack}</div>`;
+  }
+  function wireStaff(){
+    const host=$('prRoot');
+    const grab=(sel,attrK,attrA)=>{const box=host.querySelector(sel);const ratings={},answers={};box.querySelectorAll(`[${attrK}]`).forEach(i=>{if(i.checked)ratings[i.getAttribute(attrK)]=Number(i.value);});box.querySelectorAll(`[${attrA}]`).forEach(t=>answers[t.getAttribute(attrA)]=t.value);return {ratings,answers};};
+    const send=async(body,msgEl,okText)=>{msgEl.textContent='Saving…';try{await call('/api/review/submit',body);msg=okText||'';await loadStaff();}catch(e){msgEl.textContent=e.message;}};
+    if($('prSelfSave')) $('prSelfSave').onclick=()=>send({kind:'self',...grab('#prSelf','data-sfk','data-sfa'),final:false},$('prSelfMsg'),'Draft saved.');
+    if($('prSelfSubmit')) $('prSelfSubmit').onclick=()=>{if(!confirm('Submit your self review? You can’t change it after.'))return;send({kind:'self',...grab('#prSelf','data-sfk','data-sfa'),final:true},$('prSelfMsg'),'Self review submitted. Thank you!');};
+    host.querySelectorAll('[data-peersel]').forEach(b=>b.onclick=()=>{peerSel=b.dataset.peersel;render();});
+    if($('prPeerSave')) $('prPeerSave').onclick=()=>send({kind:'peer',reviewee_id:peerSel,...grab('#prPeer','data-pfk','data-pfa'),final:false},$('prPeerMsg'),'Draft saved.');
+    if($('prPeerSubmit')) $('prPeerSubmit').onclick=()=>send({kind:'peer',reviewee_id:peerSel,...grab('#prPeer','data-pfk','data-pfa'),final:true},$('prPeerMsg'),'Feedback submitted. Thank you!');
+    if($('prPeerDecline')) $('prPeerDecline').onclick=()=>{if(!confirm('Skip this teammate because you haven’t worked with them enough?'))return;send({kind:'peer',reviewee_id:peerSel,declined:true,final:true},$('prPeerMsg'),'Noted — skipped.');};
+    if($('prAck')) $('prAck').onclick=async()=>{try{await call('/api/review/ack',{action:'acknowledged',note:$('prAckNote')?.value||''});msg='Thank you — acknowledged.';await loadStaff();}catch(e){alert(e.message);}};
+    if($('prRecon')) $('prRecon').onclick=async()=>{const n=$('prAckNote').value.trim();if(!n)return alert('Please write your reason in the box first.');try{await call('/api/review/ack',{action:'reconsideration',note:n});msg='Sent to Sir Rendy.';await loadStaff();}catch(e){alert(e.message);}};
+  }
+  async function loadStaff(){try{ST=await call('/api/review/me');}catch(e){ST={cycle:null,peers:[],err:e.message};}render();}
+
+  /* ======================= ADMIN ======================= */
+  const TABS=[['overview','🧭 Overview'],['peers','🤝 Participants & peers'],['progress','📈 Progress'],['score','🧑‍⚖️ Admin scoring'],['results','💰 Results & fee review'],['acks','✅ Acknowledgments']];
+  function setupCycleHtml(){
+    const y=Number(todayPH().slice(0,4));
+    return `<div class="card"><div class="hdr"><h3 style="font-size:15px">Set up the ${y} Annual Service Review</h3></div>
+      <div class="muted" style="font-size:12.5px;margin-bottom:10px">Creating the cycle adds every active contractor with the review type and suggested peers shown under “Participants & peers” (you can change both afterwards). Staff see the forms automatically from the opening date.</div>
+      <div class="pr-form">
+      <div><label>Year</label><input type="number" id="cyYear" value="${y}"></div>
+      <div><label>Self + peer opens</label><input type="date" id="cyOpen" value="${y}-12-07"></div>
+      <div><label>Self + peer due</label><input type="date" id="cyDue" value="${y}-12-14"></div>
+      <div><label>Admin scoring due</label><input type="date" id="cyAdmin" value="${y}-12-21"></div>
+      <div><label>Acknowledge by</label><input type="date" id="cyAck" value="${y}-12-28"></div>
+      <div><label>New fees effective</label><input type="date" id="cyFee" value="${y+1}-01-01"></div>
+      <div><label>6-month rule measured on</label><input type="date" id="cyTen" value="${y}-11-30"></div>
+      <div><label>FX for ROI (₱ per $1)</label><input type="number" id="cyFx" value="60" step="0.01"></div></div>
+      <div class="bb-sec" style="margin:14px 0 6px">Bands</div>
+      <table><thead><tr><th>Band</th><th>From score</th><th>Fee increase %</th></tr></thead><tbody>${DEF_BANDS.map((b,i)=>`<tr><td><b style="color:${BAND_COL[b.name]}">${b.name}</b></td><td class="mono">${b.min.toFixed(2)}</td><td><input type="number" data-bandpct="${i}" value="${b.pct}" style="width:80px" min="0" step="0.5"></td></tr>`).join('')}</tbody></table>
+      <div class="row" style="margin-top:12px"><button class="btn btn-gold" id="cyCreate">Create cycle</button><span class="muted" id="cyMsg" style="font-size:12px"></span></div></div>`;
+  }
+  function overviewHtml(){
+    const c=D.cycle, P=D.participants, ph=D.phase;
+    const phaseLbl={setup:`Not open yet — opens ${fmtDay(c.self_open)}`,open:`OPEN — self + peer due ${fmtDay(c.self_due)}`,scoring:`Admin scoring — due ${fmtDay(c.admin_due)}`}[ph];
+    const nFinal=P.filter(p=>p.finalized_at).length, nRel=P.filter(p=>p.released_at).length, nAck=P.filter(p=>p.ack_status==='acknowledged').length, nRec=P.filter(p=>p.ack_status==='reconsideration').length;
+    const selfDone=P.filter(p=>p.self?.status==='submitted').length;
+    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">${c.year} Annual Service Review</h3><div class="muted" style="font-size:12.5px">${esc(phaseLbl)} · today ${fmtDay(D.today)}</div></div>${ph==='open'?'<button class="btn btn-gold" id="prRemind">Send Slack reminders</button>':''}</div>
+      <div class="pr-w"><div><b>${Math.round(c.weights.admin*100)}%</b><span>Admin / PM review</span></div><div><b>${Math.round(c.weights.peer*100)}%</b><span>Peer feedback (anonymous · needs 3+, else → Admin)</span></div><div><b>${Math.round(c.weights.self*100)}%</b><span>Self review (missing → Admin)</span></div><div><b>${Math.round(c.weights.rel*100)}%</b><span>Reliability</span></div></div>
+      <div class="bb-sec" style="margin:16px 0 8px">Timeline</div>
+      <div class="pr-tl"><div><b>${fmtDay(c.self_open)} – ${fmtDay(c.self_due)}</b>Self review + peer feedback</div><div><b>to ${fmtDay(c.admin_due)}</b>Admin scoring + 1-on-1s, then release</div><div><b>by ${fmtDay(c.ack_due)}</b>Staff acknowledge / reconsideration</div><div><b>Late Dec</b>Statements of Work issued</div><div><b>${fmtDay(c.fee_effective)}</b>Apply new contract fees</div></div>
+      <div class="pr-kpis" style="margin-top:14px"><div class="stat"><div class="k">Participants</div><div class="v">${P.length}</div></div><div class="stat"><div class="k">Self reviews in</div><div class="v">${selfDone}/${P.length}</div></div><div class="stat"><div class="k">Finalized / released</div><div class="v">${nFinal} / ${nRel}</div></div><div class="stat"><div class="k">Acknowledged</div><div class="v">${nAck}${nRec?` <span style="font-size:13px;color:var(--rose)">· ${nRec} reconsideration</span>`:''}</div></div></div>
+      <div class="bb-sec" style="margin:16px 0 8px">Bands &amp; contract fee review</div>
+      <table><thead><tr><th>Final score</th><th>Band</th><th style="text-align:right">Fee increase</th></tr></thead><tbody>${c.bands.slice().sort((a,b)=>b.min-a.min).map((b,i,arr)=>`<tr><td class="mono">${b.min.toFixed(2)}${i?` – ${(arr[i-1].min-0.01).toFixed(2)}`:' – 5.00'}</td><td><b style="color:${BAND_COL[b.name]||'var(--ink)'}">${esc(b.name)}</b></td><td class="mono" style="text-align:right">${b.pct?'+'+b.pct+'%':'no change'}</td></tr>`).join('')}
+      <tr><td class="muted" colspan="2">Development-only (under 6 months on ${fmtDay(c.tenure_asof)})</td><td class="mono" style="text-align:right">no change</td></tr></tbody></table>
+      <div class="muted" style="font-size:12px;margin-top:10px;line-height:1.5">ROI guard: margin = (${HOURS} h × SMB rate × ₱${c.fx}) minus the Monthly Contract Fee at the new rate, ÷ billing. Anyone under ${ROI_FLOOR}% is flagged on Results. Fees never go down; overrides need a reason.</div>
+      <details style="margin-top:12px"><summary class="muted" style="cursor:pointer">Edit dates / FX / bands</summary>${editCycleHtml(c)}</details>
+      <div class="muted" id="prOvMsg" style="font-size:12px;margin-top:8px">${esc(msg)}</div></div>`;
+  }
+  function editCycleHtml(c){
+    return `<div class="pr-form" style="margin-top:10px">
+      <div><label>Self + peer opens</label><input type="date" id="cyOpen" value="${c.self_open}"></div><div><label>Self + peer due</label><input type="date" id="cyDue" value="${c.self_due}"></div>
+      <div><label>Admin scoring due</label><input type="date" id="cyAdmin" value="${c.admin_due}"></div><div><label>Acknowledge by</label><input type="date" id="cyAck" value="${c.ack_due}"></div>
+      <div><label>New fees effective</label><input type="date" id="cyFee" value="${c.fee_effective}"></div><div><label>6-month rule measured on</label><input type="date" id="cyTen" value="${c.tenure_asof}"></div>
+      <div><label>FX for ROI</label><input type="number" id="cyFx" value="${c.fx}" step="0.01"></div><input type="hidden" id="cyYear" value="${c.year}"></div>
+      <table style="margin-top:8px"><tbody>${c.bands.slice().sort((a,b)=>b.min-a.min).map((b,i)=>`<tr><td>${esc(b.name)}</td><td><input type="number" data-bandpct="${i}" value="${b.pct}" style="width:80px" min="0" step="0.5"> %</td></tr>`).join('')}</tbody></table>
+      <div class="row" style="margin-top:8px"><button class="btn btn-gold" id="cyCreate">Save changes</button><span class="muted" id="cyMsg" style="font-size:12px"></span></div>`;
+  }
+  function peersHtml(){
+    const P=D.participants, inCycle=new Set(P.map(p=>p.staff_id));
+    const missing=(staffList||[]).filter(s=>s.active&&s.role!=='admin'&&!inCycle.has(s.id));
+    const opts=(self,peers)=>(staffList||[]).filter(s=>s.active&&s.role!=='admin'&&s.id!==self&&!peers.includes(s.id)).map(s=>`<option value="${s.id}">${esc(s.full_name)}</option>`).join('');
+    const load={};P.forEach(p=>(p.peers||[]).forEach(r=>load[r]=(load[r]||0)+1));
+    const rows=P.slice().sort((a,b)=>clientOf(a.staff_id).localeCompare(clientOf(b.staff_id))||nameOf(a.staff_id).localeCompare(nameOf(b.staff_id))).map(p=>`<tr><td><b>${esc(nameOf(p.staff_id))}</b><div class="muted" style="font-size:11px">${esc(clientOf(p.staff_id))} · gives feedback to ${load[p.staff_id]||0}</div></td>
+      <td><select data-ptype="${p.staff_id}" style="width:auto"><option value="annual" ${p.review_type==='annual'?'selected':''}>Annual (fee review)</option><option value="dev" ${p.review_type==='dev'?'selected':''}>Development only</option></select></td>
+      <td>${(p.peers||[]).map(r=>`<span class="pr-pill ${staffById(r)?.client_id===staffById(p.staff_id)?.client_id?'pr-ann':'pr-x'}">${esc(nameOf(r))} <a href="#" data-prem="${p.staff_id}|${r}" style="color:inherit;text-decoration:none">✕</a></span>`).join(' ')}${(p.peers||[]).length<3?' <span class="pr-pill pr-miss">under 3</span>':''}
+        <select data-padd="${p.staff_id}" style="width:auto;margin-left:6px"><option value="">+ add peer</option>${opts(p.staff_id,p.peers||[])}</select></td>
+      <td style="text-align:right"><button class="btn btn-ghost" data-pout="${p.staff_id}" title="Remove from this cycle">Remove</button></td></tr>`).join('');
+    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">🤝 Participants &amp; peers</h3><div class="muted" style="font-size:12.5px">Up to 3 peers each (same client first). Changes save immediately. Try to keep anyone from reviewing more than 4 people.</div></div></div>
+      ${missing.length?`<div class="note">Not in this cycle: ${missing.map(s=>`${esc(s.full_name)} <button class="btn btn-ghost" style="padding:1px 8px" data-padd-new="${s.id}">Add</button>`).join(' · ')}</div>`:''}
+      <div style="overflow-x:auto"><table><thead><tr><th>Contractor</th><th>Review type</th><th>Gives them feedback</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="muted">Nobody yet.</td></tr>'}</tbody></table></div></div>`;
+  }
+  function progressHtml(){
+    const P=D.participants, G=D.progress||{};
+    const rows=Object.keys(G).map(id=>({id,...G[id],recv:(P.find(p=>p.staff_id===id)||{}).peer})).sort((a,b)=>nameOf(a.id).localeCompare(nameOf(b.id)));
+    const pill=s=>s==='submitted'?'<span class="pill p-work"><span class="dot"></span>Submitted</span>':s==='draft'?'<span class="pill p-break"><span class="dot"></span>Draft</span>':'<span class="pill p-late"><span class="dot"></span>Not started</span>';
+    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">📈 Progress</h3><div class="muted" style="font-size:12.5px">Who has finished their own tasks. Peer counts never show who wrote feedback for whom.</div></div></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Self review</th><th style="text-align:center">Peer feedback given</th><th style="text-align:center">Peer feedback received</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td><b>${esc(nameOf(r.id))}</b></td><td>${P.find(p=>p.staff_id===r.id)?pill(r.self):'<span class="muted">not a participant</span>'}</td><td class="mono" style="text-align:center;color:${r.peer_done<r.peer_assigned?'var(--rose)':'var(--teal)'}">${r.peer_done}/${r.peer_assigned}</td><td class="mono" style="text-align:center">${r.recv?r.recv.count+(r.recv.declined?` <span class="muted">(+${r.recv.declined} skipped)</span>`:''):'—'}</td></tr>`).join('')}
+      </tbody></table></div></div>`;
+  }
+  function scoreHtml(){
+    const P=D.participants.slice().sort((a,b)=>nameOf(a.staff_id).localeCompare(nameOf(b.staff_id)));
+    if(!P.length) return '<div class="card muted">No participants.</div>';
+    if(!selId||!P.find(p=>p.staff_id===selId)) selId=P[0].staff_id;
+    const p=P.find(x=>x.staff_id===selId), e=edits[selId]||{}, sc=scoreFor(p), adm=e.admin_ratings||p.admin_ratings||{};
+    const relV=e.reliability!==undefined?e.reliability:(p.reliability!=null?p.reliability:relFor(selId));
+    const ovV=e.override_pct!==undefined?e.override_pct:(p.override_pct??''), ovR=e.override_reason!==undefined?e.override_reason:(p.override_reason||'');
+    const sumV=e.admin_summary!==undefined?e.admin_summary:(p.admin_summary||''), oneV=e.one_on_one!==undefined?e.one_on_one:p.one_on_one;
+    const locked=!!p.released_at, col=sc.ready?BAND_COL[sc.band]:'var(--muted)';
+    const R=sc.ready?roi(selId,sc.newRate):null, maxP=sc.ready?maxPctForFloor(selId):null;
+    const st=x=>x.released_at?'✓ released':x.finalized_at?'● final':(x.admin_ratings&&Object.keys(x.admin_ratings).length?'◐ draft':'');
+    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">🧑‍⚖️ Admin scoring</h3><div class="muted" style="font-size:12.5px">Your ratings count ${Math.round(D.cycle.weights.admin*100)}%+. Self and peer columns fill in as forms are submitted.</div></div>
+      <select id="prSel" style="width:auto">${P.map(x=>`<option value="${x.staff_id}" ${x.staff_id===selId?'selected':''}>${esc(nameOf(x.staff_id))} · ${esc(clientOf(x.staff_id))} ${st(x)}</option>`).join('')}</select></div>
+      ${p.review_type==='dev'?'<div class="note">Development-only review (under 6 months): scored for feedback, no fee change unless you override.</div>':''}
+      ${locked?`<div class="note">Released to ${esc(nameOf(selId).split(' ')[0])} on ${fmtDay(p.released_at)} — read-only.</div>`:''}
+      <div class="pr-kpis" style="margin:8px 0 12px"><div class="stat"><div class="k">Final score</div><div class="v" style="color:${col}">${sc.ready?sc.total.toFixed(2):'—'}</div></div><div class="stat"><div class="k">Band</div><div class="v" style="color:${col};font-size:20px">${sc.ready?sc.band:'—'}</div></div><div class="stat"><div class="k">Fee change</div><div class="v">${sc.ready?(sc.pct?'+'+sc.pct+'%':'none')+(sc.overridden?' <span class="pr-pill pr-miss">override</span>':''):'—'}</div><div class="muted" style="font-size:12px">${sc.ready&&sc.pct?php(sc.current)+' → '+php(sc.newRate):''}</div></div><div class="stat"><div class="k">ROI after change</div><div class="v" style="color:${R?(R.margin<ROI_FLOOR?'var(--rose)':'var(--teal)'):'var(--muted)'}">${R?R.margin.toFixed(1)+'%':'—'}</div><div class="muted" style="font-size:12px">${R?'max to stay ≥'+ROI_FLOOR+'%: +'+maxP+'%':smbRates?.[selId]?'':'SMB rate missing'}</div></div></div>
       <table><thead><tr><th>Criterion</th><th style="text-align:center">Self</th><th style="text-align:center">Peers (avg)</th><th>Your rating</th></tr></thead><tbody>
-      ${CRIT.map(c=>`<tr><td><b>${esc(c.t)}</b></td><td class="mono" style="text-align:center">${sm.self[c.k]}</td><td class="mono" style="text-align:center">${c.peer&&peerAvg(c.k)!=null?peerAvg(c.k):'<span class="muted">—</span>'}</td><td><div class="pr-scale sm">${SCALE.map(([n,l])=>`<label title="${l}"><input type="radio" name="ad_${c.k}" data-adk="${c.k}" value="${n}" ${Math.round(ad[c.k])===n?'checked':''}><span>${n}</span></label>`).join('')}</div></td></tr>`).join('')}
-      </tbody></table>
+      ${CRIT.map(c=>`<tr><td><b>${esc(c.t)}</b></td><td class="mono" style="text-align:center">${p.self?.ratings?.[c.k]??'<span class="muted">—</span>'}</td><td class="mono" style="text-align:center">${c.peer&&p.peer?.count?(p.peer.per?.[c.k]??'—'):'<span class="muted">—</span>'}</td><td>${scaleInputs('ad_'+c.k,adm[c.k],`data-adk="${c.k}" ${locked?'disabled':''}`,true)}</td></tr>`).join('')}</tbody></table>
       <div class="bb-sec" style="margin:14px 0 6px">How the score is built</div>
       <table><tbody>
-      <tr><td>Admin review (avg ${sc.a.toFixed(2)})</td><td class="mono" style="text-align:right">${Math.round(sc.wA*100)}%${sc.wP?'':' <span class="pr-pill pr-miss">peer weight moved here</span>'}</td><td class="mono" style="text-align:right">${r2(sc.a*sc.wA).toFixed(2)}</td></tr>
-      <tr><td>Peer feedback (${sm.peers.length} responses${sc.pv!=null?', avg '+sc.pv.toFixed(2):', needs 3'})</td><td class="mono" style="text-align:right">${Math.round(sc.wP*100)}%</td><td class="mono" style="text-align:right">${sc.pv!=null?r2(sc.pv*sc.wP).toFixed(2):'—'}</td></tr>
-      <tr><td>Self review (avg ${sc.sf.toFixed(2)})</td><td class="mono" style="text-align:right">10%</td><td class="mono" style="text-align:right">${r2(sc.sf*W.self).toFixed(2)}</td></tr>
-      <tr><td>Reliability (${sc.rel.toFixed(2)}${sm.relReal?'':' · sample'})</td><td class="mono" style="text-align:right">20%</td><td class="mono" style="text-align:right">${r2(sc.rel*W.rel).toFixed(2)}</td></tr>
-      <tr style="border-top:2px solid var(--gold)"><td><b>Final score</b></td><td></td><td class="mono" style="text-align:right;font-weight:800;color:${sc.b.col}">${sc.total.toFixed(2)}</td></tr></tbody></table>
-      <label style="margin-top:12px">Your summary for ${esc(r.s.full_name)} (shown to them)</label><textarea rows="3" style="width:100%" placeholder="Strengths, what to work on, and goals for next year…"></textarea>
-      <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap"><input type="checkbox" style="width:auto"> 1-on-1 done</span><button class="btn btn-ghost" disabled>Save draft</button><button class="btn btn-gold" disabled>Finalize &amp; release to ${esc(r.s.full_name.split(' ')[0])}</button></div></div>`;
+      <tr><td>Admin review${sc.a!=null?' (avg '+sc.a.toFixed(2)+')':''}</td><td class="mono" style="text-align:right">${sc.ready?Math.round(sc.wA*100)+'%':''}</td><td class="mono" style="text-align:right">${sc.ready?r2(sc.a*sc.wA).toFixed(2):'rate all six'}</td></tr>
+      <tr><td>Peer feedback (${p.peer?.count||0} of 3 needed${p.peer?.overall!=null?', avg '+p.peer.overall.toFixed(2):''})</td><td class="mono" style="text-align:right">${sc.ready?Math.round(sc.wP*100)+'%':''}</td><td class="mono" style="text-align:right">${sc.ready&&sc.pv!=null?r2(sc.pv*sc.wP).toFixed(2):'→ Admin'}</td></tr>
+      <tr><td>Self review${sc.sf!=null?' (avg '+sc.sf.toFixed(2)+')':' (not submitted)'}</td><td class="mono" style="text-align:right">${sc.ready?Math.round(sc.wS*100)+'%':''}</td><td class="mono" style="text-align:right">${sc.ready&&sc.sf!=null?r2(sc.sf*sc.wS).toFixed(2):'→ Admin'}</td></tr>
+      <tr><td>Reliability <input type="number" id="prRel" min="1" max="5" step="0.01" value="${relV??''}" style="width:80px" ${locked?'disabled':''}> <span class="muted" style="font-size:11px">${relFor(selId)!=null?'from YTD Attendance':'open YTD Attendance (this year) to auto-fill, or type it'}</span></td><td class="mono" style="text-align:right">${Math.round(D.cycle.weights.rel*100)}%</td><td class="mono" style="text-align:right">${sc.ready?r2(sc.rel*sc.wR).toFixed(2):''}</td></tr>
+      <tr style="border-top:2px solid var(--gold)"><td><b>Final score</b></td><td></td><td class="mono" style="text-align:right;font-weight:800;color:${col}">${sc.ready?sc.total.toFixed(2):'—'}</td></tr></tbody></table>
+      ${p.self?.answers?`<div class="bb-sec" style="margin:14px 0 6px">Their self review</div><div class="note" style="font-size:13px;white-space:pre-wrap"><b>Wins:</b> ${esc(p.self.answers.wins||'—')}\n<b>Improve / support:</b> ${esc(p.self.answers.improve||'—')}\n<b>Goals:</b> ${esc(p.self.answers.goals||'—')}</div>`:''}
+      ${p.peer?.count?`<div class="bb-sec" style="margin:14px 0 6px">Peer comments (anonymous)</div><div class="note" style="font-size:13px">${[...(p.peer.strengths||[]).map(t=>'👍 '+esc(t)),...(p.peer.improve||[]).map(t=>'🌱 '+esc(t))].join('<br>')||'<span class="muted">No written comments.</span>'}</div>`:''}
+      <div class="bb-sec" style="margin:14px 0 6px">Override (optional)</div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><input type="number" id="prOv" min="0" step="0.5" value="${ovV}" placeholder="${sc.ready?sc.bandPct+'% (band)':'%'}" style="width:110px" ${locked?'disabled':''}><input id="prOvR" value="${esc(ovR)}" placeholder="Reason (required for an override), e.g. took over a second client" style="flex:1;min-width:240px" ${locked?'disabled':''}></div>
+      <div class="muted" style="font-size:11.5px;margin-top:4px">Prefer changing your ratings over overriding the %. A bigger role belongs in a new Statement of Work / Scope Differential Fee, not here.</div>
+      <label style="margin-top:12px">Your summary for ${esc(nameOf(selId))} (shown to them)</label><textarea rows="4" id="prSum" style="width:100%" ${locked?'disabled':''} placeholder="Strengths, what to work on, and goals for next year…">${esc(sumV)}</textarea>
+      <div class="row" style="margin-top:8px;gap:10px;flex-wrap:wrap;align-items:center"><span style="display:inline-flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap"><input type="checkbox" id="prOne" style="width:auto" ${oneV?'checked':''} ${locked?'disabled':''}> 1-on-1 done</span>
+        ${locked?'':`<button class="btn btn-ghost" id="prSave">Save draft</button><button class="btn btn-gold" id="prFinal">${p.finalized_at?'Update final':'Finalize'}</button>`}<span class="muted" id="prScMsg" style="font-size:12px">${p.finalized_at&&!locked?'Finalized '+fmtDay(p.finalized_at)+' — release it from Results.':''}</span></div></div>`;
   }
   function resultsHtml(){
-    const rows=eligibleRows().map(r=>{const sm=sample(r.s),sc=score(sm,adminEdit[r.s.id]);const cur=Number(r.s.monthly_rate||0);const pct=r.type==='dev'?0:sc.b.pct;const nw=Math.round(cur*(1+pct/100));return {r,sc,cur,pct,nw,inc:nw-cur};});
-    const tot=rows.reduce((a,x)=>a+x.inc,0), cnt={};rows.forEach(x=>{const k=x.r.type==='dev'?'Development only':x.sc.b.name;cnt[k]=(cnt[k]||0)+1;});
-    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">💰 Results &amp; contract fee review</h3><div class="muted" style="font-size:12.5px">SAMPLE scores. In the real build, "Apply new rates" updates the roster on the first January cutoff and the Statements of Work card flags everyone as Out of date, ready to issue.</div></div>
-      <div class="row" style="gap:6px;align-items:center"><span class="muted" style="font-size:12px">Monthly budget cap</span><input type="number" id="prCap" value="${budgetCap}" style="width:110px"></div></div>
-      <div class="pr-kpis" style="margin-bottom:10px"><div class="stat"><div class="k">Total monthly increase</div><div class="v" style="color:${tot>budgetCap?'var(--rose)':'var(--teal)'}">${php(tot)}</div></div><div class="stat"><div class="k">Budget cap</div><div class="v">${php(budgetCap)}</div></div><div class="stat"><div class="k">${tot>budgetCap?'Over cap by':'Under cap by'}</div><div class="v" style="color:${tot>budgetCap?'var(--rose)':'var(--teal)'}">${php(Math.abs(budgetCap-tot))}</div></div><div class="stat"><div class="k">Bands</div><div class="v" style="font-size:13px;line-height:1.5">${Object.entries(cnt).map(([k,v])=>`${esc(k)}: <b>${v}</b>`).join('<br>')}</div></div></div>
-      <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Client</th><th style="text-align:right">Score</th><th>Band</th><th style="text-align:right">Increase</th><th style="text-align:right">Current rate</th><th style="text-align:right">New rate (Jan)</th></tr></thead><tbody>
-      ${rows.sort((a,b)=>b.sc.total-a.sc.total).map(x=>`<tr><td><b>${esc(x.r.s.full_name)}</b></td><td class="muted">${esc(x.r.client)}</td><td class="mono" style="text-align:right">${x.sc.total.toFixed(2)}</td><td>${x.r.type==='dev'?'<span class="pr-pill pr-dev">Development only</span>':`<b style="color:${x.sc.b.col}">${x.sc.b.name}</b>`}</td><td class="mono" style="text-align:right">${x.pct?'+'+x.pct+'%':'—'}</td><td class="mono" style="text-align:right">${php(x.cur)}</td><td class="mono" style="text-align:right">${php(x.nw)}</td></tr>`).join('')}
+    const P=D.participants.map(p=>{const sc=scoreFor(p);const R=sc.ready?roi(p.staff_id,sc.newRate):null;const R0=sc.ready?roi(p.staff_id,sc.current):null;return {p,sc,R,R0};});
+    const ready=P.filter(x=>x.sc.ready);
+    const tot=ready.reduce((a,x)=>a+Math.max(0,x.sc.newRate-x.sc.current),0);
+    const flagged=ready.filter(x=>x.R&&x.R.margin<ROI_FLOOR).length, ovN=ready.filter(x=>x.sc.overridden).length;
+    const cnt={};ready.forEach(x=>{const k=x.p.review_type==='dev'?'Development only':x.sc.band;cnt[k]=(cnt[k]||0)+1;});
+    const outShare=ready.length?(cnt.Outstanding||0)/ready.length:0;
+    const relIds=P.filter(x=>x.p.finalized_at&&!x.p.released_at).map(x=>x.p.staff_id);
+    const canApply=D.today>=D.cycle.fee_effective, toApply=P.filter(x=>x.p.released_at&&!x.p.applied_at&&Number(x.p.new_rate)>Number(x.p.current_rate||0)).length;
+    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">💰 Results &amp; contract fee review</h3><div class="muted" style="font-size:12.5px">ROI at FX ₱${D.cycle.fx}. Release sends each finalized result to that contractor (Slack DM). Apply updates the roster rates, which then marks their Statements of Work “Out of date” so you can issue new ones.</div></div>
+      <div class="row" style="gap:8px"><button class="btn btn-gold" id="prRelease" ${relIds.length?'':'disabled'}>Release finalized (${relIds.length})</button></div></div>
+      <div class="pr-kpis" style="margin-bottom:10px"><div class="stat"><div class="k">Extra per month</div><div class="v">${php(tot)}</div><div class="muted" style="font-size:12px">${php(tot*12)} / year</div></div><div class="stat"><div class="k">ROI under ${ROI_FLOOR}%</div><div class="v" style="color:${flagged?'var(--rose)':'var(--teal)'}">${flagged}</div></div><div class="stat"><div class="k">Overrides</div><div class="v" style="color:${ovN?'var(--gold)':'var(--ink)'}">${ovN}</div></div><div class="stat"><div class="k">Bands</div><div class="v" style="font-size:13px;line-height:1.5">${Object.entries(cnt).map(([k,v])=>`${esc(k)}: <b>${v}</b>`).join('<br>')||'—'}</div></div></div>
+      ${outShare>1/3&&ready.length>=6?'<div class="note">More than a third are Outstanding — ratings may be too generous. Consider recalibrating before release.</div>':''}
+      <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th style="text-align:right">Score</th><th>Band</th><th style="text-align:right">Change</th><th style="text-align:right">Current</th><th style="text-align:right">New</th><th style="text-align:right">ROI now → after</th><th>Status</th></tr></thead><tbody>
+      ${P.sort((a,b)=>(b.sc.total||0)-(a.sc.total||0)).map(x=>`<tr><td><b>${esc(nameOf(x.p.staff_id))}</b><div class="muted" style="font-size:11px">${esc(clientOf(x.p.staff_id))}</div></td><td class="mono" style="text-align:right">${x.sc.ready?x.sc.total.toFixed(2):'—'}</td><td>${!x.sc.ready?'<span class="muted">not scored</span>':x.p.review_type==='dev'?'<span class="pr-pill pr-dev">Development</span>':`<b style="color:${BAND_COL[x.sc.band]}">${x.sc.band}</b>`}</td>
+        <td class="mono" style="text-align:right">${x.sc.ready?(x.sc.pct?'+'+x.sc.pct+'%':'—'):''}${x.sc.overridden?`<div><span class="pr-pill pr-miss" title="${esc(x.p.override_reason||'')}">override · band ${x.sc.bandPct}%</span></div>`:''}</td>
+        <td class="mono" style="text-align:right">${x.sc.ready?php(x.sc.current):''}</td><td class="mono" style="text-align:right">${x.sc.ready?php(x.sc.newRate):''}</td>
+        <td class="mono" style="text-align:right;color:${x.R&&x.R.margin<ROI_FLOOR?'var(--rose)':'inherit'}">${x.R?x.R0.margin.toFixed(1)+'% → '+x.R.margin.toFixed(1)+'%':(x.sc.ready?'<span class="muted">no SMB rate</span>':'')}</td>
+        <td>${x.p.applied_at?'<span class="pill p-work"><span class="dot"></span>Applied</span>':x.p.released_at?'<span class="pill p-work"><span class="dot"></span>Released</span>':x.p.finalized_at?'<span class="pill p-break"><span class="dot"></span>Final</span>':'<span class="muted">draft</span>'}</td></tr>`).join('')}
       </tbody></table></div>
-      <div class="row" style="margin-top:10px;gap:8px"><button class="btn btn-ghost" disabled>Export CSV</button><button class="btn btn-gold" disabled>Apply new rates on first January cutoff</button></div></div>`;
+      <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn btn-ghost" id="prCsv">Export CSV</button><button class="btn btn-gold" id="prApply" ${canApply&&toApply?'':'disabled'}>Apply new contract fees (${toApply})</button><span class="muted" style="font-size:12px">${canApply?'Make sure the last December payout is marked PAID first — payroll uses the current roster rate.':'Available from '+fmtDay(D.cycle.fee_effective)+'.'}</span></div>
+      <div class="muted" id="prResMsg" style="font-size:12px;margin-top:6px">${esc(msg)}</div></div>`;
   }
-  function ackHtml(){
-    const r=eligibleRows().find(x=>x.type==='annual')||eligibleRows()[0]; if(!r)return '<div class="card muted">No active staff.</div>';
-    const sm=sample(r.s),sc=score(sm,adminEdit[r.s.id]),cur=Number(r.s.monthly_rate||0),nw=Math.round(cur*(1+sc.b.pct/100));
-    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">🌱 Your ${cycle().year} Annual Service Review</h3><div class="muted" style="font-size:12.5px">${esc(r.s.full_name)} · released Dec 21 · please respond by Dec 28</div></div><span class="pr-pill pr-dev">Preview · sample</span></div>
-      <div class="pr-kpis" style="margin-bottom:10px"><div class="stat"><div class="k">Final score</div><div class="v" style="color:${sc.b.col}">${sc.total.toFixed(2)}</div></div><div class="stat"><div class="k">Band</div><div class="v" style="color:${sc.b.col};font-size:20px">${sc.b.name}</div></div><div class="stat"><div class="k">New monthly contract fee</div><div class="v" style="font-size:18px">${php(nw)}</div></div><div class="stat"><div class="k">Takes effect</div><div class="v" style="font-size:16px">First Jan cutoff</div></div></div>
-      <table><tbody>${CRIT.map(c=>`<tr><td>${esc(c.t)}</td><td class="mono" style="text-align:right">${(adminEdit[r.s.id]||sm.admin)[c.k]}</td></tr>`).join('')}</tbody></table>
-      <div class="bb-sec" style="margin:12px 0 6px">What your teammates said (anonymous)</div>
-      <div class="note" style="font-size:13px">“Always the first to help when the queue piles up.”<br>“Could share updates in the GC a bit earlier.”</div>
-      <div class="bb-sec" style="margin:12px 0 6px">From Sir Rendy</div><div class="note" style="font-size:13px">Summary and goals for next year appear here.</div>
-      <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn btn-gold" disabled>I acknowledge my review</button><button class="btn btn-ghost" disabled>Ask for reconsideration</button><span class="muted" style="font-size:12px">Reconsideration asks for a reason; Sir Rendy replies before the January cutoff. Your new Statement of Work follows for signature.</span></div></div>`;
+  function acksHtml(){
+    const P=D.participants.filter(p=>p.released_at).sort((a,b)=>({reconsideration:0,undefined:1,null:1,acknowledged:2}[a.ack_status]??1)-({reconsideration:0,undefined:1,null:1,acknowledged:2}[b.ack_status]??1));
+    if(!P.length) return '<div class="card muted">No results released yet.</div>';
+    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">✅ Acknowledgments</h3><div class="muted" style="font-size:12.5px">Due ${fmtDay(D.cycle.ack_due)}. Reply to reconsideration requests here — the contractor sees your reply on their result.</div></div></div>
+      <table><thead><tr><th>Name</th><th>Status</th><th>Their note</th><th>Your reply</th></tr></thead><tbody>
+      ${P.map(p=>`<tr><td><b>${esc(nameOf(p.staff_id))}</b><div class="muted" style="font-size:11px">released ${fmtDay(p.released_at)}</div></td><td>${p.ack_status==='acknowledged'?'<span class="pill p-work"><span class="dot"></span>Acknowledged</span>':p.ack_status==='reconsideration'?'<span class="pill p-late"><span class="dot"></span>Reconsideration</span>':'<span class="pill p-break"><span class="dot"></span>Waiting</span>'}</td><td style="max-width:280px">${esc(p.ack_note||'')}</td>
+        <td>${p.ack_status==='reconsideration'?`<textarea rows="2" style="width:100%;min-width:220px" data-reply="${p.staff_id}">${esc(p.admin_reply||'')}</textarea><button class="btn btn-ghost" style="margin-top:4px" data-replysave="${p.staff_id}">Send reply</button>`:esc(p.admin_reply||'')}</td></tr>`).join('')}
+      </tbody></table></div>`;
   }
-  function adminHtml(){
-    const body=tab==='overview'?overviewHtml():tab==='self'?selfHtml():tab==='peer'?peerHtml():tab==='admin'?adminScoreHtml():tab==='results'?resultsHtml():tab==='ack'?ackHtml():setupHtml();
-    return `<div class="note">🚧 <b>Admin preview — nothing is saved and staff still see “Coming soon”.</b> Ratings are <b>sample</b> numbers so you can see how every screen will look and how scores turn into fee changes.</div>
-      <div class="pr-tabs">${TABS.map(([k,l])=>`<button class="btn ${tab===k?'btn-gold':'btn-ghost'}" data-prtab="${k}">${l}</button>`).join('')}</div>${body}`;
+  function adminView(){
+    if(!D) return '<div class="card muted">Loading…</div>';
+    if(D.err) return `<div class="card">Could not load the review: ${esc(D.err)}${/review_/.test(D.err)?' — run supabase/review.sql in the Supabase SQL Editor.':''}</div>`;
+    if(!D.cycle) return setupCycleHtml()+`<div class="card"><div class="hdr"><h3 style="font-size:15px">Who will be included</h3></div>${setupHtml()}</div>`;
+    const body={overview:overviewHtml,peers:peersHtml,progress:progressHtml,score:scoreHtml,results:resultsHtml,acks:acksHtml}[tab]();
+    return `<div class="pr-tabs">${TABS.map(([k,l])=>`<button class="btn ${tab===k?'btn-gold':'btn-ghost'}" data-prtab="${k}">${l}</button>`).join('')}</div>${body}`;
   }
-  function wire(){
-    document.querySelectorAll('[data-prtab]').forEach(b=>b.onclick=()=>{tab=b.dataset.prtab;init();});
-    const sel=$('prSel'); if(sel) sel.onchange=()=>{selId=sel.value;init();};
-    document.querySelectorAll('[data-adk]').forEach(i=>i.onchange=()=>{(adminEdit[selId]=adminEdit[selId]||{})[i.dataset.adk]=Number(i.value);init();});
-    const cap=$('prCap'); if(cap) cap.onchange=()=>{budgetCap=Number(cap.value||0);init();};
+  function cycleBody(){
+    const bands=DEF_BANDS.map((b,i)=>({...b,pct:Number(document.querySelector(`[data-bandpct="${i}"]`)?.value??b.pct)}));
+    if(D.cycle){D.cycle.bands.slice().sort((a,b)=>b.min-a.min).forEach((b,i)=>{bands[i]={...b,pct:Number(document.querySelector(`[data-bandpct="${i}"]`)?.value??b.pct)};});}
+    return {year:Number($('cyYear').value),self_open:$('cyOpen').value,self_due:$('cyDue').value,admin_due:$('cyAdmin').value,ack_due:$('cyAck').value,fee_effective:$('cyFee').value,tenure_asof:$('cyTen').value,fx:Number($('cyFx').value||60),bands,weights:D.cycle?.weights||DEF_W};
+  }
+  function wireAdmin(){
+    const host=$('prRoot');
+    host.querySelectorAll('[data-prtab]').forEach(b=>b.onclick=()=>{tab=b.dataset.prtab;msg='';render();});
+    if($('cyCreate')) $('cyCreate').onclick=async()=>{
+      const body=cycleBody(); $('cyMsg').textContent='Saving…';
+      if(!D.cycle){const list=roster(body.tenure_asof),peers=suggestPeers(list);body.participants=list.filter(r=>r.type!=='missing').map(r=>({staff_id:r.s.id,review_type:r.type==='dev'?'dev':'annual',peers:peers.get(r.s.id).peers.map(x=>x.s.id)}));}
+      try{await call('/api/review/admin/cycle',body);msg=D.cycle?'Saved.':'Cycle created.';await loadAdmin();}catch(e){$('cyMsg').textContent=e.message;}
+    };
+    if($('prRemind')) $('prRemind').onclick=async()=>{if(!confirm('Send a Slack DM to everyone with unfinished tasks?'))return;try{const r=await call('/api/review/admin/remind',{});msg=`Reminders: ${r.sent} sent (${r.people} with tasks; anyone already reminded today is skipped).`;render();}catch(e){alert(e.message);}};
+    const setPart=async body=>{try{await call('/api/review/admin/participant',body);await loadAdmin();}catch(e){alert(e.message);}};
+    host.querySelectorAll('[data-ptype]').forEach(s=>s.onchange=()=>setPart({staff_id:s.dataset.ptype,review_type:s.value}));
+    host.querySelectorAll('[data-padd]').forEach(s=>s.onchange=()=>{if(!s.value)return;const p=D.participants.find(x=>x.staff_id===s.dataset.padd);setPart({staff_id:p.staff_id,peers:[...(p.peers||[]),s.value]});});
+    host.querySelectorAll('[data-prem]').forEach(a=>a.onclick=ev=>{ev.preventDefault();const [sid,r]=a.dataset.prem.split('|');const p=D.participants.find(x=>x.staff_id===sid);setPart({staff_id:sid,peers:(p.peers||[]).filter(x=>x!==r)});});
+    host.querySelectorAll('[data-pout]').forEach(b=>b.onclick=()=>{if(confirm(`Remove ${nameOf(b.dataset.pout)} from this cycle? Their submitted forms stay but they won't be scored.`))setPart({staff_id:b.dataset.pout,remove:true});});
+    host.querySelectorAll('[data-padd-new]').forEach(b=>b.onclick=()=>{const s=staffById(b.dataset.paddNew);const months=s.hire_date?monthsBetween(String(s.hire_date).slice(0,10),D.cycle.tenure_asof):0;setPart({staff_id:s.id,review_type:months>=TENURE_MONTHS?'annual':'dev',peers:[]});});
+    if($('prSel')) $('prSel').onchange=()=>{selId=$('prSel').value;render();};
+    const ed=()=>edits[selId]=edits[selId]||{};
+    host.querySelectorAll('[data-adk]').forEach(i=>i.onchange=()=>{const p=D.participants.find(x=>x.staff_id===selId);ed().admin_ratings={...(edits[selId].admin_ratings||p.admin_ratings||{}),[i.dataset.adk]:Number(i.value)};render();});
+    if($('prRel')) $('prRel').onchange=()=>{ed().reliability=$('prRel').value===''?null:Number($('prRel').value);render();};
+    if($('prOv')) $('prOv').onchange=()=>{ed().override_pct=$('prOv').value===''?null:Number($('prOv').value);render();};
+    if($('prOvR')) $('prOvR').oninput=()=>{ed().override_reason=$('prOvR').value;};
+    if($('prSum')) $('prSum').oninput=()=>{ed().admin_summary=$('prSum').value;};
+    if($('prOne')) $('prOne').onchange=()=>{ed().one_on_one=$('prOne').checked;};
+    const save=async finalize=>{
+      const p=D.participants.find(x=>x.staff_id===selId), e=edits[selId]||{}, sc=scoreFor(p);
+      if(finalize&&!sc.ready){$('prScMsg').textContent='Rate all six items and fill in Reliability first.';return;}
+      const ov=e.override_pct!==undefined?e.override_pct:p.override_pct;
+      const body={staff_id:selId,admin_ratings:e.admin_ratings||p.admin_ratings||{},admin_summary:e.admin_summary!==undefined?e.admin_summary:p.admin_summary,one_on_one:e.one_on_one!==undefined?e.one_on_one:p.one_on_one,
+        reliability:sc.ready?sc.rel:(e.reliability!==undefined?e.reliability:p.reliability),override_pct:ov,override_reason:e.override_reason!==undefined?e.override_reason:p.override_reason,
+        final_score:sc.ready?sc.total:null,band:sc.ready?sc.band:null,increase_pct:sc.ready?sc.pct:null,current_rate:sc.ready?sc.current:null,new_rate:sc.ready?sc.newRate:null,finalize};
+      $('prScMsg').textContent='Saving…';
+      try{await call('/api/review/admin/score',body);delete edits[selId];msg='';await loadAdmin();const m=$('prScMsg');if(m)m.textContent=finalize?'Finalized. Release it from Results & fee review.':'Draft saved.';}catch(err){$('prScMsg').textContent=err.message;}
+    };
+    if($('prSave')) $('prSave').onclick=()=>save(false);
+    if($('prFinal')) $('prFinal').onclick=()=>save(true);
+    if($('prRelease')) $('prRelease').onclick=async()=>{const ids=D.participants.filter(p=>p.finalized_at&&!p.released_at).map(p=>p.staff_id);if(!confirm(`Release ${ids.length} result(s)? Each contractor gets a Slack DM and sees their result in the portal. This can't be undone.`))return;try{const r=await call('/api/review/admin/release',{staff_ids:ids});msg=`Released ${r.released}.`;await loadAdmin();}catch(e){alert(e.message);}};
+    if($('prApply')) $('prApply').onclick=async()=>{if(!confirm('Apply the new contract fees to the roster now?\n\nOnly do this after the last December payout is marked PAID — payroll uses the current roster rate. Fees only ever go up and each person is applied once.'))return;try{const r=await call('/api/review/admin/apply',{});msg=`Applied ${r.applied} new rate(s). Open Staff & Clients → Statements of Work to issue the updated SOWs.`;await reloadStaff?.();await loadAdmin();}catch(e){alert(e.message);}};
+    if($('prCsv')) $('prCsv').onclick=()=>{const rows=[['Name','Client','Review type','Score','Band','Band %','Applied %','Override reason','Current rate','New rate','ROI now %','ROI after %','Finalized','Released','Acknowledged']];
+      D.participants.forEach(p=>{const sc=scoreFor(p),R=sc.ready?roi(p.staff_id,sc.newRate):null,R0=sc.ready?roi(p.staff_id,sc.current):null;rows.push([nameOf(p.staff_id),clientOf(p.staff_id),p.review_type,sc.ready?sc.total:'',sc.ready?sc.band:'',sc.ready?sc.bandPct:'',sc.ready?sc.pct:'',p.override_reason||'',sc.ready?sc.current:'',sc.ready?sc.newRate:'',R0?R0.margin:'',R?R.margin:'',p.finalized_at||'',p.released_at||'',p.ack_status||'']);});
+      const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`service-review-${D.cycle.year}.csv`;a.click();};
+    host.querySelectorAll('[data-replysave]').forEach(b=>b.onclick=async()=>{const id=b.dataset.replysave;const t=host.querySelector(`[data-reply="${id}"]`).value.trim();if(!t)return;try{await call('/api/review/admin/reply',{staff_id:id,reply:t});msg='Reply sent.';await loadAdmin();}catch(e){alert(e.message);}});
+  }
+  async function loadAdmin(){
+    if(loading) return; loading=true;
+    try{D=await call('/api/review/admin');await loadFeeCtx();}catch(e){D={err:e.message};}finally{loading=false;}
+    render();
   }
   if(!document.getElementById('prMockCss')){const st=document.createElement('style');st.id='prMockCss';st.textContent=`
 .pr-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.pr-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .pr-q{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .pr-q>div:first-child{flex:1;min-width:220px}
 .pr-scale{display:flex;gap:4px}
-.pr-scale label{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;min-width:54px}
+.pr-scale label{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;min-width:54px;text-transform:none;letter-spacing:0}
 .pr-scale.sm label{min-width:30px}
 .pr-scale input{display:none}
-.pr-scale span{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--card2);box-shadow:inset 0 0 0 1px var(--line);font-weight:700}
+.pr-scale span{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--card2);box-shadow:inset 0 0 0 1px var(--line);font-weight:700;color:var(--ink)}
 .pr-scale input:checked+span{background:var(--gold);color:#151515;box-shadow:none}
+.pr-scale input:disabled+span{opacity:.6}
 .pr-scale small{font-size:10px;color:var(--muted);text-align:center;line-height:1.1}
-@media (max-width:700px){.pr-kpis,.pr-w,.pr-tl{grid-template-columns:repeat(2,minmax(0,1fr))}}`;document.head.appendChild(st);}
+@media (max-width:700px){.pr-kpis,.pr-w,.pr-tl,.pr-form{grid-template-columns:repeat(2,minmax(0,1fr))}}`;document.head.appendChild(st);}
+  function render(){
+    const host=$('prRoot'); if(!host||!me) return;
+    if(me.role==='admin'){host.innerHTML=adminView();if(D&&!D.err)wireAdmin();else if(D&&!D.cycle)wireAdmin();}
+    else{host.innerHTML=staffView();wireStaff();}
+  }
   function init(){
     const host=$('prRoot'); if(!host||!me) return;
-    host.innerHTML=me.role==='admin'?adminHtml():staffHtml();
-    if(me.role==='admin') wire();
+    render();
+    if(me.role==='admin') loadAdmin(); else loadStaff();
   }
-  window.PerfReview={init,_roster:roster,_suggestPeers:suggestPeers,_monthsBetween:monthsBetween};
+  window.PerfReview={init,_roster:roster,_suggestPeers:suggestPeers,_monthsBetween:monthsBetween,_computeScore:computeScore};
 })();
 </script>
 
