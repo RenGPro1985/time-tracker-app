@@ -956,12 +956,18 @@ app.delete('/api/portal/docs/:id', async (req, res) => {
     const caller = await requireAdmin(req, res); if (!caller) return;
     const { data: doc } = await admin.from('portal_docs').select('storage_path').eq('id', req.params.id).single();
     if (!doc) return res.status(404).json({ error: 'Document not found.' });
-    if (doc.storage_path) {
-      try { await admin.storage.from(PORTAL_BUCKET).remove([doc.storage_path]); } catch (_) {}
+    // Also remove every signed copy and signature row for this doc, so old versions
+    // don't leave orphaned PDFs in Storage (2026-11-22).
+    const { data: sigs } = await admin.from('portal_signatures').select('signed_path').eq('doc_id', req.params.id);
+    const paths = [doc.storage_path, ...(sigs || []).map(s => s.signed_path)].filter(Boolean);
+    for (let i = 0; i < paths.length; i += 100) {
+      try { await admin.storage.from(PORTAL_BUCKET).remove(paths.slice(i, i + 100)); } catch (_) {}
     }
+    const { error: sigDelErr } = await admin.from('portal_signatures').delete().eq('doc_id', req.params.id);
+    if (sigDelErr) throw sigDelErr;
     const { error } = await admin.from('portal_docs').delete().eq('id', req.params.id);
     if (error) throw error;
-    res.json({ ok: true });
+    res.json({ ok: true, removed_files: paths.length, removed_signatures: (sigs || []).length });
   } catch (e) {
     console.error('Portal delete failed:', e);
     res.status(500).json({ error: e.message || 'Could not delete document.' });
