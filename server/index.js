@@ -18,6 +18,7 @@ import { registerCelebrations } from './celebrations.js';
 import { stampSignedPdf } from './esign.js';
 import { buildSowPdf } from './sow.js';
 import { registerReview } from './review.js';
+import { registerOffice } from './office.js';
 
 const {
   SUPABASE_URL,
@@ -1644,6 +1645,8 @@ var calendar = registerCalendar({ app, admin, requireAdmin, requireActiveUser, s
 
 // ---------- Annual Service Review → server/review.js ----------
 var review = registerReview({ app, admin, requireAdmin, requireActiveUser, sendDmOnce, dmBlocks, PORTAL_URL });
+// ---------- Office Necessities → server/office.js ----------
+registerOffice({ app, admin, requireAdmin, requireActiveUser, sendDmOnce, dmBlocks, PORTAL_URL, upload, BUCKET: PORTAL_BUCKET });
 
 // ---------- Birthdays / Workiversaries (+500 SMB tokens) + auto-hide terminated staff → server/celebrations.js ----------
 var celebrations = registerCelebrations({ app, admin, requireAdmin, sendSlackOnce, safeSlack, slackUserIdFor, SLACK_BOT_TOKEN, SLACK_GENERAL_WEBHOOK_URL });
