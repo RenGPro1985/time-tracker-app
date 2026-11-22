@@ -9287,7 +9287,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   const todayPH=()=>phDate(new Date());
 
   /* final score, band and fee change — the one formula used everywhere */
-  function computeScore({adminR,selfR,peerOverall,peerCount,rel,weights,bands,type,overridePct,currentRate}){
+  function computeScore({adminR,selfR,peerOverall,peerCount,rel,weights,bands,type,overridePct,currentRate,manualRate}){
     const W=weights||DEF_W, B=(bands||DEF_BANDS).slice().sort((a,b)=>b.min-a.min);
     const a=avg(CRIT.map(c=>Number(adminR?.[c.k])));
     const sf=selfR?avg(CRIT.map(c=>Number(selfR[c.k]))):null;
@@ -9299,8 +9299,9 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const band=B.find(b=>total>=b.min)||B[B.length-1];
     const bandPct=type==='dev'?0:Number(band.pct||0);
     const pct=overridePct!=null&&overridePct!==''?Math.max(0,Number(overridePct)):bandPct;
-    const cur=Number(currentRate||0), nw=Math.round(cur*(1+pct/100));
-    return {ready:true,a:r2(a),sf:sf==null?null:r2(sf),pv:pv==null?null:r2(pv),rel:Number(rel),wA,wP,wS,wR:W.rel,total,band:band.name,bandPct,pct,overridden:pct!==bandPct,current:cur,newRate:nw};
+    const cur=Number(currentRate||0), manual=manualRate!=null&&Number(manualRate)>0;
+    const nw=manual?Number(manualRate):Math.round(cur*(1+pct/100)), pctOut=manual&&cur?r2((nw/cur-1)*100):pct;
+    return {ready:true,a:r2(a),sf:sf==null?null:r2(sf),pv:pv==null?null:r2(pv),rel:Number(rel),wA,wP,wS,wR:W.rel,total,band:band.name,bandPct,pct:pctOut,overridden:pctOut!==bandPct,manual,current:cur,newRate:nw,bandRate:Math.round(cur*(1+bandPct/100))};
   }
 
   let D=null, ST=null, tab='overview', selId=null, edits={}, loading=false, feeCtx=null, msg='';
@@ -9336,8 +9337,8 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const adminR=e.admin_ratings||p.admin_ratings||{};
     const rel=e.reliability!==undefined?e.reliability:(p.reliability!=null?p.reliability:relFor(p.staff_id));
     const ov=e.override_pct!==undefined?e.override_pct:p.override_pct;
-    const cur=p.applied_at?Number(p.current_rate):Number(staffById(p.staff_id)?.monthly_rate||p.current_rate||0);
-    return computeScore({adminR,selfR:p.self?.ratings||null,peerOverall:p.peer?.overall,peerCount:p.peer?.count||0,rel,weights:D.cycle.weights,bands:D.cycle.bands,type:p.review_type,overridePct:ov,currentRate:cur});
+    const cur=(p.applied_at||p.finalized_at)&&p.current_rate!=null?Number(p.current_rate):Number(staffById(p.staff_id)?.monthly_rate||p.current_rate||0);
+    return computeScore({adminR,selfR:p.self?.ratings||null,peerOverall:p.peer?.overall,peerCount:p.peer?.count||0,rel,weights:D.cycle.weights,bands:D.cycle.bands,type:p.review_type,overridePct:ov,currentRate:cur,manualRate:p.rate_manual?p.new_rate:null});
   }
 
   const scaleInputs=(name,val,attr,small)=>`<div class="pr-scale${small?' sm':''}">${SCALE.map(([n,l])=>`<label title="${l}"><input type="radio" name="${name}" value="${n}" ${attr} ${Number(val)===n?'checked':''}><span>${n}</span>${small?'':`<small>${l}</small>`}</label>`).join('')}</div>`;
@@ -9487,13 +9488,13 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const relV=e.reliability!==undefined?e.reliability:(p.reliability!=null?p.reliability:relFor(selId));
     const ovV=e.override_pct!==undefined?e.override_pct:(p.override_pct??''), ovR=e.override_reason!==undefined?e.override_reason:(p.override_reason||'');
     const sumV=e.admin_summary!==undefined?e.admin_summary:(p.admin_summary||''), oneV=e.one_on_one!==undefined?e.one_on_one:p.one_on_one;
-    const locked=!!p.released_at, col=sc.ready?BAND_COL[sc.band]:'var(--muted)';
+    const locked=!!p.released_at||!!p.applied_at, col=sc.ready?BAND_COL[sc.band]:'var(--muted)';
     const R=sc.ready?roi(selId,sc.newRate):null, maxP=sc.ready?maxPctForFloor(selId):null;
     const st=x=>x.released_at?'✓ released':x.finalized_at?'● final':(x.admin_ratings&&Object.keys(x.admin_ratings).length?'◐ draft':'');
     return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">🧑‍⚖️ Admin scoring</h3><div class="muted" style="font-size:12.5px">Your ratings count ${Math.round(D.cycle.weights.admin*100)}%+. Self and peer columns fill in as forms are submitted.</div></div>
       <select id="prSel" style="width:auto">${P.map(x=>`<option value="${x.staff_id}" ${x.staff_id===selId?'selected':''}>${esc(nameOf(x.staff_id))} · ${esc(clientOf(x.staff_id))} ${st(x)}</option>`).join('')}</select></div>
       ${p.review_type==='dev'?'<div class="note">Development-only review (under 6 months): scored for feedback, no fee change unless you override.</div>':''}
-      ${locked?`<div class="note">Released to ${esc(nameOf(selId).split(' ')[0])} on ${fmtDay(p.released_at)} — read-only.</div>`:''}
+      ${locked?`<div class="note">${p.applied_at?'New rate applied to the roster on '+fmtDay(p.applied_at):'Released to '+esc(nameOf(selId).split(' ')[0])+' on '+fmtDay(p.released_at)} — read-only.</div>`:''}${p.rate_manual&&!p.applied_at?`<div class="note">Manual new rate ${php(p.new_rate)} set on Results (${esc(p.override_reason||'')}). Clear it there to go back to the band %.</div>`:''}
       <div class="pr-kpis" style="margin:8px 0 12px"><div class="stat"><div class="k">Final score</div><div class="v" style="color:${col}">${sc.ready?sc.total.toFixed(2):'—'}</div></div><div class="stat"><div class="k">Band</div><div class="v" style="color:${col};font-size:20px">${sc.ready?sc.band:'—'}</div></div><div class="stat"><div class="k">Fee change</div><div class="v">${sc.ready?(sc.pct?'+'+sc.pct+'%':'none')+(sc.overridden?' <span class="pr-pill pr-miss">override</span>':''):'—'}</div><div class="muted" style="font-size:12px">${sc.ready&&sc.pct?php(sc.current)+' → '+php(sc.newRate):''}</div></div><div class="stat"><div class="k">ROI after change</div><div class="v" style="color:${R?(R.margin<ROI_FLOOR?'var(--rose)':'var(--teal)'):'var(--muted)'}">${R?R.margin.toFixed(1)+'%':'—'}</div><div class="muted" style="font-size:12px">${R?'max to stay ≥'+ROI_FLOOR+'%: +'+maxP+'%':smbRates?.[selId]?'':'SMB rate missing'}</div></div></div>
       <table><thead><tr><th>Criterion</th><th style="text-align:center">Self</th><th style="text-align:center">Peers (avg)</th><th>Your rating</th></tr></thead><tbody>
       ${CRIT.map(c=>`<tr><td><b>${esc(c.t)}</b></td><td class="mono" style="text-align:center">${p.self?.ratings?.[c.k]??'<span class="muted">—</span>'}</td><td class="mono" style="text-align:center">${c.peer&&p.peer?.count?(p.peer.per?.[c.k]??'—'):'<span class="muted">—</span>'}</td><td>${scaleInputs('ad_'+c.k,adm[c.k],`data-adk="${c.k}" ${locked?'disabled':''}`,true)}</td></tr>`).join('')}</tbody></table>
@@ -9521,19 +9522,20 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     const cnt={};ready.forEach(x=>{const k=x.p.review_type==='dev'?'Development only':x.sc.band;cnt[k]=(cnt[k]||0)+1;});
     const outShare=ready.length?(cnt.Outstanding||0)/ready.length:0;
     const relIds=P.filter(x=>x.p.finalized_at&&!x.p.released_at).map(x=>x.p.staff_id);
-    const canApply=D.today>=D.cycle.fee_effective, toApply=P.filter(x=>x.p.released_at&&!x.p.applied_at&&Number(x.p.new_rate)>Number(x.p.current_rate||0)).length;
+    const toApply=P.filter(x=>x.p.finalized_at&&!x.p.applied_at&&x.sc.ready&&x.sc.newRate>x.sc.current).length;
     return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">💰 Results &amp; contract fee review</h3><div class="muted" style="font-size:12.5px">ROI at FX ₱${D.cycle.fx}. Release sends each finalized result to that contractor (Slack DM). Apply updates the roster rates, which then marks their Statements of Work “Out of date” so you can issue new ones.</div></div>
       <div class="row" style="gap:8px"><button class="btn btn-gold" id="prRelease" ${relIds.length?'':'disabled'}>Release finalized (${relIds.length})</button></div></div>
       <div class="pr-kpis" style="margin-bottom:10px"><div class="stat"><div class="k">Extra per month</div><div class="v">${php(tot)}</div><div class="muted" style="font-size:12px">${php(tot*12)} / year</div></div><div class="stat"><div class="k">ROI under ${ROI_FLOOR}%</div><div class="v" style="color:${flagged?'var(--rose)':'var(--teal)'}">${flagged}</div></div><div class="stat"><div class="k">Overrides</div><div class="v" style="color:${ovN?'var(--gold)':'var(--ink)'}">${ovN}</div></div><div class="stat"><div class="k">Bands</div><div class="v" style="font-size:13px;line-height:1.5">${Object.entries(cnt).map(([k,v])=>`${esc(k)}: <b>${v}</b>`).join('<br>')||'—'}</div></div></div>
       ${outShare>1/3&&ready.length>=6?'<div class="note">More than a third are Outstanding — ratings may be too generous. Consider recalibrating before release.</div>':''}
-      <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th style="text-align:right">Score</th><th>Band</th><th style="text-align:right">Change</th><th style="text-align:right">Current</th><th style="text-align:right">New</th><th style="text-align:right">ROI now → after</th><th>Status</th></tr></thead><tbody>
+      <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th style="text-align:right">Score</th><th>Band</th><th style="text-align:right">Change</th><th style="text-align:right">Current</th><th style="text-align:right">New rate (editable)</th><th style="text-align:right">ROI now → after</th><th>Status</th><th></th></tr></thead><tbody>
       ${P.sort((a,b)=>(b.sc.total||0)-(a.sc.total||0)).map(x=>`<tr><td><b>${esc(nameOf(x.p.staff_id))}</b><div class="muted" style="font-size:11px">${esc(clientOf(x.p.staff_id))}</div></td><td class="mono" style="text-align:right">${x.sc.ready?x.sc.total.toFixed(2):'—'}</td><td>${!x.sc.ready?'<span class="muted">not scored</span>':x.p.review_type==='dev'?'<span class="pr-pill pr-dev">Development</span>':`<b style="color:${BAND_COL[x.sc.band]}">${x.sc.band}</b>`}</td>
         <td class="mono" style="text-align:right">${x.sc.ready?(x.sc.pct?'+'+x.sc.pct+'%':'—'):''}${x.sc.overridden?`<div><span class="pr-pill pr-miss" title="${esc(x.p.override_reason||'')}">override · band ${x.sc.bandPct}%</span></div>`:''}</td>
-        <td class="mono" style="text-align:right">${x.sc.ready?php(x.sc.current):''}</td><td class="mono" style="text-align:right">${x.sc.ready?php(x.sc.newRate):''}</td>
+        <td class="mono" style="text-align:right">${x.sc.ready?php(x.sc.current):''}</td><td style="text-align:right;white-space:nowrap">${!x.sc.ready?'':(x.p.finalized_at&&!x.p.applied_at?`<input type="number" step="1" min="${x.sc.current}" value="${x.sc.newRate}" data-newrate="${x.p.staff_id}" data-bandrate="${x.sc.bandRate}" style="width:110px;text-align:right" title="Type an exact new monthly rate">${x.sc.manual?` <a href="#" data-clearrate="${x.p.staff_id}" title="Clear the manual rate">↺</a>`:''}`:`<span class="mono">${php(x.sc.newRate)}</span>`)}${x.sc.manual?'<div><span class="pr-pill pr-miss" title="'+esc(x.p.override_reason||'')+'">manual rate</span></div>':''}</td>
         <td class="mono" style="text-align:right;color:${x.R&&x.R.margin<ROI_FLOOR?'var(--rose)':'inherit'}">${x.R?x.R0.margin.toFixed(1)+'% → '+x.R.margin.toFixed(1)+'%':(x.sc.ready?'<span class="muted">no SMB rate</span>':'')}</td>
-        <td>${x.p.applied_at?'<span class="pill p-work"><span class="dot"></span>Applied</span>':x.p.released_at?'<span class="pill p-work"><span class="dot"></span>Released</span>':x.p.finalized_at?'<span class="pill p-break"><span class="dot"></span>Final</span>':'<span class="muted">draft</span>'}</td></tr>`).join('')}
+        <td>${x.p.applied_at?'<span class="pill p-work"><span class="dot"></span>Applied '+fmtDay(x.p.applied_at)+'</span>':x.p.released_at?'<span class="pill p-work"><span class="dot"></span>Released</span>':x.p.finalized_at?'<span class="pill p-break"><span class="dot"></span>Final</span>':'<span class="muted">draft</span>'}</td>
+        <td style="text-align:right">${x.p.finalized_at&&!x.p.applied_at&&x.sc.ready&&x.sc.newRate>x.sc.current?`<button class="btn btn-gold" style="padding:4px 10px;white-space:nowrap" data-applyrate="${x.p.staff_id}">APPLY NEW RATE</button>`:''}</td></tr>`).join('')}
       </tbody></table></div>
-      <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn btn-ghost" id="prCsv">Export CSV</button><button class="btn btn-gold" id="prApply" ${canApply&&toApply?'':'disabled'}>Apply new contract fees (${toApply})</button><span class="muted" style="font-size:12px">${canApply?'Make sure the last December payout is marked PAID first — payroll uses the current roster rate.':'Available from '+fmtDay(D.cycle.fee_effective)+'.'}</span></div>
+      <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn btn-ghost" id="prCsv">Export CSV</button><span class="muted" style="font-size:12px">New rates change only when you click <b>APPLY NEW RATE</b> on a row. Planned effective date: ${fmtDay(D.cycle.fee_effective)} — apply after the last December payout is marked PAID, since payroll uses the current roster rate. ${toApply} waiting.</span></div>
       <div class="muted" id="prResMsg" style="font-size:12px;margin-top:6px">${esc(msg)}</div></div>`;
   }
   function acksHtml(){
@@ -9593,7 +9595,21 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     if($('prSave')) $('prSave').onclick=()=>save(false);
     if($('prFinal')) $('prFinal').onclick=()=>save(true);
     if($('prRelease')) $('prRelease').onclick=async()=>{const ids=D.participants.filter(p=>p.finalized_at&&!p.released_at).map(p=>p.staff_id);if(!confirm(`Release ${ids.length} result(s)? Each contractor gets a Slack DM and sees their result in the portal. This can't be undone.`))return;try{const r=await call('/api/review/admin/release',{staff_ids:ids});msg=`Released ${r.released}.`;await loadAdmin();}catch(e){alert(e.message);}};
-    if($('prApply')) $('prApply').onclick=async()=>{if(!confirm('Apply the new contract fees to the roster now?\n\nOnly do this after the last December payout is marked PAID — payroll uses the current roster rate. Fees only ever go up and each person is applied once.'))return;try{const r=await call('/api/review/admin/apply',{});msg=`Applied ${r.applied} new rate(s). Open Staff & Clients → Statements of Work to issue the updated SOWs.`;await reloadStaff?.();await loadAdmin();}catch(e){alert(e.message);}};
+    host.querySelectorAll('[data-newrate]').forEach(inp=>inp.onchange=async()=>{
+      const id=inp.dataset.newrate, v=Number(inp.value), band=Number(inp.dataset.bandrate);
+      if(!v){inp.value=band;return;}
+      if(v===band){try{await call('/api/review/admin/rate',{staff_id:id,new_rate:null});msg='Back to the band rate.';await loadAdmin();}catch(e){alert(e.message);}return;}
+      const why=prompt(`New rate for ${nameOf(id)}: ${php(v)} (band rate ${php(band)}).\n\nReason for the manual rate (saved and shown on Results):`);
+      if(!why||!why.trim()){inp.value=band;return;}
+      try{await call('/api/review/admin/rate',{staff_id:id,new_rate:v,reason:why.trim()});msg=`Manual rate saved for ${nameOf(id)}.`;await loadAdmin();}catch(e){alert(e.message);inp.value=band;}
+    });
+    host.querySelectorAll('[data-clearrate]').forEach(a=>a.onclick=async ev=>{ev.preventDefault();try{await call('/api/review/admin/rate',{staff_id:a.dataset.clearrate,new_rate:null});msg='Manual rate cleared.';await loadAdmin();}catch(e){alert(e.message);}});
+    host.querySelectorAll('[data-applyrate]').forEach(b=>b.onclick=async()=>{
+      const id=b.dataset.applyrate, p=D.participants.find(x=>x.staff_id===id), sc=scoreFor(p);
+      if(!confirm(`APPLY NEW RATE for ${nameOf(id)}?\n\n${php(sc.current)}  →  ${php(sc.newRate)}  (+${sc.pct}%)\n\nThis updates their monthly rate on the roster now. Payroll uses the current roster rate, so only apply after the last December payout is marked PAID. Their Statement of Work will then show as Out of date so you can issue a new one.`))return;
+      b.disabled=true;
+      try{const r=await call('/api/review/admin/apply',{staff_id:id});msg=`Applied: ${nameOf(id)} is now ${php(r.monthly_rate)}.`;if(typeof reloadStaff==='function')await reloadStaff();await loadAdmin();}catch(e){alert(e.message);b.disabled=false;}
+    });
     if($('prCsv')) $('prCsv').onclick=()=>{const rows=[['Name','Client','Review type','Score','Band','Band %','Applied %','Override reason','Current rate','New rate','ROI now %','ROI after %','Finalized','Released','Acknowledged']];
       D.participants.forEach(p=>{const sc=scoreFor(p),R=sc.ready?roi(p.staff_id,sc.newRate):null,R0=sc.ready?roi(p.staff_id,sc.current):null;rows.push([nameOf(p.staff_id),clientOf(p.staff_id),p.review_type,sc.ready?sc.total:'',sc.ready?sc.band:'',sc.ready?sc.bandPct:'',sc.ready?sc.pct:'',p.override_reason||'',sc.ready?sc.current:'',sc.ready?sc.newRate:'',R0?R0.margin:'',R?R.margin:'',p.finalized_at||'',p.released_at||'',p.ack_status||'']);});
       const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`service-review-${D.cycle.year}.csv`;a.click();};
