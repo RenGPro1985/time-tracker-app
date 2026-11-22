@@ -65,3 +65,6 @@ create index if not exists review_submissions_reviewee_idx on public.review_subm
 alter table public.review_cycles       enable row level security;
 alter table public.review_participants enable row level security;
 alter table public.review_submissions  enable row level security;
+
+-- 2026-11-22: admin can type an exact new rate (per person) and apply it manually
+alter table public.review_participants add column if not exists rate_manual boolean not null default false;
