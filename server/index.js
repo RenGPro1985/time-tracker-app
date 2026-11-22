@@ -824,8 +824,8 @@ app.get('/api/portal/docs', async (req, res) => {
         if (sigErr) throw sigErr;
         for (const s of allSigs || []) (sigCounts[s.doc_id] = sigCounts[s.doc_id] || []).push(s);
       }
-      // Active staff only: inactive staff are neither counted as eligible nor as signed.
-      const { data: activeStaff, error: staffErr } = await admin.from('staff').select('id, full_name, hire_date').eq('active', true);
+      // Active non-admin staff only: inactive staff and admins (e.g. Marcus Ganzo) are neither counted as eligible nor as signed.
+      const { data: activeStaff, error: staffErr } = await admin.from('staff').select('id, full_name, hire_date').eq('active', true).or('role.is.null,role.neq.admin');
       if (staffErr) throw staffErr;
       const staffById = Object.fromEntries((activeStaff || []).map(s => [s.id, s]));
       const withCounts = docs.map(d => {
