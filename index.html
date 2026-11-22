@@ -9233,12 +9233,12 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     return out;
   }
   function staffHtml(){
-    return `<div class="card pr-soon"><div class="ic">🌱</div><h3>Annual Performance — coming soon</h3>
+    return `<div class="card pr-soon"><div class="ic">🌱</div><h3>Annual Service Review — coming soon</h3>
       <div class="muted" style="font-size:13.5px;max-width:560px;margin:0 auto">We’re building a fair, three-way review so your growth is seen from every side — and so contract fee increases are tied to clear, shared standards.</div>
       <ul><li>📝 <b>Self review</b> — your own take on your year and goals</li><li>🤝 <b>Peer feedback</b> — anonymous input from teammates</li><li>🧭 <b>PM review</b> — your project manager’s assessment and a 1-on-1</li><li>📅 <b>Reliability</b> — attendance counted automatically (approved PTO and PCH never count against you)</li><li>🎯 <b>Mid-year check-in</b> — goals only, no score</li></ul>
       <div class="muted" style="font-size:12px;margin-top:14px">You’ll get a Bulletin Board post when the first review window opens.</div></div>`;
   }
-  function adminHtml(){
+  function setupHtml(){
     const c=cycle(), list=roster(), peers=suggestPeers(list);
     const nAnn=list.filter(r=>r.type==='annual').length, nDev=list.filter(r=>r.type==='dev').length, nMiss=list.filter(r=>r.type==='missing').length;
     const short=list.filter(r=>peers.get(r.s.id).peers.length<3).length;
@@ -9260,9 +9260,149 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       <div class="muted" style="font-size:12px;margin-bottom:8px">Tenure is measured on ${esc(fmtD(c.asOf))} (end of the review window). Suggested peers: up to 3 from the same client first, then other clients; nobody reviews more than 4 people. Suggestions only — peer approval comes in the next build.</div>
       <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Client</th><th>Hire date</th><th>Tenure</th><th>Review type</th><th>Suggested peers</th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="muted">No active staff.</td></tr>'}</tbody></table></div></div>`;
   }
+  /* ===== Annual Service Review — ADMIN PREVIEW / MOCKUP (2026-11-22, Rendy approved plan) =====
+     Dec 7–14 self + peer · Dec 14–21 admin + 1-on-1 · by Dec 28 acknowledge · new fees at first Jan cutoff.
+     Weights: Admin 50 · Peer 20 (needs 3+, else → Admin) · Self 10 · Reliability 20.
+     Bands (same as Reliability): Outstanding 4.50+ +8% · Exceeds 3.75–4.49 +5% · Meets 3.00–3.74 +3% · Developing <3.00 0%.
+     Nothing here is saved; ratings shown for staff are SAMPLE numbers (Reliability is real when the YTD tab has computed it). */
+  const CRIT=[
+    {k:'quality',t:'Quality & accuracy of work',d:'Deliverables are complete, accurate and need little rework.',peer:true},
+    {k:'comm',t:'Communication & responsiveness',d:'Clear updates, quick acknowledgments, flags issues early.',peer:true},
+    {k:'own',t:'Ownership & follow-through',d:'Finishes what they start; follows up without being chased.',peer:true},
+    {k:'team',t:'Teamwork & collaboration',d:'Helps teammates, shares knowledge, easy to work with.',peer:true},
+    {k:'client',t:'Client focus',d:'Understands the client’s needs and protects the account.',peer:false},
+    {k:'growth',t:'Growth & learning',d:'Picks up new tools/tasks, acts on feedback.',peer:false}];
+  const SCALE=[[1,'Rarely meets'],[2,'Developing'],[3,'Meets'],[4,'Exceeds'],[5,'Outstanding']];
+  const BANDS=[{min:4.5,name:'Outstanding',pct:8,col:'var(--teal)'},{min:3.75,name:'Exceeds',pct:5,col:'#7FA7F5'},{min:3,name:'Meets',pct:3,col:'var(--gold)'},{min:0,name:'Developing',pct:0,col:'var(--rose)'}];
+  const W={admin:.5,peer:.2,self:.1,rel:.2};
+  const band=sc=>BANDS.find(b=>sc>=b.min)||BANDS[3];
+  const r2=n=>Math.round(n*100)/100;
+  const php=v=>'₱'+Number(v||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+  function seed(str){let h=2166136261;for(const ch of String(str)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return ()=>{h^=h<<13;h^=h>>>17;h^=h<<5;return ((h>>>0)%1000)/1000;};}
+  const pick=(rnd,lo,hi)=>Math.round((lo+rnd()*(hi-lo))*2)/2;
+  function sample(s){ /* deterministic SAMPLE ratings per person */
+    const rnd=seed(s.id), base=2.8+rnd()*1.9;
+    const self={},admin={};CRIT.forEach(c=>{self[c.k]=Math.min(5,Math.max(1,pick(rnd,base,base+0.9)));admin[c.k]=Math.min(5,Math.max(1,pick(rnd,base-0.6,base+0.5)));});
+    const nPeers=rnd()<0.18?2:3, peers=[];for(let i=0;i<nPeers;i++){const o={};CRIT.filter(c=>c.peer).forEach(c=>o[c.k]=Math.min(5,Math.max(1,pick(rnd,base-0.5,base+0.6))));peers.push(o);}
+    const relReal=window.Reliability?._byStaff?.()[s.id]?.score;
+    return {self,admin,peers,rel:relReal!=null?relReal:Math.min(5,r2(base+0.2+rnd()*0.6)),relReal:relReal!=null};
+  }
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  function score(sm,adminOverride){
+    const adm=adminOverride||sm.admin;
+    const a=avg(CRIT.map(c=>adm[c.k])), sf=avg(CRIT.map(c=>sm.self[c.k]));
+    const pv=sm.peers.length>=3?avg(sm.peers.map(p=>avg(Object.values(p)))):null;
+    const wA=W.admin+(pv==null?W.peer:0), wP=pv==null?0:W.peer;
+    const total=r2(a*wA+(pv||0)*wP+sf*W.self+sm.rel*W.rel);
+    return {a:r2(a),sf:r2(sf),pv:pv==null?null:r2(pv),rel:sm.rel,wA,wP,total,b:band(total)};
+  }
+  let tab='overview', selId=null, adminEdit={}, budgetCap=15000;
+  const TABS=[['overview','🧭 Overview'],['self','📝 Self review (staff view)'],['peer','🤝 Peer feedback (staff view)'],['admin','🧑‍⚖️ Admin scoring'],['results','💰 Results & fee review'],['ack','✅ Result & acknowledge (staff view)'],['setup','⚙️ Review type & peers']];
+  const rateRow=(name,val,dis)=>`<div class="pr-q"><div><b>${esc(name.t)}</b><div class="muted" style="font-size:12px">${esc(name.d)}</div></div><div class="pr-scale">${SCALE.map(([n,l])=>`<label title="${l}"><input type="radio" name="${dis}${name.k}" ${val===n?'checked':''}><span>${n}</span><small>${l}</small></label>`).join('')}</div></div>`;
+  function overviewHtml(){
+    return `<div class="card"><div class="hdr"><h3 style="font-size:15px">Annual Service Review — ${cycle().year} cycle</h3></div>
+      <div class="pr-w"><div><b>50%</b><span>Admin / PM review</span></div><div><b>20%</b><span>Peer feedback (anonymous · needs 3+ responses, else moves to Admin)</span></div><div><b>10%</b><span>Self review</span></div><div><b>20%</b><span>Reliability (automatic)</span></div></div>
+      <div class="bb-sec" style="margin:16px 0 8px">Timeline</div>
+      <div class="pr-tl"><div><b>Dec 7 – 14</b>Self review + peer feedback open</div><div><b>Dec 14 – 21</b>Admin scoring + 1-on-1s</div><div><b>By Dec 28</b>Staff see result · 7 days to acknowledge or ask for reconsideration</div><div><b>Late Dec</b>Rates updated → Statements of Work issued</div><div><b>First Jan cutoff</b>New contract fees take effect</div></div>
+      <div class="bb-sec" style="margin:16px 0 8px">Score bands &amp; contract fee review</div>
+      <table><thead><tr><th>Final score</th><th>Band</th><th style="text-align:right">Fee increase</th></tr></thead><tbody>
+      ${BANDS.map((b,i)=>`<tr><td class="mono">${i===0?'4.50 – 5.00':i===1?'3.75 – 4.49':i===2?'3.00 – 3.74':'below 3.00'}</td><td><b style="color:${b.col}">${b.name}</b></td><td class="mono" style="text-align:right">+${b.pct}%</td></tr>`).join('')}
+      <tr><td class="muted" colspan="2">Under 6 months of service by ${esc(fmtD(cycle().asOf))} (development-only review)</td><td class="mono" style="text-align:right">no change</td></tr></tbody></table>
+      <div class="muted" style="font-size:12px;margin-top:10px;line-height:1.5">Fees never go down. Year End Bonus is separate. Rating criteria (1–5): ${CRIT.map(c=>esc(c.t)).join(' · ')}. Peers rate the first four only.</div></div>`;
+  }
+  function selfHtml(){
+    const s=(staffList||[]).find(x=>x.role!=='admin'&&x.active)||{full_name:'Juan Dela Cruz'};
+    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">📝 My Self Review — ${cycle().year}</h3><div class="muted" style="font-size:12.5px">${esc(s.full_name)} · due Dec 14 · counts for 10% · only you and Sir Rendy see this</div></div><span class="pr-pill pr-dev">Preview</span></div>
+      ${CRIT.map(c=>rateRow(c,null,'sf_')).join('')}
+      <label style="margin-top:12px">What went well this year? Your proudest wins</label><textarea rows="3" style="width:100%" placeholder="e.g. took over the H2H inbox while Ana was on PTO…"></textarea>
+      <label style="margin-top:8px">What would you like to improve, and what support would help?</label><textarea rows="3" style="width:100%"></textarea>
+      <label style="margin-top:8px">Your goals for next year (1–3)</label><textarea rows="2" style="width:100%"></textarea>
+      <div class="row" style="margin-top:10px;gap:8px"><button class="btn btn-ghost" disabled>Save draft</button><button class="btn btn-gold" disabled>Submit self review</button><span class="muted" style="font-size:12px">Disabled in preview · drafts save automatically in the real form</span></div></div>`;
+  }
+  function peerHtml(){
+    const others=(staffList||[]).filter(x=>x.role!=='admin'&&x.active).slice(1,4);
+    const names=others.length?others.map(x=>x.full_name):['Teammate A','Teammate B','Teammate C'];
+    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">🤝 Peer Feedback — ${cycle().year}</h3><div class="muted" style="font-size:12.5px">You've been asked to give feedback on ${names.length} teammates · due Dec 14 · <b>anonymous</b>: they and Sir Rendy see only combined results, never who wrote what</div></div><span class="pr-pill pr-dev">Preview</span></div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">${names.map((n,i)=>`<span class="pr-pill ${i===0?'pr-ann':'pr-x'}">${esc(n)}${i===0?' · in progress':' · to do'}</span>`).join('')}</div>
+      <div style="font-weight:700;margin:4px 0 8px">Feedback for ${esc(names[0])}</div>
+      ${CRIT.filter(c=>c.peer).map(c=>rateRow(c,null,'pf_')).join('')}
+      <label style="margin-top:10px">One thing they do really well</label><textarea rows="2" style="width:100%"></textarea>
+      <label style="margin-top:8px">One thing that would make them even better</label><textarea rows="2" style="width:100%"></textarea>
+      <div class="muted" style="font-size:11.5px;margin-top:6px">Keep it about the work. Comments are shown to the person word-for-word but without your name.</div>
+      <div class="row" style="margin-top:10px;gap:8px"><button class="btn btn-gold" disabled>Submit &amp; next teammate</button><button class="btn btn-ghost" disabled>I haven't worked with them enough</button></div></div>`;
+  }
+  function eligibleRows(){return roster().filter(r=>r.type!=='missing');}
+  function adminScoreHtml(){
+    const rows=eligibleRows(); if(!rows.length)return '<div class="card muted">No active staff.</div>';
+    if(!selId||!rows.find(r=>r.s.id===selId))selId=rows[0].s.id;
+    const r=rows.find(x=>x.s.id===selId), sm=sample(r.s), ad=adminEdit[selId]||(adminEdit[selId]={...sm.admin}), sc=score(sm,ad);
+    const peerAvg=k=>sm.peers.length?r2(avg(sm.peers.map(p=>p[k]))):null;
+    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">🧑‍⚖️ Admin scoring</h3><div class="muted" style="font-size:12.5px">Self and peer numbers below are <b>SAMPLE</b> data${sm.relReal?'; Reliability is the real score':'; Reliability is sample (open YTD Attendance first to load real scores)'}. Change your ratings to see the score move.</div></div>
+      <select id="prSel" style="width:auto">${rows.map(x=>`<option value="${x.s.id}" ${x.s.id===selId?'selected':''}>${esc(x.s.full_name)} · ${esc(x.client)}</option>`).join('')}</select></div>
+      ${r.type==='dev'?'<div class="note">Under 6 months of service: development-only review — scored for feedback, no fee change this cycle.</div>':''}
+      <div class="pr-kpis" style="margin:8px 0 12px"><div class="stat"><div class="k">Final score</div><div class="v" style="color:${sc.b.col}">${sc.total.toFixed(2)}</div></div><div class="stat"><div class="k">Band</div><div class="v" style="color:${sc.b.col};font-size:20px">${sc.b.name}</div></div><div class="stat"><div class="k">Fee increase</div><div class="v">${r.type==='dev'?'—':'+'+sc.b.pct+'%'}</div></div><div class="stat"><div class="k">Peer responses</div><div class="v" style="color:${sm.peers.length>=3?'var(--ink)':'var(--rose)'}">${sm.peers.length}/3</div></div></div>
+      <table><thead><tr><th>Criterion</th><th style="text-align:center">Self</th><th style="text-align:center">Peers (avg)</th><th>Your rating</th></tr></thead><tbody>
+      ${CRIT.map(c=>`<tr><td><b>${esc(c.t)}</b></td><td class="mono" style="text-align:center">${sm.self[c.k]}</td><td class="mono" style="text-align:center">${c.peer&&peerAvg(c.k)!=null?peerAvg(c.k):'<span class="muted">—</span>'}</td><td><div class="pr-scale sm">${SCALE.map(([n,l])=>`<label title="${l}"><input type="radio" name="ad_${c.k}" data-adk="${c.k}" value="${n}" ${Math.round(ad[c.k])===n?'checked':''}><span>${n}</span></label>`).join('')}</div></td></tr>`).join('')}
+      </tbody></table>
+      <div class="bb-sec" style="margin:14px 0 6px">How the score is built</div>
+      <table><tbody>
+      <tr><td>Admin review (avg ${sc.a.toFixed(2)})</td><td class="mono" style="text-align:right">${Math.round(sc.wA*100)}%${sc.wP?'':' <span class="pr-pill pr-miss">peer weight moved here</span>'}</td><td class="mono" style="text-align:right">${r2(sc.a*sc.wA).toFixed(2)}</td></tr>
+      <tr><td>Peer feedback (${sm.peers.length} responses${sc.pv!=null?', avg '+sc.pv.toFixed(2):', needs 3'})</td><td class="mono" style="text-align:right">${Math.round(sc.wP*100)}%</td><td class="mono" style="text-align:right">${sc.pv!=null?r2(sc.pv*sc.wP).toFixed(2):'—'}</td></tr>
+      <tr><td>Self review (avg ${sc.sf.toFixed(2)})</td><td class="mono" style="text-align:right">10%</td><td class="mono" style="text-align:right">${r2(sc.sf*W.self).toFixed(2)}</td></tr>
+      <tr><td>Reliability (${sc.rel.toFixed(2)}${sm.relReal?'':' · sample'})</td><td class="mono" style="text-align:right">20%</td><td class="mono" style="text-align:right">${r2(sc.rel*W.rel).toFixed(2)}</td></tr>
+      <tr style="border-top:2px solid var(--gold)"><td><b>Final score</b></td><td></td><td class="mono" style="text-align:right;font-weight:800;color:${sc.b.col}">${sc.total.toFixed(2)}</td></tr></tbody></table>
+      <label style="margin-top:12px">Your summary for ${esc(r.s.full_name)} (shown to them)</label><textarea rows="3" style="width:100%" placeholder="Strengths, what to work on, and goals for next year…"></textarea>
+      <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap"><input type="checkbox" style="width:auto"> 1-on-1 done</span><button class="btn btn-ghost" disabled>Save draft</button><button class="btn btn-gold" disabled>Finalize &amp; release to ${esc(r.s.full_name.split(' ')[0])}</button></div></div>`;
+  }
+  function resultsHtml(){
+    const rows=eligibleRows().map(r=>{const sm=sample(r.s),sc=score(sm,adminEdit[r.s.id]);const cur=Number(r.s.monthly_rate||0);const pct=r.type==='dev'?0:sc.b.pct;const nw=Math.round(cur*(1+pct/100));return {r,sc,cur,pct,nw,inc:nw-cur};});
+    const tot=rows.reduce((a,x)=>a+x.inc,0), cnt={};rows.forEach(x=>{const k=x.r.type==='dev'?'Development only':x.sc.b.name;cnt[k]=(cnt[k]||0)+1;});
+    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">💰 Results &amp; contract fee review</h3><div class="muted" style="font-size:12.5px">SAMPLE scores. In the real build, "Apply new rates" updates the roster on the first January cutoff and the Statements of Work card flags everyone as Out of date, ready to issue.</div></div>
+      <div class="row" style="gap:6px;align-items:center"><span class="muted" style="font-size:12px">Monthly budget cap</span><input type="number" id="prCap" value="${budgetCap}" style="width:110px"></div></div>
+      <div class="pr-kpis" style="margin-bottom:10px"><div class="stat"><div class="k">Total monthly increase</div><div class="v" style="color:${tot>budgetCap?'var(--rose)':'var(--teal)'}">${php(tot)}</div></div><div class="stat"><div class="k">Budget cap</div><div class="v">${php(budgetCap)}</div></div><div class="stat"><div class="k">${tot>budgetCap?'Over cap by':'Under cap by'}</div><div class="v" style="color:${tot>budgetCap?'var(--rose)':'var(--teal)'}">${php(Math.abs(budgetCap-tot))}</div></div><div class="stat"><div class="k">Bands</div><div class="v" style="font-size:13px;line-height:1.5">${Object.entries(cnt).map(([k,v])=>`${esc(k)}: <b>${v}</b>`).join('<br>')}</div></div></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Client</th><th style="text-align:right">Score</th><th>Band</th><th style="text-align:right">Increase</th><th style="text-align:right">Current rate</th><th style="text-align:right">New rate (Jan)</th></tr></thead><tbody>
+      ${rows.sort((a,b)=>b.sc.total-a.sc.total).map(x=>`<tr><td><b>${esc(x.r.s.full_name)}</b></td><td class="muted">${esc(x.r.client)}</td><td class="mono" style="text-align:right">${x.sc.total.toFixed(2)}</td><td>${x.r.type==='dev'?'<span class="pr-pill pr-dev">Development only</span>':`<b style="color:${x.sc.b.col}">${x.sc.b.name}</b>`}</td><td class="mono" style="text-align:right">${x.pct?'+'+x.pct+'%':'—'}</td><td class="mono" style="text-align:right">${php(x.cur)}</td><td class="mono" style="text-align:right">${php(x.nw)}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="row" style="margin-top:10px;gap:8px"><button class="btn btn-ghost" disabled>Export CSV</button><button class="btn btn-gold" disabled>Apply new rates on first January cutoff</button></div></div>`;
+  }
+  function ackHtml(){
+    const r=eligibleRows().find(x=>x.type==='annual')||eligibleRows()[0]; if(!r)return '<div class="card muted">No active staff.</div>';
+    const sm=sample(r.s),sc=score(sm,adminEdit[r.s.id]),cur=Number(r.s.monthly_rate||0),nw=Math.round(cur*(1+sc.b.pct/100));
+    return `<div class="card"><div class="hdr"><div><h3 style="font-size:15px">🌱 Your ${cycle().year} Annual Service Review</h3><div class="muted" style="font-size:12.5px">${esc(r.s.full_name)} · released Dec 21 · please respond by Dec 28</div></div><span class="pr-pill pr-dev">Preview · sample</span></div>
+      <div class="pr-kpis" style="margin-bottom:10px"><div class="stat"><div class="k">Final score</div><div class="v" style="color:${sc.b.col}">${sc.total.toFixed(2)}</div></div><div class="stat"><div class="k">Band</div><div class="v" style="color:${sc.b.col};font-size:20px">${sc.b.name}</div></div><div class="stat"><div class="k">New monthly contract fee</div><div class="v" style="font-size:18px">${php(nw)}</div></div><div class="stat"><div class="k">Takes effect</div><div class="v" style="font-size:16px">First Jan cutoff</div></div></div>
+      <table><tbody>${CRIT.map(c=>`<tr><td>${esc(c.t)}</td><td class="mono" style="text-align:right">${(adminEdit[r.s.id]||sm.admin)[c.k]}</td></tr>`).join('')}</tbody></table>
+      <div class="bb-sec" style="margin:12px 0 6px">What your teammates said (anonymous)</div>
+      <div class="note" style="font-size:13px">“Always the first to help when the queue piles up.”<br>“Could share updates in the GC a bit earlier.”</div>
+      <div class="bb-sec" style="margin:12px 0 6px">From Sir Rendy</div><div class="note" style="font-size:13px">Summary and goals for next year appear here.</div>
+      <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn btn-gold" disabled>I acknowledge my review</button><button class="btn btn-ghost" disabled>Ask for reconsideration</button><span class="muted" style="font-size:12px">Reconsideration asks for a reason; Sir Rendy replies before the January cutoff. Your new Statement of Work follows for signature.</span></div></div>`;
+  }
+  function adminHtml(){
+    const body=tab==='overview'?overviewHtml():tab==='self'?selfHtml():tab==='peer'?peerHtml():tab==='admin'?adminScoreHtml():tab==='results'?resultsHtml():tab==='ack'?ackHtml():setupHtml();
+    return `<div class="note">🚧 <b>Admin preview — nothing is saved and staff still see “Coming soon”.</b> Ratings are <b>sample</b> numbers so you can see how every screen will look and how scores turn into fee changes.</div>
+      <div class="pr-tabs">${TABS.map(([k,l])=>`<button class="btn ${tab===k?'btn-gold':'btn-ghost'}" data-prtab="${k}">${l}</button>`).join('')}</div>${body}`;
+  }
+  function wire(){
+    document.querySelectorAll('[data-prtab]').forEach(b=>b.onclick=()=>{tab=b.dataset.prtab;init();});
+    const sel=$('prSel'); if(sel) sel.onchange=()=>{selId=sel.value;init();};
+    document.querySelectorAll('[data-adk]').forEach(i=>i.onchange=()=>{(adminEdit[selId]=adminEdit[selId]||{})[i.dataset.adk]=Number(i.value);init();});
+    const cap=$('prCap'); if(cap) cap.onchange=()=>{budgetCap=Number(cap.value||0);init();};
+  }
+  if(!document.getElementById('prMockCss')){const st=document.createElement('style');st.id='prMockCss';st.textContent=`
+.pr-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.pr-q{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.pr-q>div:first-child{flex:1;min-width:220px}
+.pr-scale{display:flex;gap:4px}
+.pr-scale label{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;min-width:54px}
+.pr-scale.sm label{min-width:30px}
+.pr-scale input{display:none}
+.pr-scale span{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--card2);box-shadow:inset 0 0 0 1px var(--line);font-weight:700}
+.pr-scale input:checked+span{background:var(--gold);color:#151515;box-shadow:none}
+.pr-scale small{font-size:10px;color:var(--muted);text-align:center;line-height:1.1}
+@media (max-width:700px){.pr-kpis,.pr-w,.pr-tl{grid-template-columns:repeat(2,minmax(0,1fr))}}`;document.head.appendChild(st);}
   function init(){
     const host=$('prRoot'); if(!host||!me) return;
     host.innerHTML=me.role==='admin'?adminHtml():staffHtml();
+    if(me.role==='admin') wire();
   }
   window.PerfReview={init,_roster:roster,_suggestPeers:suggestPeers,_monthsBetween:monthsBetween};
 })();
