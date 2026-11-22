@@ -16,6 +16,7 @@ import { randomUUID } from 'crypto';
 import { registerCalendar } from './calendar.js';
 import { registerCelebrations } from './celebrations.js';
 import { stampSignedPdf } from './esign.js';
+import { buildSowPdf } from './sow.js';
 
 const {
   SUPABASE_URL,
@@ -948,6 +949,81 @@ app.post('/api/portal/esign/backfill', async (req, res) => {
     }
     res.json({ ok: true, made, failed, checked: (rows || []).length });
   } catch (e) { res.status(500).json({ error: e.message || 'Backfill failed.' }); }
+});
+
+// --- 11c. Statements of Work (admin) ------------------------------------
+// The browser computes the fee rows with the same code as My Contract Fee and sends
+// them with the staff/client details; the server adds the SOW number, the date the
+// contractor signed the Agreement, Rendy's signature, and files it as a personal
+// portal doc that requires the contractor's signature.
+const phtLong = d => new Date(d || Date.now()).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: 'long', day: 'numeric' });
+const longDate = iso => /^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? new Date(iso + 'T12:00:00+08:00').toLocaleDateString('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: 'long', day: 'numeric' }) : (iso || '');
+async function sowAgreementSigned(staffId) {
+  const { data: docs } = await admin.from('portal_docs').select('id, title, created_at').ilike('title', '%contractor%agreement%').or(`visibility.eq.all,visibility.eq.${staffId}`).order('created_at', { ascending: false });
+  if (!docs?.length) return null;
+  const { data: sigs } = await admin.from('portal_signatures').select('doc_id, signed_at').eq('staff_id', staffId).in('doc_id', docs.map(d => d.id));
+  if (!sigs?.length) return null;
+  const order = Object.fromEntries(docs.map((d, i) => [d.id, i]));
+  sigs.sort((a, b) => order[a.doc_id] - order[b.doc_id]); // newest Agreement version first
+  return phtLong(sigs[0].signed_at);
+}
+async function sowPayload(body, sowNo) {
+  const d = body?.data || {};
+  if (!body?.staff_id || !d.contractor || !d.fee) throw Object.assign(new Error('staff_id and SOW data are required.'), { status: 400 });
+  return { ...d, sow_no: sowNo, issued_on: phtLong(), effective_date: longDate(d.effective_date) || phtLong(), agreement_signed: await sowAgreementSigned(body.staff_id) };
+}
+app.post('/api/sow/preview', async (req, res) => {
+  try {
+    const caller = await requireAdmin(req, res); if (!caller) return;
+    const pdf = await buildSowPdf(await sowPayload(req.body, 'SOW-DRAFT (preview, not issued)'));
+    res.json({ ok: true, pdf_base64: pdf.toString('base64') });
+  } catch (e) { res.status(e.status || 500).json({ error: e.message || 'Preview failed.' }); }
+});
+app.post('/api/sow/issue', async (req, res) => {
+  let row = null;
+  try {
+    const caller = await requireAdmin(req, res); if (!caller) return;
+    const { staff_id, snapshot } = req.body || {};
+    await sowPayload(req.body, 'x'); // validate before taking a number
+    const eff = /^\d{4}-\d{2}-\d{2}$/.test(req.body?.data?.effective_date || '') ? req.body.data.effective_date : null;
+    const { data: ins, error: insErr } = await admin.from('sow_issued').insert({ staff_id, snapshot: snapshot || {}, effective_date: eff, issued_by: caller.id }).select().single();
+    if (insErr) throw insErr;
+    row = ins;
+    const sowNo = `SOW-${new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }).slice(0, 4)}-${String(ins.seq).padStart(4, '0')}`;
+    const pdf = await buildSowPdf(await sowPayload(req.body, sowNo));
+    const storagePath = `${staff_id}/${Date.now()}-${randomUUID()}-${sowNo}.pdf`;
+    const { error: upErr } = await admin.storage.from(PORTAL_BUCKET).upload(storagePath, pdf, { contentType: 'application/pdf', upsert: false });
+    if (upErr) throw upErr;
+    const { data: doc, error: docErr } = await admin.from('portal_docs').insert({
+      title: `Statement of Work ${sowNo}`, category: 'Contract', visibility: staff_id, storage_path: storagePath,
+      file_type: 'application/pdf', requires_signature: true, uploaded_by: caller.id
+    }).select().single();
+    if (docErr) { try { await admin.storage.from(PORTAL_BUCKET).remove([storagePath]); } catch (_) {} throw docErr; }
+    const { error: updErr } = await admin.from('sow_issued').update({ sow_no: sowNo, doc_id: doc.id }).eq('id', ins.id);
+    if (updErr) throw updErr;
+    res.json({ ok: true, sow_no: sowNo, doc_id: doc.id });
+  } catch (e) {
+    if (row && !row.sow_no) { try { await admin.from('sow_issued').delete().eq('id', row.id); } catch (_) {} }
+    console.error('SOW issue failed:', e);
+    res.status(e.status || 500).json({ error: e.message || 'Could not issue the Statement of Work.' });
+  }
+});
+// Latest issued SOW per staff + whether the contractor has signed it.
+app.get('/api/sow/status', async (req, res) => {
+  try {
+    const caller = await requireAdmin(req, res); if (!caller) return;
+    const { data, error } = await admin.from('sow_issued').select('staff_id, sow_no, doc_id, snapshot, effective_date, issued_at').not('sow_no', 'is', null).order('issued_at', { ascending: false });
+    if (error) throw error;
+    const latest = {}; for (const r of data || []) if (!latest[r.staff_id]) latest[r.staff_id] = r;
+    const docIds = Object.values(latest).map(r => r.doc_id).filter(Boolean);
+    let signed = {};
+    if (docIds.length) {
+      const { data: sigs } = await admin.from('portal_signatures').select('doc_id, staff_id, signed_at').in('doc_id', docIds);
+      for (const s of sigs || []) signed[s.doc_id + '|' + s.staff_id] = s.signed_at;
+    }
+    for (const r of Object.values(latest)) r.signed_at = r.doc_id ? (signed[r.doc_id + '|' + r.staff_id] || null) : null;
+    res.json({ ok: true, latest });
+  } catch (e) { res.status(500).json({ error: e.message || 'Could not load Statements of Work.' }); }
 });
 
 // --- 12. Portal: admin deletes a document (removes DB row + storage object) ---
