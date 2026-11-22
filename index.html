@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="smb-build" content="2026-11-09-b37">
+<meta name="smb-build" content="2026-11-22-b38">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SMB VS Portal</title>
@@ -398,6 +398,18 @@ th.eg-new,td.eg-new{background:rgba(242,184,75,.07)}
 .fa-hl td{background:rgba(242,194,107,.07)}
 .nd-capped{background:rgba(229,72,77,.22)!important;color:#E5484D!important;font-weight:700;outline:1px solid #E5484D;outline-offset:-1px}
 .nd-capped-row>td.sticky-col,.nd-capped-row>td.sticky-col b{color:#E5484D!important}
+
+/* ===== Live Status manual refresh bar (Rendy 2026-11-22, Supabase egress fix) ===== */
+.ls-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:12px;transition:border-color .3s,background .3s}
+.ls-bar.stale{border-color:rgba(227,166,62,.55);background:#2a2314}
+.ls-bar .ls-dot{width:9px;height:9px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 3px rgba(63,191,174,.18);flex:none}
+.ls-bar.stale .ls-dot{background:var(--gold);box-shadow:0 0 0 3px rgba(227,166,62,.2)}
+.ls-bar .ls-txt{flex:1;min-width:200px}.ls-bar .ls-main{font-weight:600}.ls-bar .ls-sub{color:var(--muted);font-size:12px}
+.ls-bar.stale .ls-sub{color:#e8c98c}
+.ls-bar .btn[disabled]{opacity:.45;cursor:not-allowed}
+.ls-spin{display:inline-block}.ls-loading .ls-spin{animation:lsSpin .8s linear infinite}@keyframes lsSpin{to{transform:rotate(360deg)}}
+.ls-tip{display:flex;gap:10px;align-items:flex-start;background:rgba(63,191,174,.08);border:1px solid rgba(63,191,174,.3);border-radius:11px;padding:10px 12px;margin-bottom:12px;font-size:12.5px}
+.ls-tip .ls-x{margin-left:auto;background:none;border:0;color:var(--muted);cursor:pointer;font-size:16px;line-height:1}
 </style>
 <style id="scbStyles">
 /* b37: compact read-only own-data Completion Bonus */
@@ -772,9 +784,11 @@ th.eg-new,td.eg-new{background:rgba(242,184,75,.07)}
           <select id="fStatus" style="width:auto"><option value="">All statuses</option><option>Working</option><option>On break</option><option>On Leave</option><option>Off shift</option></select>
           <span class="badge hide" id="accessCountBadge"></span>
           <button class="gear-btn hide" id="manageAccessBtn" title="Manage who can view this tab" style="background:transparent;border:1px solid var(--line);color:var(--muted);width:32px;height:32px;border-radius:9px;cursor:pointer;font-size:14px">⚙</button>
-          <button class="btn btn-ghost" id="refreshBtn">Refresh</button></div>
+</div>
         </div>
-        <div class="sticky-scroll"><table><thead><tr><th>Staff</th><th>Client</th><th>Shift (PHT)</th><th>Status</th><th>Activity</th><th>Time in status</th><th id="rosterActionsHead"></th></tr></thead>
+        <div class="ls-tip hide" id="lsTip"><span>💡</span><span><b>This board doesn't update by itself.</b> Tap <b>Refresh</b> whenever you need the current live status.</span><button class="ls-x" id="lsTipX" title="Got it">×</button></div>
+      <div class="ls-bar" id="lsBar"><span class="ls-dot"></span><div class="ls-txt"><div class="ls-main" id="lsMain">Loading live status…</div><div class="ls-sub" id="lsSub"></div></div><button class="btn btn-gold" id="refreshBtn"><span class="ls-spin">🔄</span> <span id="lsLbl">Refresh</span></button></div>
+      <div class="sticky-scroll"><table><thead><tr><th>Staff</th><th>Client</th><th>Shift (PHT)</th><th>Status</th><th>Activity</th><th>Time in status</th><th id="rosterActionsHead"></th></tr></thead>
         <tbody id="roster"></tbody></table></div>
       </div>
       <div class="card hide" id="accessPanel">
@@ -3150,7 +3164,10 @@ async function start(){
      also performs a catch-up check, so this catches threshold crossings without sending
      four backend requests per minute throughout the entire shift. */
   setInterval(()=>{ if(curShift&&curEntry&&Number(allowance[curEntry.activity]||0)>0) syncOverbreakAlerts(curShift.id); },15000);
-  setInterval(()=>{ if(!document.hidden&&document.getElementById('v-status').classList.contains('hide')===false) loadRoster(); },60000); // paused while the tab is hidden
+  // Live Status: admins auto-refresh every 5 min (visible tab only); staff viewers refresh manually.
+  // Was every 60s for everyone — that one poll was ~90% of the Supabase egress (Rendy 2026-11-22).
+  setInterval(()=>{ if(!document.hidden&&typeof me!=="undefined"&&me&&iAmLiveStatusAdmin()&&document.getElementById('v-status').classList.contains('hide')===false&&lsAgeSec()>=LS_AUTO_SEC-5) loadRoster(true); },30000);
+  setInterval(lsPaintBar,1000); // DOM only — no network
   setInterval(()=>{ if(me&&document.getElementById('v-dash').classList.contains('hide')===false) renderPayPeriod(); },300000);
   await refreshNotifications(true);
   setInterval(refreshNotifications,60000);
@@ -3178,7 +3195,7 @@ async function refreshNotifications(force){
   else if(data&&data.length){const have=new Set(notifications.map(n=>n.id));notifications=[...data.filter(n=>!have.has(n.id)),...notifications].slice(0,30);}
   renderNotifBell();
 }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&typeof me!=='undefined'&&me){ refreshNotifications(); if(!document.getElementById('v-status').classList.contains('hide')) loadRoster(); } });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&typeof me!=='undefined'&&me){ refreshNotifications(); if(!document.getElementById('v-status').classList.contains('hide')&&iAmLiveStatusAdmin()&&lsAgeSec()>=LS_AUTO_SEC) loadRoster(true); } });
 function renderNotifBell(){
   const unread=notifications.filter(n=>!n.read_at).length;
   $('notifBadge').classList.toggle('hide',unread===0);
@@ -3345,7 +3362,7 @@ function ncToggle(){
   try{ localStorage.setItem(NC_KEY,ncShowAll()?'0':'1'); }catch(_){}
   const v=view; ncPaintChip(v);
   try{
-    if(v==='v-status'){ initFilters(); loadRoster(); }
+    if(v==='v-status'){ initFilters(); loadRoster(false); }
     else if(v==='v-sheets'){ if(typeof refreshSheetStaff==='function')refreshSheetStaff(); renderSheetGrid(); if(sheetRows.length)runSheet(); }
     else if(v==='v-ledger'){ refreshLedgerStaff(); if($('lgPeriod').value)runLedger(); }
     else if(v==='v-earning'){ if(egRows&&egRows.length)renderEarningRows(egRows); }
@@ -3368,7 +3385,7 @@ function go(v){
   if(v==='v-cal'||v==='v-teamcal'){window.TeamCal?.open(v);}
   $('pageTitle').textContent=PAGES[v][1]; $('pageSub').textContent=PAGES[v][2];
   $('nav').querySelectorAll('button').forEach(b=>b.className=(b.dataset.v===v||(b.dataset.v===navParentOf(v))?'on':''));
-  if(v==='v-status'){initFilters();loadRoster();}
+  if(v==='v-status'){initFilters();loadRoster(lsAgeSec()>=LS_COOL_SEC);}
   if(v==='v-staff'){renderStaffAdmin();}
   if(v==='v-benefits'){renderBenefits();}
   if(v==='v-adjustments'){renderAdjustments();}
@@ -3765,7 +3782,9 @@ async function initFilters(){
   }else{
     fill('fStaff','All staff',statusRosterStaff.filter(s=>s.active&&!ncHideNow(s)).map(s=>[s.id,s.full_name]));
   }
-  if(!statusIsInit){ ['fClient','fStaff','fStatus'].forEach(id=>$(id).onchange=loadRoster); $('refreshBtn').onclick=loadRoster; statusIsInit=true; }
+  if(!statusIsInit){ ['fClient','fStaff','fStatus'].forEach(id=>$(id).onchange=()=>loadRoster(false)); $('refreshBtn').onclick=()=>{ if(lsCoolLeft()===0) loadRoster(true); };
+    $('lsTipX').onclick=()=>{ try{localStorage.setItem('lsTipSeen','1');}catch(_){} $('lsTip').classList.add('hide'); };
+    statusIsInit=true; }
 }
 function renderAccessBadge(){
   const n=staffList.filter(s=>s.can_view_live_status).length;
@@ -3794,7 +3813,36 @@ async function saveLiveStatusAccess(){
 }
 function fill(id,blank,pairs){$(id).innerHTML=`<option value="">${blank}</option>`+pairs.map(p=>`<option value="${p[0]}">${escapeHtml(p[1])}</option>`).join('');}
 
-async function loadRoster(){
+/* ---- Live Status refresh state (manual refresh + admin 5-min auto) ---- */
+const LS_AUTO_SEC=300, LS_COOL_SEC=30, LS_STALE_SEC=600;
+let lsData=null, lsAt=0, lsLoading=false;
+function lsAgeSec(){ return lsAt?Math.floor((Date.now()-lsAt)/1000):Infinity; }
+function lsCoolLeft(){ return Math.max(0,LS_COOL_SEC-lsAgeSec()); }
+function lsPaintBar(){
+  const bar=document.getElementById('lsBar'); if(!bar||$('v-status').classList.contains('hide')||typeof me==='undefined'||!me) return;
+  const admin=iAmLiveStatusAdmin(), age=lsAgeSec(), stale=lsAt&&age>=LS_STALE_SEC;
+  let seen=false; try{ seen=localStorage.getItem('lsTipSeen')==='1'; }catch(_){}
+  $('lsTip').classList.toggle('hide',admin||seen);
+  bar.classList.toggle('stale',!!stale);
+  if(lsAt){
+    const t=new Date(lsAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:PH});
+    $('lsMain').textContent=(stale?'⚠ Data may be out of date · ':'')+'Updated '+t+' PHT · '+(age<45?'just now':Math.round(age/60)+' min ago');
+  }
+  const nxt=Math.max(0,LS_AUTO_SEC-age);
+  $('lsSub').textContent=admin?('Auto-refreshes every 5 min · next in '+Math.floor(nxt/60)+':'+String(nxt%60).padStart(2,'0'))
+    :(stale?'Tap Refresh to see who is working right now.':'Tap Refresh to get the current live status.');
+  const btn=$('refreshBtn'); btn.classList.toggle('ls-loading',lsLoading);
+  if(lsLoading){ btn.disabled=true; $('lsLbl').textContent='Refreshing…'; }
+  else { const c=lsCoolLeft(); btn.disabled=c>0; $('lsLbl').textContent=c>0?'Refresh ('+c+'s)':'Refresh'; }
+}
+async function loadRoster(refetch){
+  if(refetch!==false||!lsData){
+    if(lsLoading) return; lsLoading=true; lsPaintBar();
+    try{ await lsFetch(); }finally{ lsLoading=false; lsPaintBar(); }
+  }
+  lsRender();
+}
+async function lsFetch(){
   await ensureStatusRosterStaff();
   const admin=iAmLiveStatusAdmin();
   const rosterStaff=statusRosterStaff.filter(s=>s.active&&!cpPastTerm(s)); // terminated staff disappear the day after their last day
@@ -3805,6 +3853,13 @@ async function loadRoster(){
     pagedSelect(()=>sb.from('entries').select('*').eq('active',true).gte('started_at',from).order('started_at')),
     pagedSelect(()=>sb.from('shifts').select('*').gte('login_at',from).order('login_at',{ascending:false})),
     staffIds.length?sb.from('leave_days').select('staff_id,type').eq('date',today).in('staff_id',staffIds):Promise.resolve({data:[]})]);
+  lsData={ents,shs,leave,today}; lsAt=Date.now();
+}
+function lsRender(){
+  const admin=iAmLiveStatusAdmin();
+  const rosterStaff=statusRosterStaff.filter(s=>s.active&&!cpPastTerm(s));
+  const staffIds=rosterStaff.map(s=>s.id);
+  const {ents,shs,leave,today}=lsData;
   const openShift={}; const latestShift={};
   (shs||[]).forEach(s=>{ if(staffIds.includes(s.staff_id)){ if(!s.logout_at) openShift[s.staff_id]=s; if(!latestShift[s.staff_id]) latestShift[s.staff_id]=s; } });
   const ssm=buildShiftSpanMap(shs);
