@@ -17,6 +17,7 @@ import { registerCalendar } from './calendar.js';
 import { registerCelebrations } from './celebrations.js';
 import { stampSignedPdf } from './esign.js';
 import { buildSowPdf } from './sow.js';
+import { registerReview } from './review.js';
 
 const {
   SUPABASE_URL,
@@ -1640,6 +1641,9 @@ app.post('/api/dm/test', notificationRateLimit, async (req,res)=>{
 // ---------- Calendar (My Calendar / Team Calendar) + Google Calendar sync → server/calendar.js ----------
 var calendar = registerCalendar({ app, admin, requireAdmin, requireActiveUser, sendDmOnce, dmBlocks, safeSlack,
   PORTAL_URL, SLACK_BOT_TOKEN, STATE_SECRET: SUPABASE_SERVICE_ROLE_KEY });
+
+// ---------- Annual Service Review → server/review.js ----------
+var review = registerReview({ app, admin, requireAdmin, requireActiveUser, sendDmOnce, dmBlocks, PORTAL_URL });
 
 // ---------- Birthdays / Workiversaries (+500 SMB tokens) + auto-hide terminated staff → server/celebrations.js ----------
 var celebrations = registerCelebrations({ app, admin, requireAdmin, sendSlackOnce, safeSlack, slackUserIdFor, SLACK_BOT_TOKEN, SLACK_GENERAL_WEBHOOK_URL });
