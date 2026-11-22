@@ -15,6 +15,7 @@ import multer from 'multer';
 import { randomUUID } from 'crypto';
 import { registerCalendar } from './calendar.js';
 import { registerCelebrations } from './celebrations.js';
+import { stampSignedPdf } from './esign.js';
 
 const {
   SUPABASE_URL,
@@ -810,15 +811,16 @@ app.get('/api/portal/docs', async (req, res) => {
       return { ...d, drive_link };
     }));
 
-    const { data: mySigs } = await admin.from('portal_signatures').select('doc_id, signed_at').eq('staff_id', caller.user.id);
+    const { data: mySigs } = await admin.from('portal_signatures').select('doc_id, signed_at, signed_path').eq('staff_id', caller.user.id);
     const signedMap = Object.fromEntries((mySigs || []).map(s => [s.doc_id, s.signed_at]));
+    const myCopy = Object.fromEntries((mySigs || []).map(s => [s.doc_id, !!s.signed_path]));
 
     if (isAdmin) {
       // attach signature progress per doc that requires signature
       const docIds = docs.filter(d => d.requires_signature).map(d => d.id);
       let sigCounts = {};
       if (docIds.length) {
-        const { data: allSigs, error: sigErr } = await admin.from('portal_signatures').select('doc_id, staff_id, signed_at').in('doc_id', docIds);
+        const { data: allSigs, error: sigErr } = await admin.from('portal_signatures').select('doc_id, staff_id, signed_at, signed_path').in('doc_id', docIds);
         if (sigErr) throw sigErr;
         for (const s of allSigs || []) (sigCounts[s.doc_id] = sigCounts[s.doc_id] || []).push(s);
       }
@@ -830,14 +832,15 @@ app.get('/api/portal/docs', async (req, res) => {
         if (!d.requires_signature) return { ...d, signed_count: 0, eligible_count: 0, signed: [], unsigned: [] };
         const eligible = d.visibility === 'all' ? (activeStaff || []) : (staffById[d.visibility] ? [staffById[d.visibility]] : []);
         const sigByStaff = Object.fromEntries((sigCounts[d.id] || []).map(s => [s.staff_id, s.signed_at]));
-        const signed = eligible.filter(s => sigByStaff[s.id]).map(s => ({ id: s.id, full_name: s.full_name, hire_date: s.hire_date, signed_at: sigByStaff[s.id] }));
+        const copyByStaff = Object.fromEntries((sigCounts[d.id] || []).map(s => [s.staff_id, !!s.signed_path]));
+        const signed = eligible.filter(s => sigByStaff[s.id]).map(s => ({ id: s.id, full_name: s.full_name, hire_date: s.hire_date, signed_at: sigByStaff[s.id], has_copy: copyByStaff[s.id] }));
         const unsigned = eligible.filter(s => !sigByStaff[s.id]).map(s => ({ id: s.id, full_name: s.full_name, hire_date: s.hire_date }));
         return { ...d, signed_count: signed.length, eligible_count: eligible.length, signed, unsigned };
       });
       return res.json({ ok: true, docs: withCounts });
     }
 
-    const withStatus = docs.map(d => ({ ...d, signed_at: signedMap[d.id] || null }));
+    const withStatus = docs.map(d => ({ ...d, signed_at: signedMap[d.id] || null, has_copy: !!myCopy[d.id] }));
     res.json({ ok: true, docs: withStatus });
   } catch (e) {
     console.error('Portal docs list failed:', e);
@@ -866,11 +869,85 @@ app.post('/api/portal/sign', async (req, res) => {
       user_agent: req.headers['user-agent'] || ''
     }, { onConflict: 'doc_id,staff_id' }).select().single();
     if (error) throw error;
-    res.json({ ok: true, signature: sig });
+    // Produce the actual signed PDF (stamped copy + certificate page). The signature row
+    // is already saved, so a stamping failure is reported, never lost.
+    let stamped = null, stampError = null;
+    try { stamped = await esignMakeSignedCopy(doc_id, sig, caller); }
+    catch (e) { stampError = e.message; console.error('Portal e-sign stamp failed:', e); }
+    esignNotifyAdmins(doc_id, sig, caller, stamped).catch(e => console.error('e-sign admin DM failed:', e.message));
+    res.json({ ok: true, signature: stamped?.row || sig, signed_copy: !!stamped, stamp_error: stampError });
   } catch (e) {
     console.error('Portal signature failed:', e);
     res.status(500).json({ error: e.message || 'Could not save signature.' });
   }
+});
+
+// --- 11b. Portal: signed copies (e-sign stamping) ------------------------
+// Each signature now produces signed/<staff_id>/<doc_id>-<ts>.pdf in the same private
+// bucket, plus SHA-256 values of the original and the signed copy on the row.
+async function esignMakeSignedCopy(docId, sig, caller) {
+  const { data: doc } = await admin.from('portal_docs').select('id, title, storage_path, file_type').eq('id', docId).single();
+  if (!doc?.storage_path) throw new Error('Document file is missing.');
+  if (!/pdf/i.test(doc.file_type || '') && !/\.pdf$/i.test(doc.storage_path)) return null; // only PDFs get a stamped copy
+  const { data: blob, error: dlErr } = await admin.storage.from(PORTAL_BUCKET).download(doc.storage_path);
+  if (dlErr) throw dlErr;
+  const original = Buffer.from(await blob.arrayBuffer());
+  const { data: who } = await admin.from('staff').select('full_name, email').eq('id', sig.staff_id).single();
+  const out = await stampSignedPdf(original, { sig, signer: who || {}, doc });
+  const safe = String(doc.title || 'document').replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 60);
+  const signedPath = `signed/${sig.staff_id}/${doc.id}-${Date.now()}-${safe}.pdf`;
+  const { error: upErr } = await admin.storage.from(PORTAL_BUCKET).upload(signedPath, out.bytes, { contentType: 'application/pdf', upsert: false });
+  if (upErr) throw upErr;
+  const { data: row, error: updErr } = await admin.from('portal_signatures')
+    .update({ signed_path: signedPath, doc_sha256: out.docHash, signed_sha256: out.signedHash })
+    .eq('doc_id', doc.id).eq('staff_id', sig.staff_id).select().single();
+  if (updErr) throw updErr;
+  return { row, doc, signedPath, placedOnLine: out.placedOnLine };
+}
+
+async function esignNotifyAdmins(docId, sig, caller, stamped) {
+  if (!SLACK_BOT_TOKEN) return;
+  const { data: doc } = await admin.from('portal_docs').select('title').eq('id', docId).single();
+  const { data: admins } = await admin.from('staff').select('email').eq('role', 'admin').eq('active', true);
+  const name = caller?.row?.full_name || sig.signature_name;
+  const lines = [`✍️ *${name}* signed *${doc?.title || 'a document'}*`, `Typed name: ${sig.signature_name}`,
+    stamped ? 'Signed PDF saved — download it from PM Bulletin Board → Documents → signatures.' : '⚠️ Signature recorded, but the signed PDF copy could not be generated. Use "Generate signed copies" on that document.'];
+  for (const a of admins || []) {
+    const uid = a.email ? await slackUserIdFor(a.email).catch(() => null) : null;
+    if (uid) await slackApi('chat.postMessage', { channel: uid, text: `${name} signed ${doc?.title || 'a document'}`, blocks: dmBlocks(lines, `<${PORTAL_URL}|Open the SMB Portal>`), unfurl_links: false });
+  }
+}
+
+// GET signed copy link: admin for anyone, staff only for their own signature.
+app.get('/api/portal/signed/:docId/:staffId', async (req, res) => {
+  try {
+    const caller = await requireActiveUser(req, res); if (!caller) return;
+    const { data: me } = await admin.from('staff').select('role').eq('id', caller.user.id).single();
+    const { docId, staffId } = req.params;
+    if (me?.role !== 'admin' && staffId !== caller.user.id) return res.status(403).json({ error: 'Not allowed.' });
+    const { data: sig } = await admin.from('portal_signatures').select('signed_path').eq('doc_id', docId).eq('staff_id', staffId).maybeSingle();
+    if (!sig?.signed_path) return res.status(404).json({ error: 'No signed copy yet for this signature.' });
+    const { data: url, error } = await admin.storage.from(PORTAL_BUCKET).createSignedUrl(sig.signed_path, 600, { download: true });
+    if (error) throw error;
+    res.json({ ok: true, url: url.signedUrl });
+  } catch (e) { res.status(500).json({ error: e.message || 'Could not get the signed copy.' }); }
+});
+
+// Admin: build signed copies for signatures recorded before stamping existed (or that failed).
+app.post('/api/portal/esign/backfill', async (req, res) => {
+  try {
+    const caller = await requireAdmin(req, res); if (!caller) return;
+    let q = admin.from('portal_signatures').select('*').is('signed_path', null);
+    if (req.body?.doc_id) q = q.eq('doc_id', req.body.doc_id);
+    const { data: rows, error } = await q;
+    if (error) throw error;
+    let made = 0; const failed = [];
+    for (const r of rows || []) {
+      try { if (await esignMakeSignedCopy(r.doc_id, r, null)) made++; }
+      catch (e) { failed.push({ doc_id: r.doc_id, staff_id: r.staff_id, error: e.message }); }
+    }
+    res.json({ ok: true, made, failed, checked: (rows || []).length });
+  } catch (e) { res.status(500).json({ error: e.message || 'Backfill failed.' }); }
 });
 
 // --- 12. Portal: admin deletes a document (removes DB row + storage object) ---
