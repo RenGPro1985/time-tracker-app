@@ -5851,8 +5851,13 @@ async function loadPortalAdminDocs() {
   renderPortalMissing();
   document.querySelectorAll('[data-del]').forEach(btn => {
     btn.onclick = async () => {
-      if (!confirm('Delete this document? This also trashes it in Drive.')) return;
-      try { await api('/api/portal/docs/' + btn.dataset.del, { method: 'DELETE' }); await loadPortalAdminDocs(); }
+      const d = portalDocsCache.find(x => String(x.id) === String(btn.dataset.del)) || {};
+      const nSig = (d.signed || []).length, nCopy = (d.signed || []).filter(s => s.has_copy).length;
+      if (nSig) {
+        const typed = prompt(`Delete "${d.title}"?\n\nThis permanently deletes the document, ${nSig} signature record${nSig===1?'':'s'} and ${nCopy} signed PDF${nCopy===1?'':'s'}. It cannot be undone.\n\nDownload any signed copies you need to keep first (signatures list → ⬇ PDF). Only delete old versions that have been replaced.\n\nType DELETE to confirm.`);
+        if (typed !== 'DELETE') return;
+      } else if (!confirm(`Delete "${d.title || 'this document'}"? This cannot be undone.`)) return;
+      try { const r = await api('/api/portal/docs/' + btn.dataset.del, { method: 'DELETE' }); await loadPortalAdminDocs(); if (r && r.removed_files) alert(`Deleted. Removed ${r.removed_files} file${r.removed_files===1?'':'s'} from storage.`); }
       catch (e) { alert(e.message); }
     };
   });
