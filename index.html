@@ -1099,7 +1099,7 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
 <tr><td><input type="checkbox" id="civAllowanceOn"></td><td><b>Allowance</b><div class="muted" style="font-size:11px">Per staff, per month, prorated to cutoff — auto-calculated, editable per invoice</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civAllowanceRate" style="width:110px" placeholder="$/mo"></td></tr>
 <tr><td><input type="checkbox" id="civHolidayOn"></td><td><b>Holiday Pay</b><div class="muted" style="font-size:11px">Rate per staff — admin types the staff count on the invoice itself, total = count × rate</div></td><td style="text-align:right"><input type="number" step="0.01" min="0" id="civHolidayRate" style="width:110px" placeholder="$/staff"></td></tr>
 </tbody></table><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px">Invoice Numbering</div><div class="row" style="gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase" id="civStartingNumLbl">Invoice # for the selected pay period</label><input type="number" min="1" step="1" id="civStartingNum" style="width:100%"><div class="muted" style="font-size:11px;margin-top:4px">Goes up by 1 every bi-weekly period after this one.</div></div><div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase">Last invoice issued for this client</label><input type="text" id="civNextNum" disabled style="width:100%"></div></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn btn-ghost" id="civSettingsCancel">Cancel</button><button class="btn btn-gold" id="civSettingsSave">Save Settings</button></div><div class="muted" id="civSettingsMsg" style="font-size:12px;margin-top:8px;min-height:14px"></div></div></div><section id="v-earning" class="hide grid" style="gap:16px">
-      <div class="row pay-sub hide" id="paySub_earning" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button><button class="btn btn-ghost" onclick="go('v-expense')">🧾 SMBVS Expense</button><button class="btn btn-gold" onclick="go('v-earning')">💰 SMB PH Earning</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div id="egTilesSlot"></div><div id="egTrueRoi"></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egAggMargin" class="eg-tiles"><span class="muted" style="font-size:12px">—</span></div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th title="Hours × USD rate × FX">Hourly VSPH</th><th class="eg-new" title="Client-invoice staff allowance, split by days across the bi-weekly invoices that overlap this period, each at that invoice's cutoff FX (₱60 if no FX saved). 13th month is not included here — see YTD &amp; YEB.">Allowance<br><span style="font-weight:400;font-size:10.5px">split by days</span></th><th class="eg-new">VSPH Total</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="req-sub" id="reqStaffSubBar"><button class="btn btn-gold" data-onsub="mine">🧾 My Requests</button><button class="btn btn-ghost" data-onsub="office">🧴 Office Necessities</button></div><div id="onStaff" class="grid hide" style="gap:16px"></div><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="sick_leave">🤒 Sick Leave</option><option value="half_day">🌓 Half Day</option><option value="reimbursement">🧾 Reimbursement</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div id="rfSickNote" class="hide note" style="margin-top:10px;font-size:12.5px">Sick days are <b>unpaid</b>. This is for your record and for client documentation — the days show as <b>SL</b>.</div><div id="rfPickWrap" class="hide" style="margin-top:10px"><label id="rfPickLbl">Files</label><input type="file" id="rfPick" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%"><div id="rfPickList"></div><div class="muted" style="font-size:11.5px;margin-top:4px">🔒 Only you and Sir Rendy can open your files · photo or PDF · max 10 MB each</div></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="rfMyFilesCard"><div class="hdr"><h3 style="font-size:15px">📎 My files</h3><span class="muted" style="font-size:12px">Medcerts, receipts and EOD attachments · only you and Sir Rendy can open them</span></div><table><thead><tr><th>Uploaded</th><th>File</th><th>For</th><th>Status</th></tr></thead><tbody id="rfMyFiles"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="req-sub" id="reqSubBar"><button class="btn btn-gold" data-req-sub="money">💸 SA/CA Requests<span class="bb-badge hide" id="reqSubCnt_money"></span></button><button class="btn btn-ghost" data-req-sub="leave">🏖️ PTO Requests<span class="bb-badge hide" id="reqSubCnt_leave"></span></button><button class="btn btn-ghost" id="reqSubOffice">🧴 Office Necessities<span class="bb-badge hide" id="reqSubCnt_office" style="margin-left:6px"></span></button></div><div id="onAdmin" class="grid hide" style="gap:16px"></div><div class="card"><div class="hdr"><h3 style="font-size:15px" id="reqAdminTitle">SA/CA requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></div><div class="card" id="dedAdminCard"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances under PHP Adjustments → 💳 Fee Advances.</div><div class="sticky-scroll"><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></div></section><section id="v-portal" class="hide grid" style="gap:16px">
+      <div class="row pay-sub hide" id="paySub_earning" style="gap:6px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="go('v-sheets')">📄 Admin Timesheets</button><button class="btn btn-ghost" onclick="go('v-ledger')">🧾 Contractor Ledger</button><button class="btn btn-ghost" onclick="go('v-invoice')">📄 Client Invoice</button><button class="btn btn-ghost" onclick="go('v-cbonus')">🏅 Completion Bonus</button><button class="btn btn-ghost" onclick="go('v-incentive')">🏆 Incentive/Contest Award</button><button class="btn btn-ghost" onclick="go('v-expense')">🧾 SMBVS Expense</button><button class="btn btn-gold" onclick="go('v-earning')">💰 SMB PH Earning</button></div><div class="card"><div class="hdr"><h3 style="font-size:15px">SMB PH Earning</h3><div class="row"><select id="egPeriod" style="width:auto"></select><input type="number" id="egFx" placeholder="FX (₱ per $1)" step="0.0001" min="0.0001" style="width:130px"><button class="btn btn-ghost" id="egSaveFx">Save FX</button><button class="btn btn-ghost" id="egRun">Run preview</button><button class="btn btn-gold" id="egLockBtn" disabled>LOCK IN</button></div></div><div id="egTilesSlot"></div><div id="egTrueRoi"></div><div class="muted" style="font-size:12px;margin-bottom:8px">Admin-only, immutable per-semi-monthly-period snapshot: hours, USD rate, FX, Staff Earning (Contractor Ledger Net Amount Payable + Adjustments Subtotal), VSPH, ROI (VSPH − Staff Earning) and margin for <b>every active staff member relevant to the period</b> — independent of any filter, always the full roster. LOCK IN never performs a payment/deduction action and is separate from the PAID checkbox on the Contractor Ledger. Once locked, a period cannot be re-locked, unlocked, or edited — a correction needs a separately-approved revision flow, not this tab.</div><div class="muted" style="font-size:12px;margin-bottom:8px">Order: Beltline → G Squared → H2H → BugBusters → SC → other clients (A–Z). Longest tenure first within each client; missing hire dates last. Locked records retain their saved client assignment; tenure ordering uses the current staff hire date.</div><div id="egAggMargin" class="eg-tiles"><span class="muted" style="font-size:12px">—</span></div><div id="egStatus" class="note" style="margin-bottom:8px"></div><div class="sticky-scroll"><table class="freeze-table"><thead><tr><th class="sticky-col">Staff</th><th>Client</th><th>Hours</th><th>USD Rate</th><th title="Contractor Ledger Net Amount Payable + Adjustments Subtotal">Staff Earning</th><th title="Hours × USD rate × FX">Hourly VSPH</th><th class="eg-new" title="Client-invoice staff allowance, split by days across the bi-weekly invoices that overlap this period, each at that invoice's cutoff FX (₱60 if no FX saved). 13th month is not included here — see YTD &amp; YEB.">Allowance<br><span style="font-weight:400;font-size:10.5px">split by days</span></th><th class="eg-new">VSPH Total</th><th>ROI</th><th>Margin %</th></tr></thead><tbody id="egTable"></tbody></table></div></div><div class="hide" id="egConfirmOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50"><div class="card" style="max-width:520px"><h3 style="font-size:15px">Confirm LOCK IN</h3><div id="egConfirmDetail" class="muted" style="font-size:13px;margin:10px 0"></div><div class="muted" style="font-size:12px;margin-bottom:10px">This freezes hours/USD/FX/Staff Earning/VSPH/ROI/margin/name/client/staffId for <b>every</b> relevant active staff member for this period, forever. There is no unlock or delete. Confirm the period and phase above are correct before continuing.</div><div id="egConfirmMsg" class="muted" style="font-size:12px;min-height:16px"></div><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="egConfirmCancel">Cancel</button><button class="btn btn-gold" id="egConfirmYes">LOCK IN this period</button></div></div></div></section><section id="v-req" class="hide grid" style="gap:16px"><div class="req-sub" id="reqStaffSubBar"><button class="btn btn-gold" data-onsub="mine">🧾 My Requests</button><button class="btn btn-ghost" data-onsub="office">🧴 Office Necessities</button></div><div id="onStaff" class="grid hide" style="gap:16px"></div><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><div class="k">PTO balance</div><div class="v" id="reqPto">—</div></div><div class="stat"><div class="k">Salary advance balance</div><div class="v" style="color:var(--gold)" id="reqSalAdvBal">—</div></div><div class="stat"><div class="k">Cash advance balance</div><div class="v" style="color:var(--gold)" id="reqCashAdvBal">—</div></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">New request</h3></div><div class="row" style="align-items:flex-end"><div style="flex:0 0 200px"><label>Type</label><select id="reqType"><option value="pto">Paid Time Off</option><option value="pch">Paid Client Holiday</option><option value="uch">Unpaid Client Holiday</option><option value="planned_absence">Planned Absence</option><option value="sick_leave">🤒 Sick Leave</option><option value="half_day">🌓 Half Day</option><option value="reimbursement">🧾 Reimbursement</option><option value="salary_advance">Salary Advance</option><option value="cash_advance">Cash Advance</option></select></div><div id="reqPtoFields" class="row" style="flex:1;gap:10px"><div style="flex:1"><label>From</label><input type="date" id="reqStart"></div><div style="flex:1"><label>To</label><input type="date" id="reqEnd"></div></div><div id="reqAmtFields" class="hide" style="flex:0 0 160px"><label>Amount (₱)</label><input type="number" id="reqAmount" min="0" step="0.01"></div><div id="reqCutoffFields" class="hide" style="flex:0 0 170px"><label>Repay over (cutoffs)</label><input type="number" id="reqCutoffs" min="1" step="1" value="1"></div></div><div style="margin-top:10px"><label>Reason / note (required)</label><input id="reqReason" placeholder="e.g. Family emergency" style="width:100%"></div><div id="rfSickNote" class="hide note" style="margin-top:10px;font-size:12.5px">Sick days are <b>unpaid</b>. This is for your record and for client documentation — the days show as <b>SL</b>.</div><div id="rfPickWrap" class="hide" style="margin-top:10px"><label id="rfPickLbl">Files</label><input type="file" id="rfPick" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif" style="width:100%"><div id="rfPickList"></div><div class="muted" style="font-size:11.5px;margin-top:4px">🔒 Only you and Sir Rendy can open your files · photo or PDF · max 10 MB each</div></div><div class="row" style="margin-top:10px"><button class="btn btn-gold" id="reqSubmit">Send request</button><span class="muted" id="reqMsg" style="font-size:12px"></span></div></div><div class="card"><div class="hdr"><h3 style="font-size:15px">My request history</h3></div><table><thead><tr><th>Requested</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th></tr></thead><tbody id="reqHistory"></tbody></table></div><div class="card" id="rfMyFilesCard"><div class="hdr"><h3 style="font-size:15px">📎 My files</h3><span class="muted" style="font-size:12px">Medcerts, receipts and EOD attachments · only you and Sir Rendy can open them</span></div><table><thead><tr><th>Uploaded</th><th>File</th><th>For</th><th>Status</th></tr></thead><tbody id="rfMyFiles"></tbody></table></div><div class="card" id="reqDeductionsCard"><div class="hdr"><h3 style="font-size:15px">Upcoming deductions</h3></div><table><thead><tr><th>Cutoff date</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody id="reqDeductions"></tbody></table></div></section><section id="v-reqadmin" class="hide grid" style="gap:16px"><div class="req-sub" id="reqSubBar"><button class="btn btn-gold" data-req-sub="money">💸 SA/CA Requests<span class="bb-badge hide" id="reqSubCnt_money"></span></button><button class="btn btn-ghost" data-req-sub="leave">🏖️ PTO Requests<span class="bb-badge hide" id="reqSubCnt_leave"></span></button><button class="btn btn-ghost" id="reqSubOffice">🧴 Office Necessities<span class="bb-badge hide" id="reqSubCnt_office" style="margin-left:6px"></span></button></div><div id="onAdmin" class="grid hide" style="gap:16px"></div><div class="card"><div class="hdr"><h3 style="font-size:15px" id="reqAdminTitle">SA/CA requests</h3><select id="reqFilter" style="width:auto"><option value="pending">Pending</option><option value="all">All</option></select></div><div id="reqLeaveFilters" class="row hide" style="gap:8px;flex-wrap:wrap;align-items:flex-end;margin:0 0 10px"><div style="flex:1 1 200px"><label>Staff</label><select id="reqFName" style="width:100%"><option value="">All staff</option></select></div><div style="flex:0 1 160px"><label>Leave dates from</label><input type="date" id="reqFFrom"></div><div style="flex:0 1 160px"><label>to</label><input type="date" id="reqFTo"></div><button class="btn btn-ghost" id="reqFClear">Clear</button><span class="muted" id="reqFCount" style="font-size:12px"></span></div><div class="sticky-scroll"><table><thead><tr><th>Requested</th><th>Staff</th><th>Type</th><th>Details</th><th>Reason</th><th>Rejection reason</th><th>Status</th><th></th></tr></thead><tbody id="reqAdminTable"></tbody></table></div></div><div class="card" id="dedAdminCard"><div class="hdr"><h3 style="font-size:15px">Scheduled advance deductions</h3><select id="dedFilter" style="width:auto"><option value="scheduled">Upcoming</option><option value="all">All</option></select></div><div class="muted" style="font-size:11px;margin:0 0 10px">Read-only history. A deduction becomes "deducted" automatically, and only, when that staff member's cutoff is marked PAID on the Contractor Ledger — manage Fee Advances and running balances under PHP Adjustments → 💳 Fee Advances.</div><div class="sticky-scroll"><table><thead><tr><th>Cutoff date</th><th>Staff</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dedAdminTable"></tbody></table></div></div></section><section id="v-portal" class="hide grid" style="gap:16px">
   <!-- PM BULLETIN BOARD (announcements) -->
   <div id="bbBoard" class="grid" style="gap:16px"></div>
   <div class="bb-docs-hdr"><h3>📁 Documents &amp; Signatures</h3><span class="muted" style="font-size:12.5px">Contracts, house rules, and anything that needs your signature</span></div>
@@ -2690,7 +2690,7 @@ async function runLedger(){
      never contributes Night Diff — leave_days rows carry no shift/entries at all. */
   const leaves=await fetchLeaveDays(start,end,ids);
   /* planned_absence rows are grid markers only — unpaid, so they never count toward PCH/PTO Days/Pay */
-  const leavesByStaff={};leaves.filter(l=>l.type!=='planned_absence'&&l.type!=='sick_leave').forEach(l=>{(leavesByStaff[l.staff_id]=leavesByStaff[l.staff_id]||[]).push(l);});
+  const leavesByStaff={};leaves.filter(l=>l.type!=='planned_absence'&&l.type!=='sick_leave'&&l.type!=='uch').forEach(l=>{(leavesByStaff[l.staff_id]=leavesByStaff[l.staff_id]||[]).push(l);});
   /* Which real payroll cutoff (15th or end-of-month) this Ledger period pays out on, and
      which add-on fields are in play for that cutoff — see LEDGER_EXTRA_FIELDS notes above. */
   const cutoffIso=payoutCutoffFor(end),phase=payoutPhase(cutoffIso);
@@ -3761,7 +3761,7 @@ function capFirst(s){s=String(s||'');return s.charAt(0).toUpperCase()+s.slice(1)
 // (which for non-admin stays [me] everywhere else in the app) so granting
 // Live Status access can never leak other staff's rows into Ledger/Requests/etc.
 let statusRosterStaff=[], statusIsInit=false;
-const LEAVE_LABEL={pto:'PTO',pch:'PCH',planned_absence:'PA',sick_leave:'SL'};
+const LEAVE_LABEL={pto:'PTO',pch:'PCH',uch:'UCH',planned_absence:'PA',sick_leave:'SL'};
 function iAmLiveStatusAdmin(){ return me.role==='admin'; }
 async function ensureStatusRosterStaff(){
   if(iAmLiveStatusAdmin()){ statusRosterStaff=staffList; return; }
@@ -4858,7 +4858,7 @@ async function renderSheetGrid(){
       const key=s.id+'|'+d;
       const leaveType=leaveMap[key];
       if(leaveType){
-        const title=leaveType==='pch'?'Paid Client Holiday':leaveType==='planned_absence'?'Planned Absence (unpaid)':leaveType==='sick_leave'?'Sick Leave (unpaid)':'Paid Time Off';
+        const title=leaveType==='pch'?'Paid Client Holiday':leaveType==='uch'?'Unpaid Client Holiday (not an absence)':leaveType==='planned_absence'?'Planned Absence (unpaid)':leaveType==='sick_leave'?'Sick Leave (unpaid)':'Paid Time Off';
         const lh=leaveBilledHours(leaveType,clients.find(c=>c.id===s.client_id));
         totalHrs+=lh;
         return `<td class="num"><span class="pill ${(leaveType==='planned_absence'||leaveType==='sick_leave')?'p-bad':'p-off'}" style="font-size:9.5px;padding:2px 6px" title="${title} — ${lh?'+'+lh+' hrs added to Total hours':'not counted in hours'}">${leaveTag(leaveType)}</span></td>`;
@@ -5299,7 +5299,7 @@ function renderClientActs(){
   };
 }
 
-const TYPE_LABEL={pto:'Paid Time Off',pch:'Paid Client Holiday',planned_absence:'Planned Absence',salary_advance:'Salary Advance',cash_advance:'Cash Advance',sick_leave:'Sick Leave',reimbursement:'Reimbursement',half_day:'🌓 Half Day'};
+const TYPE_LABEL={pto:'Paid Time Off',pch:'Paid Client Holiday',uch:'Unpaid Client Holiday',planned_absence:'Planned Absence',salary_advance:'Salary Advance',cash_advance:'Cash Advance',sick_leave:'Sick Leave',reimbursement:'Reimbursement',half_day:'🌓 Half Day'};
 const STATUS_PILL={pending:'p-off',approved:'p-work',rejected:'p-bad',paid:'p-work',scheduled:'p-off',deducted:'p-work',waived:'p-off'};
 const isAdvanceType=t=>t==='salary_advance'||t==='cash_advance';
 const isLeaveType=t=>t==='pto'||t==='pch';
@@ -5308,7 +5308,9 @@ const isLeaveType=t=>t==='pto'||t==='pch';
    grid shows a "PA" marker — but it is NOT a paid leave type: the Contractor Ledger filters
    planned_absence out of PCH/PTO Days/Pay, so nothing is paid for those days. */
 /* Sick Leave (2026-10-19) works like Planned Absence: unpaid date range, SL marker in leave_days. */
-const hasDateRange=t=>isLeaveType(t)||t==='planned_absence'||t==='sick_leave';
+/* Unpaid Client Holiday (2026-11-24): client is closed, so the day is unpaid (no PTO/PCH pay,
+   no billed hours) but it is NOT an absence — attendance/reliability treat it like PCH. */
+const hasDateRange=t=>isLeaveType(t)||t==='planned_absence'||t==='sick_leave'||t==='uch';
 let myReqs=[], myDeductions=[];
 function reqDetails(r){
   if(r.type==='half_day') return window.B23?B23.halfDetails(r):fmtNice(r.start_date);
@@ -5409,6 +5411,7 @@ function paintReqSub(){
   ['money','leave'].forEach(k=>{const el=$('reqSubCnt_'+k); if(!el)return; const n=reqAdminList.filter(r=>r.status==='pending'&&reqSubOf(r)===k).length; el.textContent=n; el.classList.toggle('hide',!n);});
   if($('reqAdminTitle')) $('reqAdminTitle').textContent=reqSub==='money'?'SA/CA requests':'PTO requests';
   if($('dedAdminCard')) $('dedAdminCard').classList.toggle('hide',reqSub!=='money');
+  if($('reqLeaveFilters')) $('reqLeaveFilters').classList.toggle('hide',reqSub!=='leave');
 }
 document.querySelectorAll('#reqSubBar [data-req-sub]').forEach(b=>b.onclick=()=>{reqSub=b.dataset.reqSub; try{localStorage.setItem('reqAdminSub',reqSub);}catch(e){} loadReqAdmin();});
 async function loadReqAdmin(){
@@ -5419,17 +5422,49 @@ async function loadReqAdmin(){
   const {data}=await q; reqAdminList=data||[];
   const ids=[...new Set(reqAdminList.map(r=>r.staff_id))];
   const {data:staffRows}=ids.length? await sb.from('staff').select('id,full_name').in('id',ids) : {data:[]};
+  reqAdminStaff=staffRows||[];
+  renderReqAdmin();
+  await loadDedAdmin(staffRows||[]);
+}
+/* PTO Requests filters (2026-11-24): staff name + leave-date overlap. Client-side only —
+   filters the already-loaded list, so no extra Supabase reads. Works with Pending/All. */
+let reqAdminStaff=[];
+function reqLeaveFilterPass(r){
+  if(reqSub!=='leave') return true;
+  const nm=$('reqFName')?$('reqFName').value:'', f=$('reqFFrom')?$('reqFFrom').value:'', t=$('reqFTo')?$('reqFTo').value:'';
+  if(nm&&r.staff_id!==nm) return false;
+  if(f||t){
+    const s=r.start_date||phDate(new Date(r.created_at)), e=r.end_date||s;
+    if(f&&e<f) return false;
+    if(t&&s>t) return false;
+  }
+  return true;
+}
+function fillReqNameFilter(nameOf){
+  const sel=$('reqFName'); if(!sel) return;
+  const prev=sel.value;
+  const ids=[...new Set(reqAdminList.filter(r=>reqSubOf(r)==='leave').map(r=>r.staff_id))];
+  const opts=ids.map(id=>[id,nameOf(id)]).sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
+  sel.innerHTML='<option value="">All staff</option>'+opts.map(([id,n])=>`<option value="${escapeHtml(String(id))}">${escapeHtml(n)}</option>`).join('');
+  sel.value=opts.some(([id])=>String(id)===prev)?prev:'';
+}
+function renderReqAdmin(){
+  const staffRows=reqAdminStaff;
   const nameOf=id=>{const s=(staffRows||[]).find(x=>x.id===id); return s?s.full_name:'—';};
-  const reqShown=reqAdminList.filter(r=>reqSubOf(r)===reqSub); paintReqSub();
-  $('reqAdminTable').innerHTML = reqShown.length? reqShown.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}${window.RF?RF.slot(r):''}</td><td>${escapeHtml(r.reason||'')}</td><td>${r.status==='rejected'?escapeHtml(r.rejection_reason||'—'):'—'}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'&&r.type!=='planned_absence'&&r.type!=='sick_leave'&&r.type!=='half_day'?`<button class="btn btn-ghost" data-paid="${r.id}">${isAdvanceType(r.type)?'Mark advance issued':'Mark paid'}</button>`:''}${r.type==='half_day'?'':`<button class="btn btn-ghost" data-edit="${r.id}">Edit</button>`}<button class="btn btn-rose" data-del="${r.id}">Delete</button></td></tr>`).join('') : `<tr><td colspan="8" class="muted">No requests.</td></tr>`;
+  fillReqNameFilter(nameOf);
+  const inSub=reqAdminList.filter(r=>reqSubOf(r)===reqSub);
+  const reqShown=inSub.filter(reqLeaveFilterPass); paintReqSub();
+  if($('reqFCount')) $('reqFCount').textContent=(reqSub==='leave'&&reqShown.length!==inSub.length)?`Showing ${reqShown.length} of ${inSub.length}`:'';
+  $('reqAdminTable').innerHTML = reqShown.length? reqShown.map(r=>`<tr><td>${fmtNice(phDate(new Date(r.created_at)))}</td><td>${escapeHtml(nameOf(r.staff_id))}</td><td>${TYPE_LABEL[r.type]}</td><td>${reqDetails(r)}${window.RF?RF.slot(r):''}</td><td>${escapeHtml(r.reason||'')}</td><td>${r.status==='rejected'?escapeHtml(r.rejection_reason||'—'):'—'}</td><td><span class="pill ${STATUS_PILL[r.status]}"><span class="dot"></span>${r.status}</span></td><td style="text-align:right" class="row">${r.status==='pending'?`<button class="btn btn-teal" data-appr="${r.id}">Approve</button><button class="btn btn-rose" data-rej="${r.id}">Reject</button>`:''}${r.status==='approved'&&r.type!=='planned_absence'&&r.type!=='sick_leave'&&r.type!=='uch'&&r.type!=='half_day'?`<button class="btn btn-ghost" data-paid="${r.id}">${isAdvanceType(r.type)?'Mark advance issued':'Mark paid'}</button>`:''}${r.type==='half_day'?'':`<button class="btn btn-ghost" data-edit="${r.id}">Edit</button>`}<button class="btn btn-rose" data-del="${r.id}">Delete</button></td></tr>`).join('') : `<tr><td colspan="8" class="muted">No requests.</td></tr>`;
   window.RF?.afterAdminRequests(reqAdminList);
   $('reqAdminTable').querySelectorAll('[data-appr]').forEach(b=>b.onclick=()=>decideReq(b.dataset.appr,'approved'));
   $('reqAdminTable').querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>openRejectRequest(b.dataset.rej));
   $('reqAdminTable').querySelectorAll('[data-paid]').forEach(b=>b.onclick=()=>decideReq(b.dataset.paid,'paid'));
   $('reqAdminTable').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEditRequest(b.dataset.edit));
   $('reqAdminTable').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteRequestAdmin(b.dataset.del));
-  await loadDedAdmin(staffRows||[]);
 }
+['reqFName','reqFFrom','reqFTo'].forEach(id=>{ if($(id)) $(id).onchange=()=>renderReqAdmin(); });
+if($('reqFClear')) $('reqFClear').onclick=()=>{ $('reqFName').value=''; $('reqFFrom').value=''; $('reqFTo').value=''; renderReqAdmin(); };
 async function loadDedAdmin(knownStaff){
   if(!$('dedFilter'))return;
   const filt=$('dedFilter').value;
@@ -6300,7 +6335,7 @@ async function computeLedgerRowsForPeriod(peopleSubset, start, end) {
     });
   });
   const leaves = await fetchLeaveDaysStrict(start, end, ids);
-  const leavesByStaff = {}; leaves.filter(l => l.type !== 'planned_absence' && l.type !== 'sick_leave').forEach(l => { (leavesByStaff[l.staff_id] = leavesByStaff[l.staff_id] || []).push(l); });
+  const leavesByStaff = {}; leaves.filter(l => l.type !== 'planned_absence' && l.type !== 'sick_leave' && l.type !== 'uch').forEach(l => { (leavesByStaff[l.staff_id] = leavesByStaff[l.staff_id] || []).push(l); });
   const cutoffIso = EarningsLoader.payoutCutoffFor(end), phase = EarningsLoader.payoutPhase(cutoffIso);
   const [extrasRaw, advancesRaw, rulesRaw, adjustmentsRaw, paidRaw] = await Promise.all([
     EarningsData.fetchLedgerExtrasStrict(sb, cutoffIso, ids),
@@ -7647,7 +7682,7 @@ const C13=(function(){
     const [shifts,entries,leaves,adjustments,requests]=await Promise.all([
       fetchShiftsRangeStrict(start,end,ids),fetchEntriesRangeStrict(start,end,ids),fetchLeaveDaysStrict(start,end,ids),
       EarningsData.strictPagedSelectChunkedByIds(chunk=>EarningsData.applyStaffFilterStrict(sb.from('timesheet_adjustments').select('*').gte('work_date',start).lte('work_date',end).order('work_date'),chunk),ids,'timesheet_adjustments'),
-      EarningsData.strictPagedSelectChunkedByIds(chunk=>EarningsData.applyStaffFilterStrict(sb.from('requests').select('*').in('type',['pto','pch','planned_absence','sick_leave']).in('status',['pending','approved','paid']).lte('start_date',end).gte('end_date',start).order('created_at'),chunk),ids,'requests')
+      EarningsData.strictPagedSelectChunkedByIds(chunk=>EarningsData.applyStaffFilterStrict(sb.from('requests').select('*').in('type',['pto','pch','uch','planned_absence','sick_leave']).in('status',['pending','approved','paid']).lte('start_date',end).gte('end_date',start).order('created_at'),chunk),ids,'requests')
     ]);
     return{shifts,entries,leaves,adjustments,requests};
   }
@@ -7667,12 +7702,12 @@ const C13=(function(){
     const entriesByShift={};entries.forEach(e=>(entriesByShift[e.shift_id||`legacy:${e.staff_id}:${phDate(new Date(e.started_at))}`]=entriesByShift[e.shift_id||`legacy:${e.staff_id}:${phDate(new Date(e.started_at))}`]||[]).push(e));
     const markerRequestIds=new Set((requests||[]).filter(r=>{
       const allowed=(r.type==='planned_absence'||r.type==='sick_leave')?['pending','approved','paid'].includes(r.status):['approved','paid'].includes(r.status);
-      return allowed&&['pto','pch','planned_absence','sick_leave'].includes(r.type);
+      return allowed&&['pto','pch','uch','planned_absence','sick_leave'].includes(r.type);
     }).map(r=>r.id));
-    const leaveByDay={};leaves.filter(l=>['pto','pch','planned_absence','sick_leave'].includes(l.type)&&(!l.request_id||markerRequestIds.has(l.request_id))).forEach(l=>leaveByDay[`${l.staff_id}|${l.date}`]=l.type);
+    const leaveByDay={};leaves.filter(l=>['pto','pch','uch','planned_absence','sick_leave'].includes(l.type)&&(!l.request_id||markerRequestIds.has(l.request_id))).forEach(l=>leaveByDay[`${l.staff_id}|${l.date}`]=l.type);
     (requests||[]).forEach(r=>{
       const allowed=(r.type==='planned_absence'||r.type==='sick_leave')?['pending','approved','paid'].includes(r.status):['approved','paid'].includes(r.status);
-      if(!allowed||!['pto','pch','planned_absence','sick_leave'].includes(r.type)||!ytdIsIso(r.start_date)||!ytdIsIso(r.end_date))return;
+      if(!allowed||!['pto','pch','uch','planned_absence','sick_leave'].includes(r.type)||!ytdIsIso(r.start_date)||!ytdIsIso(r.end_date))return;
       const lo=r.start_date>start?r.start_date:start,hi=r.end_date<end?r.end_date:end;
       for(let date=lo;date<=hi;date=ytdAddDays(date,1)){
         if([0,6].includes(ytdDayOfWeek(date)))continue;
@@ -7705,7 +7740,7 @@ const C13=(function(){
       adjustments.filter(a=>a.staff_id===staff.id&&ytdIsIso(a.work_date)).forEach(a=>{hoursByDay[a.work_date]=Math.max(0,Number(a.hours)||0);});
       const dayTypes={};Object.entries(leaveByDay).forEach(([key,type])=>{const [sid,date]=key.split('|');if(sid===staff.id)dayTypes[date]=type;});
       let worked=0,eligibleEarnings=0,missingRateDays=0,workdaysUninferable=false,totalWorkingDays=0;
-      const outDates=[],autoCounts={days_present:0,pto:0,pch:0,pa:0,out:0,sl:0},perDateRate=iso=>ytdRatesForDate(ratePeriods,iso);
+      const outDates=[],autoCounts={days_present:0,pto:0,pch:0,uch:0,pa:0,out:0,sl:0},perDateRate=iso=>ytdRatesForDate(ratePeriods,iso);
       ytdListDates(start,end).forEach(date=>{
         if(!employed.valid||date<employed.start||date>employed.end)return;
         const dow=ytdDayOfWeek(date);
@@ -7715,7 +7750,7 @@ const C13=(function(){
         if(countAutomatically){
           const hasRecordedTime=(recordedDatesByStaff[staff.id]||new Set()).has(date);
           if(hasRecordedTime)autoCounts.days_present++;
-          if(status==='pto')autoCounts.pto++;else if(status==='pch')autoCounts.pch++;else if(status==='planned_absence')autoCounts.pa++;else if(status==='sick_leave'){autoCounts.pa++;autoCounts.sl++;}
+          if(status==='pto')autoCounts.pto++;else if(status==='pch')autoCounts.pch++;else if(status==='uch')autoCounts.uch++;else if(status==='planned_absence')autoCounts.pa++;else if(status==='sick_leave'){autoCounts.pa++;autoCounts.sl++;}
           const schedule=ytdParseWorkdays(client?.workdays);
           if(!schedule)workdaysUninferable=true;
           else{
@@ -7734,7 +7769,7 @@ const C13=(function(){
       const bonus=missingRateDays?null:ytdBonus(eligibleEarnings),absences=totalCounts.pa+totalCounts.out;
       const currentRateRow=perDateRate(employed.valid?employed.end:end),currentMonthlyRate=currentRateRow?Number(currentRateRow.monthly_rate):null;
       const absenceDeduction=currentRateRow?ytdAbsenceDeduction(absences,currentMonthlyRate):null,lessAbsences=ytdLessAbsences(bonus,absenceDeduction);
-      return{staff,client,workingDays:totalWorkingDays,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,pa:totalCounts.pa,sl:autoCounts.sl,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus,absences,currentMonthlyRate,absenceDeduction,lessAbsences,missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate,outDates,dayTypes,employed,hoursByDay,recordedDates:recordedDatesByStaff[staff.id]||new Set()};
+      return{staff,client,workingDays:totalWorkingDays,worked,days_present:totalCounts.days_present,present:totalCounts.days_present,pto:totalCounts.pto,pch:totalCounts.pch,uch:autoCounts.uch,pa:totalCounts.pa,sl:autoCounts.sl,out:totalCounts.out,manualAttendanceCounts,autoCounts,attendanceCountsComplete,eligibleEarnings,bonus,absences,currentMonthlyRate,absenceDeduction,lessAbsences,missingRateDays,workdaysUninferable,missingHireDate:!employed.hasHireDate,outDates,dayTypes,employed,hoursByDay,recordedDates:recordedDatesByStaff[staff.id]||new Set()};
     }).sort((a,b)=>{
       const ad=ytdIsIso(a.staff.hire_date)?a.staff.hire_date:'9999-12-31',bd=ytdIsIso(b.staff.hire_date)?b.staff.hire_date:'9999-12-31';
       return ad.localeCompare(bd)||String(a.staff.full_name||'').localeCompare(String(b.staff.full_name||''));
@@ -9850,18 +9885,18 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     /* ---- attendance ---- */
     let E,PA,OUT,countsMissing=false,manualOut=0,manualPa=0;
     if(row.attendanceCountsComplete){
-      E=row.workingDays-row.pto-row.pch;PA=row.pa;OUT=row.out;
+      E=row.workingDays-row.pto-row.pch-(row.uch||0);PA=row.pa;OUT=row.out;
       if(row.manualAttendanceCounts){manualOut=row.manualAttendanceCounts.out||0;manualPa=row.manualAttendanceCounts.pa||0;}
     }else{
       countsMissing=true;
       const lo=[range.start,autoFrom||range.end,emp.start].sort().pop();
       const autoWd=(emp.valid&&autoFrom!=null)?datesBetween(lo,emp.end).filter(isWeekday).length:0;
-      E=autoWd-row.autoCounts.pto-row.autoCounts.pch;PA=row.autoCounts.pa;OUT=row.autoCounts.out;
+      E=autoWd-row.autoCounts.pto-row.autoCounts.pch-(row.autoCounts.uch||0);PA=row.autoCounts.pa;OUT=row.autoCounts.out;
     }
     let excusedCount=0,slExcused=0;
     Object.keys(exc).forEach(d=>{
       if(d<range.start||d>range.end||!emp.valid||d<emp.start||d>emp.end||!isWeekday(d))return;
-      if(dayTypes[d]==='pto'||dayTypes[d]==='pch')return;
+      if(dayTypes[d]==='pto'||dayTypes[d]==='pch'||dayTypes[d]==='uch')return;
       excusedCount++;
       if(recorded.has(d))return; // present that day: only its late/break is removed
       if(inAuto(d)){E--; if(outDates.has(d))OUT--; else if(dayTypes[d]==='planned_absence'||dayTypes[d]==='sick_leave'){PA--; if(dayTypes[d]==='sick_leave')slExcused++;}}
@@ -9890,7 +9925,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       let e=0,pa=0,out=0,tr=0,lt=0,ov=0;
       datesBetween(lo<autoFrom?autoFrom:lo,hi).forEach(d=>{
         if(firstLogin[d]){tr++;lt+=lateByDate[d]||0;ov+=overByDate[d]||0;}
-        if(!isWeekday(d)||exc[d]||dayTypes[d]==='pto'||dayTypes[d]==='pch')return;
+        if(!isWeekday(d)||exc[d]||dayTypes[d]==='pto'||dayTypes[d]==='pch'||dayTypes[d]==='uch')return;
         e++; if(outDates.has(d))out++; else if(dayTypes[d]==='planned_absence'||dayTypes[d]==='sick_leave')pa++;
       });
       const mc=combine(e>0?Math.max(0,(e-pa-2*out)/e)*100:null,tr,lt,ov,false);
@@ -9898,7 +9933,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     });
     return{staffId:staff.id,name:staff.full_name,clientName:client?.name||'Unassigned',year,
       score:c.score,band:band(c.score).name,partial:!!c.partial,countsMissing,missingHireDate:!!row.missingHireDate,
-      attendance:{pct:attPct==null?null:r2(attPct),score:c.att??null,expected:E,present:countsMissing?row.autoCounts.days_present:row.days_present,pto:countsMissing?row.autoCounts.pto:row.pto,pch:countsMissing?row.autoCounts.pch:row.pch,pa:PA,out:OUT,excused:excusedCount,workingDays:Number(row.workingDays)||0,sl:Math.max(0,Math.min(PA,(Number(row.sl)||0)-slExcused)),from:emp.valid&&emp.start>range.start?emp.start:range.start,to:range.end},
+      attendance:{pct:attPct==null?null:r2(attPct),score:c.att??null,expected:E,present:countsMissing?row.autoCounts.days_present:row.days_present,pto:countsMissing?row.autoCounts.pto:row.pto,pch:countsMissing?row.autoCounts.pch:row.pch,uch:row.autoCounts?.uch||0,pa:PA,out:OUT,excused:excusedCount,workingDays:Number(row.workingDays)||0,sl:Math.max(0,Math.min(PA,(Number(row.sl)||0)-slExcused)),from:emp.valid&&emp.start>range.start?emp.start:range.start,to:range.end},
       punctuality:{late,per20:c.latePer20??null,score:c.punct??null},
       breaks:{over,per20:c.overPer20??null,score:c.brk??null},
       trackedDays:trackedDates.length,firstTracked:trackedDates[0]||null,months,computedAt:new Date().toISOString()};
@@ -10096,7 +10131,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
       ${t('Total working days',has?att.workingDays:'—',from>yStart?`Mon–Fri since you started (${esc(sd(from))})`:'Mon–Fri since Jan 1','n')}
       ${t('Days present',att.present??'—','Days you logged in','g')}
       ${t('PTO',att.pto??0,'Paid · never counts against you','p')}
-      ${t('PCH',att.pch??0,'Paid holiday · never counts against you','p')}
+      ${att.uch?t('PCH / UCH',`${att.pch??0} / ${att.uch}`,'Client holidays (paid / unpaid) · never count against you','p'):t('PCH',att.pch??0,'Paid holiday · never counts against you','p')}
       ${t('PA',pa,has?'Planned absence · unpaid':'Planned absence + sick leave · unpaid','w')}
       ${t('SL',sl==null?'—':sl,'Sick leave · unpaid','w')}
       ${t('Unplanned absences (OUT)',att.out??0,'No log-in, no leave filed · counts ×2','b')}
@@ -14701,9 +14736,9 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
    ============================================================ */
 (function(){
   const T={meeting:['Meeting','#60a5fa'],coaching:['Coaching / 1:1','#a78bfa'],holiday:['Client holiday','#fb7185'],
-    pto:['PTO','#3FBFAE'],pch:['Paid Client Holiday','#2dd4bf'],planned_absence:['Planned Absence','#E3A63E'],sick_leave:['Sick Leave','#E2685F'],out:['Out','#E2685F'],half_day:['Half Day','#8B90A0'],
+    pto:['PTO','#3FBFAE'],pch:['Paid Client Holiday','#2dd4bf'],uch:['Unpaid Client Holiday','#94a3b8'],planned_absence:['Planned Absence','#E3A63E'],sick_leave:['Sick Leave','#E2685F'],out:['Out','#E2685F'],half_day:['Half Day','#8B90A0'],
     birthday:['Birthday','#ff6fae'],workiversary:['Workiversary','#22c39a']};
-  const LEAVE=new Set(['pto','pch','planned_absence','sick_leave','out','half_day']);
+  const LEAVE=new Set(['pto','pch','uch','planned_absence','sick_leave','out','half_day']);
   const S={feed:null,cur:null,mode:'month',client:'all',type:'all',mine:false,view:null,loading:false,err:''};
   const esc=s=>escapeHtml(s==null?'':String(s));
   const pad=n=>String(n).padStart(2,'0');
