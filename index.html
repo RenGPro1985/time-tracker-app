@@ -3171,7 +3171,7 @@ async function start(){
   setInterval(()=>{ if(curShift&&curEntry&&Number(allowance[curEntry.activity]||0)>0) syncOverbreakAlerts(curShift.id); },15000);
   // Live Status: admins auto-refresh every 5 min (visible tab only); staff viewers refresh manually.
   // Was every 60s for everyone — that one poll was ~90% of the Supabase egress (Rendy 2026-11-22).
-  setInterval(()=>{ if(!document.hidden&&typeof me!=="undefined"&&me&&iAmLiveStatusAdmin()&&document.getElementById('v-status').classList.contains('hide')===false&&lsAgeSec()>=LS_AUTO_SEC-5) loadRoster(true); },30000);
+  setInterval(()=>{ if(!document.hidden&&typeof me!=="undefined"&&me&&iAmLiveStatusAdmin()&&!lsWeekendPaused()&&document.getElementById('v-status').classList.contains('hide')===false&&lsAgeSec()>=LS_AUTO_SEC-5) loadRoster(true); },30000);
   setInterval(lsPaintBar,1000); // DOM only — no network
   setInterval(()=>{ if(me&&document.getElementById('v-dash').classList.contains('hide')===false) renderPayPeriod(); },300000);
   await refreshNotifications(true);
@@ -3200,7 +3200,7 @@ async function refreshNotifications(force){
   else if(data&&data.length){const have=new Set(notifications.map(n=>n.id));notifications=[...data.filter(n=>!have.has(n.id)),...notifications].slice(0,30);}
   renderNotifBell();
 }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&typeof me!=='undefined'&&me){ refreshNotifications(); if(!document.getElementById('v-status').classList.contains('hide')&&iAmLiveStatusAdmin()&&lsAgeSec()>=LS_AUTO_SEC) loadRoster(true); } });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&typeof me!=='undefined'&&me){ refreshNotifications(); if(!document.getElementById('v-status').classList.contains('hide')&&iAmLiveStatusAdmin()&&!lsWeekendPaused()&&lsAgeSec()>=LS_AUTO_SEC) loadRoster(true); } });
 function renderNotifBell(){
   const unread=notifications.filter(n=>!n.read_at).length;
   $('notifBadge').classList.toggle('hide',unread===0);
@@ -3820,6 +3820,16 @@ function fill(id,blank,pairs){$(id).innerHTML=`<option value="">${blank}</option
 
 /* ---- Live Status refresh state (manual refresh + admin 5-min auto) ---- */
 const LS_AUTO_SEC=300, LS_COOL_SEC=30, LS_STALE_SEC=600;
+/* Weekend pause (Rendy 2026-11-23, Supabase egress): no agents work weekends, so the admin
+   5-min auto-refresh stops from Sat 08:00 PHT (after the Fri-night shift ends) until
+   Mon 18:00 PHT (before the first Mon-night shift). Manual Refresh still works anytime. */
+function lsWeekendPaused(){ const d=new Date(Date.now()+8*3600000), w=d.getUTCDay(), h=d.getUTCHours();
+  return (w===6&&h>=8)||w===0||(w===1&&h<18)||lsThanksgivingPaused(d,w,h); }
+/* US Thanksgiving (4th Thu of Nov) — no shift that night, so pause Thu 08:00 → Fri 18:00 PHT.
+   Rule-based, recalculates every year (Rendy 2026-11-23). */
+function lsThanksgivingPaused(d,w,h){ if(d.getUTCMonth()!==10) return false;
+  const first=new Date(Date.UTC(d.getUTCFullYear(),10,1)).getUTCDay(), tg=1+((4-first+7)%7)+21, day=d.getUTCDate();
+  return (day===tg&&h>=8)||(day===tg+1&&h<18); }
 let lsData=null, lsAt=0, lsLoading=false;
 function lsAgeSec(){ return lsAt?Math.floor((Date.now()-lsAt)/1000):Infinity; }
 function lsCoolLeft(){ return Math.max(0,LS_COOL_SEC-lsAgeSec()); }
@@ -3834,7 +3844,7 @@ function lsPaintBar(){
     $('lsMain').textContent=(stale?'⚠ Data may be out of date · ':'')+'Updated '+t+' PHT · '+(age<45?'just now':Math.round(age/60)+' min ago');
   }
   const nxt=Math.max(0,LS_AUTO_SEC-age);
-  $('lsSub').textContent=admin?('Auto-refreshes every 5 min · next in '+Math.floor(nxt/60)+':'+String(nxt%60).padStart(2,'0'))
+  $('lsSub').textContent=admin?(lsWeekendPaused()?(lsThanksgivingPaused(new Date(Date.now()+8*3600000),0,new Date(Date.now()+8*3600000).getUTCHours())?'No shift (US Thanksgiving)':'Weekend')+' — auto-refresh paused · tap Refresh anytime':('Auto-refreshes every 5 min · next in '+Math.floor(nxt/60)+':'+String(nxt%60).padStart(2,'0')))
     :(stale?'Tap Refresh to see who is working right now.':'Tap Refresh to get the current live status.');
   const btn=$('refreshBtn'); btn.classList.toggle('ls-loading',lsLoading);
   if(lsLoading){ btn.disabled=true; $('lsLbl').textContent='Refreshing…'; }
