@@ -416,7 +416,7 @@ app.post('/api/slack/request', async (req, res) => {
     const {data:r,error}=await admin.from('requests').select('*').eq('id',requestId).single();
     if(error||!r) return res.status(404).json({error:'Request not found.'});
     if(r.staff_id!==caller.user.id) return res.status(403).json({error:'You can only notify your own request.'});
-    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance',half_day:'Half Day'}[r.type];
+    const typeLabel={pto:'Paid Time Off',uch:'Unpaid Client Holiday',salary_advance:'Salary Advance',cash_advance:'Cash Advance',half_day:'Half Day'}[r.type];
     if(!typeLabel) return res.status(400).json({error:'Unsupported request type.'});
     const client=await clientName(caller.row.client_id);
     const fields=[['Staff',caller.row.full_name],['Client',client],['Request',typeLabel]];
@@ -424,7 +424,7 @@ app.post('/api/slack/request', async (req, res) => {
       fields.push(['Shift date',phtDate(r.start_date+'T12:00:00+08:00')]);
       if(r.half_part) fields.push(['Half',r.half_part==='first'?'1st half':'2nd half']);
       if(r.late_filing) fields.push(['Filing','⏰ Late filing (more than 24h after the shift)']);
-    }else if(r.type==='pto'){
+    }else if(r.type==='pto'||r.type==='uch'){
       fields.push(['Dates',`${phtDate(r.start_date+'T00:00:00+08:00')} – ${phtDate(r.end_date+'T00:00:00+08:00')}`],['Requested',`${inclusiveDays(r.start_date,r.end_date)} calendar day(s)`]);
     }else{
       fields.push(['Amount',peso(r.amount)],['Repayment',`${Number(r.cutoffs||0)} cutoff(s)`]);
@@ -447,7 +447,7 @@ app.post('/api/slack/request-rejected', async (req, res) => {
     if(r.status!=='rejected'||!String(r.rejection_reason||'').trim()){
       return res.status(409).json({error:'The request must be rejected with a reason before notifying payroll.'});
     }
-    const typeLabel={pto:'Paid Time Off',salary_advance:'Salary Advance',cash_advance:'Cash Advance',half_day:'Half Day'}[r.type];
+    const typeLabel={pto:'Paid Time Off',uch:'Unpaid Client Holiday',salary_advance:'Salary Advance',cash_advance:'Cash Advance',half_day:'Half Day'}[r.type];
     if(!typeLabel) return res.status(400).json({error:'Unsupported request type.'});
     const {data:staff,error:staffErr}=await admin.from('staff')
       .select('id, full_name, client_id').eq('id',r.staff_id).single();
@@ -456,7 +456,7 @@ app.post('/api/slack/request-rejected', async (req, res) => {
     const fields=[['Staff',staff.full_name],['Client',client],['Request',typeLabel]];
     if(r.type==='half_day'){
       fields.push(['Shift date',phtDate(r.start_date+'T12:00:00+08:00')]);
-    }else if(r.type==='pto'){
+    }else if(r.type==='pto'||r.type==='uch'){
       fields.push(['Dates',`${phtDate(r.start_date+'T00:00:00+08:00')} – ${phtDate(r.end_date+'T00:00:00+08:00')}`],['Requested',`${inclusiveDays(r.start_date,r.end_date)} calendar day(s)`]);
     }else{
       fields.push(['Amount',peso(r.amount)],['Repayment',`${Number(r.cutoffs||0)} cutoff(s)`]);
@@ -1159,9 +1159,9 @@ app.post('/api/admin/shifts/:id/force-logout', async (req, res) => {
    ============================================================================ */
 const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN || '';
 const PORTAL_URL = APP_URL || 'https://rengpro1985.github.io/time-tracker-app/';
-const DM_REQ_LABEL = {pto:'PTO',pch:'Paid Client Holiday',planned_absence:'Planned Absence',sick_leave:'Sick Leave',
+const DM_REQ_LABEL = {pto:'PTO',pch:'Paid Client Holiday',uch:'Unpaid Client Holiday',planned_absence:'Planned Absence',sick_leave:'Sick Leave',
   reimbursement:'Reimbursement',salary_advance:'Salary Advance',cash_advance:'Cash Advance',half_day:'Half Day'};
-const DM_DATED = new Set(['pto','pch','planned_absence','sick_leave','half_day']);
+const DM_DATED = new Set(['pto','pch','uch','planned_absence','sick_leave','half_day']);
 
 async function slackApi(method, body){
   if(!SLACK_BOT_TOKEN) throw new Error('SLACK_BOT_TOKEN is not set on Render.');
