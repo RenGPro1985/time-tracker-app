@@ -982,6 +982,22 @@ Juan Dela Cruz, juan.delacruz, juan@company.com"></textarea>
         </div>
         </div>
       </div>
+      <div class="hide" id="advRsOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:50">
+        <div class="card" style="max-width:640px;width:94vw;max-height:90vh;overflow:auto">
+          <div class="hdr" style="margin-bottom:6px"><h3 style="font-size:15px">✏️ Restructure remaining deductions</h3><button class="btn btn-ghost" id="advRsClose">✕ Close</button></div>
+          <div class="muted" style="font-size:12px;margin-bottom:10px" id="advRsInfo"></div>
+          <div class="muted" style="font-size:11px;margin-bottom:10px">Only <b>scheduled</b> (not yet deducted) lines can change. The new lines must add up exactly to the remaining scheduled total, so the advance balance stays the same. Cutoffs must be payout dates (15th or last day of the month) not already marked PAID. If a Contractor Ledger row has a manual Fee Advance edit for one of these cutoffs, that manual edit still wins.</div>
+          <table style="width:100%"><thead><tr><th>Cutoff date</th><th class="num">Amount (₱)</th><th></th></tr></thead><tbody id="advRsRows"></tbody></table>
+          <div class="row" style="gap:8px;margin:10px 0;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-ghost" id="advRsAdd">+ Add cutoff</button>
+            <button class="btn btn-ghost" id="advRsEven" title="Split the remaining total evenly across the cutoffs listed">⚖️ Even split</button>
+            <span style="flex:1"></span>
+            <span class="mono" id="advRsTotal" style="font-size:13px"></span>
+          </div>
+          <div style="margin-bottom:10px"><label>Reason (required)</label><input id="advRsReason" placeholder="e.g. Staff asked to even out the last 2 deductions" style="width:100%"></div>
+          <div class="row" style="gap:8px;align-items:center"><button class="btn btn-gold" id="advRsSave">Save new schedule</button><span class="muted" id="advRsMsg" style="font-size:12px"></span></div>
+        </div>
+      </div>
     </section>
 
     <!-- ---------- ADMIN: TIMESHEETS ---------- -->
@@ -2429,6 +2445,7 @@ function advRenderFeeAdvances(){
         <div class="small" style="margin-bottom:6px">Repayment schedule &amp; running balance for ${escapeHtml(r.reason||TYPE_LABEL[r.type]||'this advance')}</div>
         <table style="width:100%"><thead><tr><th>Date</th><th>Line</th><th class="num">Amount</th><th class="num">Balance after</th></tr></thead>
         <tbody>${historyRows||'<tr><td colspan="4" class="muted">No repayment lines recorded yet.</td></tr>'}</tbody></table>
+        ${c.scheduled.length?`<div style="margin-top:8px"><button class="btn btn-ghost adv-rs" data-req="${r.id}" title="Change the amounts/dates of the remaining scheduled deductions">✏️ Restructure remaining deductions</button></div>`:''}
         </div></td></tr>`;
     }
     return `<tr data-req="${r.id}" class="${isOpen?'fa-hl':''}"><td><b>${escapeHtml(advStaffName(r.staff_id))}</b></td>
@@ -2444,12 +2461,65 @@ function advRenderFeeAdvances(){
       <td><span class="pill ${pillCls}"><span class="dot"></span>${pillLabel}</span></td>
       <td><a href="#" class="adv-view" data-req="${r.id}" style="color:var(--teal);text-decoration:none">${isOpen?'Hide':'View'}</a></td></tr>${historyHtml}`;
   }).join(''):`<tr><td colspan="12" class="muted">No advances match these filters.</td></tr>`;
+  $('advTable').querySelectorAll('button.adv-rs').forEach(b=>b.onclick=()=>advRsOpen(b.dataset.req));
   $('advTable').querySelectorAll('a.adv-view').forEach(a=>a.onclick=(e)=>{
     e.preventDefault();
     advOpenViewId=advOpenViewId===a.dataset.req?null:a.dataset.req;
     advRenderFeeAdvances();
   });
 }
+/* ---------- Restructure remaining schedule (admin): re-split the still-'scheduled'
+   deductions of one advance, e.g. 4,500 + 1,500 → 3,000 + 3,000. Server RPC
+   restructure_advance_schedule (supabase/advance_restructure.sql) enforces: admin only,
+   scheduled rows only, same total, payout dates only, no already-PAID cutoff, audit row. */
+let advRsCtx=null;
+const advRsCents=n=>Math.round(Number(n||0)*100);
+function advRsIsPayout(iso){ if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||''))return false; const [y,m,d]=iso.split('-').map(Number); return d===15||d===new Date(Date.UTC(y,m,0)).getUTCDate(); }
+function advRsNextPayout(iso){ const [y,m,d]=iso.split('-').map(Number); const last=new Date(Date.UTC(y,m,0)).getUTCDate(); const pad=x=>String(x).padStart(2,'0');
+  if(d<15) return `${y}-${pad(m)}-15`; if(d<last) return `${y}-${pad(m)}-${pad(last)}`; const ny=m===12?y+1:y,nm=m===12?1:m+1; return `${ny}-${pad(nm)}-15`; }
+function advRsRead(){ return [...$('advRsRows').querySelectorAll('tr')].map(tr=>({cutoff_date:tr.querySelector('.rs-d').value,amount:Number(tr.querySelector('.rs-a').value||0)})); }
+function advRsRender(lines){
+  $('advRsRows').innerHTML=lines.map((l,i)=>`<tr><td><input type="date" class="rs-d" value="${l.cutoff_date||''}"></td><td class="num"><input type="number" class="rs-a" min="0" step="0.01" value="${l.amount||''}" style="width:130px;text-align:right"></td><td><button class="btn btn-ghost rs-del" data-i="${i}" title="Remove this cutoff">✕</button></td></tr>`).join('');
+  $('advRsRows').querySelectorAll('input').forEach(el=>el.oninput=advRsTotals);
+  $('advRsRows').querySelectorAll('.rs-del').forEach(b=>b.onclick=()=>{const L=advRsRead();L.splice(Number(b.dataset.i),1);advRsRender(L);});
+  advRsTotals();
+}
+function advRsTotals(){
+  if(!advRsCtx)return; const got=advRsRead().reduce((a,l)=>a+advRsCents(l.amount),0),need=advRsCents(advRsCtx.total);
+  const ok=got===need; $('advRsTotal').innerHTML=`New total <b style="color:${ok?'var(--teal)':'var(--red,#e5484d)'}">${advPeso(got/100)}</b> / required ${advPeso(need/100)}${ok?' ✓':` (${got>need?'over':'short'} ${advPeso(Math.abs(got-need)/100)})`}`;
+  $('advRsSave').disabled=!ok;
+}
+function advRsOpen(reqId){
+  const c=advComputed.find(x=>x.req.id===reqId); if(!c||!c.scheduled.length)return;
+  const sched=c.scheduled.slice().sort((a,b)=>a.cutoff_date<b.cutoff_date?-1:1);
+  advRsCtx={reqId,total:sched.reduce((a,d)=>a+Number(d.amount||0),0)};
+  $('advRsInfo').innerHTML=`<b>${escapeHtml(advStaffName(c.req.staff_id))}</b> · ${TYPE_LABEL[c.req.type]||'Advance'} ${advPeso(c.advanceTotal)} · balance ${advPeso(c.balance)} · remaining scheduled <b>${advPeso(advRsCtx.total)}</b> over ${sched.length} cutoff${sched.length===1?'':'s'}`;
+  $('advRsReason').value=''; $('advRsMsg').textContent='';
+  advRsRender(sched.map(d=>({cutoff_date:d.cutoff_date,amount:Number(d.amount||0)})));
+  $('advRsOverlay').classList.remove('hide');
+}
+function advRsClose(){ $('advRsOverlay').classList.add('hide'); advRsCtx=null; }
+if($('advRsClose'))$('advRsClose').onclick=advRsClose;
+if($('advRsOverlay'))$('advRsOverlay').addEventListener('click',e=>{ if(e.target===$('advRsOverlay')) advRsClose(); });
+if($('advRsAdd'))$('advRsAdd').onclick=()=>{ const L=advRsRead(); const lastD=L.map(l=>l.cutoff_date).filter(Boolean).sort().pop()||new Date(Date.now()+8*3600e3).toISOString().slice(0,10); L.push({cutoff_date:advRsNextPayout(lastD),amount:0}); advRsRender(L); };
+if($('advRsEven'))$('advRsEven').onclick=()=>{ const L=advRsRead(); if(!L.length)return; const need=advRsCents(advRsCtx.total),n=L.length,base=Math.floor(need/n);
+  // even split in centavos; any leftover centavos go on the LAST cutoff so totals match exactly
+  L.forEach((l,i)=>{ l.amount=(base+(i===n-1?need-base*n:0))/100; }); advRsRender(L); };
+if($('advRsSave'))$('advRsSave').onclick=async()=>{
+  if(!advRsCtx)return; const lines=advRsRead(),reason=$('advRsReason').value.trim();
+  if(!lines.length)return alert('Add at least one cutoff.');
+  for(const l of lines){ if(!advRsIsPayout(l.cutoff_date))return alert(`${l.cutoff_date||'(blank)'} is not a payout date — use the 15th or the last day of the month.`); if(!(l.amount>0))return alert('Every amount must be greater than zero.'); }
+  if(new Set(lines.map(l=>l.cutoff_date)).size!==lines.length)return alert('The same cutoff is listed twice.');
+  if(lines.reduce((a,l)=>a+advRsCents(l.amount),0)!==advRsCents(advRsCtx.total))return alert('The new lines must add up to the remaining scheduled total.');
+  if(!reason)return alert('Enter a reason for the restructure.');
+  if(!confirm(`Replace the remaining schedule with:\n\n${lines.map(l=>`${fmtNice(l.cutoff_date)} — ${advPeso(l.amount)}`).join('\n')}\n\nContinue?`))return;
+  $('advRsSave').disabled=true; $('advRsMsg').textContent='Saving…';
+  try{
+    const {error}=await sb.rpc('restructure_advance_schedule',{p_request_id:advRsCtx.reqId,p_lines:lines.map(l=>({cutoff_date:l.cutoff_date,amount:Math.round(l.amount*100)/100})),p_reason:reason});
+    if(error) throw new Error(/restructure_advance_schedule|function .* does not exist|PGRST202/i.test(error.message+(error.code||''))?'The restructure feature needs its database update first — run supabase/advance_restructure.sql in the Supabase SQL Editor.':error.message);
+    const keep=advRsCtx.reqId; advRsClose(); advOpenViewId=keep; await loadFeeAdvancePanel();
+  }catch(e){ $('advRsMsg').textContent=''; alert(e.message); advRsTotals(); }
+};
 ['advFStaff','advFType','advFSource','advFStatus'].forEach(id=>{ if($(id)) $(id).onchange=()=>{advOpenViewId=null;advRenderFeeAdvances();}; });
 if($('advFReset'))$('advFReset').onclick=()=>{advResetFilters(false);advRenderFeeAdvances();};
 function advOpenForm(){ advFillStaffSelects(); $('advFormOverlay').classList.remove('hide'); }
