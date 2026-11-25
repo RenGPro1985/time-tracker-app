@@ -383,11 +383,14 @@ export function registerCalendar(ctx) {
 
   // ---------------------------------------------------------------- the sweep
   let running = false;
-  async function calendarSweep() {
+  let lastGoogleSync = 0; // log saver: Google sync every 15 min; Slack reminders still checked every 5 min
+  async function calendarSweep(force = false) {
     if (running) return { skipped: 'running' };
     running = true;
     try {
-      const link = CLIENT_ID && CLIENT_SECRET ? await getLink().catch(() => null) : null;
+      const doGoogle = force === true || Date.now() - lastGoogleSync >= 15 * 60000 - 5000;
+      const link = doGoogle && CLIENT_ID && CLIENT_SECRET ? await getLink().catch(() => null) : null;
+      if (doGoogle) lastGoogleSync = Date.now();
       if (link) {
         try {
           const budget = { n: 40 };
@@ -479,7 +482,7 @@ export function registerCalendar(ctx) {
         await admin.from('calendar_leave_sync').delete().neq('leave_key', '');
         await admin.from('calendar_events').update({ google_event_id: null }).eq('source', 'portal').gt('end_at', new Date().toISOString());
       }
-      setTimeout(() => calendarSweep().catch(() => {}), 500);
+      setTimeout(() => calendarSweep(true).catch(() => {}), 500);
       back('', true);
     } catch (e) { console.error('Google connect failed:', e); back(e.message || 'Connect failed', false); }
   });
@@ -494,7 +497,7 @@ export function registerCalendar(ctx) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
   app.post('/api/calendar/sync', async (req, res) => {
-    try { const a = await requireAdmin(req, res); if (!a) return; res.json(await calendarSweep()); }
+    try { const a = await requireAdmin(req, res); if (!a) return; res.json(await calendarSweep(true)); }
     catch (e) { res.status(500).json({ error: e.message }); }
   });
 
