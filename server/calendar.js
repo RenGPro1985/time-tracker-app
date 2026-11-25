@@ -499,6 +499,33 @@ export function registerCalendar(ctx) {
   });
 
   // ---------------------------------------------------------------- routes: calendar data
+    // ---- egress: short-lived cache for the parts of /api/calendar/feed that are the same for every viewer ----
+  const FEED_TTL_MS = 120000;
+  const feedCache = new Map();
+  function bustFeedCache() { feedCache.clear(); }
+  app.use('/api/calendar', (req, res, next) => { if (req.method !== 'GET') res.on('finish', bustFeedCache); next(); }); // edits show up right away
+  async function feedShared(from, to, fromTs, toTs) {
+    const key = from + '|' + to, hit = feedCache.get(key);
+    if (hit && Date.now() - hit.at < FEED_TTL_MS) return hit.val;
+    const p = (async () => {
+      const [evQ, staffQ, clientsQ, leaveQ, linkQ] = await Promise.all([
+        admin.from('calendar_events').select('*').is('cancelled_at', null).lt('start_at', toTs).gt('end_at', fromTs).order('start_at').limit(1500),
+        admin.from('staff').select('id, full_name, client_id, role, birth_date, hire_date').eq('active', true).order('full_name'),
+        admin.from('clients').select('id, name, timezone'),
+        admin.from('leave_days').select('request_id, staff_id, date, type').in('type', LEAVE_TYPES).gte('date', from).lte('date', to).limit(5000),
+        admin.from('google_calendar_link').select('account_email, refresh_token, last_sync_at, last_error').eq('id', 1).maybeSingle()
+      ]);
+      for (const q of [evQ, staffQ, clientsQ, leaveQ]) if (q.error) throw q.error;
+      const evs = evQ.data || [];
+      const rsvpQ = evs.length ? await admin.from('calendar_rsvps').select('event_id, staff_id, status').in('event_id', evs.map(e => e.id)) : { data: [] };
+      return { evQ, staffQ, clientsQ, leaveQ, linkQ, rsvpQ };
+    })();
+    feedCache.set(key, { at: Date.now(), val: p });
+    p.catch(() => feedCache.delete(key));
+    if (feedCache.size > 50) feedCache.delete(feedCache.keys().next().value);
+    return p;
+  }
+
   app.get('/api/calendar/feed', async (req, res) => {
     try {
       const u = await requireActiveUser(req, res); if (!u) return;
@@ -507,17 +534,12 @@ export function registerCalendar(ctx) {
       const from = String(req.query.from || ''), to = String(req.query.to || '');
       if (!isoDateRe.test(from) || !isoDateRe.test(to) || to < from || (new Date(to) - new Date(from)) > 120 * 86400000) return res.status(400).json({ error: 'from/to must be dates up to 120 days apart.' });
       const fromTs = phMidnight(from).toISOString(), toTs = phMidnight(addDays(to, 1)).toISOString();
-      const [evQ, staffQ, clientsQ, leaveQ, pendQ, linkQ] = await Promise.all([
-        admin.from('calendar_events').select('*').is('cancelled_at', null).lt('start_at', toTs).gt('end_at', fromTs).order('start_at').limit(1500),
-        admin.from('staff').select('id, full_name, client_id, role, birth_date, hire_date').eq('active', true).order('full_name'),
-        admin.from('clients').select('id, name, timezone'),
-        admin.from('leave_days').select('request_id, staff_id, date, type').in('type', LEAVE_TYPES).gte('date', from).lte('date', to).limit(5000),
-        (() => { let q = admin.from('requests').select('id, staff_id, type, start_date, end_date, reason, status, created_at').eq('status', 'pending').in('type', LEAVE_TYPES).lte('start_date', to).gte('end_date', from).limit(500); if (!isAdmin) q = q.eq('staff_id', myId); return q; })(),
-        admin.from('google_calendar_link').select('account_email, refresh_token, last_sync_at, last_error').eq('id', 1).maybeSingle()
-      ]);
+      // egress: the shared parts are cached ~2 min per date window, so 25 staff polling = 1 set of Supabase reads, not 25
+      const shared = await feedShared(from, to, fromTs, toTs);
+      const pendQ = await (() => { let q = admin.from('requests').select('id, staff_id, type, start_date, end_date, reason, status, created_at').eq('status', 'pending').in('type', LEAVE_TYPES).lte('start_date', to).gte('end_date', from).limit(500); if (!isAdmin) q = q.eq('staff_id', myId); return q; })();
+      const { evQ, staffQ, clientsQ, leaveQ, linkQ, rsvpQ } = shared;
       for (const q of [evQ, staffQ, clientsQ, leaveQ, pendQ]) if (q.error) throw q.error;
       const evs = evQ.data || [];
-      const rsvpQ = evs.length ? await admin.from('calendar_rsvps').select('event_id, staff_id, status').in('event_id', evs.map(e => e.id)) : { data: [] };
       const rs = {};
       for (const r of rsvpQ.data || []) (rs[r.event_id] = rs[r.event_id] || {})[r.staff_id] = r.status;
       const events = evs.map(e => {
