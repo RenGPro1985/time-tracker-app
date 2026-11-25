@@ -3238,7 +3238,7 @@ async function start(){
   /* Poll only while a capped activity is actively running. Switching/stopping/logging out
      also performs a catch-up check, so this catches threshold crossings without sending
      four backend requests per minute throughout the entire shift. */
-  setInterval(()=>{ if(curShift&&curEntry&&Number(allowance[curEntry.activity]||0)>0) syncOverbreakAlerts(curShift.id); },15000);
+  setInterval(()=>{ if(curShift&&curEntry&&Number(allowance[curEntry.activity]||0)>0) syncOverbreakAlerts(curShift.id); },60000); // egress: was 15s — alerts may now land up to 1 min after the cap
   // Live Status: admins auto-refresh every 5 min (visible tab only); staff viewers refresh manually.
   // Was every 60s for everyone — that one poll was ~90% of the Supabase egress (Rendy 2026-11-22).
   setInterval(()=>{ if(!document.hidden&&typeof me!=="undefined"&&me&&iAmLiveStatusAdmin()&&!lsWeekendPaused()&&document.getElementById('v-status').classList.contains('hide')===false&&lsAgeSec()>=LS_AUTO_SEC-5) loadRoster(true); },30000);
@@ -15129,7 +15129,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
         history.replaceState(null,'',location.pathname+location.search);
         if(isAdmin()){ setTimeout(()=>{ go('v-teamcal'); if(h==='#calendar-connected') toast('Google Calendar connected','Everything will now show on the SMB VS Team calendar on your phone. First sync runs in a few seconds.','#3FBFAE'); else toast('Google connect failed',decodeURIComponent(h.split('error=')[1]||''),'#E2685F'); },300); }
       }
-      loadSoon(); setInterval(loadSoon,3*60000);
+      loadSoon(); setInterval(()=>{ if(!document.hidden) loadSoon(); },10*60000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) loadSoon(); }); // egress: was every 3 min, even in hidden tabs
       setInterval(()=>{ checkSoon(); watchBell(); },20000);
       setTimeout(()=>{ checkSoon(); watchBell(); },4000);
       setInterval(()=>{ if(!document.hidden&&S.view&&!document.getElementById(S.view)?.classList.contains('hide')&&!document.getElementById('tcModal')) load(); },120000);
