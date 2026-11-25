@@ -127,13 +127,35 @@ async function createOneStaff(body, mode){
   return { ok: true, id: userId, temp_password: temp };
 }
 
+/* Log saver (2026-11-25): remember a verified login for up to 5 min (never past the token's own
+   expiry), so each portal call doesn't re-ask Supabase Auth + re-read the staff row.
+   Trade-off: a deactivated account / removed admin role takes up to 5 min to lock out. */
+const AUTH_TTL_MS = 5 * 60 * 1000;
+const authCache = new Map();
+function tokenExpMs(token) {
+  try { return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).exp * 1000; } catch (_) { return 0; }
+}
+async function verifyCaller(token) {
+  const hit = authCache.get(token);
+  if (hit && Date.now() < hit.until) return hit;
+  const { data: u, error } = await admin.auth.getUser(token);
+  if (error || !u?.user) { authCache.delete(token); return { user: null }; }
+  const { data: row, error: rowErr } = await admin.from('staff')
+    .select('id, full_name, client_id, role, active').eq('id', u.user.id).single();
+  const until = Math.min(Date.now() + AUTH_TTL_MS, tokenExpMs(token) || Date.now() + AUTH_TTL_MS);
+  const val = { user: u.user, row: rowErr ? null : row, until };
+  if (authCache.size > 2000) authCache.clear();
+  if (val.row) authCache.set(token, val);
+  return val;
+}
+function forgetCaller(userId) { for (const [k, v] of authCache) if (String(v.user?.id) === String(userId)) authCache.delete(k); }
+
 // --- helper: make sure the caller is a logged-in admin -------------------
 async function requireAdmin(req, res) {
   const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
   if (!token) { res.status(401).json({ error: 'Not logged in.' }); return null; }
-  const { data: u, error } = await admin.auth.getUser(token);
-  if (error || !u?.user) { res.status(401).json({ error: 'Session expired, please log in again.' }); return null; }
-  const { data: row } = await admin.from('staff').select('id, full_name, role, active').eq('id', u.user.id).single();
+  const { user, row } = await verifyCaller(token);
+  if (!user) { res.status(401).json({ error: 'Session expired, please log in again.' }); return null; }
   if (!row || row.role !== 'admin' || !row.active) { res.status(403).json({ error: 'Admins only.' }); return null; }
   return row;
 }
@@ -143,12 +165,10 @@ async function requireAdmin(req, res) {
 async function requireActiveUser(req, res) {
   const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
   if (!token) { res.status(401).json({ error: 'Not logged in.' }); return null; }
-  const { data: u, error } = await admin.auth.getUser(token);
-  if (error || !u?.user) { res.status(401).json({ error: 'Session expired, please log in again.' }); return null; }
-  const { data: row, error: rowErr } = await admin.from('staff')
-    .select('id, full_name, client_id, active').eq('id', u.user.id).single();
-  if (rowErr || !row || !row.active) { res.status(403).json({ error: 'This staff account is inactive.' }); return null; }
-  return { user: u.user, row };
+  const { user, row } = await verifyCaller(token);
+  if (!user) { res.status(401).json({ error: 'Session expired, please log in again.' }); return null; }
+  if (!row || !row.active) { res.status(403).json({ error: 'This staff account is inactive.' }); return null; }
+  return { user, row };
 }
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -348,6 +368,7 @@ app.post('/api/staff/bulk', async (req, res) => {
 app.post('/api/staff/:id/deactivate', async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
   const { error } = await admin.from('staff').update({ active: false }).eq('id', req.params.id);
+  forgetCaller(req.params.id); // lock them out right away, not after the 5-min login cache
   if (error) return res.status(400).json({ error: error.message });
   res.json({ ok: true });
 });
@@ -363,6 +384,7 @@ app.post('/api/staff/:id/reactivate', async (req, res) => {
 app.delete('/api/staff/:id', async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
   const { error } = await admin.auth.admin.deleteUser(req.params.id); // staff row cascades
+  forgetCaller(req.params.id);
   if (error) return res.status(400).json({ error: error.message });
   res.json({ ok: true });
 });
@@ -681,7 +703,7 @@ async function loginNoticeSweep(){
   }catch(e){console.error('Login notice sweep failed:',e.message);}
   finally{loginSweepRunning=false;}
 }
-setInterval(loginNoticeSweep,5*60*1000);
+setInterval(loginNoticeSweep,15*60*1000); // log saver: was 5 min — fallback only, the portal posts login notices instantly
 setTimeout(loginNoticeSweep,30000);
 
 /* Login speed test → SMB General [Rendy, 2026-10-23]. The browser measures the staff member's
@@ -1457,11 +1479,18 @@ async function dmSweep(force=false){
         if(Date.now()-new Date(x.updated_at).getTime() < 3*60000) continue;
         await dmTry(()=>sendDmOnce({eventKey:`dm:early:${x.staff_id}:${cutoff}`,entityId:`${x.staff_id}:${cutoff}`,staff:s,...sentEarlyDm(cutoff,null)}),'sent-early');
       }
-      for(const p of paid||[]){
+      // log saver: one batched Sent-Early lookup instead of one query per PAID row, and skip rows already DM'd
+      const paidTodo = (paid||[]).filter(p=>!sentNotificationKeys.has(`dm:paid:${p.staff_id}:${String(p.cutoff_date).slice(0,10)}`));
+      const earlySet = new Set();
+      if(paidTodo.length){
+        const {data:seRows} = await admin.from('ledger_extras').select('staff_id, cutoff_date, amount').eq('field_key','sent_early')
+          .in('staff_id',[...new Set(paidTodo.map(p=>p.staff_id))]).in('cutoff_date',[...new Set(paidTodo.map(p=>String(p.cutoff_date).slice(0,10)))]).limit(2000);
+        for(const r of seRows||[]) if(Number(r.amount)===1) earlySet.add(`${r.staff_id}:${String(r.cutoff_date).slice(0,10)}`);
+      }
+      for(const p of paidTodo){
         const s = sm.get(String(p.staff_id)); if(!s) continue;
         const cutoff = String(p.cutoff_date).slice(0,10);
-        const {data:se} = await admin.from('ledger_extras').select('amount').eq('field_key','sent_early').eq('staff_id',p.staff_id).eq('cutoff_date',cutoff).maybeSingle();
-        if(se && Number(se.amount)===1) continue; // Rendy: skip the PAID DM when Sent Early was ticked
+        if(earlySet.has(`${p.staff_id}:${cutoff}`)) continue; // Rendy: skip the PAID DM when Sent Early was ticked
         await dmTry(()=>sendDmOnce({eventKey:`dm:paid:${p.staff_id}:${cutoff}`,entityId:`${p.staff_id}:${cutoff}`,staff:s,...paidDm(p)}),'paid');
       }
     }
@@ -1650,10 +1679,10 @@ registerOffice({ app, admin, requireAdmin, requireActiveUser, sendDmOnce, dmBloc
 
 // ---------- Birthdays / Workiversaries (+500 SMB tokens) + auto-hide terminated staff → server/celebrations.js ----------
 var celebrations = registerCelebrations({ app, admin, requireAdmin, sendSlackOnce, safeSlack, slackUserIdFor, SLACK_BOT_TOKEN, SLACK_GENERAL_WEBHOOK_URL });
-setInterval(()=>celebrations.sweep(), 5*60*1000);
+setInterval(()=>celebrations.sweep(), 15*60*1000); // log saver: was 5 min — greetings still land within 15 min of midnight PHT
 setTimeout(()=>celebrations.sweep(), 20000); // once shortly after boot
 
-setInterval(()=>dmSweep(true), 5*60*1000);
+setInterval(()=>dmSweep(true), 15*60*1000); // log saver: was 5 min — fallback only, the portal triggers DMs instantly
 setTimeout(()=>dmSweep(true), 15000); // once shortly after boot
 
 app.listen(PORT, () => console.log('SMB Time server listening on ' + PORT));
