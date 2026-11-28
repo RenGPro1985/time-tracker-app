@@ -7494,10 +7494,11 @@ const C13=(function(){
   const money=v=>'₱'+Number(v||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
   const usd=v=>'$'+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   function weekdays(a,b){let n=0;for(let d=a;d<=b;d=addDays(d,1)){const w=new Date(d+'T00:00:00Z').getUTCDay();if(w>=1&&w<=5)n++;}return n;}
-  async function attach(rows,year,range){
+  async function attach(rows,year,range,pre){
     byStaff={};
     const yStart=`${year}-01-01`, yEnd=`${year}-12-31`, today=phDate(new Date());
-    const [setRes,invRes,fxRes]=await Promise.all([
+    /* pre = data saved at the last refresh (YTD static snapshot) -> no download */
+    const [setRes,invRes,fxRes]=pre?[{data:pre.set||[]},{data:pre.inv||[]},{data:pre.fx||[]}]:await Promise.all([
       sb.from('client_invoice_settings').select('*'),
       sb.from('client_invoices').select('*').gte('period_end',yStart).lte('period_end',yEnd),
       sb.from('fx_rates').select('*')
@@ -7551,6 +7552,7 @@ const C13=(function(){
       });
       res.total=r2(res.lines.reduce((a,l)=>a+l.php,0));
     });
+    return {set:setRes.data||[],inv:invRes.data||[],fx:fxRes.data||[]};
   }
   function ytdLikeIso(v){return /^\d{4}-\d{2}-\d{2}$/.test(String(v||''));}
   function cellHtml(r){
@@ -7708,7 +7710,7 @@ const C13=(function(){
         &&Math.abs(Number(saved.current_monthly_rate)-rows[1].monthly_rate)<0.005;
       if(!ok){msg.textContent='Save verification did not match the entered values; please refresh and check the rate rows.';return;}
       msg.textContent='Saved and verified.';
-      await ytdRun();
+      await ytdRun({fresh:true});
       const status=$('ytdStatus');
       status.textContent=`${status.textContent} Rate periods saved and verified for ${staff.full_name}.`;
     }catch(e){msg.textContent=`Save or verification failed: ${e.message}`;}
@@ -7743,7 +7745,7 @@ const C13=(function(){
       const rows=await ytdFetchManualCounts(staffList.filter(s=>s.active),year),saved=rows.find(r=>r.staff_id===staffId);
       const ok=saved&&Number(saved.calendar_year)===year&&YTD_COUNT_FIELDS.every(field=>Number(saved[`manual_${field}`])===payload[`manual_${field}`]);
       if(!ok){msg.textContent='Save verification did not match the entered counts; please refresh and check them.';return;}
-      await ytdRun();const status=$('ytdStatus');status.textContent=`${status.textContent} Attendance counts saved and verified for ${staff.full_name}.`;
+      await ytdRun({fresh:true});const status=$('ytdStatus');status.textContent=`${status.textContent} Attendance counts saved and verified for ${staff.full_name}.`;
     }catch(e){msg.textContent=`Save or verification failed: ${e.message}`;}
     finally{ytdAttendanceSaving.delete(staffId);if(btn)btn.disabled=false;}
   }
@@ -7901,9 +7903,10 @@ const C13=(function(){
   const ytdWhen=d=>new Date(d).toLocaleString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})+' PHT';
   async function ytdUsageLine(year,cached){
     const el=$('ytdUsage');if(!el)return;
-    let lock={};try{lock=await ytdLockRead();}catch(_){}
+    /* Static snapshot [2026-11-28]: with saved data, nothing is downloaded on open (lock time comes from the snapshot). */
+    let lock={};if(cached)lock[String(year)]=cached.at;else{try{lock=await ytdLockRead();}catch(_){}}
     const last=lock[String(year)],next=ytdNextAllowed(last),locked=next&&next>new Date();
-    el.innerHTML=(cached?`📦 Showing saved data as of <b>${ytdEscape(ytdWhen(cached.at))}</b> (attendance through ${ytdEscape(fmtNice(cached.range.end))}). `:'📦 No saved data on this device yet. ')
+    el.innerHTML=(cached?`📦 Static snapshot as of <b>${ytdEscape(ytdWhen((cached.small&&cached.small.at)||cached.at))}</b> (attendance through ${ytdEscape(fmtNice(cached.range.end))}). Opening this tab downloads nothing. `:'📦 No saved data on this device yet. ')
       +(locked?`Next heavy refresh available <b>${ytdEscape(ytdWhen(next))}</b>.`:'<b style="color:var(--teal)">Heavy refresh available.</b>');
   }
   async function ytdRefreshClick(){
@@ -7936,14 +7939,22 @@ const C13=(function(){
       if(!range.end||range.start>range.end)throw new Error('Selected year does not have a reportable date range.');
       $('ytdRange').textContent=`${fmtNice(range.start)} – ${fmtNice(range.end)} (${year===Number(phDate(new Date()).slice(0,4))?'year to date':'full calendar year'})`;
       if(!people.length){ytdRows=[];ytdComputedRows=[];ytdCurrentYear=year;ytdPopulateClientFilter([]);ytdApplyClientFilter();ytdStatus('No active employees are available in the current portal roster.',false);return;}
-      let rates=await ytdFetchRates(people);rates=await ytdSeedRates(people,year,rates);ytdRows=rates;
-      const [attendance,manualCounts]=await Promise.all([cached?Promise.resolve(cached.attendance):ytdLoadAttendance(range.start,range.end,people),ytdFetchManualCounts(people,year)]);
+      /* Static snapshot [Sir Rendy 2026-11-28]: everything this report shows (attendance, rates, counts,
+         13th-month invoices/FX, reliability excusals) is saved at the last refresh and reused on open,
+         so opening the tab or switching year/client uses zero Supabase egress. Only Refresh data,
+         saving a rate/count, or excusal edits download anything. */
+      const snap=cached&&cached.small&&!opts.fresh?cached.small:null;
+      let rates=snap?snap.rates:await ytdFetchRates(people);rates=await ytdSeedRates(people,year,rates);ytdRows=rates;
+      const [attendance,manualCounts]=await Promise.all([cached?Promise.resolve(cached.attendance):ytdLoadAttendance(range.start,range.end,people),snap?Promise.resolve(snap.manualCounts):ytdFetchManualCounts(people,year)]);
       if(!cached){await ytdCachePut(year,{at:new Date().toISOString(),range,attendance});await ytdLockWrite(year).catch(e=>console.warn('ytd lock',e));}
-      ytdUsageLine(year,cached||ytdMem[year]);
       const clientsById=Object.fromEntries(clients.map(c=>[c.id,c]));
       const rows=ytdComputeRows(people,clientsById,range,attendance,rates,manualCounts);
-      try{await C13.attach(rows,year,range);}catch(c13Err){console.error('Collected 13th',c13Err);rows.forEach(r=>r.c13={total:0,lines:[],error:c13Err.message});}
-      try{await window.Reliability?.compute(rows,attendance,range,year);}catch(relErr){console.error('Reliability',relErr);}
+      let c13Raw=null,relRaw=null,smallOk=true;
+      try{c13Raw=await C13.attach(rows,year,range,snap?snap.c13:null);}catch(c13Err){smallOk=false;console.error('Collected 13th',c13Err);rows.forEach(r=>r.c13={total:0,lines:[],error:c13Err.message});}
+      try{relRaw=await window.Reliability?.compute(rows,attendance,range,year,snap?snap.rel:null);}catch(relErr){smallOk=false;console.error('Reliability',relErr);}
+      const entry=ytdMem[year];
+      if(!snap&&entry&&smallOk){entry.small={at:new Date().toISOString(),rates,manualCounts,c13:c13Raw,rel:relRaw||{excusals:[],visible:false}};await ytdCachePut(year,entry);}
+      ytdUsageLine(year,entry);
       ytdCurrentYear=year;ytdComputedRows=rows;ytdPopulateClientFilter(rows);ytdApplyClientFilter();
       const unknown=rows.filter(r=>r.workdaysUninferable).length,missing=rows.filter(r=>r.missingRateDays).length,noHire=rows.filter(r=>r.missingHireDate).length,historyMissing=rows.filter(r=>!r.attendanceCountsComplete).length;
       let msg=`Loaded ${rows.length} active employees. Days Present counts a shift login or timesheet entry, even with zero payable hours. For 2026, enter historical counts through Sep 27; automatic counts start Sep 28. Earlier years use saved full-year totals. Year End Bonus formula is unchanged.`;
@@ -7969,6 +7980,7 @@ const C13=(function(){
   }
   window.YTDAttendanceMath={addMonths:ytdAddMonths,parseWorkdays:ytdParseWorkdays,ratesForDate:ytdRatesForDate,defaultPeriods:ytdDefaultPeriods,effectivePay:ytdGetEffectivePay,bonus:ytdBonus,absenceDeduction:ytdAbsenceDeduction,lessAbsences:ytdLessAbsences,rangeForYear:ytdRangeForYear,computeRows:ytdComputeRows,loadAttendance:ytdLoadAttendance,filterByClient:ytdFilterRowsByClient,autoStart:YTD_AUTO_START,applyClientFilter:ytdApplyClientFilter};
   window.initYtdAttendance=initYtdAttendance;
+  window.ytdPatchSnapshot=async function(patch){const y=ytdCurrentYear,e=y&&ytdMem[y];if(!e||!e.small)return;e.small.rel=Object.assign({},e.small.rel||{},patch);await ytdCachePut(y,e);};
 })();
 </script>
 
@@ -10024,7 +10036,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
   }
 
   /* Called by ytdRun after rows are computed (admin only). */
-  async function compute(rows,attendance,range,year){
+  async function compute(rows,attendance,range,year,pre){
     relYear=year; relPublishMsg=''; relCtx=null; relByStaff={};
     const shiftsByStaff={},entriesByStaff={};
     (attendance.shifts||[]).forEach(s=>(shiftsByStaff[s.staff_id]=shiftsByStaff[s.staff_id]||[]).push(s));
@@ -10032,11 +10044,13 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     relCtx={rows,range,year,autoStart:window.YTDAttendanceMath?.autoStart||'2026-09-28',shiftsByStaff,entriesByStaff,
       shiftDateMap:buildShiftDateMap(attendance.shifts||[]),shiftSpanMap:buildShiftSpanMap(attendance.shifts||[])};
     let setupErr='';
+    if(pre){relExcusals=pre.excusals||[];relStaffVisible=!!pre.visible;relCtx.setupErr='';recompute();return pre;} /* static snapshot: no download, no re-publish */
     try{relExcusals=await fetchExcusals(range);}catch(e){relExcusals=[];setupErr=e.message;}
     try{relStaffVisible=await fetchSetting();}catch(e){relStaffVisible=false;setupErr=setupErr||e.message;}
     relCtx.setupErr=setupErr;
     recompute();
     if(!setupErr)publish();
+    return setupErr?null:{excusals:relExcusals,visible:relStaffVisible};
   }
   /* Store each person's own result (no rank). Staff can read theirs only while staff view is ON. */
   async function publish(){
@@ -10087,7 +10101,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     document.querySelectorAll('[data-rel-preview]').forEach(b=>b.onclick=()=>preview(b.dataset.relPreview));
   }
   async function refreshAfterExcusal(){
-    relExcusals=await fetchExcusals(relCtx.range); recompute(); window.YTDAttendanceMath?.applyClientFilter?.(); publish();
+    relExcusals=await fetchExcusals(relCtx.range); recompute(); window.YTDAttendanceMath?.applyClientFilter?.(); publish(); window.ytdPatchSnapshot?.({excusals:relExcusals});
   }
   async function addExcusal(staffId){
     const sel=a=>document.querySelector(`[${a}="${CSS.escape(staffId)}"]`);
@@ -10146,7 +10160,7 @@ ${fld('Relationship-Milestone Bonus (annual)','milestone_amount','','')}
     if(!next&&!confirm('Turn OFF? Staff will no longer see their Reliability card.'))return;
     const {data,error}=await sb.from('reliability_settings').update({staff_visible:next,updated_by:me.id,updated_at:new Date().toISOString()}).eq('id',1).select('staff_visible').maybeSingle();
     if(error||!data)return alert(`Could not change it: ${error?.message||'no row updated (run the reliability SQL)'}`);
-    relStaffVisible=!!data.staff_visible; if(relStaffVisible)await publish(); renderChart();
+    relStaffVisible=!!data.staff_visible; window.ytdPatchSnapshot?.({visible:relStaffVisible}); if(relStaffVisible)await publish(); renderChart();
   }
   function exportCsv(list){
     const head=['Rank','Staff','Client','Score','Band','Partial','Attendance %','Expected days','PA','OUT','Excused','Late log-ins','Late per 20 days','Over-break min','Over-break per 20 days','Tracked days','Historical counts missing'];
